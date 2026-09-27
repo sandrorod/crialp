@@ -1,3 +1,4 @@
+import { env } from './config/env.js';
 import { ensureAdmin } from './db/bootstrap.js';
 import { runMigrations } from './db/migrate.js';
 import { jobService } from './services/jobs/JobService.js';
@@ -10,6 +11,7 @@ let ready: Promise<void> | null = null;
  */
 export function ensureReady(): Promise<void> {
   ready ??= (async () => {
+    if (!env.databaseUrl) throw new Error('DATABASE_URL não configurada.');
     await runMigrations();
     await ensureAdmin();
     await jobService.failStale();

@@ -58,7 +58,8 @@ export const env = {
   isAppHost,
   isSystemHost,
   port: Number(process.env.PORT ?? 3333),
-  databaseUrl: required('DATABASE_URL'),
+  // Validada em ensureReady(), para o sistema poder exibir uma mensagem clara em vez de travar
+  databaseUrl: process.env.DATABASE_URL ?? '',
   databaseSsl: process.env.DATABASE_SSL === 'true',
   appUrl,
   appHosts,
