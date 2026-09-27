@@ -64,7 +64,7 @@ publicRouter.get('/api/domains/check', async (req, res) => {
  */
 export async function customDomainMiddleware(req: Request, res: Response, next: NextFunction) {
   const host = (req.hostname ?? '').toLowerCase();
-  if (!host || env.appHosts.has(host)) return next();
+  if (!host || env.isSystemHost(host)) return next();
   if (req.path.startsWith('/uploads/')) return next();
   if (req.method !== 'GET' && req.method !== 'HEAD') return res.status(405).end();
   if (req.path !== '/') return res.redirect(301, '/');

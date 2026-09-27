@@ -1,10 +1,10 @@
-import type { ReactNode } from 'react';
-import { ArrowDown, ArrowUp, Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, Plus, Search, Trash2, X } from 'lucide-react';
 import { Button, Field, Input, ListEditor, Select, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { cn } from '@/lib/utils';
-import { landingPageService } from '@/services';
-import type { Company, LandingContent, SectionKey } from '@/types';
+import { companyService, landingPageService } from '@/services';
+import type { Company, CustomSection, LandingContent, SectionKey, SectionOrderKey } from '@/types';
 
 const SECTION_LABELS: Record<SectionKey, string> = {
   about: 'Sobre a empresa',
@@ -45,7 +45,95 @@ const LABEL_FIELDS: { key: string; label: string }[] = [
   { key: 'nav_faq', label: 'Menu — Dúvidas' },
   { key: 'nav_contact', label: 'Menu — Contato' },
   { key: 'whatsapp_float', label: 'Botão flutuante do WhatsApp' },
+  { key: 'whatsapp_message', label: 'Mensagem inicial do WhatsApp ({empresa} = nome)' },
+  { key: 'contact_whatsapp', label: 'Contato — rótulo WhatsApp' },
+  { key: 'contact_phone', label: 'Contato — rótulo Telefone' },
+  { key: 'contact_email', label: 'Contato — rótulo E-mail' },
+  { key: 'contact_address', label: 'Contato — rótulo Endereço' },
+  { key: 'contact_hours', label: 'Contato — rótulo Horário' },
+  { key: 'fact_specialty', label: 'Ficha — Especialidade' },
+  { key: 'fact_location', label: 'Ficha — Localização' },
+  { key: 'fact_hours', label: 'Ficha — Atendimento' },
+  { key: 'fact_audience', label: 'Ficha — Público' },
+  { key: 'footer_note', label: 'Rodapé — texto (vazio = endereço)' },
+  { key: 'skip_link', label: 'Acessibilidade — link "pular para o conteúdo"' },
 ];
+
+/** Lista trechos do site (texto integral guardado) para inserir numa seção com um clique. */
+function SitePicker({ companyId, onPick, onClose }: { companyId: string; onPick: (text: string) => void; onClose: () => void }) {
+  const { data, loading } = useAsync(() => companyService.sources(companyId), [companyId]);
+  const [term, setTerm] = useState('');
+  const t = term.trim().toLowerCase();
+  const blocks = (data?.pages ?? []).flatMap((p) =>
+    p.content
+      .split('\n')
+      .map((l) => l.replace(/^## /, '').trim())
+      .filter((l) => l.length > 2)
+      .map((l) => ({ page: p.title || p.url, text: l })),
+  );
+  const shown = (t ? blocks.filter((b) => b.text.toLowerCase().includes(t)) : blocks).slice(0, 300);
+  return (
+    <div className="rounded-lg border border-brand-200 bg-brand-50/40 p-3">
+      <div className="mb-2 flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-zinc-400" />
+          <Input className="h-8 pl-8 text-xs" placeholder="Buscar no texto do site…" value={term} onChange={(e) => setTerm(e.target.value)} autoFocus />
+        </div>
+        <button type="button" onClick={onClose} className="rounded p-1 text-zinc-500 hover:bg-zinc-200" aria-label="Fechar"><X className="size-4" /></button>
+      </div>
+      {loading ? (
+        <p className="text-xs text-zinc-500">Carregando…</p>
+      ) : !blocks.length ? (
+        <p className="text-xs text-zinc-500">Sem conteúdo do site guardado. Em "Editar empresa", use "Ler o site agora".</p>
+      ) : (
+        <ul className="max-h-64 space-y-1 overflow-y-auto">
+          {shown.map((b, i) => (
+            <li key={i}>
+              <button type="button" onClick={() => onPick(b.text)} className="w-full rounded-md bg-white px-2.5 py-1.5 text-left text-xs text-zinc-700 ring-1 ring-zinc-200 hover:ring-brand-500">
+                {b.text}
+                <span className="mt-0.5 block truncate text-[10px] text-zinc-400">{b.page}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function CustomSectionEditor({ section, onChange, companyId }: { section: CustomSection; onChange: (s: CustomSection) => void; companyId?: string }) {
+  const [picker, setPicker] = useState<null | 'paragraphs' | 'items'>(null);
+  return (
+    <>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Input placeholder="Sobretítulo (opcional)" value={section.eyebrow ?? ''} onChange={(e) => onChange({ ...section, eyebrow: e.target.value || null })} />
+        <Input placeholder="Título da seção" value={section.title} onChange={(e) => onChange({ ...section, title: e.target.value })} className="font-medium" />
+      </div>
+      <Field label="Texto" hint="Separe os parágrafos com uma linha em branco.">
+        <Textarea
+          className="min-h-[120px]"
+          value={section.paragraphs.join('\n\n')}
+          onChange={(e) => onChange({ ...section, paragraphs: e.target.value.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean) })}
+        />
+      </Field>
+      <ListEditor label="Lista (opcional — ex.: unidades, especialidades, convênios)" values={section.items} onChange={(items) => onChange({ ...section, items })} />
+      {companyId ? (
+        picker ? (
+          <SitePicker
+            companyId={companyId}
+            onClose={() => setPicker(null)}
+            onPick={(text) => onChange(picker === 'items' ? { ...section, items: [...section.items, text] } : { ...section, paragraphs: [...section.paragraphs, text] })}
+          />
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="secondary" size="sm" icon={<FileText className="size-3.5" />} onClick={() => setPicker('paragraphs')}>Inserir texto do site</Button>
+            <Button type="button" variant="secondary" size="sm" icon={<FileText className="size-3.5" />} onClick={() => setPicker('items')}>Inserir item do site na lista</Button>
+          </div>
+        )
+      ) : null}
+    </>
+  );
+}
 
 // ─── Blocos de interface ────────────────────────────────────────────
 function Group({ title, children, actions, empty }: { title: string; children?: ReactNode; actions?: ReactNode; empty?: boolean }) {
@@ -117,6 +205,10 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
   const { data: defaults } = useAsync(() => landingPageService.labels(), []);
   const set = <K extends keyof LandingContent>(key: K, v: LandingContent[K]) => onChange({ ...content, [key]: v });
   const order = content.section_order;
+  const customs = content.custom_sections ?? [];
+  const sectionName = (k: SectionOrderKey) =>
+    k.startsWith('custom:') ? `★ ${customs.find((c) => c.id === k.slice(7))?.title || 'Seção personalizada'}` : SECTION_LABELS[k as SectionKey];
+  const allKeys: SectionOrderKey[] = [...ALL_SECTIONS, ...customs.map((c) => `custom:${c.id}` as SectionOrderKey)];
 
   /** Cria uma seção que não existia e a coloca antes do contato. */
   const createSection = <K extends keyof LandingContent>(key: K & SectionKey, value: LandingContent[K]) => {
@@ -128,7 +220,7 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
   const removeSection = (key: 'about' | 'services' | 'differentials' | 'products' | 'gallery' | 'faq') =>
     onChange({ ...content, [key]: null, section_order: order.filter((k) => k !== key) });
 
-  const move = (k: SectionKey, dir: -1 | 1) => {
+  const move = (k: SectionOrderKey, dir: -1 | 1) => {
     const i = order.indexOf(k);
     const j = i + dir;
     if (i < 0 || j < 0 || j >= order.length) return;
@@ -136,8 +228,19 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
     [next[i], next[j]] = [next[j], next[i]];
     set('section_order', next);
   };
-  const toggle = (k: SectionKey) =>
-    set('section_order', order.includes(k) ? order.filter((x) => x !== k) : [...order.filter((x) => !REQUIRED.includes(x)), k, ...REQUIRED.filter((r) => order.includes(r))]);
+  const toggle = (k: SectionOrderKey) =>
+    set('section_order', order.includes(k) ? order.filter((x) => x !== k) : [...order.filter((x) => !REQUIRED.includes(x as SectionKey)), k, ...REQUIRED.filter((r) => order.includes(r))]);
+
+  const addCustom = () => {
+    const id = Math.random().toString(36).slice(2, 8);
+    const next = order.filter(() => true);
+    const at = next.indexOf('contact');
+    next.splice(at >= 0 ? at : next.length, 0, `custom:${id}`);
+    onChange({ ...content, custom_sections: [...customs, { id, eyebrow: null, title: 'Nova seção', paragraphs: [], items: [] }], section_order: next });
+  };
+  const updateCustom = (s: CustomSection) => set('custom_sections', customs.map((c) => (c.id === s.id ? s : c)));
+  const removeCustom = (id: string) =>
+    onChange({ ...content, custom_sections: customs.filter((c) => c.id !== id), section_order: order.filter((k) => k !== `custom:${id}`) });
 
   const createBtn = (onClick: () => void) => (
     <Button type="button" variant="secondary" size="sm" icon={<Plus className="size-3.5" />} onClick={onClick}>Criar seção</Button>
@@ -154,18 +257,18 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
       <Group title="Seções e ordem">
         <p className="text-xs text-zinc-500">Seções sem dados reais (ex.: depoimentos inexistentes ou galeria sem fotos liberadas) não aparecem, mesmo se ativadas.</p>
         <ul className="space-y-1">
-          {[...order, ...ALL_SECTIONS.filter((k) => !order.includes(k))].map((k) => {
+          {[...order, ...allKeys.filter((k) => !order.includes(k))].map((k) => {
             const on = order.includes(k);
             return (
               <li key={k} className={cn('flex items-center gap-2 rounded-md px-2 py-1.5', on ? 'bg-zinc-50' : 'opacity-60')}>
-                <span className="flex-1 text-sm">{SECTION_LABELS[k]}</span>
+                <span className="flex-1 truncate text-sm">{sectionName(k)}</span>
                 {on ? (
                   <>
                     <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-200" onClick={() => move(k, -1)} aria-label="Subir"><ArrowUp className="size-3.5" /></button>
                     <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-200" onClick={() => move(k, 1)} aria-label="Descer"><ArrowDown className="size-3.5" /></button>
                   </>
                 ) : null}
-                <button type="button" disabled={REQUIRED.includes(k)} className="rounded p-1 text-zinc-500 hover:bg-zinc-200 disabled:opacity-30" onClick={() => toggle(k)} aria-label={on ? 'Ocultar' : 'Mostrar'}>
+                <button type="button" disabled={REQUIRED.includes(k as SectionKey)} className="rounded p-1 text-zinc-500 hover:bg-zinc-200 disabled:opacity-30" onClick={() => toggle(k)} aria-label={on ? 'Ocultar' : 'Mostrar'}>
                   {on ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
                 </button>
               </li>
@@ -348,6 +451,24 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
         <Txt label="Título" area value={content.final_cta.title} onChange={(v) => set('final_cta', { ...content.final_cta, title: v })} />
         <Txt label="Subtítulo" value={content.final_cta.subtitle} onChange={(v) => set('final_cta', { ...content.final_cta, subtitle: v || null })} />
         <Txt label="Texto do botão" value={content.final_cta.cta} onChange={(v) => set('final_cta', { ...content.final_cta, cta: v })} />
+      </Group>
+
+      <Group
+        title={`Seções personalizadas (${customs.length})`}
+        actions={<Button type="button" variant="secondary" size="sm" icon={<Plus className="size-3.5" />} onClick={addCustom}>Nova seção</Button>}
+      >
+        <p className="text-xs text-zinc-500">
+          Crie seções com qualquer informação do site que não entrou automaticamente (unidades, convênios, história, políticas…) ou com textos próprios.
+        </p>
+        {customs.map((c) => (
+          <div key={c.id} className="space-y-2 rounded-md border border-zinc-100 bg-zinc-50/50 p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">{c.title || 'Seção personalizada'}</span>
+              <button type="button" className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title="Excluir seção" onClick={() => removeCustom(c.id)}><Trash2 className="size-4" /></button>
+            </div>
+            <CustomSectionEditor section={c} onChange={updateCustom} companyId={company?.id} />
+          </div>
+        ))}
       </Group>
 
       <Group title="Rótulos, menu e botões" empty>

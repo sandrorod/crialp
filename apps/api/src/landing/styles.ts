@@ -193,6 +193,12 @@ p{margin:0;text-wrap:pretty}
 .final .btn{margin-top:36px;background:var(--on-primary);color:var(--primary);box-shadow:0 18px 40px -18px rgba(0,0,0,.45)}
 .final .btn:hover{transform:translateY(-2px)}
 
+/* Seções personalizadas */
+.custom-text{max-width:760px;display:grid;gap:18px;color:var(--muted);font-size:18px;white-space:pre-line}
+.custom-list{list-style:none;margin:32px 0 0;padding:0;display:grid;gap:14px 32px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.custom-list li{display:flex;gap:12px;align-items:flex-start;padding:16px 18px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg)}
+.custom-list .ico{color:var(--primary-ink);margin-top:3px}
+
 /* Rodapé */
 .site-footer{padding:40px 0 calc(40px + env(safe-area-inset-bottom));font-size:14px;color:var(--muted);border-top:1px solid var(--border)}
 .site-footer .container{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-between}

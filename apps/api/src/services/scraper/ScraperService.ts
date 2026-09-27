@@ -44,7 +44,9 @@ const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36 LPBot/1.0';
 const MAX_BYTES = 3 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
-const MAX_EXTRA_PAGES = 5;
+const MAX_EXTRA_PAGES = 12;
+/** Limite do material enviado à IA (o conteúdo integral fica guardado para o administrador). */
+const MAX_AI_DOCUMENT = 70_000;
 const MAX_PAGE_TEXT = 12_000;
 const MAX_IMAGE_CANDIDATES = 120;
 const MAX_IMAGES = 40;
@@ -296,8 +298,10 @@ export class ScraperService {
       const key = url.toString();
       if (key === base.toString() || url.pathname === '/' ) return;
       const haystack = `${decodeURIComponent(url.pathname)} ${$first(el).text()}`.toLowerCase();
-      const score = PAGE_KEYWORDS.reduce((s, k) => (haystack.includes(k) ? s + 1 : s), 0);
-      if (score > 0) candidates.set(key, Math.max(candidates.get(key) ?? 0, score));
+      if (/(wp-login|wp-admin|login|carrinho|cart|checkout|minha-conta|account|politica-de-cookies|\/tag\/|\/author\/|\/page\/\d)/i.test(url.pathname)) return;
+      // Páginas com palavras-chave primeiro; depois as demais páginas internas (menu, rodapé)
+      const score = PAGE_KEYWORDS.reduce((s, k) => (haystack.includes(k) ? s + 1 : s), 0) + 0.1;
+      candidates.set(key, Math.max(candidates.get(key) ?? 0, score));
     });
     const extraUrls = [...candidates.entries()]
       .sort((a, b) => b[1] - a[1])
@@ -499,9 +503,11 @@ export class ScraperService {
 export function buildAnalysisDocument(scrape: ScrapeResult): string {
   const parts: string[] = [];
   parts.push(`URL ANALISADA: ${scrape.finalUrl}`);
+  // Orçamento de texto por página, para que todas as páginas lidas contribuam
+  const perPage = Math.floor((MAX_AI_DOCUMENT - 20_000) / Math.max(scrape.pages.length, 1));
   for (const page of scrape.pages) {
     parts.push(
-      `\n=== PÁGINA: ${page.url} ===\nTítulo: ${page.title}\nDescrição (meta): ${page.description}\n\n${page.text}`,
+      `\n=== PÁGINA: ${page.url} ===\nTítulo: ${page.title}\nDescrição (meta): ${page.description}\n\n${page.text.slice(0, Math.max(perPage, 3000))}`,
     );
   }
   if (scrape.jsonLd.length) {

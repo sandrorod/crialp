@@ -10,6 +10,7 @@ const migrationsDir = path.resolve(here, '../../../../database/migrations');
 export async function runMigrations(log = console.log) {
   const client = await pool.connect();
   try {
+    await client.query('select pg_advisory_lock(727274)');
     await client.query(`create table if not exists schema_migrations (
       name text primary key,
       applied_at timestamptz not null default now()
@@ -33,6 +34,7 @@ export async function runMigrations(log = console.log) {
       }
     }
   } finally {
+    await client.query('select pg_advisory_unlock(727274)').catch(() => {});
     client.release();
   }
 }

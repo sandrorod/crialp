@@ -6,6 +6,7 @@ import type { JobHandle } from '../jobs/JobService.js';
 import { buildAnalysisDocument, ScraperService } from '../scraper/ScraperService.js';
 import { assembleImages } from './images.js';
 import { SourceVerifier } from './verify.js';
+import { toSourcePayload } from '../../repositories/sources.js';
 
 /** Etapas exibidas na interface (1–6 análise; 7–9 geração). */
 export const ANALYZE_STEPS = {
@@ -117,6 +118,8 @@ export async function analyzeUrl(job: JobHandle, url: URL, opts: { allowImages?:
   };
 
   return {
+    // Conteúdo integral do site: não é enviado ao navegador; é salvo junto com a empresa
+    raw: toSourcePayload(scrape),
     draft,
     design_preset: extracted.design_preset,
     meta: {

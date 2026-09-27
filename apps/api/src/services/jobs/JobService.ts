@@ -1,4 +1,6 @@
 import { one, query } from '../../db/pool.js';
+import { waitUntil } from '@vercel/functions';
+import { env } from '../../config/env.js';
 import { AppError, Messages } from '../../lib/errors.js';
 
 export type JobType = 'analyze_url' | 'generate_landing_page';
@@ -46,7 +48,7 @@ export class JobService {
         await query(`update jobs set step = $2, status = 'running' where id = $1`, [id, n]);
       },
     };
-    void (async () => {
+    const task = (async () => {
       try {
         await query(`update jobs set status = 'running' where id = $1`, [id]);
         const result = await fn(handle);
@@ -57,6 +59,17 @@ export class JobService {
         await query(`update jobs set status = 'error', error = $2 where id = $1`, [id, message]).catch(() => {});
       }
     })();
+    // No Vercel a função continua viva até a tarefa terminar, mesmo após a resposta
+    if (env.isVercel) waitUntil(task);
+  }
+
+  /** Tarefas paradas há mais de 10 min (instância encerrada) viram erro. Seguro em várias instâncias. */
+  async failStale() {
+    await query(
+      `update jobs set status = 'error', error = 'Processamento interrompido. Tente novamente.'
+        where status in ('queued','running') and updated_at < now() - interval '10 minutes'`,
+    );
+    await query(`delete from jobs where created_at < now() - interval '7 days'`);
   }
 
   /** Tarefas interrompidas por reinício do servidor não ficam "rodando" para sempre. */

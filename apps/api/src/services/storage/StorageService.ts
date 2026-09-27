@@ -20,7 +20,18 @@ class LocalStorage implements StorageService {
   }
 }
 
-export const storage: StorageService = new LocalStorage();
+/** Vercel Blob (disco do Vercel é somente leitura). Requer BLOB_READ_WRITE_TOKEN. */
+class VercelBlobStorage implements StorageService {
+  async save(buffer: Buffer, ext: string) {
+    const { put } = await import('@vercel/blob');
+    const now = new Date();
+    const name = `uploads/${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${crypto.randomUUID()}.${ext}`;
+    const blob = await put(name, buffer, { access: 'public', contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}` });
+    return blob.url;
+  }
+}
+
+export const storage: StorageService = env.storage.driver === 'vercel-blob' ? new VercelBlobStorage() : new LocalStorage();
 
 /** Confere a assinatura binária do arquivo (não confia na extensão enviada). */
 export function detectImageType(buf: Buffer): 'jpg' | 'png' | 'webp' | 'gif' | null {

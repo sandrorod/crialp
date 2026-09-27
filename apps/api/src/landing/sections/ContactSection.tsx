@@ -11,11 +11,11 @@ const SOCIAL_ICON: Record<string, string> = {
 export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {
   const { company, links } = ctx;
   const items: { icon: string; label: string; value: string; href?: string | null }[] = [];
-  if (links.whatsapp) items.push({ icon: 'message', label: 'WhatsApp', value: formatBrazilPhone(company.whatsapp || company.mobile), href: links.whatsapp });
-  if (links.phoneLabel && links.phone) items.push({ icon: 'phone', label: 'Telefone', value: links.phoneLabel, href: links.phone });
-  if (company.email) items.push({ icon: 'mail', label: 'E-mail', value: company.email, href: links.email });
-  if (ctx.addressLine) items.push({ icon: 'map-pin', label: 'Endereço', value: ctx.addressLine, href: links.map });
-  if (company.opening_hours) items.push({ icon: 'clock', label: 'Horário de atendimento', value: company.opening_hours });
+  if (links.whatsapp) items.push({ icon: 'message', label: ctx.labels.contact_whatsapp, value: formatBrazilPhone(company.whatsapp || company.mobile), href: links.whatsapp });
+  if (links.phoneLabel && links.phone) items.push({ icon: 'phone', label: ctx.labels.contact_phone, value: links.phoneLabel, href: links.phone });
+  if (company.email) items.push({ icon: 'mail', label: ctx.labels.contact_email, value: company.email, href: links.email });
+  if (ctx.addressLine) items.push({ icon: 'map-pin', label: ctx.labels.contact_address, value: ctx.addressLine, href: links.map });
+  if (company.opening_hours) items.push({ icon: 'clock', label: ctx.labels.contact_hours, value: company.opening_hours });
   if (!items.length && !ctx.socials.length) return null;
 
   return (
@@ -89,7 +89,7 @@ export function Footer({ ctx }: { ctx: RenderContext }) {
           © {year} {ctx.displayName}
           {ctx.company.legal_name && ctx.company.legal_name !== ctx.displayName ? ` · ${ctx.company.legal_name}` : ''}
         </span>
-        {ctx.addressLine ? <span>{ctx.addressLine}</span> : null}
+        {ctx.labels.footer_note ? <span>{ctx.labels.footer_note}</span> : ctx.addressLine ? <span>{ctx.addressLine}</span> : null}
       </div>
     </footer>
   );

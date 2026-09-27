@@ -4,6 +4,7 @@ import type {
   Company,
   CompanyDraft,
   CompanyImage,
+  CompanySources,
   CompanyListItem,
   DashboardStats,
   Job,
@@ -41,9 +42,11 @@ export const companyService = {
   list: (f: { search?: string; segment?: string; city?: string; status?: string }) =>
     api.get<{ items: CompanyListItem[]; facets: { segments: string[]; cities: string[] } }>(`/companies${qs(f)}`),
   get: (id: string) => api.get<Company>(`/companies/${id}`),
-  create: (draft: CompanyDraft & { source_meta?: object }) => api.post<{ id: string }>('/companies', draft),
+  create: (draft: CompanyDraft & { source_meta?: object; analysis_job_id?: string }) => api.post<{ id: string }>('/companies', draft),
   update: (id: string, draft: CompanyDraft) => api.put<Company>(`/companies/${id}`, draft),
   remove: (id: string) => api.del(`/companies/${id}`),
+  sources: (id: string) => api.get<CompanySources>(`/companies/${id}/sources`),
+  refreshSources: (id: string) => api.post<CompanySources>(`/companies/${id}/sources/refresh`),
   fetchImages: (id: string, allowImages: boolean) =>
     api.post<{ images: CompanyImage[]; found: number; classified: boolean }>(`/companies/${id}/fetch-images`, { allowImages }),
 };

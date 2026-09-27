@@ -160,11 +160,32 @@ export const LandingContentSchema = z.object({
   final_cta: z.object({ title: z.string(), subtitle: z.string().nullable(), cta: z.string() }),
   section_order: z.array(z.enum(SECTION_KEYS)),
 });
-export type LandingContent = z.infer<typeof LandingContentSchema> & { labels?: Record<string, string> };
+/** Seção criada pelo administrador (qualquer conteúdo do site ou texto próprio). */
+export const CustomSectionSchema = z.object({
+  id: z.string().regex(/^[a-z0-9-]{1,40}$/),
+  eyebrow: z.string().max(120).nullable().default(null),
+  title: z.string().max(300),
+  paragraphs: z.array(z.string().max(8000)).max(40).default([]),
+  items: z.array(z.string().max(600)).max(60).default([]),
+});
+export type CustomSection = z.infer<typeof CustomSectionSchema>;
 
-/** Conteúdo editado manualmente: igual ao gerado, mais os rótulos fixos da página. */
+/** Item da ordem das seções: uma seção padrão ou "custom:<id>". */
+export type SectionOrderKey = SectionKey | `custom:${string}`;
+
+export type LandingContent = Omit<z.infer<typeof LandingContentSchema>, 'section_order'> & {
+  section_order: SectionOrderKey[];
+  labels?: Record<string, string>;
+  custom_sections?: CustomSection[];
+};
+
+/** Conteúdo editado manualmente: igual ao gerado, mais rótulos e seções personalizadas. */
 export const LandingContentEditSchema = LandingContentSchema.extend({
-  labels: z.record(z.string(), z.string().max(120)).optional(),
+  labels: z.record(z.string(), z.string().max(400)).optional(),
+  custom_sections: z.array(CustomSectionSchema).max(20).optional(),
+  section_order: z
+    .array(z.string().regex(/^(about|services|differentials|products|gallery|testimonials|faq|contact|final_cta|custom:[a-z0-9-]{1,40})$/))
+    .max(60),
 });
 
 // ─── Classificação apenas das imagens (busca de fotos em empresa já cadastrada) ──

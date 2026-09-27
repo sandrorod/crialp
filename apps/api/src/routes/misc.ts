@@ -31,6 +31,9 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 *
 miscRouter.post('/uploads', upload.single('file'), async (req, res) => {
   authUser(req);
   if (!req.file) throw new AppError(400, 'Nenhum arquivo enviado.');
+  if (env.isVercel && env.storage.driver === 'local') {
+    throw new AppError(503, 'Upload indisponível: no Vercel, conecte um Blob Store ao projeto (Storage → Blob) para habilitar o envio de imagens.');
+  }
   const ext = detectImageType(req.file.buffer);
   if (!ext) throw new AppError(400, 'Formato não suportado. Envie JPG, PNG, WEBP ou GIF.');
   const url = await storage.save(req.file.buffer, ext);

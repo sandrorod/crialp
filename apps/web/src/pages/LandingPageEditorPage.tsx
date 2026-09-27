@@ -201,7 +201,7 @@ export function LandingPageEditorPage() {
           </div>
           <div className="xl:max-h-[calc(72vh+10px)] xl:overflow-y-auto xl:pr-1">
             {tab === 'textos' ? <ContentTab content={content} onChange={change(setContent)} company={company} /> : null}
-            {tab === 'visual' ? <Card className="p-5"><DesignTab theme={theme} onChange={change(setTheme)} imagesAllowed={lp.company?.images_allowed ?? 0} /></Card> : null}
+            {tab === 'visual' ? <Card className="p-5"><DesignTab theme={theme} onChange={change(setTheme)} imagesAllowed={lp.company?.images_allowed ?? 0} content={content} /></Card> : null}
             {tab === 'seo' ? <Card className="p-5"><SeoTab seo={seo} onChange={change(setSeo)} slug={lp.slug} /></Card> : null}
             {tab === 'publicacao' ? <Card className="p-5"><PublishTab lp={lp} onUpdated={refresh} /></Card> : null}
             {tab === 'versoes' ? <VersionsTab lp={lp} onRestored={refresh} /> : null}

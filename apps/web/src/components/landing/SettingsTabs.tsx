@@ -6,7 +6,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { cn, copyToClipboard, formatDate } from '@/lib/utils';
 import { landingPageService } from '@/services';
-import type { HeroVariant, LandingPageDetail, ThemeSettings } from '@/types';
+import type { HeroVariant, LandingContent, LandingPageDetail, SectionColors, SectionOrderKey, ThemeSettings } from '@/types';
 
 // ─── Visual ─────────────────────────────────────────────────────────
 const HERO_VARIANTS: { value: HeroVariant; label: string; hint: string }[] = [
@@ -15,7 +15,91 @@ const HERO_VARIANTS: { value: HeroVariant; label: string; hint: string }[] = [
   { value: 'image', label: 'Imagem cheia', hint: 'Requer foto liberada' },
 ];
 
-export function DesignTab({ theme, onChange, imagesAllowed }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; imagesAllowed: number }) {
+const SECTION_NAMES: Record<string, string> = {
+  hero: 'Topo (hero)',
+  about: 'Sobre a empresa',
+  services: 'Serviços',
+  differentials: 'Diferenciais',
+  products: 'Produtos',
+  gallery: 'Galeria',
+  testimonials: 'Depoimentos',
+  faq: 'Perguntas frequentes',
+  contact: 'Contato',
+  final_cta: 'CTA final',
+  footer: 'Rodapé',
+};
+
+function ColorSlot({ label, value, fallback, onChange, palette }: { label: string; value?: string | null; fallback: string; onChange: (v: string | null) => void; palette: string[] }) {
+  return (
+    <div className="min-w-0">
+      <div className="mb-1 flex items-center justify-between text-[11px] text-zinc-500">
+        <span>{label}</span>
+        {value ? <button type="button" className="text-zinc-400 hover:text-ink" onClick={() => onChange(null)}>padrão</button> : <span className="text-zinc-400">padrão</span>}
+      </div>
+      <div className="flex items-center gap-1.5">
+        <label className={cn('relative size-8 flex-none cursor-pointer overflow-hidden rounded-md ring-1', value ? 'ring-zinc-300' : 'ring-dashed ring-zinc-300')} style={{ background: value ?? fallback }} title="Escolher cor">
+          <input type="color" className="absolute inset-0 cursor-pointer opacity-0" value={value ?? fallback} onChange={(e) => onChange(e.target.value)} />
+          {!value ? <span className="absolute inset-0 grid place-items-center text-[9px] font-semibold text-white mix-blend-difference">auto</span> : null}
+        </label>
+        <div className="flex flex-wrap gap-1">
+          {palette.map((c) => (
+            <button key={c} type="button" onClick={() => onChange(c)} className={cn('size-4 rounded ring-1 ring-black/10', value === c && 'ring-2 ring-ink')} style={{ background: c }} title={c} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Cores individuais de cada seção (sobrepõem as cores do projeto). */
+function SectionColorsEditor({ theme, onChange, content, palette, defaults }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; content: LandingContent; palette: string[]; defaults: { bg: string; text: string; accent: string } }) {
+  const sections = theme.sections ?? {};
+  const customs = content.custom_sections ?? [];
+  const keys: string[] = ['hero', ...content.section_order.filter((k: SectionOrderKey) => k !== 'final_cta'), 'final_cta', 'footer'];
+  const name = (k: string) => (k.startsWith('custom:') ? `★ ${customs.find((c) => c.id === k.slice(7))?.title || 'Seção personalizada'}` : SECTION_NAMES[k] ?? k);
+  const update = (key: string, patch: Partial<SectionColors>) => {
+    const next = { ...(sections[key] ?? {}), ...patch };
+    const all = { ...sections, [key]: next };
+    if (!next.bg && !next.text && !next.accent) delete all[key];
+    onChange({ ...theme, sections: all });
+  };
+  const customized = Object.keys(sections).length;
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between">
+        <h4 className="text-sm font-semibold">Cores por seção</h4>
+        {customized ? <button type="button" className="text-xs text-zinc-500 hover:text-ink" onClick={() => onChange({ ...theme, sections: {} })}>Limpar todas ({customized})</button> : null}
+      </div>
+      <p className="mb-3 text-xs text-zinc-500">
+        Defina fundo, texto e destaque de cada seção. Deixe em "auto" para seguir as cores do projeto; o texto é ajustado automaticamente para manter a leitura.
+      </p>
+      <ul className="space-y-2">
+        {keys.map((k) => {
+          const c = sections[k] ?? {};
+          const on = !!(c.bg || c.text || c.accent);
+          return (
+            <li key={k} className={cn('rounded-lg border p-3 transition', on ? 'border-zinc-300 bg-zinc-50/60' : 'border-zinc-200')}>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2 truncate text-[13px] font-medium">
+                  <span className="size-3 flex-none rounded-sm ring-1 ring-black/10" style={{ background: c.bg ?? defaults.bg }} />
+                  {name(k)}
+                </span>
+                {on ? <button type="button" className="text-[11px] text-zinc-400 hover:text-ink" onClick={() => update(k, { bg: null, text: null, accent: null })}>restaurar</button> : null}
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <ColorSlot label="Fundo" value={c.bg} fallback={defaults.bg} palette={palette} onChange={(v) => update(k, { bg: v })} />
+                <ColorSlot label="Texto" value={c.text} fallback={defaults.text} palette={palette} onChange={(v) => update(k, { text: v })} />
+                <ColorSlot label="Destaque" value={c.accent} fallback={defaults.accent} palette={palette} onChange={(v) => update(k, { accent: v })} />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+export function DesignTab({ theme, onChange, imagesAllowed, content }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; imagesAllowed: number; content: LandingContent }) {
   const { data: presets } = useAsync(() => landingPageService.presets(), []);
   const current = presets?.find((p) => p.key === theme.preset);
 
@@ -79,6 +163,23 @@ export function DesignTab({ theme, onChange, imagesAllowed }: { theme: ThemeSett
         {theme.heroVariant === 'image' && imagesAllowed === 0 ? (
           <p className="mt-2 text-xs text-amber-700">Nenhuma imagem liberada: o topo será exibido centralizado. Libere imagens em "Editar empresa".</p>
         ) : null}
+      </div>
+
+      <div className="border-t border-zinc-100 pt-6">
+        <SectionColorsEditor
+          theme={theme}
+          onChange={onChange}
+          content={content}
+          defaults={{ bg: current?.bg ?? '#ffffff', text: '#111111', accent: theme.primary ?? current?.primary ?? '#1d4ed8' }}
+          palette={[...new Set([
+            current?.bg ?? '#ffffff',
+            '#ffffff',
+            '#f5f5f4',
+            '#111111',
+            theme.primary ?? current?.primary ?? '#1d4ed8',
+            theme.accent ?? current?.accent ?? '#0f172a',
+          ].map((c) => c.toLowerCase()))]}
+        />
       </div>
     </div>
   );

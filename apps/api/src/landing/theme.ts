@@ -1,10 +1,13 @@
 import { DESIGN_PRESETS, type DesignPreset } from '../services/ai/schemas.js';
+import { normalizeSectionColors, type SectionColors } from './sectionColors.js';
 
 export interface ThemeSettings {
   preset: DesignPreset;
   primary?: string | null;
   accent?: string | null;
   heroVariant?: 'split' | 'centered' | 'image';
+  /** Cores próprias por seção (hero, about, services…, custom:<id>, footer). */
+  sections?: Record<string, SectionColors>;
 }
 
 interface Preset {
@@ -140,6 +143,7 @@ export interface ResolvedTheme {
   preset: DesignPreset;
   p: Preset;
   heroVariant: 'split' | 'centered' | 'image';
+  sections: Record<string, SectionColors>;
   fontsHref: string;
   vars: Record<string, string>;
 }
@@ -151,6 +155,7 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
     primary: isHex(input?.primary) ? normalizeHex(input.primary) : null,
     accent: isHex(input?.accent) ? normalizeHex(input.accent) : null,
     heroVariant: ['split', 'centered', 'image'].includes(input?.heroVariant) ? input.heroVariant : PRESETS[preset as DesignPreset].heroDefault,
+    sections: normalizeSectionColors(input?.sections),
   };
 }
 
@@ -177,6 +182,7 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
     preset: settings.preset,
     p,
     heroVariant: settings.heroVariant ?? p.heroDefault,
+    sections: settings.sections ?? {},
     fontsHref: `https://fonts.googleapis.com/css2?${families}&display=swap`,
     vars: {
       '--bg': c.bg,

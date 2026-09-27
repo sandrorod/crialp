@@ -69,7 +69,7 @@ export function requireSameOriginWrite(req: Request, _res: Response, next: NextF
   const origin = req.headers.origin;
   let okOrigin = !origin;
   try {
-    okOrigin ||= env.appHosts.has(new URL(origin!).hostname.toLowerCase());
+    okOrigin ||= env.isAppHost(new URL(origin!).hostname);
   } catch {
     okOrigin = false;
   }

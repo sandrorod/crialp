@@ -4,7 +4,7 @@ import { createLandingPage, getLandingPage, saveVersion } from '../../repositori
 import { normalizeThemeSettings, type ThemeSettings } from '../../landing/theme.js';
 import { refreshSnapshot } from '../../landing/publish.js';
 import { aiService, AIProviderError } from '../ai/index.js';
-import { SECTION_KEYS, type LandingContent } from '../ai/schemas.js';
+import { SECTION_KEYS, type LandingContent, type SectionKey } from '../ai/schemas.js';
 import type { JobHandle } from '../jobs/JobService.js';
 
 export const GENERATE_STEPS = { structure: 7, generate: 8, save: 9 } as const;
@@ -44,9 +44,9 @@ export function companyProfile(c: CompanyFull) {
 }
 
 /** Remove qualquer seção que dependa de dados inexistentes, mesmo que a IA a tenha criado. */
-function enforceFacts(content: LandingContent, c: CompanyFull): LandingContent {
+function enforceFacts(content: Omit<LandingContent, 'section_order'> & { section_order: string[] }, c: CompanyFull): LandingContent {
   const photos = c.images.filter((i) => i.usage_allowed && i.type !== 'logo').length;
-  const out: LandingContent = {
+  const out = {
     ...content,
     testimonials: c.testimonials.length ? content.testimonials ?? { title: 'O que dizem nossos clientes' } : null,
     products: c.products.length ? content.products : null,
@@ -55,8 +55,8 @@ function enforceFacts(content: LandingContent, c: CompanyFull): LandingContent {
     services: content.services && content.services.items.length ? content.services : null,
     faq: content.faq && content.faq.items.length ? content.faq : null,
   };
-  out.section_order = [...new Set(content.section_order)].filter((k) => SECTION_KEYS.includes(k));
-  return out;
+  const section_order = [...new Set(content.section_order)].filter((k): k is SectionKey => SECTION_KEYS.includes(k as SectionKey));
+  return { ...out, section_order };
 }
 
 function themeFromContent(content: LandingContent): ThemeSettings {
@@ -94,6 +94,13 @@ export async function generateLanding(
   const content = enforceFacts(generated, company);
   // Rótulos editados manualmente sobrevivem à regeneração
   if (existing?.content.labels) content.labels = existing.content.labels;
+  // Seções personalizadas também: voltam para antes do contato
+  if (existing?.content.custom_sections?.length) {
+    content.custom_sections = existing.content.custom_sections;
+    const keys = existing.content.section_order.filter((k) => k.startsWith('custom:'));
+    const at = content.section_order.indexOf('contact');
+    content.section_order.splice(at >= 0 ? at : content.section_order.length, 0, ...keys);
+  }
   const theme = existing && opts.keepTheme ? normalizeThemeSettings(existing.theme) : themeFromContent(content);
   const seo = {
     seo_title: content.seo.title.slice(0, 70),

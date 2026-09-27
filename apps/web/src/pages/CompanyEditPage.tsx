@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, PanelsTopLeft, Save, Sparkles, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CompanyForm, toDraft } from '@/components/company/CompanyForm';
+import { SourcesPanel } from '@/components/company/SourcesPanel';
 import { ProgressSteps } from '@/components/ProgressSteps';
 import { Button, Card, ConfirmDialog, ErrorBlock, LoadingBlock, PageHeader, StatusBadge } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
@@ -156,6 +157,7 @@ export function CompanyEditPage() {
       ) : null}
 
       {company.source_meta && 'final_url' in company.source_meta ? <SourceCard meta={company.source_meta as AnalysisMeta} /> : null}
+      <SourcesPanel companyId={id} draft={draft} onApply={(patch) => { setDraft({ ...draft, ...patch }); setDirty(true); toast.success('Aplicado ao cadastro. Clique em "Salvar empresa" para gravar.'); }} />
 
       <CompanyForm value={draft} companyId={id} onChange={(v) => { setDraft(v); setDirty(true); }} />
 

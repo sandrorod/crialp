@@ -1,6 +1,17 @@
 import crypto from 'node:crypto';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { SectionKey } from '../services/ai/schemas.js';
+import type { SectionKey, SectionOrderKey } from '../services/ai/schemas.js';
+import { CustomSectionView } from './sections/CustomSection.js';
+import { finalCtaVars, sectionVars } from './sectionColors.js';
+import type { CSSProperties, ReactNode } from 'react';
+
+/** Envolve a seção num contêiner que redefine as variáveis de cor (quando houver cores próprias). */
+function Colored({ ctx, name, children }: { ctx: RenderContext; name: string; children: ReactNode }) {
+  const colors = ctx.theme.sections[name];
+  const vars = name === 'final_cta' ? finalCtaVars(ctx.theme, colors) : sectionVars(ctx.theme, colors);
+  if (!vars) return <>{children}</>;
+  return <div data-section={name} style={vars as CSSProperties}>{children}</div>;
+}
 import type { RenderContext } from './context.js';
 import type { LabelKey } from './labels.js';
 import { landingCss, REVEAL_SCRIPT } from './styles.js';
@@ -31,7 +42,7 @@ const NAV_ITEMS: Partial<Record<SectionKey, [string, LabelKey]>> = {
 };
 
 /** Decide quais seções existem de fato (sem dados → sem seção) e em qual ordem. */
-export function resolveSections(ctx: RenderContext): SectionKey[] {
+export function resolveSections(ctx: RenderContext): SectionOrderKey[] {
   const c = ctx.content;
   const available: Record<SectionKey, boolean> = {
     about: !!c.about?.paragraphs.length,
@@ -44,7 +55,15 @@ export function resolveSections(ctx: RenderContext): SectionKey[] {
     contact: true,
     final_cta: true,
   };
-  const order = [...new Set(c.section_order)].filter((k) => available[k]);
+  const customs = new Map((c.custom_sections ?? []).map((s) => [s.id, s]));
+  const isAvailable = (k: SectionOrderKey) => {
+    if (k.startsWith('custom:')) {
+      const s = customs.get(k.slice(7));
+      return !!s && !!(s.title || s.paragraphs.length || s.items.length);
+    }
+    return available[k as SectionKey];
+  };
+  const order = [...new Set(c.section_order)].filter(isAvailable);
   // Seções obrigatórias sempre presentes; depoimentos reais nunca são descartados
   for (const k of ['testimonials', 'contact', 'final_cta'] as SectionKey[]) {
     if (available[k] && !order.includes(k)) order.push(k);
@@ -86,14 +105,15 @@ function jsonLd(ctx: RenderContext) {
 export function renderLandingPage(ctx: RenderContext): string {
   const sections = resolveSections(ctx);
   const nav = sections
-    .map((k) => NAV_ITEMS[k])
+    .map((k) => NAV_ITEMS[k as SectionKey])
     .filter((n): n is [string, LabelKey] => !!n)
     .slice(0, 5)
     .map(([href, key]) => ({ href, label: ctx.labels[key] }));
 
   // Alterna fundos para dar ritmo visual (a faixa de diferenciais e o CTA têm fundo próprio)
   let altToggle = false;
-  const body = sections.map((key) => {
+  const body = sections.map((key) => <Colored key={key} ctx={ctx} name={key}>{renderSection(key)}</Colored>);
+  function renderSection(key: SectionOrderKey) {
     if (key === 'differentials') {
       altToggle = false;
       return <BenefitsSection key={key} ctx={ctx} />;
@@ -101,6 +121,10 @@ export function renderLandingPage(ctx: RenderContext): string {
     if (key === 'final_cta') return <FinalCTA key={key} ctx={ctx} />;
     altToggle = !altToggle;
     const alt = altToggle;
+    if (key.startsWith('custom:')) {
+      const section = ctx.content.custom_sections?.find((s) => s.id === key.slice(7));
+      return section ? <CustomSectionView key={key} section={section} alt={alt} /> : null;
+    }
     switch (key) {
       case 'about': return <AboutSection key={key} ctx={ctx} alt={alt} />;
       case 'services': return <ServicesSection key={key} ctx={ctx} alt={alt} />;
@@ -111,7 +135,7 @@ export function renderLandingPage(ctx: RenderContext): string {
       case 'contact': return <ContactSection key={key} ctx={ctx} alt={alt} />;
       default: return null;
     }
-  });
+  }
 
   const { seo, theme } = ctx;
   const page = (
@@ -141,13 +165,13 @@ export function renderLandingPage(ctx: RenderContext): string {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ctx) }} />
       </head>
       <body>
-        <a className="skip" href="#conteudo">Pular para o conteúdo</a>
+        <a className="skip" href="#conteudo">{ctx.labels.skip_link}</a>
         <Header ctx={ctx} nav={nav} />
         <main id="conteudo">
-          <HeroSection ctx={ctx} />
+          <Colored ctx={ctx} name="hero"><HeroSection ctx={ctx} /></Colored>
           {body}
         </main>
-        <Footer ctx={ctx} />
+        <Colored ctx={ctx} name="footer"><Footer ctx={ctx} /></Colored>
         <WhatsAppFloat ctx={ctx} />
       </body>
     </html>

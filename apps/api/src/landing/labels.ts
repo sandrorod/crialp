@@ -20,6 +20,18 @@ export const DEFAULT_LABELS = {
   nav_contact: 'Contato',
   header_cta: 'Fale conosco',
   whatsapp_float: 'Conversar pelo WhatsApp',
+  whatsapp_message: 'Olá! Vim pela página da {empresa} e gostaria de mais informações.',
+  contact_whatsapp: 'WhatsApp',
+  contact_phone: 'Telefone',
+  contact_email: 'E-mail',
+  contact_address: 'Endereço',
+  contact_hours: 'Horário de atendimento',
+  fact_specialty: 'Especialidade',
+  fact_location: 'Onde estamos',
+  fact_hours: 'Atendimento',
+  fact_audience: 'Para quem',
+  footer_note: '',
+  skip_link: 'Pular para o conteúdo',
 } as const;
 
 export type LabelKey = keyof typeof DEFAULT_LABELS;

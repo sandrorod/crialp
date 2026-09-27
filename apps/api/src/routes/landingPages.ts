@@ -8,7 +8,7 @@ import { parseBody, safeUrl, uuidParam } from '../lib/validation.js';
 import { authUser } from '../middleware/auth.js';
 import { getCompanyFull } from '../repositories/companies.js';
 import * as repo from '../repositories/landingPages.js';
-import { LandingContentEditSchema } from '../services/ai/schemas.js';
+import { LandingContentEditSchema, type LandingContent } from '../services/ai/schemas.js';
 import { DEFAULT_LABELS } from '../landing/labels.js';
 import { normalizeThemeSettings, PRESETS } from '../landing/theme.js';
 import { publicUrl, refreshSnapshot, renderFromData } from '../landing/publish.js';
@@ -90,6 +90,13 @@ const ContentUpdateSchema = z.object({
     primary: z.string().nullish(),
     accent: z.string().nullish(),
     heroVariant: z.enum(['split', 'centered', 'image']).optional(),
+    // Cores por seção: { "services": { "bg": "#0b1b2b", "text": null, "accent": "#ffcc00" }, ... }
+    sections: z
+      .record(
+        z.string().max(60),
+        z.object({ bg: z.string().max(9).nullish(), text: z.string().max(9).nullish(), accent: z.string().max(9).nullish() }),
+      )
+      .optional(),
   }),
   seo: z.object({
     seo_title: z.string().trim().max(120).nullish().transform((v) => v || null),
@@ -109,7 +116,7 @@ landingPagesRouter.put('/:id/content', async (req, res) => {
     id: lp.id,
     orgId: user.organizationId,
     userId: user.id,
-    content: body.content,
+    content: body.content as LandingContent,
     theme: normalizeThemeSettings(body.theme),
     seo: body.seo,
     note: body.note || 'Edição manual',
@@ -180,7 +187,7 @@ landingPagesRouter.patch('/:id/settings', async (req, res) => {
   let domain: string | null | undefined = body.custom_domain === undefined ? undefined : body.custom_domain || null;
   if (domain) {
     if (!DOMAIN_RE.test(domain)) throw new AppError(400, 'Domínio inválido. Exemplo: www.empresa.com.br');
-    if (env.appHosts.has(domain)) throw new AppError(400, 'Este domínio pertence ao próprio sistema.');
+    if (env.isSystemHost(domain)) throw new AppError(400, 'Este domínio pertence ao próprio sistema.');
   }
   const updated = await repo.updateSettings(user.organizationId, lp.id, { slug: body.slug, custom_domain: domain });
   await refreshSnapshot(updated!);

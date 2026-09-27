@@ -22,21 +22,46 @@ const aiModel =
     ? requestedModel
     : DEFAULT_MODELS[aiProvider] ?? requestedModel ?? '';
 
-const appUrl = (process.env.APP_URL ?? 'http://localhost:5173').replace(/\/$/, '');
+const isVercel = !!process.env.VERCEL;
+// No Vercel, sem APP_URL definida, usa o domínio de produção do projeto
+const appUrl = (
+  process.env.APP_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:5173')
+).replace(/\/$/, '');
+
+const appHosts = new Set(
+  (process.env.APP_HOSTS ?? 'localhost,127.0.0.1')
+    .split(',')
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean)
+    .concat(new URL(appUrl).hostname.toLowerCase())
+    .concat([process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL].filter((h): h is string => !!h).map((h) => h.toLowerCase())),
+);
+
+/** Host do próprio sistema (usado na checagem de origem/CSRF): só os domínios deste deploy. */
+function isAppHost(host: string) {
+  return appHosts.has(host.toLowerCase());
+}
+
+/**
+ * Roteamento: hosts que NÃO são domínio personalizado de LP. No Vercel inclui
+ * *.vercel.app (URLs de preview), que nunca pertencem a clientes.
+ */
+function isSystemHost(host: string) {
+  const h = host.toLowerCase();
+  return appHosts.has(h) || (isVercel && h.endsWith('.vercel.app'));
+}
 
 export const env = {
   isProduction,
+  isVercel,
+  isAppHost,
+  isSystemHost,
   port: Number(process.env.PORT ?? 3333),
   databaseUrl: required('DATABASE_URL'),
   databaseSsl: process.env.DATABASE_SSL === 'true',
   appUrl,
-  appHosts: new Set(
-    (process.env.APP_HOSTS ?? 'localhost,127.0.0.1')
-      .split(',')
-      .map((h) => h.trim().toLowerCase())
-      .filter(Boolean)
-      .concat(new URL(appUrl).hostname.toLowerCase()),
-  ),
+  appHosts,
   jwtSecret,
   admin: {
     email: process.env.ADMIN_EMAIL,
@@ -57,8 +82,9 @@ export const env = {
       .filter(Boolean),
   },
   storage: {
-    driver: process.env.STORAGE_DRIVER ?? 'local',
+    // No Vercel o disco é somente leitura: usa Vercel Blob quando o token existe
+    driver: process.env.STORAGE_DRIVER ?? (process.env.BLOB_READ_WRITE_TOKEN ? 'vercel-blob' : 'local'),
     uploadDir: path.resolve(process.env.UPLOAD_DIR ?? './uploads'),
   },
-  webDistDir: path.resolve(process.env.WEB_DIST_DIR ?? '../web/dist'),
+  webDistDir: path.resolve(process.env.WEB_DIST_DIR ?? '../web/dist/admin'),
 };

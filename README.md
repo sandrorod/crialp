@@ -140,6 +140,39 @@ Existem 10 direções visuais (`apps/api/src/landing/theme.ts`): saúde, advocac
 - Chave da IA só no backend.
 - Multi-tenant: todas as consultas filtram por `organization_id`.
 
+## Deploy no Vercel
+
+O repositório já vem pronto para o Vercel:
+- `vercel.json` publica o painel como estático em `/admin`.
+- A função `api/index.js` atende a API, as LPs (`/lp/:slug`), os domínios personalizados e `/`.
+
+**Configuração do projeto no Vercel** (Settings → General / Build):
+
+| Campo | Valor |
+|---|---|
+| Root Directory | **vazio** (raiz do repositório — *não* `apps/api`) |
+| Framework Preset | **Other** |
+| Build / Output / Install | deixar em branco (vêm do `vercel.json`) |
+
+**Variáveis de ambiente** (Settings → Environment Variables):
+
+| Variável | Exemplo / observação |
+|---|---|
+| `DATABASE_URL` | Postgres externo. Supabase: string do **Transaction pooler** (porta 6543) |
+| `DATABASE_SSL` | `true` |
+| `JWT_SECRET` | 64+ caracteres aleatórios |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` | administrador criado no primeiro acesso |
+| `AI_PROVIDER` + chave | `gemini` + `GEMINI_API_KEY` (ou `anthropic` + `ANTHROPIC_API_KEY`) |
+| `AI_MODEL` | opcional (ex.: `gemini-flash-latest`) |
+| `APP_URL` | opcional. Padrão: domínio de produção do Vercel. Defina se usar domínio próprio para o painel |
+
+**Uploads de imagem**: o disco do Vercel é somente leitura. Em *Storage → Create → Blob*, conecte um Blob Store ao projeto. O token `BLOB_READ_WRITE_TOKEN` é criado automaticamente e o sistema passa a usá-lo.
+
+**Como funciona no Vercel**:
+- **Processamento:** análise e geração rodam em segundo plano com `waitUntil`, limitadas a 300 s por função.
+- **Migrations:** executam na primeira requisição de cada instância, protegidas por trava no banco.
+- **URLs de preview:** as `*.vercel.app` abrem o painel normalmente.
+
 ## Deploy em VPS (Docker)
 
 ```bash

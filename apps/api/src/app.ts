@@ -2,10 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import cookieParser from 'cookie-parser';
 import express from 'express';
-import helmet from 'helmet';
 import { env } from './config/env.js';
 import { requireAuth, requireSameOriginWrite } from './middleware/auth.js';
 import { errorHandler } from './middleware/errors.js';
+import { ADMIN_CSP, securityHeaders } from './middleware/security.js';
 import { analyzeRouter } from './routes/analyze.js';
 import { authRouter } from './routes/auth.js';
 import { companiesRouter } from './routes/companies.js';
@@ -29,7 +29,7 @@ export function createApp() {
 
   // 4) API administrativa (JSON, autenticada)
   const api = express.Router();
-  api.use(helmet({ contentSecurityPolicy: false }));
+  api.use(securityHeaders());
   api.use(express.json({ limit: '1mb' }));
   api.use(cookieParser());
   api.use(requireSameOriginWrite);
@@ -46,22 +46,12 @@ export function createApp() {
   // 5) Painel administrativo (build do React) em /admin
   const webIndex = path.join(env.webDistDir, 'index.html');
   if (fs.existsSync(webIndex)) {
-    app.use(
-      helmet({
-        contentSecurityPolicy: {
-          directives: {
-            defaultSrc: ["'self'"],
-            imgSrc: ["'self'", 'https:', 'data:', 'blob:'],
-            styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-            fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-            frameSrc: ["'self'"],
-            connectSrc: ["'self'"],
-          },
-        },
-      }),
-    );
+    app.use(securityHeaders({ csp: ADMIN_CSP }));
     app.use('/admin', express.static(env.webDistDir, { index: false, maxAge: '1h' }));
     app.get(/^\/admin(\/.*)?$/, (_req, res) => res.sendFile(webIndex));
+    app.get('/', (_req, res) => res.redirect('/admin'));
+  } else if (process.env.VERCEL) {
+    // No Vercel o painel é servido como estático em /admin
     app.get('/', (_req, res) => res.redirect('/admin'));
   } else {
     app.get('/', (_req, res) => res.type('text').send('API LP em execução. Painel: rode "npm run dev:web" e acesse http://localhost:5173/admin'));

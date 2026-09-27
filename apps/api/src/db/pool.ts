@@ -5,7 +5,9 @@ import { env } from '../config/env.js';
 export const pool = new pg.Pool({
   connectionString: env.databaseUrl,
   ssl: env.databaseSsl ? { rejectUnauthorized: false } : undefined,
-  max: 10,
+  // Em funções serverless cada instância abre poucas conexões (use o pooler do Supabase)
+  max: env.isVercel ? 3 : 10,
+  idleTimeoutMillis: env.isVercel ? 10_000 : 30_000,
 });
 
 export async function query<T extends pg.QueryResultRow = any>(text: string, params: unknown[] = []) {

@@ -35,11 +35,11 @@ function Copy({ ctx }: { ctx: RenderContext }) {
 function InfoCard({ ctx }: { ctx: RenderContext }) {
   const { company, links } = ctx;
   const items: { icon: string; label: string; value: string; href?: string | null }[] = [];
-  if (company.opening_hours) items.push({ icon: 'clock', label: 'Atendimento', value: company.opening_hours });
-  if (links.phoneLabel) items.push({ icon: 'phone', label: 'Telefone', value: links.phoneLabel, href: links.phone });
-  if (company.city) items.push({ icon: 'map-pin', label: 'Localização', value: [company.neighborhood, [company.city, company.state].filter(Boolean).join(' – ')].filter(Boolean).join(', '), href: links.map });
-  if (company.email && items.length < 3) items.push({ icon: 'mail', label: 'E-mail', value: company.email, href: links.email });
-  if (!items.length && company.segment) items.push({ icon: 'briefcase', label: 'Especialidade', value: company.segment });
+  if (company.opening_hours) items.push({ icon: 'clock', label: ctx.labels.fact_hours, value: company.opening_hours });
+  if (links.phoneLabel) items.push({ icon: 'phone', label: ctx.labels.contact_phone, value: links.phoneLabel, href: links.phone });
+  if (company.city) items.push({ icon: 'map-pin', label: ctx.labels.fact_location, value: [company.neighborhood, [company.city, company.state].filter(Boolean).join(' – ')].filter(Boolean).join(', '), href: links.map });
+  if (company.email && items.length < 3) items.push({ icon: 'mail', label: ctx.labels.contact_email, value: company.email, href: links.email });
+  if (!items.length && company.segment) items.push({ icon: 'briefcase', label: ctx.labels.fact_specialty, value: company.segment });
 
   return (
     <aside className="hero-card reveal">

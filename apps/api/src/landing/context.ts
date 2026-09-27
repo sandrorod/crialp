@@ -64,7 +64,8 @@ export function buildContext(opts: {
   const heroImage = photos[0] ?? null;
   const aboutImage = photos[1] ?? null;
 
-  const waMessage = `Olá! Vim pela página da ${displayName} e gostaria de mais informações.`;
+  const labels = resolveLabels((content as { labels?: unknown }).labels);
+  const waMessage = labels.whatsapp_message.replaceAll('{empresa}', displayName);
   const whatsapp = whatsappLink(company.whatsapp, company.mobile, waMessage);
   const phoneSource = company.phone || company.mobile || company.whatsapp;
   const phone = telLink(phoneSource);
@@ -104,7 +105,7 @@ export function buildContext(opts: {
     company,
     content,
     theme,
-    labels: resolveLabels((content as { labels?: unknown }).labels),
+    labels,
     displayName,
     logo: logoImg ? { url: logoImg.url, alt: logoImg.alt_text || displayName } : null,
     heroImage,

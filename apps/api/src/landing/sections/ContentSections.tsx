@@ -7,10 +7,10 @@ export function AboutSection({ ctx, alt }: { ctx: RenderContext; alt: boolean })
   if (!about) return null;
   const { company } = ctx;
   const facts: { icon: string; label: string; value: string }[] = [];
-  if (company.segment) facts.push({ icon: 'briefcase', label: 'Especialidade', value: company.segment });
-  if (company.city) facts.push({ icon: 'map-pin', label: 'Onde estamos', value: [company.city, company.state].filter(Boolean).join(' – ') });
-  if (company.opening_hours) facts.push({ icon: 'clock', label: 'Atendimento', value: company.opening_hours });
-  if (company.commercial_info?.target_audience) facts.push({ icon: 'users', label: 'Para quem', value: company.commercial_info.target_audience });
+  if (company.segment) facts.push({ icon: 'briefcase', label: ctx.labels.fact_specialty, value: company.segment });
+  if (company.city) facts.push({ icon: 'map-pin', label: ctx.labels.fact_location, value: [company.city, company.state].filter(Boolean).join(' – ') });
+  if (company.opening_hours) facts.push({ icon: 'clock', label: ctx.labels.fact_hours, value: company.opening_hours });
+  if (company.commercial_info?.target_audience) facts.push({ icon: 'users', label: ctx.labels.fact_audience, value: company.commercial_info.target_audience });
 
   return (
     <section id="sobre" className={`section${alt ? ' section-alt' : ''}`}>

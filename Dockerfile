@@ -20,7 +20,7 @@ COPY --from=build /app/apps/api/dist apps/api/dist
 COPY --from=build /app/apps/web/dist apps/web/dist
 COPY database database
 WORKDIR /app/apps/api
-ENV WEB_DIST_DIR=/app/apps/web/dist \
+ENV WEB_DIST_DIR=/app/apps/web/dist/admin \
     UPLOAD_DIR=/app/uploads \
     PORT=3333
 RUN mkdir -p /app/uploads && chown -R node:node /app/uploads

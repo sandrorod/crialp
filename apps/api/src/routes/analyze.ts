@@ -63,5 +63,6 @@ analyzeRouter.get('/jobs/:id', async (req, res) => {
   const id = uuidParam.parse(req.params.id);
   const job = await jobService.get(user.organizationId, id);
   if (!job) throw notFound();
-  res.json({ id: job.id, type: job.type, status: job.status, step: job.step, error: job.error, result: job.result });
+  const { raw: _raw, ...result } = (job.result ?? {}) as Record<string, unknown>;
+  res.json({ id: job.id, type: job.type, status: job.status, step: job.step, error: job.error, result: job.result ? result : null });
 });

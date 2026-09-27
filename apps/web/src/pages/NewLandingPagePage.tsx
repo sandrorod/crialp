@@ -101,7 +101,7 @@ export function NewLandingPagePage() {
           testimonials: draft.testimonials.filter((t) => t.text.trim()),
           other_socials: draft.other_socials.filter((s) => s.url.trim()),
         };
-        id = (await companyService.create({ ...cleaned, source_meta: meta ?? {} })).id;
+        id = (await companyService.create({ ...cleaned, source_meta: meta ?? {}, analysis_job_id: analyzeJobId ?? undefined })).id;
         setCompanyId(id);
       }
       const { jobId } = await analysisService.generate(id);

@@ -1,13 +1,12 @@
 import { createApp } from './app.js';
 import { env } from './config/env.js';
-import { ensureAdmin } from './db/bootstrap.js';
-import { runMigrations } from './db/migrate.js';
+import { ensureReady } from './ready.js';
 import { jobService } from './services/jobs/JobService.js';
 import { aiService } from './services/ai/index.js';
 
 async function main() {
-  await runMigrations();
-  await ensureAdmin();
+  await ensureReady();
+  // Servidor contínuo: nada mais está rodando, então qualquer tarefa pendente foi interrompida
   await jobService.failInterrupted();
 
   if (!aiService.isConfigured()) {

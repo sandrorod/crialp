@@ -144,17 +144,52 @@ export interface LandingContent {
   faq: { title: string; items: { question: string; answer: string }[] } | null;
   contact: { title: string; subtitle: string | null };
   final_cta: { title: string; subtitle: string | null; cta: string };
-  section_order: SectionKey[];
+  section_order: SectionOrderKey[];
   labels?: Record<string, string>;
+  custom_sections?: CustomSection[];
+}
+
+/** Seção livre criada pelo administrador. */
+export interface CustomSection {
+  id: string;
+  eyebrow: string | null;
+  title: string;
+  paragraphs: string[];
+  items: string[];
+}
+export type SectionOrderKey = SectionKey | `custom:${string}`;
+
+/** Conteúdo completo coletado do site. */
+export interface CompanySources {
+  pages: { url: string; title: string | null; description: string | null; content: string; fetched_at: string }[];
+  data: {
+    final_url?: string;
+    fetched_at?: string;
+    phones?: string[];
+    whatsapps?: string[];
+    emails?: string[];
+    socials?: { network: string; url: string }[];
+    zip_codes?: string[];
+    images?: { url: string; width?: number; height?: number; alt: string }[];
+    json_ld?: unknown[];
+  };
 }
 
 export type HeroVariant = 'split' | 'centered' | 'image';
+
+export interface SectionColors {
+  bg?: string | null;
+  text?: string | null;
+  accent?: string | null;
+}
 
 export interface ThemeSettings {
   preset: string;
   primary: string | null;
   accent: string | null;
   heroVariant: HeroVariant;
+  /** Cores próprias por seção: hero, about, services…, custom:<id>, footer */
+  sections?: Record<string, SectionColors>;
 }
 
 export interface LandingPage {
