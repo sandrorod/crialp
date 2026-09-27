@@ -1,0 +1,4 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "echo '' && echo '>>> CONFIGURACAO INCORRETA: o Root Directory do projeto no Vercel deve ficar VAZIO (raiz do repositorio).' && echo '>>> Vercel -> Settings -> Build and Deployment -> Root Directory: apague o valor e salve. Depois faca um novo deploy.' && echo '' && exit 1"
+}
