@@ -1,0 +1,51 @@
+# Produção em VPS: docker compose up -d
+# Pré-requisitos: DNS do domínio do sistema apontando para a VPS e o arquivo .env preenchido.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lp}
+      POSTGRES_DB: lp
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lp"]
+      interval: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://lp:${POSTGRES_PASSWORD:-lp}@db:5432/lp
+      DATABASE_SSL: "false"
+      NODE_ENV: production
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Proxy HTTPS: certificado automático para o domínio do sistema e,
+  # sob demanda, para cada domínio personalizado de Landing Page.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+  uploads:
+  caddy_data:

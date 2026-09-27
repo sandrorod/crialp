@@ -1,0 +1,71 @@
+import { one, query } from '../../db/pool.js';
+import { AppError, Messages } from '../../lib/errors.js';
+
+export type JobType = 'analyze_url' | 'generate_landing_page';
+
+export interface JobRow {
+  id: string;
+  organization_id: string;
+  type: JobType;
+  status: 'queued' | 'running' | 'done' | 'error';
+  step: number;
+  input: any;
+  result: any;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JobHandle {
+  id: string;
+  step(n: number): Promise<void>;
+}
+
+/**
+ * Executor de tarefas em processo. A interface (create/get/step) permite trocar
+ * futuramente por uma fila dedicada (BullMQ, pg-boss, SQS) sem alterar as rotas.
+ */
+export class JobService {
+  async create(orgId: string, type: JobType, input: object) {
+    const row = await one<{ id: string }>(
+      `insert into jobs (organization_id, type, input) values ($1, $2, $3) returning id`,
+      [orgId, type, JSON.stringify(input)],
+    );
+    return row!.id;
+  }
+
+  get(orgId: string, id: string) {
+    return one<JobRow>('select * from jobs where id = $1 and organization_id = $2', [id, orgId]);
+  }
+
+  /** Inicia a execução em segundo plano; a interface acompanha via GET /api/jobs/:id. */
+  run(id: string, fn: (job: JobHandle) => Promise<unknown>) {
+    const handle: JobHandle = {
+      id,
+      step: async (n) => {
+        await query(`update jobs set step = $2, status = 'running' where id = $1`, [id, n]);
+      },
+    };
+    void (async () => {
+      try {
+        await query(`update jobs set status = 'running' where id = $1`, [id]);
+        const result = await fn(handle);
+        await query(`update jobs set status = 'done', result = $2 where id = $1`, [id, JSON.stringify(result ?? null)]);
+      } catch (err) {
+        const message = err instanceof AppError ? err.message : Messages.aiFailed;
+        if (!(err instanceof AppError)) console.error(`[job ${id}]`, err);
+        await query(`update jobs set status = 'error', error = $2 where id = $1`, [id, message]).catch(() => {});
+      }
+    })();
+  }
+
+  /** Tarefas interrompidas por reinício do servidor não ficam "rodando" para sempre. */
+  async failInterrupted() {
+    await query(
+      `update jobs set status = 'error', error = 'Processamento interrompido. Tente novamente.' where status in ('queued','running')`,
+    );
+    await query(`delete from jobs where created_at < now() - interval '7 days'`);
+  }
+}
+
+export const jobService = new JobService();

@@ -1,0 +1,22 @@
+{
+	# Antes de emitir certificado para um domínio desconhecido, o Caddy
+	# pergunta ao sistema se ele pertence a uma Landing Page ativa.
+	on_demand_tls {
+		ask http://app:3333/api/domains/check
+	}
+}
+
+# Domínio do próprio sistema (painel + /lp/:slug)
+{$APP_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3333
+}
+
+# Domínios personalizados das Landing Pages (empresa.com.br)
+https:// {
+	tls {
+		on_demand
+	}
+	encode zstd gzip
+	reverse_proxy app:3333
+}

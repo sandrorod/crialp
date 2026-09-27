@@ -1,0 +1,113 @@
+import { useEffect, useState } from 'react';
+import { NavLink, Navigate, Outlet, useLocation } from 'react-router';
+import { Building2, LayoutDashboard, LogOut, Menu, PanelsTopLeft, Plus, Settings, X } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { cn } from '@/lib/utils';
+import { Spinner } from '@/components/ui';
+
+const NAV = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/empresas', label: 'Empresas', icon: Building2 },
+  { to: '/landing-pages', label: 'Landing Pages', icon: PanelsTopLeft },
+  { to: '/nova', label: 'Criar Landing Page', icon: Plus },
+  { to: '/configuracoes', label: 'Configurações', icon: Settings },
+];
+
+function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const { user, logout } = useAuth();
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex h-16 items-center gap-2.5 px-5">
+        <div className="grid size-8 place-items-center rounded-lg bg-ink text-[13px] font-bold text-white">LP</div>
+        <div className="leading-tight">
+          <div className="text-sm font-semibold">Landing Pages</div>
+          <div className="text-[11px] text-zinc-500">Geração com IA</div>
+        </div>
+      </div>
+      <nav className="flex-1 space-y-0.5 px-3 py-2">
+        {NAV.map(({ to, label, icon: Icon, end }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                isActive ? 'bg-zinc-100 text-ink' : 'text-zinc-500 hover:bg-zinc-50 hover:text-ink',
+              )
+            }
+          >
+            <Icon className="size-[18px]" strokeWidth={1.9} />
+            {label}
+          </NavLink>
+        ))}
+      </nav>
+      <div className="border-t border-zinc-100 p-3">
+        <div className="flex items-center gap-3 rounded-lg px-2 py-2">
+          <div className="grid size-8 flex-none place-items-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
+            {user?.name?.[0]?.toUpperCase() ?? 'A'}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-medium">{user?.name}</div>
+            <div className="truncate text-[11px] text-zinc-500">{user?.email}</div>
+          </div>
+          <button onClick={() => void logout()} className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink" title="Sair" aria-label="Sair">
+            <LogOut className="size-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AdminLayout() {
+  const { user, loading } = useAuth();
+  const [open, setOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => setOpen(false), [location.pathname]);
+
+  if (loading) {
+    return (
+      <div className="grid min-h-screen place-items-center">
+        <Spinner />
+      </div>
+    );
+  }
+  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+
+  return (
+    <div className="min-h-screen lg:pl-64">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-zinc-200/80 bg-white lg:block">
+        <Sidebar />
+      </aside>
+
+      {/* Mobile */}
+      <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-zinc-200/80 bg-white/90 px-4 backdrop-blur lg:hidden">
+        <div className="flex items-center gap-2">
+          <div className="grid size-7 place-items-center rounded-md bg-ink text-[11px] font-bold text-white">LP</div>
+          <span className="text-sm font-semibold">Landing Pages</span>
+        </div>
+        <button onClick={() => setOpen(true)} className="rounded-lg p-2 hover:bg-zinc-100" aria-label="Abrir menu">
+          <Menu className="size-5" />
+        </button>
+      </header>
+      {open ? (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="absolute inset-0 bg-zinc-950/30" onClick={() => setOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 w-72 bg-white shadow-xl">
+            <button onClick={() => setOpen(false)} className="absolute right-3 top-4 rounded-lg p-1.5 hover:bg-zinc-100" aria-label="Fechar menu">
+              <X className="size-5" />
+            </button>
+            <Sidebar onNavigate={() => setOpen(false)} />
+          </aside>
+        </div>
+      ) : null}
+
+      <main className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+        <Outlet />
+      </main>
+    </div>
+  );
+}

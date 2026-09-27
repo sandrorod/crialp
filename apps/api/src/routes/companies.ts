@@ -1,0 +1,127 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { query } from '../db/pool.js';
+import { AppError, notFound } from '../lib/errors.js';
+import { normalizeInputUrl } from '../lib/url.js';
+import { CompanyInputSchema, parseBody, uuidParam, type CompanyInput } from '../lib/validation.js';
+import { authUser } from '../middleware/auth.js';
+import { createCompany, deleteCompany, getCompanyFull, listCompanies, updateCompany } from '../repositories/companies.js';
+import { saveVersion, type LandingPageRow } from '../repositories/landingPages.js';
+import { refreshSnapshot } from '../landing/publish.js';
+import { aiService } from '../services/ai/index.js';
+import { assembleImages } from '../services/pipeline/images.js';
+import { describeImages, ScraperService } from '../services/scraper/ScraperService.js';
+import type { CompanyFull } from '../repositories/companies.js';
+import type { SectionKey } from '../services/ai/schemas.js';
+
+/**
+ * Quando a empresa passa a ter fotos liberadas e a LP foi gerada sem galeria,
+ * inclui a seção de galeria automaticamente (como nova versão).
+ */
+async function ensureGallery(lp: LandingPageRow, company: CompanyFull, orgId: string, userId: string) {
+  const photos = company.images.filter((i) => i.usage_allowed && i.type !== 'logo').length;
+  if (photos < 3 || lp.content.gallery) return lp;
+  const order: SectionKey[] = lp.content.section_order.filter((k) => k !== 'gallery');
+  const before = ['testimonials', 'faq', 'contact', 'final_cta'].map((k) => order.indexOf(k as SectionKey)).filter((i) => i >= 0);
+  order.splice(before.length ? Math.min(...before) : order.length, 0, 'gallery');
+  const content = { ...lp.content, gallery: { title: 'Conheça nosso espaço', subtitle: null }, section_order: order };
+  await saveVersion({
+    id: lp.id,
+    orgId,
+    userId,
+    content,
+    theme: lp.theme,
+    seo: { seo_title: lp.seo_title, seo_description: lp.seo_description, seo_keywords: lp.seo_keywords, og_image: lp.og_image },
+    note: 'Galeria adicionada (novas fotos liberadas)',
+  });
+  return { ...lp, content };
+}
+
+export const companiesRouter = Router();
+
+/** O logotipo oficial é a imagem do tipo "logo" com permissão de uso confirmada. */
+function withLogo(input: CompanyInput): CompanyInput {
+  const logo = input.images.find((i) => i.type === 'logo' && i.usage_allowed);
+  return { ...input, logo_url: logo?.url ?? null };
+}
+
+companiesRouter.get('/', async (req, res) => {
+  const user = authUser(req);
+  const q = z
+    .object({
+      search: z.string().max(200).optional(),
+      segment: z.string().max(120).optional(),
+      city: z.string().max(120).optional(),
+      status: z.enum(['ativa', 'inativa', 'sem_lp']).optional(),
+    })
+    .parse(req.query);
+  res.json(await listCompanies(user.organizationId, q));
+});
+
+companiesRouter.get('/:id', async (req, res) => {
+  const user = authUser(req);
+  const company = await getCompanyFull(user.organizationId, uuidParam.parse(req.params.id));
+  if (!company) throw notFound('Empresa não encontrada.');
+  res.json(company);
+});
+
+companiesRouter.post('/', async (req, res) => {
+  const user = authUser(req);
+  const body = parseBody(CompanyInputSchema.extend({ source_meta: z.record(z.string(), z.any()).optional() }), req.body);
+  const { source_meta, ...input } = body;
+  const id = await createCompany(user.organizationId, user.id, withLogo(input), source_meta ?? {});
+  res.status(201).json({ id });
+});
+
+companiesRouter.put('/:id', async (req, res) => {
+  const user = authUser(req);
+  const id = uuidParam.parse(req.params.id);
+  const input = parseBody(CompanyInputSchema, req.body);
+  if (!(await updateCompany(user.organizationId, id, withLogo(input)))) throw notFound('Empresa não encontrada.');
+  // As LPs são renderizadas a partir dos dados da empresa: atualiza os snapshots
+  const company = (await getCompanyFull(user.organizationId, id))!;
+  const { rows } = await query<LandingPageRow>('select * from landing_pages where company_id = $1', [id]);
+  for (const lp of rows) await refreshSnapshot(await ensureGallery(lp, company, user.organizationId, user.id));
+  res.json(company);
+});
+
+/**
+ * Busca (de novo) as fotos no site da empresa. Não salva: devolve as imagens novas
+ * para o administrador revisar no formulário antes de salvar.
+ */
+companiesRouter.post('/:id/fetch-images', async (req, res) => {
+  const user = authUser(req);
+  const id = uuidParam.parse(req.params.id);
+  const { allowImages } = parseBody(z.object({ allowImages: z.boolean().optional() }), req.body);
+  const company = await getCompanyFull(user.organizationId, id);
+  if (!company) throw notFound('Empresa não encontrada.');
+  const source = company.reference_url || company.website;
+  if (!source) throw new AppError(400, 'Cadastre a URL de referência ou o site da empresa para buscar fotos.');
+
+  const scrape = await new ScraperService().scrape(normalizeInputUrl(source));
+  if (!scrape.images.length) throw new AppError(422, 'Nenhuma foto utilizável foi encontrada neste site.');
+
+  let classification = null;
+  if (aiService.isConfigured()) {
+    try {
+      classification = await aiService.classifyImages(company.trade_name || company.name, company.segment, describeImages(scrape.images));
+    } catch (err) {
+      console.warn('[fotos] classificação pela IA falhou; usando as maiores imagens.', err instanceof Error ? err.message : err);
+    }
+  }
+  const images = assembleImages({
+    scraped: scrape.images,
+    classified: classification?.images ?? null,
+    logoIndex: classification?.logo_index ?? null,
+    allowUsage: !!allowImages,
+    companyName: company.trade_name || company.name,
+  });
+  const existing = new Set(company.images.map((i) => i.url));
+  res.json({ images: images.filter((i) => !existing.has(i.url)), found: scrape.images.length, classified: !!classification });
+});
+
+companiesRouter.delete('/:id', async (req, res) => {
+  const user = authUser(req);
+  if (!(await deleteCompany(user.organizationId, uuidParam.parse(req.params.id)))) throw notFound('Empresa não encontrada.');
+  res.json({ ok: true });
+});

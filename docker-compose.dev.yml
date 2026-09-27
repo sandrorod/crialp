@@ -1,0 +1,14 @@
+# Somente o banco para desenvolvimento local: docker compose -f docker-compose.dev.yml up -d
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: lp
+      POSTGRES_PASSWORD: lp
+      POSTGRES_DB: lp
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+volumes:
+  pgdata-dev:

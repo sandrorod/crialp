@@ -1,0 +1,22 @@
+{
+  "name": "lp",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Plataforma de geração automática de Landing Pages para empresas a partir de uma URL",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/api & npm run dev --workspace apps/web",
+    "dev:api": "npm run dev --workspace apps/api",
+    "dev:web": "npm run dev --workspace apps/web",
+    "migrate": "npm run migrate --workspace apps/api",
+    "build": "npm run build --workspace apps/web && npm run build --workspace apps/api",
+    "start": "npm run start --workspace apps/api",
+    "typecheck": "npm run typecheck --workspace apps/api && npm run typecheck --workspace apps/web"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
