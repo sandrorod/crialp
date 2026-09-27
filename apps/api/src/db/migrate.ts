@@ -4,10 +4,11 @@ import { fileURLToPath } from 'node:url';
 import { pool } from './pool.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-// src/db ou dist/db → raiz do monorepo/database/migrations
-const migrationsDir = path.resolve(here, '../../../../database/migrations');
+// src/db ou dist/db → raiz do monorepo/database/migrations (no Vercel, MIGRATIONS_DIR aponta para a cópia na função)
+const defaultMigrationsDir = path.resolve(here, '../../../../database/migrations');
 
 export async function runMigrations(log = console.log) {
+  const migrationsDir = process.env.MIGRATIONS_DIR ?? defaultMigrationsDir;
   const files = (await fs.readdir(migrationsDir)).filter((f) => f.endsWith('.sql')).sort();
   const client = await pool.connect();
   try {

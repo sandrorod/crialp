@@ -142,17 +142,11 @@ Existem 10 direções visuais (`apps/api/src/landing/theme.ts`): saúde, advocac
 
 ## Deploy no Vercel
 
-O repositório já vem pronto para o Vercel:
-- `vercel.json` publica o painel (gerado em `dist/admin` na raiz) como estático em `/admin`.
-- A função `api/index.js` atende a API, as LPs (`/lp/:slug`), os domínios personalizados e `/`.
+O repositório já vem pronto para o Vercel. O `scripts/vercel-build.mjs` gera a saída no formato Build Output API (`.vercel/output`):
+- o painel (gerado em `dist/admin`) é publicado como estático em `/admin`;
+- uma única função (API + `api/index.js`, empacotada com esbuild, com as migrations junto) atende a API, as LPs (`/lp/:slug`), os domínios personalizados e `/`.
 
-**Configuração do projeto no Vercel** (Settings → General / Build):
-
-| Campo | Valor |
-|---|---|
-| Root Directory | **vazio** (raiz do repositório — *não* `apps/api`) |
-| Framework Preset | **Other** |
-| Build / Output / Install | deixar em branco (vêm do `vercel.json`) |
+**Configuração do projeto no Vercel:** nada a ajustar. Build, instalação e saída vêm dos `vercel.json`, que existem na raiz, em `apps/web` e em `apps/api`. Por isso o deploy funciona com o Root Directory vazio (recomendado) ou apontando para `apps/web` ou `apps/api`.
 
 **Variáveis de ambiente** (Settings → Environment Variables):
 

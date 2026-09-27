@@ -2,18 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "npm install",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 300,
-      "includeFiles": "database/migrations/**"
-    }
-  },
-  "rewrites": [
-    { "source": "/admin", "destination": "/admin/index.html" },
-    { "source": "/admin/:path*", "destination": "/admin/index.html" },
-    { "source": "/", "destination": "/api" },
-    { "source": "/:path*", "destination": "/api" }
-  ]
+  "buildCommand": "node scripts/vercel-build.mjs"
 }
