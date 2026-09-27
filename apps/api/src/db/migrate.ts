@@ -8,33 +8,34 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.resolve(here, '../../../../database/migrations');
 
 export async function runMigrations(log = console.log) {
+  const files = (await fs.readdir(migrationsDir)).filter((f) => f.endsWith('.sql')).sort();
   const client = await pool.connect();
   try {
-    await client.query('select pg_advisory_lock(727274)');
-    await client.query(`create table if not exists schema_migrations (
-      name text primary key,
-      applied_at timestamptz not null default now()
-    )`);
-    const { rows } = await client.query<{ name: string }>('select name from schema_migrations');
-    const applied = new Set(rows.map((r) => r.name));
-    const files = (await fs.readdir(migrationsDir)).filter((f) => f.endsWith('.sql')).sort();
-
+    // Trava por transação (não por sessão): funciona também no transaction pooler do Supabase (porta 6543)
     for (const file of files) {
-      if (applied.has(file)) continue;
-      const sql = await fs.readFile(path.join(migrationsDir, file), 'utf8');
-      log(`[migrate] aplicando ${file}`);
       await client.query('begin');
       try {
+        await client.query('select pg_advisory_xact_lock(727274)');
+        await client.query(`create table if not exists schema_migrations (
+          name text primary key,
+          applied_at timestamptz not null default now()
+        )`);
+        const { rowCount } = await client.query('select 1 from schema_migrations where name = $1', [file]);
+        if (rowCount) {
+          await client.query('commit');
+          continue;
+        }
+        const sql = await fs.readFile(path.join(migrationsDir, file), 'utf8');
+        log(`[migrate] aplicando ${file}`);
         await client.query(sql);
         await client.query('insert into schema_migrations (name) values ($1)', [file]);
         await client.query('commit');
       } catch (err) {
-        await client.query('rollback');
+        await client.query('rollback').catch(() => {});
         throw err;
       }
     }
   } finally {
-    await client.query('select pg_advisory_unlock(727274)').catch(() => {});
     client.release();
   }
 }
