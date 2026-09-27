@@ -27,8 +27,8 @@ function adminRedirect(): Plugin {
 export default defineConfig({
   base: '/admin/',
   plugins: [adminRedirect(), react(), tailwindcss()],
-  // Saída em dist/admin: no Vercel a pasta dist é publicada como estática e o painel fica em /admin
-  build: { outDir: 'dist/admin', emptyOutDir: true },
+  // Saída em <raiz>/dist/admin: no Vercel a pasta "dist" da raiz é publicada como estática e o painel fica em /admin
+  build: { outDir: path.resolve(import.meta.dirname, '../../dist/admin'), emptyOutDir: true },
   resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
   server: {
     port: 5173,

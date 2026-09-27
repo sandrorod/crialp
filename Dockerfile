@@ -17,10 +17,10 @@ COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 RUN npm ci --omit=dev --workspace apps/api && npm cache clean --force
 COPY --from=build /app/apps/api/dist apps/api/dist
-COPY --from=build /app/apps/web/dist apps/web/dist
+COPY --from=build /app/dist dist
 COPY database database
 WORKDIR /app/apps/api
-ENV WEB_DIST_DIR=/app/apps/web/dist/admin \
+ENV WEB_DIST_DIR=/app/dist/admin \
     UPLOAD_DIR=/app/uploads \
     PORT=3333
 RUN mkdir -p /app/uploads && chown -R node:node /app/uploads

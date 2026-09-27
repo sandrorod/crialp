@@ -143,7 +143,7 @@ Existem 10 direções visuais (`apps/api/src/landing/theme.ts`): saúde, advocac
 ## Deploy no Vercel
 
 O repositório já vem pronto para o Vercel:
-- `vercel.json` publica o painel como estático em `/admin`.
+- `vercel.json` publica o painel (gerado em `dist/admin` na raiz) como estático em `/admin`.
 - A função `api/index.js` atende a API, as LPs (`/lp/:slug`), os domínios personalizados e `/`.
 
 **Configuração do projeto no Vercel** (Settings → General / Build):
