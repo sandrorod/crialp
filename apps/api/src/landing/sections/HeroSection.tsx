@@ -88,7 +88,7 @@ export function HeroSection({ ctx }: { ctx: RenderContext }) {
         </div>
         {ctx.heroImage ? (
           <div className="hero-media reveal">
-            <img referrerPolicy="no-referrer" src={ctx.heroImage.url} alt={ctx.heroImage.alt} fetchPriority="high" data-lp-img={ctx.heroImage.url} style={ctx.heroImage.position ? { objectPosition: ctx.heroImage.position } : undefined} />
+            <img referrerPolicy="no-referrer" src={ctx.heroImage.url} alt={ctx.heroImage.alt} fetchPriority="high" data-lp-img={ctx.heroImage.url} style={ctx.heroImage.style} />
           </div>
         ) : (
           <InfoCard ctx={ctx} />

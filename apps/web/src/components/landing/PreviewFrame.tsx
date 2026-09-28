@@ -5,61 +5,134 @@ const DESKTOP_WIDTH = 1280;
 
 type FocusMap = Record<string, ImageFocus>;
 
+/** Aplica o enquadramento na foto: mesma regra da renderização (object-position + zoom a partir do ponto). */
+function applyFocus(img: HTMLImageElement, f: ImageFocus) {
+  const pos = `${f.x}% ${f.y}%`;
+  img.style.objectPosition = pos;
+  img.style.transformOrigin = pos;
+  img.style.transform = f.z && f.z > 1 ? `scale(${f.z})` : '';
+}
+
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 3;
+const ZOOM_STEP = 0.2;
+
 /**
- * Ajuste de corte direto na prévia: as fotos marcadas com data-lp-img (topo e "sobre")
- * podem ser arrastadas dentro do espaço delas; o ponto escolhido vira object-position.
+ * Ajuste de enquadramento direto na prévia: as fotos marcadas com data-lp-img (topo e "sobre")
+ * podem ser arrastadas dentro do espaço delas e ampliadas (botões − / + ou pinça no trackpad).
  * A prévia é do mesmo domínio, então o editor acessa o documento do iframe.
  */
-function attachFocusDrag(doc: Document, getFocus: () => FocusMap, onFocus: (url: string, focus: ImageFocus) => void) {
-  const clamp = (v: number) => Math.min(100, Math.max(0, v));
+function attachFocusDrag(doc: Document, getFocus: () => FocusMap, onFocus: (url: string, focus: ImageFocus) => void, uiScale = 1) {
+  // A prévia desktop é reduzida para caber no painel: os controles crescem na mesma proporção
+  const px = (n: number) => `${Math.round(n * uiScale)}px`;
+  const clamp = (v: number, min = 0, max = 100) => Math.min(max, Math.max(min, v));
+  const round = (f: ImageFocus): ImageFocus => ({
+    x: Math.round(f.x * 10) / 10,
+    y: Math.round(f.y * 10) / 10,
+    ...(f.z && f.z > 1 ? { z: Math.round(f.z * 100) / 100 } : {}),
+  });
+
   doc.querySelectorAll<HTMLImageElement>('img[data-lp-img]').forEach((img) => {
     const url = img.dataset.lpImg;
-    if (!url || img.dataset.lpDrag) return;
+    const handle = img.parentElement;
+    if (!url || !handle || img.dataset.lpDrag) return;
     img.dataset.lpDrag = '1';
     img.draggable = false;
-    const saved = getFocus()[url];
-    if (saved) img.style.objectPosition = `${saved.x}% ${saved.y}%`;
+    const current = (): ImageFocus => getFocus()[url] ?? { x: 50, y: 50 };
+    applyFocus(img, current());
 
-    const handle = img.parentElement;
-    if (!handle) return;
     handle.style.cursor = 'grab';
     handle.style.touchAction = 'none';
-    handle.title = 'Arraste para ajustar o corte da foto';
+    handle.title = 'Arraste para ajustar o enquadramento da foto';
+    if (doc.defaultView?.getComputedStyle(handle).position === 'static') handle.style.position = 'relative';
+
+    /**
+     * Quanto a foto sobra além do espaço em cada eixo (com object-fit: cover e o zoom).
+     * O deslocamento visível é linear no ponto (0–100%) com amplitude igual a essa sobra.
+     */
+    const overflow = (z: number) => {
+      const box = handle.getBoundingClientRect();
+      const nw = img.naturalWidth;
+      const nh = img.naturalHeight;
+      const cover = Math.max(box.width / nw, box.height / nh);
+      return { x: nw * cover * z - box.width, y: nh * cover * z - box.height };
+    };
+
+    const setZoom = (z: number) => {
+      const f = current();
+      const next = round({ ...f, z: clamp(z, ZOOM_MIN, ZOOM_MAX) });
+      applyFocus(img, next);
+      onFocus(url, next);
+    };
+
+    // Barra de zoom (só existe na prévia do editor, não na página publicada)
+    const bar = doc.createElement('div');
+    bar.setAttribute('style', `position:absolute;right:${px(10)};bottom:${px(10)};z-index:5;display:flex;gap:${px(4)};padding:${px(4)};border-radius:999px;background:rgba(17,17,17,.72);backdrop-filter:blur(6px);box-shadow:0 6px 18px rgba(0,0,0,.25)`);
+    const mkButton = (label: string, title: string, onClick: () => void) => {
+      const b = doc.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.title = title;
+      b.setAttribute('aria-label', title);
+      b.setAttribute('style', `width:${px(30)};height:${px(30)};border:0;border-radius:999px;background:transparent;color:#fff;font:600 ${px(17)}/1 system-ui,sans-serif;cursor:pointer`);
+      b.addEventListener('mouseenter', () => (b.style.background = 'rgba(255,255,255,.18)'));
+      b.addEventListener('mouseleave', () => (b.style.background = 'transparent'));
+      b.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick();
+      });
+      return b;
+    };
+    bar.append(
+      mkButton('−', 'Diminuir zoom', () => setZoom((current().z ?? 1) - ZOOM_STEP)),
+      mkButton('+', 'Aumentar zoom', () => setZoom((current().z ?? 1) + ZOOM_STEP)),
+      mkButton('⟲', 'Restaurar enquadramento', () => {
+        const reset = { x: 50, y: 50 };
+        applyFocus(img, reset);
+        onFocus(url, reset);
+      }),
+    );
+    handle.appendChild(bar);
+
+    // Pinça no trackpad (o navegador envia wheel com ctrlKey); rolagem comum continua rolando a página
+    handle.addEventListener(
+      'wheel',
+      (e) => {
+        if (!e.ctrlKey) return;
+        e.preventDefault();
+        setZoom((current().z ?? 1) * Math.exp(-e.deltaY / 200));
+      },
+      { passive: false },
+    );
 
     handle.addEventListener('pointerdown', (e) => {
       if (e.button !== 0 || (e.target as Element).closest('a, button, summary')) return;
-      const nw = img.naturalWidth;
-      const nh = img.naturalHeight;
-      if (!nw || !nh) return;
+      if (!img.naturalWidth || !img.naturalHeight) return;
       e.preventDefault();
-      const box = img.getBoundingClientRect();
-      // Com object-fit: cover, só dá para mover no eixo em que a foto sobra além do espaço
-      const scale = Math.max(box.width / nw, box.height / nh);
-      const overflowX = nw * scale - box.width;
-      const overflowY = nh * scale - box.height;
-      const start = getFocus()[url] ?? { x: 50, y: 50 };
+      const start = current();
+      const over = overflow(start.z ?? 1);
       const sx = e.clientX;
       const sy = e.clientY;
-      let current = start;
+      let moved = start;
       handle.setPointerCapture(e.pointerId);
       handle.style.cursor = 'grabbing';
 
       const move = (ev: PointerEvent) => {
-        // Arrastar para a direita revela o lado esquerdo da foto (posição diminui)
-        current = {
-          x: overflowX > 1 ? clamp(start.x - ((ev.clientX - sx) / overflowX) * 100) : start.x,
-          y: overflowY > 1 ? clamp(start.y - ((ev.clientY - sy) / overflowY) * 100) : start.y,
+        // Arrastar para a direita/baixo revela o lado esquerdo/de cima da foto (a posição diminui)
+        moved = {
+          ...start,
+          x: over.x > 1 ? clamp(start.x - ((ev.clientX - sx) / over.x) * 100) : start.x,
+          y: over.y > 1 ? clamp(start.y - ((ev.clientY - sy) / over.y) * 100) : start.y,
         };
-        img.style.objectPosition = `${current.x}% ${current.y}%`;
+        applyFocus(img, moved);
       };
       const end = () => {
         handle.removeEventListener('pointermove', move);
         handle.removeEventListener('pointerup', end);
         handle.removeEventListener('pointercancel', end);
         handle.style.cursor = 'grab';
-        if (current.x !== start.x || current.y !== start.y) {
-          onFocus(url, { x: Math.round(current.x * 10) / 10, y: Math.round(current.y * 10) / 10 });
-        }
+        if (moved.x !== start.x || moved.y !== start.y) onFocus(url, round(moved));
       };
       handle.addEventListener('pointermove', move);
       handle.addEventListener('pointerup', end);
@@ -105,7 +178,7 @@ export function PreviewFrame({
     if (!onFocusRef.current) return;
     const doc = e.currentTarget.contentDocument;
     if (!doc) return;
-    attachFocusDrag(doc, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f));
+    attachFocusDrag(doc, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), device === 'desktop' && width ? Math.max(1, DESKTOP_WIDTH / width) : 1);
   };
 
   if (device === 'mobile') {

@@ -22,6 +22,8 @@ export interface ThemeSettings {
 export interface ImageFocus {
   x: number;
   y: number;
+  /** Zoom (1 = sem zoom, até 3) aplicado a partir do ponto de corte */
+  z?: number;
 }
 
 function normalizeFocus(input: unknown): Record<string, ImageFocus> {
@@ -29,7 +31,10 @@ function normalizeFocus(input: unknown): Record<string, ImageFocus> {
   if (!input || typeof input !== 'object') return out;
   const pct = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.min(100, Math.max(0, v)) * 10) / 10 : 50);
   for (const [url, f] of Object.entries(input).slice(0, 300)) {
-    if (url.length <= 2048 && f && typeof f === 'object') out[url] = { x: pct((f as ImageFocus).x), y: pct((f as ImageFocus).y) };
+    if (url.length > 2048 || !f || typeof f !== 'object') continue;
+    const z = (f as ImageFocus).z;
+    const zoom = typeof z === 'number' && Number.isFinite(z) ? Math.round(Math.min(3, Math.max(1, z)) * 100) / 100 : 1;
+    out[url] = { x: pct((f as ImageFocus).x), y: pct((f as ImageFocus).y), ...(zoom > 1 ? { z: zoom } : {}) };
   }
   return out;
 }

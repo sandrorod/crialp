@@ -7,8 +7,8 @@ import { resolveLabels, type Labels } from './labels.js';
 export interface LpImage {
   url: string;
   alt: string;
-  /** object-position escolhido no editor (ex.: "30% 60%"); ausente = centro */
-  position?: string;
+  /** Enquadramento escolhido no editor (object-position e zoom); ausente = centralizado, sem zoom */
+  style?: { objectPosition: string; transform?: string; transformOrigin?: string };
 }
 
 export interface RenderContext {
@@ -68,7 +68,11 @@ export function buildContext(opts: {
     .sort((a, b) => (rank.get(a.i.url) ?? theme.imageOrder.length + a.index) - (rank.get(b.i.url) ?? theme.imageOrder.length + b.index))
     .map(({ i }): LpImage => {
       const f = theme.focus[i.url];
-      return { url: i.url, alt: i.alt_text || displayName, ...(f ? { position: `${f.x}% ${f.y}%` } : {}) };
+      if (!f) return { url: i.url, alt: i.alt_text || displayName };
+      const pos = `${f.x}% ${f.y}%`;
+      // Zoom a partir do mesmo ponto: o recorte continua centrado onde o usuário escolheu
+      const style = f.z && f.z > 1 ? { objectPosition: pos, transform: `scale(${f.z})`, transformOrigin: pos } : { objectPosition: pos };
+      return { url: i.url, alt: i.alt_text || displayName, style };
     });
   // Local escolhido no editor; fotos sem escolha preenchem topo, "sobre" e galeria nessa ordem
   const place = (url: string) => theme.images[url];

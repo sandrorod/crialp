@@ -232,6 +232,8 @@ export interface ThemeSettings {
 export interface ImageFocus {
   x: number;
   y: number;
+  /** Zoom (1 = sem zoom, até 3) */
+  z?: number;
 }
 
 export type TemplateKey = 'classico' | 'moderno' | 'minimalista' | 'elegante' | 'impacto';

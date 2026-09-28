@@ -105,7 +105,7 @@ const ContentUpdateSchema = z.object({
     images: z.record(z.string().max(2048), z.enum(IMAGE_PLACEMENTS)).optional(),
     template: z.enum(TEMPLATE_KEYS).optional(),
     // Ponto de corte das fotos do topo/"sobre": { "<url>": { "x": 0-100, "y": 0-100 } }
-    focus: z.record(z.string().max(2048), z.object({ x: z.number().min(0).max(100), y: z.number().min(0).max(100) })).optional(),
+    focus: z.record(z.string().max(2048), z.object({ x: z.number().min(0).max(100), y: z.number().min(0).max(100), z: z.number().min(1).max(3).optional() })).optional(),
     imageOrder: z.array(z.string().max(2048)).max(300).optional(),
   }),
   seo: z.object({
