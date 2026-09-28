@@ -1,12 +1,20 @@
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Validado em ensureReady() (não na importação), para o Vercel exibir uma mensagem clara em vez de travar a função
-const jwtSecret = process.env.JWT_SECRET ?? (isProduction ? '' : 'dev-only-secret-change-me');
-const jwtSecretError = !jwtSecret
-  ? 'JWT_SECRET não configurada: defina uma chave aleatória com pelo menos 32 caracteres.'
-  : isProduction && jwtSecret.length < 32
+// Sem JWT_SECRET, deriva a chave da DATABASE_URL (que já contém a senha do banco).
+// Trocar a senha do banco encerra as sessões abertas. Validado em ensureReady(), não na importação.
+const explicitJwtSecret = process.env.JWT_SECRET || undefined;
+const jwtSecret =
+  explicitJwtSecret ??
+  (process.env.DATABASE_URL
+    ? createHash('sha256').update(`lp-jwt:${process.env.DATABASE_URL}`).digest('hex')
+    : isProduction
+      ? ''
+      : 'dev-only-secret-change-me');
+const jwtSecretError =
+  isProduction && explicitJwtSecret && explicitJwtSecret.length < 32
     ? 'JWT_SECRET deve ter pelo menos 32 caracteres em produção.'
     : null;
 
