@@ -25,7 +25,7 @@ async function loadOr404(orgId: string, rawId: string) {
 
 function serialize(lp: repo.LandingPageRow) {
   const { html_content: _html, ...rest } = lp;
-  return { ...rest, public_url: publicUrl(lp), path_url: `${env.appUrl}/lp/${lp.slug}` };
+  return { ...rest, theme: normalizeThemeSettings(lp.theme), public_url: publicUrl(lp), path_url: `${env.appUrl}/lp/${lp.slug}` };
 }
 
 landingPagesRouter.get('/', async (req, res) => {
@@ -93,7 +93,7 @@ const ContentUpdateSchema = z.object({
     preset: z.string(),
     primary: z.string().nullish(),
     accent: z.string().nullish(),
-    heroVariant: z.enum(['split', 'centered', 'image']).optional(),
+    heroVariant: z.enum(['split', 'centered', 'image']).optional(), // "image" é legado: vira "split"
     // Cores por seção: { "services": { "bg": "#0b1b2b", "text": null, "accent": "#ffcc00" }, ... }
     sections: z
       .record(

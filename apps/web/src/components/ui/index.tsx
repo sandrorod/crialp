@@ -226,16 +226,17 @@ export function StatusToggle({ status, onToggle, loading }: { status: LpStatus; 
       type="button"
       onClick={onToggle}
       disabled={loading}
-      title={active ? 'Clique para desativar' : 'Clique para ativar'}
-      className={cn(
-        'group inline-flex h-8 items-center gap-2 rounded-full pl-1 pr-3 text-xs font-semibold ring-1 transition disabled:opacity-60',
-        active ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 hover:bg-emerald-100' : 'bg-red-50 text-red-700 ring-red-600/20 hover:bg-red-100',
-      )}
+      role="switch"
+      aria-checked={active}
+      aria-label={active ? 'Ativa — clique para desativar' : 'Inativa — clique para ativar'}
+      title={active ? 'Ativa — clique para desativar' : 'Inativa — clique para ativar'}
+      className="inline-flex rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:opacity-60"
     >
       <span className={cn('relative h-6 w-10 rounded-full transition', active ? 'bg-emerald-500' : 'bg-red-400')}>
-        <span className={cn('absolute top-0.5 size-5 rounded-full bg-white shadow transition-all', active ? 'left-[18px]' : 'left-0.5')} />
+        <span className={cn('absolute top-0.5 grid size-5 place-items-center rounded-full bg-white shadow transition-all', active ? 'left-[18px]' : 'left-0.5')}>
+          {loading ? <Loader2 className="size-3 animate-spin text-zinc-400" /> : null}
+        </span>
       </span>
-      {loading ? <Loader2 className="size-3.5 animate-spin" /> : active ? '🟢 Ativa' : '🔴 Inativa'}
     </button>
   );
 }

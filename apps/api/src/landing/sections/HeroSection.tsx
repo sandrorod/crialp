@@ -67,20 +67,7 @@ function InfoCard({ ctx }: { ctx: RenderContext }) {
 }
 
 export function HeroSection({ ctx }: { ctx: RenderContext }) {
-  const variant = ctx.theme.heroVariant === 'image' && !ctx.heroImage ? 'centered' : ctx.theme.heroVariant;
-
-  if (variant === 'image' && ctx.heroImage) {
-    return (
-      <section id="inicio" className="hero hero-image">
-        <div className="bg">
-          <img referrerPolicy="no-referrer" src={ctx.heroImage.url} alt={ctx.heroImage.alt} fetchPriority="high" data-lp-img={ctx.heroImage.url} style={ctx.heroImage.position ? { objectPosition: ctx.heroImage.position } : undefined} />
-        </div>
-        <div className="container">
-          <Copy ctx={ctx} />
-        </div>
-      </section>
-    );
-  }
+  const variant = ctx.theme.heroVariant;
 
   if (variant === 'centered') {
     return (

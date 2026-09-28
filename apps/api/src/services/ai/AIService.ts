@@ -70,8 +70,8 @@ Direção visual:
   oficina → robusto e direto; serviços em geral → profissional e focado em conversão.
 - primary_color/accent_color: cores #RRGGBB coerentes com o segmento e, se o cadastro indicar cores da marca,
   alinhadas a elas. Evite cores saturadas demais e combinações sem contraste.
-- hero_variant: "image" apenas se houver imagem liberada de boa qualidade; "split" para negócios de
-  serviço/profissionais; "centered" para mensagens diretas e marcas fortes.
+- hero_variant: "split" (foto emoldurada ao lado do texto, ou cartão de contato sem foto) para negócios de
+  serviço/profissionais; "centered" para mensagens diretas e marcas fortes. Não use "image".
 - section_order: escolha as seções e a ordem que melhor convertem para este negócio (não inclua seções
   que você retornou como null). "contact" e "final_cta" devem estar presentes.
 - Ícones disponíveis: ${ICONS.join(', ')}.

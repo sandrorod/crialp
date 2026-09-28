@@ -20,8 +20,7 @@ function attachFocusDrag(doc: Document, getFocus: () => FocusMap, onFocus: (url:
     const saved = getFocus()[url];
     if (saved) img.style.objectPosition = `${saved.x}% ${saved.y}%`;
 
-    // No topo com foto de fundo, o texto fica por cima da imagem: o arrasto vale na seção inteira
-    const handle = (img.closest('.hero-image') as HTMLElement | null) ?? img.parentElement;
+    const handle = img.parentElement;
     if (!handle) return;
     handle.style.cursor = 'grab';
     handle.style.touchAction = 'none';

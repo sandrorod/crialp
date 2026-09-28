@@ -161,7 +161,7 @@ export type IconName = string;
 export type SectionKey = 'about' | 'services' | 'differentials' | 'products' | 'gallery' | 'testimonials' | 'faq' | 'contact' | 'final_cta';
 
 export interface LandingContent {
-  design: { preset: string; primary_color: string; accent_color: string; hero_variant: HeroVariant; rationale: string };
+  design: { preset: string; primary_color: string; accent_color: string; hero_variant: HeroVariant | 'image'; rationale: string };
   seo: { title: string; description: string; keywords: string[] };
   hero: { eyebrow: string | null; headline: string; subheadline: string; primary_cta: string; secondary_cta: string | null; highlights: string[] };
   about: { title: string; paragraphs: string[] } | null;
@@ -204,7 +204,7 @@ export interface CompanySources {
   };
 }
 
-export type HeroVariant = 'split' | 'centered' | 'image';
+export type HeroVariant = 'split' | 'centered';
 
 export interface SectionColors {
   bg?: string | null;

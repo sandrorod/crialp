@@ -5,7 +5,8 @@ export interface ThemeSettings {
   preset: DesignPreset;
   primary?: string | null;
   accent?: string | null;
-  heroVariant?: 'split' | 'centered' | 'image';
+  /** Topo: foto emoldurada ao lado do texto ("split") ou mensagem centralizada. */
+  heroVariant?: 'split' | 'centered';
   /** Cores próprias por seção (hero, about, services…, custom:<id>, footer). */
   sections?: Record<string, SectionColors>;
   /** Local escolhido para cada foto (chave = URL). Sem entrada = automático. */
@@ -40,7 +41,7 @@ interface Template {
   label: string;
   description: string;
   /** Topo recomendado: com foto liberada usa a primeira opção; sem foto, a segunda. */
-  hero: { withPhoto: 'split' | 'centered' | 'image'; withoutPhoto: 'split' | 'centered' };
+  hero: { withPhoto: 'split' | 'centered'; withoutPhoto: 'split' | 'centered' };
   /** Layout dos serviços conforme a quantidade de itens (null = o do preset). */
   services: (count: number) => 'grid' | 'list' | null;
 }
@@ -54,8 +55,8 @@ export const TEMPLATES: Record<TemplateKey, Template> = {
   },
   moderno: {
     label: 'Moderno',
-    description: 'Foto em tela cheia no topo, títulos centralizados e cartões flutuantes com sombra.',
-    hero: { withPhoto: 'image', withoutPhoto: 'centered' },
+    description: 'Foto com cantos bem arredondados no topo, títulos centralizados e cartões flutuantes com sombra.',
+    hero: { withPhoto: 'split', withoutPhoto: 'centered' },
     // Poucos serviços ficam melhores em lista; a partir de 3, cartões
     services: (n) => (n <= 2 ? 'list' : 'grid'),
   },
@@ -75,7 +76,7 @@ export const TEMPLATES: Record<TemplateKey, Template> = {
   impacto: {
     label: 'Impacto',
     description: 'Topo em faixa escura, títulos grandes e cartões com borda de destaque. Chama atenção.',
-    hero: { withPhoto: 'image', withoutPhoto: 'centered' },
+    hero: { withPhoto: 'split', withoutPhoto: 'centered' },
     services: (n) => (n === 1 ? 'list' : 'grid'),
   },
 };
@@ -101,7 +102,7 @@ interface Preset {
   radius: number;
   buttonRadius: number;
   servicesLayout: 'grid' | 'list';
-  heroDefault: 'split' | 'centered' | 'image';
+  heroDefault: 'split' | 'centered';
 }
 
 export const PRESETS: Record<DesignPreset, Preset> = {
@@ -131,14 +132,14 @@ export const PRESETS: Record<DesignPreset, Preset> = {
     heading: { family: 'Fraunces', weight: 600, query: 'Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700', case: 'none', tracking: '-0.02em', lineHeight: 1.05 },
     body: { family: 'DM Sans', query: 'DM+Sans:wght@400;500;600;700' },
     colors: { bg: '#fbf6ef', surface: '#f3e8da', text: '#2b1d13', muted: '#6e5a4a', primary: '#a8402a', accent: '#3f5b3a' },
-    dark: false, radius: 16, buttonRadius: 999, servicesLayout: 'grid', heroDefault: 'image',
+    dark: false, radius: 16, buttonRadius: 999, servicesLayout: 'grid', heroDefault: 'split',
   },
   realestate: {
     label: 'Imobiliário & Arquitetura — premium',
     heading: { family: 'Playfair Display', weight: 500, query: 'Playfair+Display:wght@400;500;600;700', case: 'none', tracking: '-0.015em', lineHeight: 1.08 },
     body: { family: 'Manrope', query: 'Manrope:wght@400;500;600;700' },
     colors: { bg: '#f7f6f3', surface: '#ecebe6', text: '#141414', muted: '#5d5b57', primary: '#161616', accent: '#a38654' },
-    dark: false, radius: 2, buttonRadius: 2, servicesLayout: 'list', heroDefault: 'image',
+    dark: false, radius: 2, buttonRadius: 2, servicesLayout: 'list', heroDefault: 'split',
   },
   beauty: {
     label: 'Estética & Beleza — leve e sofisticado',
@@ -224,7 +225,7 @@ export function readableOn(bg: string) {
 export interface ResolvedTheme {
   preset: DesignPreset;
   p: Preset;
-  heroVariant: 'split' | 'centered' | 'image';
+  heroVariant: 'split' | 'centered';
   sections: Record<string, SectionColors>;
   images: Record<string, ImagePlacement>;
   template: TemplateKey;
@@ -240,7 +241,8 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
     preset,
     primary: isHex(input?.primary) ? normalizeHex(input.primary) : null,
     accent: isHex(input?.accent) ? normalizeHex(input.accent) : null,
-    heroVariant: ['split', 'centered', 'image'].includes(input?.heroVariant) ? input.heroVariant : PRESETS[preset as DesignPreset].heroDefault,
+    // "image" (foto de fundo em tela cheia) foi descontinuado: a foto do topo fica emoldurada, como em "Sobre"
+    heroVariant: input?.heroVariant === 'centered' ? 'centered' : input?.heroVariant === 'split' || input?.heroVariant === 'image' ? 'split' : PRESETS[preset as DesignPreset].heroDefault,
     sections: normalizeSectionColors(input?.sections),
     images: normalizeImagePlacements(input?.images),
     template: TEMPLATE_KEYS.includes(input?.template) ? input.template : 'classico',

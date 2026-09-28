@@ -10,9 +10,8 @@ import type { CompanyImage, HeroVariant, ImagePlacement, LandingContent, Templat
 
 // ─── Visual ─────────────────────────────────────────────────────────
 const HERO_VARIANTS: { value: HeroVariant; label: string; hint: string }[] = [
-  { value: 'split', label: 'Dividido', hint: 'Texto + imagem/painel' },
-  { value: 'centered', label: 'Centralizado', hint: 'Mensagem direta' },
-  { value: 'image', label: 'Imagem cheia', hint: 'Requer foto liberada' },
+  { value: 'split', label: 'Dividido', hint: 'Texto + foto emoldurada (ou cartão de contato)' },
+  { value: 'centered', label: 'Centralizado', hint: 'Mensagem direta, sem foto' },
 ];
 
 const SECTION_NAMES: Record<string, string> = {
@@ -99,7 +98,7 @@ function SectionColorsEditor({ theme, onChange, content, palette, defaults }: { 
   );
 }
 
-export function DesignTab({ theme, onChange, imagesAllowed, content }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; imagesAllowed: number; content: LandingContent }) {
+export function DesignTab({ theme, onChange, content }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; content: LandingContent }) {
   const { data: presets } = useAsync(() => landingPageService.presets(), []);
   const current = presets?.find((p) => p.key === theme.preset);
 
@@ -147,7 +146,7 @@ export function DesignTab({ theme, onChange, imagesAllowed, content }: { theme: 
 
       <div>
         <h4 className="mb-2 text-sm font-semibold">Topo da página</h4>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {HERO_VARIANTS.map((v) => (
             <button
               key={v.value}
@@ -160,9 +159,6 @@ export function DesignTab({ theme, onChange, imagesAllowed, content }: { theme: 
             </button>
           ))}
         </div>
-        {theme.heroVariant === 'image' && imagesAllowed === 0 ? (
-          <p className="mt-2 text-xs text-amber-700">Nenhuma imagem liberada: o topo será exibido centralizado. Libere imagens em "Editar empresa".</p>
-        ) : null}
       </div>
 
       <div className="border-t border-zinc-100 pt-6">
@@ -197,8 +193,9 @@ function TemplateThumb({ template }: { template: TemplateKey }) {
       </div>
     ),
     moderno: (
-      <div className="relative h-14 bg-zinc-400">
-        <div className="absolute bottom-2 left-2 space-y-1">{bar('60px', 'bg-white')}{bar('40px', 'bg-white/70')}</div>
+      <div className="flex gap-2 p-2">
+        <div className="flex-1 space-y-1 pt-2">{bar('85%', 'bg-zinc-500')}{bar('55%')}</div>
+        <div className="h-10 w-9 rounded-xl bg-zinc-300" />
       </div>
     ),
     minimalista: <div className="flex flex-col items-center gap-1 p-3">{bar('70%', 'bg-zinc-500')}{bar('45%')}</div>,

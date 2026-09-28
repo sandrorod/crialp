@@ -216,7 +216,7 @@ export function LandingPageEditorPage() {
             {tab === 'textos' ? <ContentTab content={content} onChange={change(setContent)} company={company} /> : null}
             {tab === 'modelo' ? <Card className="p-5"><TemplateTab theme={theme} onChange={change(setTheme)} hasPhoto={!!company?.images.some((i) => i.usage_allowed && i.type !== 'logo')} /></Card> : null}
             {tab === 'fotos' ? <Card className="p-5"><PhotosTab theme={theme} onChange={change(setTheme)} images={company?.images ?? null} /></Card> : null}
-            {tab === 'visual' ? <Card className="p-5"><DesignTab theme={theme} onChange={change(setTheme)} imagesAllowed={lp.company?.images_allowed ?? 0} content={content} /></Card> : null}
+            {tab === 'visual' ? <Card className="p-5"><DesignTab theme={theme} onChange={change(setTheme)} content={content} /></Card> : null}
             {tab === 'seo' ? <Card className="p-5"><SeoTab seo={seo} onChange={change(setSeo)} slug={lp.slug} /></Card> : null}
             {tab === 'publicacao' ? <Card className="p-5"><PublishTab lp={lp} onUpdated={refresh} /></Card> : null}
             {tab === 'versoes' ? <VersionsTab lp={lp} onRestored={refresh} /> : null}
