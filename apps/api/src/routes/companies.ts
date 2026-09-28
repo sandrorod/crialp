@@ -5,7 +5,7 @@ import { AppError, notFound } from '../lib/errors.js';
 import { normalizeInputUrl } from '../lib/url.js';
 import { CompanyInputSchema, parseBody, uuidParam, type CompanyInput } from '../lib/validation.js';
 import { authUser } from '../middleware/auth.js';
-import { createCompany, deleteCompany, getCompanyFull, listCompanies, updateCompany } from '../repositories/companies.js';
+import { createCompany, deleteCompany, findDuplicateCompany, getCompanyFull, listCompanies, updateCompany } from '../repositories/companies.js';
 import { saveVersion, type LandingPageRow } from '../repositories/landingPages.js';
 import { refreshSnapshot } from '../landing/publish.js';
 import { aiService } from '../services/ai/index.js';
@@ -74,6 +74,8 @@ companiesRouter.post('/', async (req, res) => {
     req.body,
   );
   const { source_meta, analysis_job_id, ...input } = body;
+  const dup = await findDuplicateCompany(user.organizationId, { url: input.reference_url, website: input.website, name: input.name, tradeName: input.trade_name });
+  if (dup) throw new AppError(409, `Esta empresa já foi cadastrada: "${dup.name}" (mesmo ${dup.reason}).`, 'DUPLICATE_COMPANY');
   const id = await createCompany(user.organizationId, user.id, withLogo(input), source_meta ?? {});
   // Conteúdo completo do site, guardado pela análise
   if (analysis_job_id) {

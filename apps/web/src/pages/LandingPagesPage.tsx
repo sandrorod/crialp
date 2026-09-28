@@ -1,6 +1,6 @@
 import { useDeferredValue, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Copy, Eye, PanelsTopLeft, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Eye, PanelsTopLeft, Pencil, Plus, Search, Share2, Trash2 } from 'lucide-react';
 import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBlock, PageHeader, Select, StatusToggle } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { useLandingPageActions } from '@/hooks/useLandingPageActions';
@@ -57,11 +57,10 @@ export function LandingPagesPage() {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
                   <th className="px-5 py-3">Empresa</th>
-                  <th className="px-3 py-3">URL</th>
                   <th className="px-3 py-3">Status</th>
                   <th className="px-3 py-3">Criação</th>
                   <th className="px-3 py-3">Última atualização</th>
@@ -75,11 +74,6 @@ export function LandingPagesPage() {
                       <Link to={`/landing-pages/${lp.id}`} className="font-medium hover:underline">{lp.company_name}</Link>
                       <div className="text-xs text-zinc-500">{lp.segment ?? '—'} · v{lp.current_version}</div>
                     </td>
-                    <td className="max-w-[280px] px-3 py-3.5">
-                      <a href={lp.public_url} target="_blank" rel="noreferrer" className="block truncate text-brand-600 hover:underline">
-                        {lp.custom_domain && lp.public_url.startsWith('https://' + lp.custom_domain) ? lp.custom_domain : `/lp/${lp.slug}`}
-                      </a>
-                    </td>
                     <td className="px-3 py-3.5">
                       <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />
                     </td>
@@ -90,11 +84,11 @@ export function LandingPagesPage() {
                         <a href={landingPageService.previewUrl(lp.id)} target="_blank" rel="noreferrer" title="Visualizar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
                           <Eye className="size-4" />
                         </a>
+                        <button onClick={() => actions.copyUrl(lp.public_url)} title="Copiar link da Landing Page" aria-label="Copiar link da Landing Page" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
+                          <Share2 className="size-4" />
+                        </button>
                         <button onClick={() => navigate(`/landing-pages/${lp.id}`)} title="Editar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
                           <Pencil className="size-4" />
-                        </button>
-                        <button onClick={() => actions.copyUrl(lp.public_url)} title="Copiar URL" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
-                          <Copy className="size-4" />
                         </button>
                         <button onClick={() => setToDelete(lp)} title="Excluir" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
                           <Trash2 className="size-4" />

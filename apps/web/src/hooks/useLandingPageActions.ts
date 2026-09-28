@@ -24,8 +24,8 @@ export function useLandingPageActions(onChange: () => void) {
   };
 
   const copyUrl = async (url: string) => {
-    if (await copyToClipboard(url)) toast.success('URL copiada.');
-    else toast.error('Não foi possível copiar a URL.');
+    if (await copyToClipboard(url)) toast.success('Link da Landing Page copiado.');
+    else toast.error('Não foi possível copiar o link.');
   };
 
   const remove = async (id: string) => {

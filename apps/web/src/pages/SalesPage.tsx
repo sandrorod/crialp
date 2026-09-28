@@ -91,9 +91,9 @@ export function SalesPage() {
                             </button>
                           </>
                         ) : null}
-                        <Button size="sm" variant="secondary" onClick={() => setProspecting(c)} icon={<MessageSquarePlus className="size-4" />}>
-                          Prospecção
-                        </Button>
+                        <button type="button" onClick={() => setProspecting(c)} title="Prospecção" aria-label="Prospecção" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
+                          <MessageSquarePlus className="size-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>

@@ -200,3 +200,61 @@ export async function listCompanies(orgId: string, f: CompanyFilters) {
     facets: { segments: uniq(facets.rows.map((r) => r.segment)), cities: uniq(facets.rows.map((r) => r.city)) },
   };
 }
+
+// ─── Duplicidade ────────────────────────────────────────────────────
+/** Chave do link: domínio sem "www" + caminho, sem barra final, parâmetros nem fragmento. */
+export function companyUrlKey(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const u = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw.trim()) ? raw.trim() : `https://${raw.trim()}`);
+    const path = decodeURIComponent(u.pathname).replace(/\/+$/, '').toLowerCase();
+    return `${u.hostname.toLowerCase().replace(/^www\./, '')}${path}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Nome comparável: sem acentos, maiúsculas, pontuação, títulos (Dr./Dra.) e sufixos societários. */
+export function companyNameKey(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const key = raw
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/\b(dra?|doutora?)\b\.?/g, ' ')
+    .replace(/\b(ltda|me|eireli|epp|s\/?a)\b\.?/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+  return key.length >= 3 ? key : null;
+}
+
+/**
+ * Empresa já cadastrada na organização com o mesmo link (endereço analisado ou site)
+ * ou com o mesmo nome. Links de página inicial também batem com o site cadastrado.
+ */
+export async function findDuplicateCompany(
+  orgId: string,
+  probe: { url?: string | null; website?: string | null; name?: string | null; tradeName?: string | null },
+  ignoreId?: string,
+): Promise<{ id: string; name: string; reason: 'link' | 'nome' } | null> {
+  const { rows } = await query<{ id: string; name: string; trade_name: string | null; reference_url: string | null; website: string | null }>(
+    'select id, name, trade_name, reference_url, website from companies where organization_id = $1',
+    [orgId],
+  );
+  const urlKeys = new Set([companyUrlKey(probe.url)].filter((k): k is string => !!k));
+  // O site (origem) só conta quando é a página inicial: perfis diferentes na mesma plataforma têm a mesma origem
+  const homeKeys = new Set([probe.url, probe.website].map(companyUrlKey).filter((k): k is string => !!k && !k.includes('/')));
+  const nameKeys = new Set([probe.name, probe.tradeName].map(companyNameKey).filter((k): k is string => !!k));
+  for (const c of rows) {
+    if (c.id === ignoreId) continue;
+    const ref = companyUrlKey(c.reference_url);
+    const site = companyUrlKey(c.website);
+    if ((ref && urlKeys.has(ref)) || (ref && !ref.includes('/') && homeKeys.has(ref)) || (site && !site.includes('/') && homeKeys.has(site) && !ref?.includes('/'))) {
+      return { id: c.id, name: c.trade_name || c.name, reason: 'link' };
+    }
+    if ([c.name, c.trade_name].map(companyNameKey).some((k) => k && nameKeys.has(k))) {
+      return { id: c.id, name: c.trade_name || c.name, reason: 'nome' };
+    }
+  }
+  return null;
+}

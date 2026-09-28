@@ -9,7 +9,7 @@ import { aiService } from '../services/ai/index.js';
 import { jobService } from '../services/jobs/JobService.js';
 import { analyzeUrl } from '../services/pipeline/analyzeUrl.js';
 import { generateLanding } from '../services/pipeline/generateLanding.js';
-import { getCompanyFull } from '../repositories/companies.js';
+import { findDuplicateCompany, getCompanyFull } from '../repositories/companies.js';
 
 export const analyzeRouter = Router();
 
@@ -33,6 +33,9 @@ analyzeRouter.post('/analyze-url', aiLimiter, async (req, res) => {
     req.body,
   );
   const parsed = normalizeInputUrl(url);
+  // Evita cadastrar de novo (e gastar uma análise) uma empresa que já existe
+  const dup = await findDuplicateCompany(user.organizationId, { url: parsed.toString() });
+  if (dup) throw new AppError(409, `Esta empresa já foi cadastrada: "${dup.name}" (mesmo link).`, 'DUPLICATE_COMPANY');
   if (!aiService.isConfigured()) throw new AppError(503, Messages.aiNotConfigured);
   const jobId = await jobService.create(user.organizationId, 'analyze_url', { url: parsed.toString() });
   jobService.run(jobId, (job) => analyzeUrl(job, parsed, { allowImages }));
