@@ -6,7 +6,7 @@
 alter table users drop constraint if exists users_role_check;
 alter table users add constraint users_role_check check (role in ('owner', 'admin', 'editor', 'seller'));
 
--- Lançamentos de prospecção: somente inclusão (histórico sem edição nem exclusão)
+-- Lançamentos de prospecção: histórico sem edição (só administradores excluem)
 create table prospecting_notes (
   id               uuid primary key default gen_random_uuid(),
   organization_id  uuid not null references organizations(id) on delete cascade,

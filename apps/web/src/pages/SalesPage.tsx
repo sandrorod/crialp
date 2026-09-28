@@ -1,12 +1,13 @@
 import { useDeferredValue, useState, type FormEvent } from 'react';
-import { Building2, ExternalLink, Eye, MessageSquarePlus, Search } from 'lucide-react';
+import { Building2, ChevronDown, ExternalLink, Eye, MessageSquarePlus, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, Card, EmptyState, ErrorBlock, Input, LoadingBlock, Modal, PageHeader, Select, Textarea } from '@/components/ui';
+import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBlock, Modal, PageHeader, Select, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
+import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/lib/api';
-import { formatDate } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import { salesService } from '@/services';
-import type { SalesCompany } from '@/types';
+import type { ProspectingNote, SalesCompany } from '@/types';
 
 export function SalesPage() {
   const [search, setSearch] = useState('');
@@ -110,12 +111,42 @@ export function SalesPage() {
 
 function ProspectingModal({ company, onClose, onAdded }: { company: SalesCompany | null; onClose: () => void; onAdded: () => void }) {
   const { data: notes, error, loading, reload } = useAsync(async () => (company ? salesService.notes(company.id) : null), [company?.id]);
+  const { user } = useAuth();
+  const canDelete = user?.role === 'owner' || user?.role === 'admin';
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [toDelete, setToDelete] = useState<ProspectingNote | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const close = () => {
     setText('');
+    setExpanded(new Set());
     onClose();
+  };
+
+  const toggle = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const confirmDelete = async () => {
+    if (!company || !toDelete) return;
+    setDeleting(true);
+    try {
+      await salesService.removeNote(company.id, toDelete.id);
+      toast.success('Lançamento excluído.');
+      setToDelete(null);
+      reload();
+      onAdded();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const submit = async (e: FormEvent) => {
@@ -147,7 +178,9 @@ function ProspectingModal({ company, onClose, onAdded }: { company: SalesCompany
           autoFocus
         />
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-zinc-500">Depois de adicionado, o lançamento não pode ser editado nem excluído.</p>
+          <p className="text-xs text-zinc-500">
+            {canDelete ? 'Depois de adicionado, o lançamento não pode ser editado.' : 'Depois de adicionado, o lançamento não pode ser editado nem excluído.'}
+          </p>
           <Button type="submit" loading={saving} disabled={!text.trim()}>Adicionar</Button>
         </div>
       </form>
@@ -162,18 +195,58 @@ function ProspectingModal({ company, onClose, onAdded }: { company: SalesCompany
           <p className="rounded-lg bg-zinc-50 px-4 py-6 text-center text-sm text-zinc-500">Nenhum lançamento ainda.</p>
         ) : (
           <ol className="space-y-3">
-            {notes.map((n) => (
-              <li key={n.id} className="rounded-lg border border-zinc-200 p-3">
-                <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
-                  <span className="font-medium text-zinc-700">{n.author_name}</span>
-                  <time dateTime={n.created_at}>{formatDate(n.created_at, true)}</time>
-                </div>
-                <p className="whitespace-pre-wrap break-words text-sm text-ink">{n.note}</p>
-              </li>
-            ))}
+            {notes.map((n) => {
+              const open = expanded.has(n.id);
+              return (
+                <li key={n.id} className="rounded-lg border border-zinc-200">
+                  <div className="flex items-start gap-1 p-1">
+                    <button
+                      type="button"
+                      onClick={() => toggle(n.id)}
+                      aria-expanded={open}
+                      className="min-w-0 flex-1 rounded-md p-2 text-left transition hover:bg-zinc-50"
+                    >
+                      <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
+                        <span className="font-medium text-zinc-700">{n.author_name}</span>
+                        <span className="flex items-center gap-1.5">
+                          <time dateTime={n.created_at}>{formatDate(n.created_at, true)}</time>
+                          <ChevronDown className={cn('size-4 transition-transform', open && 'rotate-180')} />
+                        </span>
+                      </div>
+                      {/* Fechado: só a primeira linha; aberto: o texto completo */}
+                      <p className={cn('break-words text-sm text-ink', open ? 'whitespace-pre-wrap' : 'truncate')}>
+                        {open ? n.note : n.note.split('\n')[0]}
+                      </p>
+                    </button>
+                    {canDelete ? (
+                      <button
+                        type="button"
+                        onClick={() => setToDelete(n)}
+                        title="Excluir lançamento"
+                        aria-label="Excluir lançamento"
+                        className="rounded-md p-2 text-zinc-400 hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
           </ol>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!toDelete}
+        title="Excluir lançamento?"
+        description="O lançamento será removido do histórico de prospecção permanentemente."
+        confirmLabel="Excluir"
+        danger
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onClose={() => setToDelete(null)}
+      />
     </Modal>
   );
 }

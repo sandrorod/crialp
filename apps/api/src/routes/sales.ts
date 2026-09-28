@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { one, query } from '../db/pool.js';
 import { notFound } from '../lib/errors.js';
 import { parseBody, uuidParam } from '../lib/validation.js';
-import { authUser } from '../middleware/auth.js';
+import { authUser, MANAGER_ROLES, requireRole } from '../middleware/auth.js';
 import { listCompanies } from '../repositories/companies.js';
 
 /** Área de Vendas: lista de empresas (somente leitura) e histórico de prospecção. */
@@ -63,7 +63,7 @@ salesRouter.get('/companies/:id/notes', async (req, res) => {
 
 const NoteSchema = z.object({ note: z.string().trim().min(1, 'Escreva as informações da prospecção.').max(5000, 'Máximo de 5.000 caracteres.') });
 
-// Lançamentos são somente inclusão: não existem rotas de edição nem de exclusão
+// Lançamentos não podem ser editados; só administradores podem excluí-los
 salesRouter.post('/companies/:id/notes', async (req, res) => {
   const user = authUser(req);
   const company = await ensureCompany(user.organizationId, uuidParam.parse(req.params.id));
@@ -74,4 +74,12 @@ salesRouter.post('/companies/:id/notes', async (req, res) => {
     [user.organizationId, company.id, user.id, user.name, note],
   );
   res.status(201).json(created);
+});
+
+salesRouter.delete('/companies/:id/notes/:noteId', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const user = authUser(req);
+  const company = await ensureCompany(user.organizationId, uuidParam.parse(req.params.id));
+  const { rowCount } = await query('delete from prospecting_notes where id = $1 and company_id = $2', [uuidParam.parse(req.params.noteId), company.id]);
+  if (!rowCount) throw notFound('Lançamento não encontrado.');
+  res.json({ ok: true });
 });

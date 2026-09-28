@@ -270,7 +270,7 @@ export function ConfirmDialog({
   return (
     <dialog
       ref={ref}
-      onClose={onClose}
+      onClose={(e) => e.target === e.currentTarget && onClose()} // ignora o "close" repassado por diálogos aninhados
       onClick={(e) => e.target === ref.current && !loading && onClose()}
       className="m-auto w-[calc(100%-32px)] max-w-md rounded-2xl p-0 shadow-2xl backdrop:bg-zinc-950/40 backdrop:backdrop-blur-[2px]"
     >
@@ -320,7 +320,7 @@ export function Modal({
   return (
     <dialog
       ref={ref}
-      onClose={onClose}
+      onClose={(e) => e.target === e.currentTarget && onClose()} // ignora o "close" repassado por diálogos aninhados
       onCancel={(e) => busy && e.preventDefault()}
       onClick={(e) => e.target === ref.current && !busy && onClose()}
       className={cn(

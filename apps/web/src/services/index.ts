@@ -99,4 +99,5 @@ export const salesService = {
     api.get<{ items: SalesCompany[]; facets: { segments: string[]; cities: string[] } }>(`/sales/companies${qs(f)}`),
   notes: (companyId: string) => api.get<ProspectingNote[]>(`/sales/companies/${companyId}/notes`),
   addNote: (companyId: string, note: string) => api.post<ProspectingNote>(`/sales/companies/${companyId}/notes`, { note }),
+  removeNote: (companyId: string, noteId: string) => api.del(`/sales/companies/${companyId}/notes/${noteId}`),
 };
