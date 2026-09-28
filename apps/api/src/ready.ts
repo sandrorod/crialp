@@ -11,6 +11,7 @@ let ready: Promise<void> | null = null;
  */
 export function ensureReady(): Promise<void> {
   ready ??= (async () => {
+    if (env.jwtSecretError) throw Object.assign(new Error(env.jwtSecretError), { setupMessage: env.jwtSecretError });
     if (!env.databaseUrl) throw new Error('DATABASE_URL não configurada.');
     await runMigrations();
     await ensureAdmin();

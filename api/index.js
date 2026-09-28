@@ -7,7 +7,9 @@ const app = createApp();
 
 function setupError(req, res, err) {
   const missing = !process.env.DATABASE_URL;
-  const message = missing
+  const message = err?.setupMessage
+    ? `${err.setupMessage} Defina-a nas variáveis de ambiente do projeto no Vercel e faça um novo deploy.`
+    : missing
     ? 'Banco de dados não configurado: defina DATABASE_URL nas variáveis de ambiente do projeto no Vercel e faça um novo deploy.'
     : 'Falha ao conectar ao banco de dados. Verifique DATABASE_URL e DATABASE_SSL.';
   console.error('[vercel] falha ao preparar o banco:', err);

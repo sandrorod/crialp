@@ -1,17 +1,14 @@
 import path from 'node:path';
 
-function required(name: string, fallback?: string): string {
-  const value = process.env[name] ?? fallback;
-  if (!value) throw new Error(`Variável de ambiente obrigatória ausente: ${name}`);
-  return value;
-}
-
 const isProduction = process.env.NODE_ENV === 'production';
 
-const jwtSecret = required('JWT_SECRET', isProduction ? undefined : 'dev-only-secret-change-me');
-if (isProduction && jwtSecret.length < 32) {
-  throw new Error('JWT_SECRET deve ter pelo menos 32 caracteres em produção.');
-}
+// Validado em ensureReady() (não na importação), para o Vercel exibir uma mensagem clara em vez de travar a função
+const jwtSecret = process.env.JWT_SECRET ?? (isProduction ? '' : 'dev-only-secret-change-me');
+const jwtSecretError = !jwtSecret
+  ? 'JWT_SECRET não configurada: defina uma chave aleatória com pelo menos 32 caracteres.'
+  : isProduction && jwtSecret.length < 32
+    ? 'JWT_SECRET deve ter pelo menos 32 caracteres em produção.'
+    : null;
 
 // Modelo padrão por provedor; ignora um AI_MODEL de outro provedor esquecido no .env
 const aiProvider = (process.env.AI_PROVIDER ?? 'anthropic').toLowerCase();
@@ -64,6 +61,7 @@ export const env = {
   appUrl,
   appHosts,
   jwtSecret,
+  jwtSecretError,
   admin: {
     email: process.env.ADMIN_EMAIL,
     password: process.env.ADMIN_PASSWORD,
