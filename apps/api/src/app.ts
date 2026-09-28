@@ -3,7 +3,7 @@ import path from 'node:path';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import { env } from './config/env.js';
-import { requireAuth, requireSameOriginWrite } from './middleware/auth.js';
+import { blockSellers, MANAGER_ROLES, requireAuth, requireRole, requireSameOriginWrite } from './middleware/auth.js';
 import { errorHandler } from './middleware/errors.js';
 import { ADMIN_CSP, securityHeaders } from './middleware/security.js';
 import { analyzeRouter } from './routes/analyze.js';
@@ -11,6 +11,8 @@ import { authRouter } from './routes/auth.js';
 import { companiesRouter } from './routes/companies.js';
 import { landingPagesRouter } from './routes/landingPages.js';
 import { miscRouter } from './routes/misc.js';
+import { salesRouter } from './routes/sales.js';
+import { usersRouter } from './routes/users.js';
 import { customDomainMiddleware, publicRouter } from './routes/public.js';
 
 export function createApp() {
@@ -36,6 +38,9 @@ export function createApp() {
   api.get('/health', (_req, res) => res.json({ ok: true }));
   api.use('/auth', authRouter);
   api.use(requireAuth);
+  api.use('/sales', salesRouter); // único acesso do vendedor
+  api.use(blockSellers);
+  api.use('/users', requireRole(...MANAGER_ROLES), usersRouter);
   api.use(analyzeRouter);
   api.use('/companies', companiesRouter);
   api.use('/landing-pages', landingPagesRouter);

@@ -289,3 +289,55 @@ export function ConfirmDialog({
     </dialog>
   );
 }
+
+// ─── Modal ──────────────────────────────────────────────────────────
+export function Modal({
+  open,
+  title,
+  description,
+  children,
+  footer,
+  onClose,
+  busy,
+  size = 'md',
+}: {
+  open: boolean;
+  title: string;
+  description?: ReactNode;
+  children: ReactNode;
+  footer?: ReactNode;
+  onClose: () => void;
+  busy?: boolean;
+  size?: 'md' | 'lg';
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (open && !d.open) d.showModal();
+    if (!open && d.open) d.close();
+  }, [open]);
+  return (
+    <dialog
+      ref={ref}
+      onClose={onClose}
+      onCancel={(e) => busy && e.preventDefault()}
+      onClick={(e) => e.target === ref.current && !busy && onClose()}
+      className={cn(
+        'm-auto w-[calc(100%-32px)] rounded-2xl p-0 shadow-2xl backdrop:bg-zinc-950/40 backdrop:backdrop-blur-[2px]',
+        size === 'lg' ? 'max-w-2xl' : 'max-w-md',
+      )}
+    >
+      {open ? (
+        <div className="flex max-h-[calc(100dvh-48px)] flex-col">
+          <div className="border-b border-zinc-100 px-6 py-4">
+            <h2 className="text-lg font-semibold text-ink">{title}</h2>
+            {description ? <div className="mt-0.5 text-sm text-zinc-500">{description}</div> : null}
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
+          {footer ? <div className="flex justify-end gap-2 border-t border-zinc-100 px-6 py-4">{footer}</div> : null}
+        </div>
+      ) : null}
+    </dialog>
+  );
+}

@@ -14,6 +14,9 @@ import type {
   LandingPageListItem,
   LpStatus,
   Preset,
+  ProspectingNote,
+  SalesCompany,
+  SubUser,
   ThemeSettings,
   User,
 } from '@/types';
@@ -82,4 +85,18 @@ export const miscService = {
     form.append('file', file);
     return api.post<{ url: string }>('/uploads', form);
   },
+};
+
+export const userService = {
+  list: () => api.get<SubUser[]>('/users'),
+  create: (body: { name: string; email: string; password: string; role: 'admin' | 'seller' }) => api.post<SubUser>('/users', body),
+  update: (id: string, body: { name?: string; email?: string; role?: 'admin' | 'seller'; password?: string }) => api.patch<SubUser>(`/users/${id}`, body),
+  remove: (id: string) => api.del(`/users/${id}`),
+};
+
+export const salesService = {
+  companies: (f: { search?: string; segment?: string; city?: string }) =>
+    api.get<{ items: SalesCompany[]; facets: { segments: string[]; cities: string[] } }>(`/sales/companies${qs(f)}`),
+  notes: (companyId: string) => api.get<ProspectingNote[]>(`/sales/companies/${companyId}/notes`),
+  addNote: (companyId: string, note: string) => api.post<ProspectingNote>(`/sales/companies/${companyId}/notes`, { note }),
 };

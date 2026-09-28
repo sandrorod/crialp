@@ -81,3 +81,20 @@ export function authUser(req: Request): AuthUser {
   if (!req.user) throw new AppError(401, Messages.unauthorized, 'UNAUTHORIZED');
   return req.user;
 }
+
+/** Papéis que administram o sistema (empresas, Landing Pages, subusuários). */
+export const MANAGER_ROLES = ['owner', 'admin'];
+
+/** Libera a rota apenas para os papéis informados. */
+export function requireRole(...roles: string[]) {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    if (!req.user || !roles.includes(req.user.role)) return next(new AppError(403, 'Você não tem permissão para acessar esta área.', 'FORBIDDEN'));
+    next();
+  };
+}
+
+/** Vendedores só acessam a área de Vendas: bloqueia todo o resto da API. */
+export function blockSellers(req: Request, _res: Response, next: NextFunction) {
+  if (req.user?.role === 'seller') return next(new AppError(403, 'Você não tem permissão para acessar esta área.', 'FORBIDDEN'));
+  next();
+}

@@ -1,17 +1,37 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router';
-import { Building2, LayoutDashboard, LogOut, Menu, PanelsTopLeft, Plus, Settings, X } from 'lucide-react';
+import { Briefcase, Building2, LayoutDashboard, LogOut, Menu, PanelsTopLeft, Plus, Settings, Users, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui';
+import type { UserRole } from '@/types';
 
-const NAV = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/empresas', label: 'Empresas', icon: Building2 },
-  { to: '/landing-pages', label: 'Landing Pages', icon: PanelsTopLeft },
-  { to: '/nova', label: 'Criar Landing Page', icon: Plus },
-  { to: '/configuracoes', label: 'Configurações', icon: Settings },
+type Role = UserRole;
+const MANAGERS: Role[] = ['owner', 'admin'];
+const STAFF: Role[] = ['owner', 'admin', 'editor'];
+
+// "roles": quem vê o item no menu (e pode abrir a rota)
+const NAV: { to: string; label: string; icon: typeof Building2; end?: boolean; roles: Role[] }[] = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true, roles: STAFF },
+  { to: '/empresas', label: 'Empresas', icon: Building2, roles: STAFF },
+  { to: '/landing-pages', label: 'Landing Pages', icon: PanelsTopLeft, roles: STAFF },
+  { to: '/nova', label: 'Criar Landing Page', icon: Plus, roles: STAFF },
+  { to: '/vendas', label: 'Vendas', icon: Briefcase, roles: [...STAFF, 'seller'] },
+  { to: '/subusuarios', label: 'Subusuários', icon: Users, roles: MANAGERS },
+  { to: '/configuracoes', label: 'Configurações', icon: Settings, roles: STAFF },
 ];
+
+/** Rota inicial de cada tipo de conta. */
+function homeFor(role: Role) {
+  return role === 'seller' ? '/vendas' : '/';
+}
+
+/** A rota atual é permitida para o papel? (subrotas como /empresas/:id seguem o item do menu) */
+function canAccess(role: Role, pathname: string) {
+  const item = NAV.filter((n) => (n.end ? pathname === n.to : pathname === n.to || pathname.startsWith(`${n.to}/`)))
+    .sort((a, b) => b.to.length - a.to.length)[0];
+  return item ? item.roles.includes(role) : STAFF.includes(role);
+}
 
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { user, logout } = useAuth();
@@ -25,7 +45,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
       <nav className="flex-1 space-y-0.5 px-3 py-2">
-        {NAV.map(({ to, label, icon: Icon, end }) => (
+        {NAV.filter((n) => user && n.roles.includes(user.role)).map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
@@ -76,6 +96,7 @@ export function AdminLayout() {
     );
   }
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  if (!canAccess(user.role, location.pathname)) return <Navigate to={homeFor(user.role)} replace />;
 
   return (
     <div className="min-h-screen lg:pl-64">

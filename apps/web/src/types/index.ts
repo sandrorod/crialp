@@ -1,10 +1,39 @@
 export type LpStatus = 'ativa' | 'inativa';
 
+export type UserRole = 'owner' | 'admin' | 'editor' | 'seller';
+
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: UserRole;
+}
+
+export interface SubUser extends User {
+  last_login_at: string | null;
+  created_at: string;
+}
+
+export interface SalesCompany {
+  id: string;
+  name: string;
+  segment: string | null;
+  city: string | null;
+  state: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  created_at: string;
+  slug: string | null;
+  notes_count: number;
+  last_note_at: string | null;
+}
+
+export interface ProspectingNote {
+  id: string;
+  author_name: string;
+  note: string;
+  created_at: string;
 }
 
 export interface Service {
