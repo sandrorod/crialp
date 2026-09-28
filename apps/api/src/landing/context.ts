@@ -61,8 +61,13 @@ export function buildContext(opts: {
   const photos = allowed
     .filter((i) => i.type !== 'logo')
     .map((i) => ({ url: i.url, alt: i.alt_text || displayName }));
-  const heroImage = photos[0] ?? null;
-  const aboutImage = photos[1] ?? null;
+  // Local escolhido no editor; fotos sem escolha preenchem topo, "sobre" e galeria nessa ordem
+  const place = (url: string) => theme.images[url];
+  const visible = photos.filter((p) => place(p.url) !== 'hidden');
+  const heroImage = visible.find((p) => place(p.url) === 'hero') ?? visible.find((p) => !place(p.url)) ?? null;
+  const aboutImage =
+    visible.find((p) => p !== heroImage && place(p.url) === 'about') ?? visible.find((p) => p !== heroImage && !place(p.url)) ?? null;
+  const gallery = visible.filter((p) => p !== heroImage && p !== aboutImage && (place(p.url) === 'gallery' || !place(p.url)));
 
   const labels = resolveLabels((content as { labels?: unknown }).labels);
   const waMessage = labels.whatsapp_message.replaceAll('{empresa}', displayName);
@@ -110,7 +115,7 @@ export function buildContext(opts: {
     logo: logoImg ? { url: logoImg.url, alt: logoImg.alt_text || displayName } : null,
     heroImage,
     aboutImage,
-    gallery: photos,
+    gallery,
     links: {
       whatsapp,
       phone,

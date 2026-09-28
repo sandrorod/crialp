@@ -4,7 +4,7 @@ import { ArrowLeft, Building2, Copy, Download, ExternalLink, Monitor, RefreshCw,
 import { toast } from 'sonner';
 import { ContentTab } from '@/components/landing/ContentTab';
 import { PreviewFrame } from '@/components/landing/PreviewFrame';
-import { DesignTab, PublishTab, SeoTab, VersionsTab, type SeoState } from '@/components/landing/SettingsTabs';
+import { DesignTab, PhotosTab, PublishTab, SeoTab, VersionsTab, type SeoState } from '@/components/landing/SettingsTabs';
 import { ProgressSteps } from '@/components/ProgressSteps';
 import { Button, Card, ConfirmDialog, ErrorBlock, LoadingBlock, StatusToggle } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
@@ -15,9 +15,10 @@ import { cn, formatDate } from '@/lib/utils';
 import { analysisService, companyService, landingPageService } from '@/services';
 import type { LandingContent, ThemeSettings } from '@/types';
 
-type Tab = 'textos' | 'visual' | 'seo' | 'publicacao' | 'versoes';
+type Tab = 'textos' | 'fotos' | 'visual' | 'seo' | 'publicacao' | 'versoes';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'textos', label: 'Textos' },
+  { key: 'fotos', label: 'Fotos' },
   { key: 'visual', label: 'Cores e estilo' },
   { key: 'seo', label: 'SEO' },
   { key: 'publicacao', label: 'Publicação' },
@@ -201,12 +202,13 @@ export function LandingPageEditorPage() {
           </div>
           <div className="xl:max-h-[calc(72vh+10px)] xl:overflow-y-auto xl:pr-1">
             {tab === 'textos' ? <ContentTab content={content} onChange={change(setContent)} company={company} /> : null}
+            {tab === 'fotos' ? <Card className="p-5"><PhotosTab theme={theme} onChange={change(setTheme)} images={company?.images ?? null} /></Card> : null}
             {tab === 'visual' ? <Card className="p-5"><DesignTab theme={theme} onChange={change(setTheme)} imagesAllowed={lp.company?.images_allowed ?? 0} content={content} /></Card> : null}
             {tab === 'seo' ? <Card className="p-5"><SeoTab seo={seo} onChange={change(setSeo)} slug={lp.slug} /></Card> : null}
             {tab === 'publicacao' ? <Card className="p-5"><PublishTab lp={lp} onUpdated={refresh} /></Card> : null}
             {tab === 'versoes' ? <VersionsTab lp={lp} onRestored={refresh} /> : null}
           </div>
-          {['textos', 'visual', 'seo'].includes(tab) ? (
+          {['textos', 'fotos', 'visual', 'seo'].includes(tab) ? (
             <div className="sticky bottom-0 mt-3 flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white/95 p-3 backdrop-blur">
               <span className="text-xs text-zinc-500">{dirty ? 'Alterações não salvas' : 'Sem alterações'}</span>
               <div className="flex gap-2">

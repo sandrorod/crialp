@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Check, CheckCircle2, Clock, Copy, Globe, RotateCcw, ShieldAlert, XCircle } from 'lucide-react';
+import { Check, CheckCircle2, Clock, Copy, Globe, ImageOff, RotateCcw, ShieldAlert, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, Field, Input, ListEditor, Textarea } from '@/components/ui';
+import { Button, Field, Input, ListEditor, Select, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { cn, copyToClipboard, formatDate } from '@/lib/utils';
 import { landingPageService } from '@/services';
-import type { HeroVariant, LandingContent, LandingPageDetail, SectionColors, SectionOrderKey, ThemeSettings } from '@/types';
+import type { CompanyImage, HeroVariant, ImagePlacement, LandingContent, LandingPageDetail, SectionColors, SectionOrderKey, ThemeSettings } from '@/types';
 
 // ─── Visual ─────────────────────────────────────────────────────────
 const HERO_VARIANTS: { value: HeroVariant; label: string; hint: string }[] = [
@@ -181,6 +181,105 @@ export function DesignTab({ theme, onChange, imagesAllowed, content }: { theme: 
           ].map((c) => c.toLowerCase()))]}
         />
       </div>
+    </div>
+  );
+}
+
+// ─── Fotos ──────────────────────────────────────────────────────────
+const PLACEMENT_LABELS: Record<ImagePlacement, string> = {
+  hero: 'Topo da página',
+  about: 'Seção "Sobre"',
+  gallery: 'Galeria',
+  hidden: 'Não usar',
+};
+
+/** Mesma regra da renderização: fotos em "Automático" preenchem topo, "sobre" e galeria nessa ordem. */
+function resolvePlacements(urls: string[], chosen: Record<string, ImagePlacement>) {
+  const visible = urls.filter((u) => chosen[u] !== 'hidden');
+  const hero = visible.find((u) => chosen[u] === 'hero') ?? visible.find((u) => !chosen[u]);
+  const about = visible.find((u) => u !== hero && chosen[u] === 'about') ?? visible.find((u) => u !== hero && !chosen[u]);
+  const out: Record<string, ImagePlacement> = {};
+  for (const u of urls) {
+    if (chosen[u] === 'hidden') out[u] = 'hidden';
+    else if (u === hero) out[u] = 'hero';
+    else if (u === about) out[u] = 'about';
+    else if (chosen[u] === 'gallery' || !chosen[u]) out[u] = 'gallery';
+    else out[u] = 'hidden'; // segunda foto marcada para topo/"sobre": não aparece
+  }
+  return out;
+}
+
+export function PhotosTab({ theme, onChange, images }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; images: CompanyImage[] | null }) {
+  if (!images) return <div className="skeleton h-40 rounded-lg" />;
+  const photos = images.filter((i) => i.type !== 'logo');
+  const allowed = photos.filter((i) => i.usage_allowed);
+  const blocked = photos.filter((i) => !i.usage_allowed);
+  const chosen = theme.images ?? {};
+  const resolved = resolvePlacements(allowed.map((i) => i.url), chosen);
+  const galleryCount = Object.values(resolved).filter((p) => p === 'gallery').length;
+
+  const setPlacement = (url: string, value: ImagePlacement | '') => {
+    const next = { ...chosen };
+    // Topo e "sobre" mostram uma foto só: a anterior volta para o automático
+    if (value === 'hero' || value === 'about') for (const u of Object.keys(next)) if (next[u] === value) delete next[u];
+    if (value) next[url] = value;
+    else delete next[url];
+    onChange({ ...theme, images: next });
+  };
+
+  if (!allowed.length) {
+    return (
+      <p className="text-sm text-zinc-500">
+        Nenhuma foto liberada para uso. Libere fotos em "Editar empresa" para escolher onde cada uma aparece.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-zinc-500">
+        Escolha onde cada foto aparece. Em "Automático", as fotos preenchem o topo, a seção "Sobre" e a galeria, nessa ordem.
+      </p>
+      {theme.heroVariant === 'centered' ? (
+        <p className="text-xs text-amber-700">O topo está no estilo "Centralizado", que não exibe foto. Para mostrar a foto do topo, escolha "Dividido" ou "Imagem cheia" em "Cores e estilo".</p>
+      ) : null}
+      {galleryCount === 1 ? <p className="text-xs text-amber-700">A galeria só aparece com pelo menos 2 fotos.</p> : null}
+
+      <ul className="space-y-2">
+        {allowed.map((img) => (
+          <li key={img.url} className="flex items-center gap-3 rounded-lg border border-zinc-200 p-2">
+            <PhotoThumb url={img.url} alt={img.alt_text ?? ''} dimmed={resolved[img.url] === 'hidden'} />
+            <div className="min-w-0 flex-1">
+              <Select className="h-9 text-[13px]" value={chosen[img.url] ?? ''} onChange={(e) => setPlacement(img.url, e.target.value as ImagePlacement | '')}>
+                <option value="">Automático{chosen[img.url] ? '' : ` (${PLACEMENT_LABELS[resolved[img.url]]})`}</option>
+                {(Object.keys(PLACEMENT_LABELS) as ImagePlacement[]).map((p) => (
+                  <option key={p} value={p}>{PLACEMENT_LABELS[p]}</option>
+                ))}
+              </Select>
+              {img.alt_text ? <p className="mt-1 truncate text-[11px] text-zinc-500">{img.alt_text}</p> : null}
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {blocked.length ? (
+        <p className="text-xs text-zinc-500">
+          {blocked.length} {blocked.length === 1 ? 'foto está' : 'fotos estão'} sem permissão de uso e não {blocked.length === 1 ? 'aparece' : 'aparecem'} na página. Libere em "Editar empresa".
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function PhotoThumb({ url, alt, dimmed }: { url: string; alt: string; dimmed: boolean }) {
+  const [broken, setBroken] = useState(false);
+  return (
+    <div className={cn('size-16 flex-none overflow-hidden rounded-md bg-zinc-100', dimmed && 'opacity-40')}>
+      {broken ? (
+        <div className="grid h-full place-items-center text-zinc-400"><ImageOff className="size-5" /></div>
+      ) : (
+        <img src={url} alt={alt} loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} className="h-full w-full object-cover" />
+      )}
     </div>
   );
 }

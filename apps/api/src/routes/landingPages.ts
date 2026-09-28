@@ -10,7 +10,7 @@ import { getCompanyFull } from '../repositories/companies.js';
 import * as repo from '../repositories/landingPages.js';
 import { LandingContentEditSchema, type LandingContent } from '../services/ai/schemas.js';
 import { DEFAULT_LABELS } from '../landing/labels.js';
-import { normalizeThemeSettings, PRESETS } from '../landing/theme.js';
+import { IMAGE_PLACEMENTS, normalizeThemeSettings, PRESETS } from '../landing/theme.js';
 import { publicUrl, refreshSnapshot, renderFromData } from '../landing/publish.js';
 import { renderUnavailablePage } from '../landing/render.js';
 import { landingPageHeaders } from './public.js';
@@ -97,6 +97,8 @@ const ContentUpdateSchema = z.object({
         z.object({ bg: z.string().max(9).nullish(), text: z.string().max(9).nullish(), accent: z.string().max(9).nullish() }),
       )
       .optional(),
+    // Local de cada foto: { "<url>": "hero" | "about" | "gallery" | "hidden" }; ausente = automático
+    images: z.record(z.string().max(2048), z.enum(IMAGE_PLACEMENTS)).optional(),
   }),
   seo: z.object({
     seo_title: z.string().trim().max(120).nullish().transform((v) => v || null),

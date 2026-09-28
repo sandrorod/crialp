@@ -8,6 +8,20 @@ export interface ThemeSettings {
   heroVariant?: 'split' | 'centered' | 'image';
   /** Cores próprias por seção (hero, about, services…, custom:<id>, footer). */
   sections?: Record<string, SectionColors>;
+  /** Local escolhido para cada foto (chave = URL). Sem entrada = automático. */
+  images?: Record<string, ImagePlacement>;
+}
+
+export const IMAGE_PLACEMENTS = ['hero', 'about', 'gallery', 'hidden'] as const;
+export type ImagePlacement = (typeof IMAGE_PLACEMENTS)[number];
+
+function normalizeImagePlacements(input: unknown): Record<string, ImagePlacement> {
+  const out: Record<string, ImagePlacement> = {};
+  if (!input || typeof input !== 'object') return out;
+  for (const [url, place] of Object.entries(input).slice(0, 300)) {
+    if (url.length <= 2048 && IMAGE_PLACEMENTS.includes(place as ImagePlacement)) out[url] = place as ImagePlacement;
+  }
+  return out;
 }
 
 interface Preset {
@@ -144,6 +158,7 @@ export interface ResolvedTheme {
   p: Preset;
   heroVariant: 'split' | 'centered' | 'image';
   sections: Record<string, SectionColors>;
+  images: Record<string, ImagePlacement>;
   fontsHref: string;
   vars: Record<string, string>;
 }
@@ -156,6 +171,7 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
     accent: isHex(input?.accent) ? normalizeHex(input.accent) : null,
     heroVariant: ['split', 'centered', 'image'].includes(input?.heroVariant) ? input.heroVariant : PRESETS[preset as DesignPreset].heroDefault,
     sections: normalizeSectionColors(input?.sections),
+    images: normalizeImagePlacements(input?.images),
   };
 }
 
@@ -183,6 +199,7 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
     p,
     heroVariant: settings.heroVariant ?? p.heroDefault,
     sections: settings.sections ?? {},
+    images: settings.images ?? {},
     fontsHref: `https://fonts.googleapis.com/css2?${families}&display=swap`,
     vars: {
       '--bg': c.bg,

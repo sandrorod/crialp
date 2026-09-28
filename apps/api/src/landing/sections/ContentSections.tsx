@@ -148,8 +148,8 @@ export function ProductsSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
 
 export function GallerySection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {
   const g = ctx.content.gallery;
-  // Evita repetir as imagens já usadas no hero/sobre quando há poucas fotos
-  const photos = ctx.gallery.length >= 5 ? ctx.gallery : ctx.gallery.slice(ctx.aboutImage ? 2 : 1);
+  // ctx.gallery já exclui as fotos usadas no topo e em "sobre"
+  const photos = ctx.gallery;
   if (!g || photos.length < 2) return null;
   return (
     <section id="galeria" className={`section${alt ? ' section-alt' : ''}`}>

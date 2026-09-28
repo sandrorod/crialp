@@ -190,7 +190,11 @@ export interface ThemeSettings {
   heroVariant: HeroVariant;
   /** Cores próprias por seção: hero, about, services…, custom:<id>, footer */
   sections?: Record<string, SectionColors>;
+  /** Local escolhido para cada foto (chave = URL). Sem entrada = automático. */
+  images?: Record<string, ImagePlacement>;
 }
+
+export type ImagePlacement = 'hero' | 'about' | 'gallery' | 'hidden';
 
 export interface LandingPage {
   id: string;
