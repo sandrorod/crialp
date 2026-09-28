@@ -25,9 +25,13 @@ salesRouter.get('/companies', async (req, res) => {
     [user.organizationId],
   );
   const stats = new Map(rows.map((r) => [r.company_id, r]));
+  // Empresas sem prospecção primeiro; dentro de cada grupo, ordem alfabética
+  const items = [...result.items].sort(
+    (a, b) => Number(stats.has(a.id)) - Number(stats.has(b.id)) || a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }),
+  );
   res.json({
     facets: result.facets,
-    items: result.items.map((c) => ({
+    items: items.map((c) => ({
       id: c.id,
       name: c.name,
       segment: c.segment,

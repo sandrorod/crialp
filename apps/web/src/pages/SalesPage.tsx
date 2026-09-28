@@ -194,7 +194,7 @@ function ProspectingModal({ company, onClose, onAdded }: { company: SalesCompany
         ) : !notes?.length ? (
           <p className="rounded-lg bg-zinc-50 px-4 py-6 text-center text-sm text-zinc-500">Nenhum lançamento ainda.</p>
         ) : (
-          <ol className="space-y-3">
+          <ol className="scrollbar-visible max-h-[45vh] space-y-3 overflow-y-scroll pr-2">
             {notes.map((n) => {
               const open = expanded.has(n.id);
               return (
