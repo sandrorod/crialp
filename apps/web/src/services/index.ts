@@ -17,6 +17,7 @@ import type {
   ProspectingNote,
   SalesCompany,
   SubUser,
+  TemplateInfo,
   ThemeSettings,
   User,
 } from '@/types';
@@ -58,6 +59,7 @@ export const landingPageService = {
   list: (f: { search?: string; status?: string }) => api.get<{ items: LandingPageListItem[] }>(`/landing-pages${qs(f)}`),
   get: (id: string) => api.get<LandingPageDetail>(`/landing-pages/${id}`),
   presets: () => api.get<Preset[]>('/landing-pages/presets'),
+  templates: () => api.get<TemplateInfo[]>('/landing-pages/templates'),
   labels: () => api.get<Record<string, string>>('/landing-pages/labels'),
   saveContent: (
     id: string,

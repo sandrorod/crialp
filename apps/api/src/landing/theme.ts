@@ -10,7 +10,56 @@ export interface ThemeSettings {
   sections?: Record<string, SectionColors>;
   /** Local escolhido para cada foto (chave = URL). Sem entrada = automático. */
   images?: Record<string, ImagePlacement>;
+  /** Modelo de layout (estrutura da página); cores e fontes continuam vindo do preset. */
+  template?: TemplateKey;
 }
+
+export const TEMPLATE_KEYS = ['classico', 'moderno', 'minimalista', 'elegante', 'impacto'] as const;
+export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
+
+interface Template {
+  label: string;
+  description: string;
+  /** Topo recomendado: com foto liberada usa a primeira opção; sem foto, a segunda. */
+  hero: { withPhoto: 'split' | 'centered' | 'image'; withoutPhoto: 'split' | 'centered' };
+  /** Layout dos serviços conforme a quantidade de itens (null = o do preset). */
+  services: (count: number) => 'grid' | 'list' | null;
+}
+
+export const TEMPLATES: Record<TemplateKey, Template> = {
+  classico: {
+    label: 'Clássico',
+    description: 'Equilibrado e versátil: topo dividido com foto ou cartão de contato, serviços em cartões.',
+    hero: { withPhoto: 'split', withoutPhoto: 'split' },
+    services: () => null,
+  },
+  moderno: {
+    label: 'Moderno',
+    description: 'Foto em tela cheia no topo, títulos centralizados e cartões flutuantes com sombra.',
+    hero: { withPhoto: 'image', withoutPhoto: 'centered' },
+    // Poucos serviços ficam melhores em lista; a partir de 3, cartões
+    services: (n) => (n <= 2 ? 'list' : 'grid'),
+  },
+  minimalista: {
+    label: 'Minimalista',
+    description: 'Muito respiro, sem faixas de fundo: serviços em lista numerada e linhas finas.',
+    hero: { withPhoto: 'split', withoutPhoto: 'centered' },
+    services: () => 'list',
+  },
+  elegante: {
+    label: 'Elegante',
+    description: 'Títulos centralizados, molduras finas nas fotos e depoimentos em destaque.',
+    hero: { withPhoto: 'split', withoutPhoto: 'centered' },
+    // Listas longas viram cartões para não alongar demais a página
+    services: (n) => (n <= 6 ? 'list' : 'grid'),
+  },
+  impacto: {
+    label: 'Impacto',
+    description: 'Topo em faixa escura, títulos grandes e cartões com borda de destaque. Chama atenção.',
+    hero: { withPhoto: 'image', withoutPhoto: 'centered' },
+    services: (n) => (n === 1 ? 'list' : 'grid'),
+  },
+};
 
 export const IMAGE_PLACEMENTS = ['hero', 'about', 'gallery', 'hidden'] as const;
 export type ImagePlacement = (typeof IMAGE_PLACEMENTS)[number];
@@ -159,6 +208,7 @@ export interface ResolvedTheme {
   heroVariant: 'split' | 'centered' | 'image';
   sections: Record<string, SectionColors>;
   images: Record<string, ImagePlacement>;
+  template: TemplateKey;
   fontsHref: string;
   vars: Record<string, string>;
 }
@@ -172,6 +222,7 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
     heroVariant: ['split', 'centered', 'image'].includes(input?.heroVariant) ? input.heroVariant : PRESETS[preset as DesignPreset].heroDefault,
     sections: normalizeSectionColors(input?.sections),
     images: normalizeImagePlacements(input?.images),
+    template: TEMPLATE_KEYS.includes(input?.template) ? input.template : 'classico',
   };
 }
 
@@ -200,6 +251,7 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
     heroVariant: settings.heroVariant ?? p.heroDefault,
     sections: settings.sections ?? {},
     images: settings.images ?? {},
+    template: settings.template ?? 'classico',
     fontsHref: `https://fonts.googleapis.com/css2?${families}&display=swap`,
     vars: {
       '--bg': c.bg,

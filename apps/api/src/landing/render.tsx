@@ -164,7 +164,7 @@ export function renderLandingPage(ctx: RenderContext): string {
         <script dangerouslySetInnerHTML={{ __html: REVEAL_SCRIPT }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ctx) }} />
       </head>
-      <body>
+      <body className={`tpl-${theme.template}`}>
         <a className="skip" href="#conteudo">{ctx.labels.skip_link}</a>
         <Header ctx={ctx} nav={nav} />
         <main id="conteudo">

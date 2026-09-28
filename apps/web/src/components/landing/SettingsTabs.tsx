@@ -6,7 +6,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { cn, copyToClipboard, formatDate } from '@/lib/utils';
 import { landingPageService } from '@/services';
-import type { CompanyImage, HeroVariant, ImagePlacement, LandingContent, LandingPageDetail, SectionColors, SectionOrderKey, ThemeSettings } from '@/types';
+import type { CompanyImage, HeroVariant, ImagePlacement, LandingContent, TemplateKey, LandingPageDetail, SectionColors, SectionOrderKey, ThemeSettings } from '@/types';
 
 // ─── Visual ─────────────────────────────────────────────────────────
 const HERO_VARIANTS: { value: HeroVariant; label: string; hint: string }[] = [
@@ -180,6 +180,77 @@ export function DesignTab({ theme, onChange, imagesAllowed, content }: { theme: 
             theme.accent ?? current?.accent ?? '#0f172a',
           ].map((c) => c.toLowerCase()))]}
         />
+      </div>
+    </div>
+  );
+}
+
+// ─── Modelo ─────────────────────────────────────────────────────────
+/** Miniatura esquemática de cada modelo (estrutura, não cores). */
+function TemplateThumb({ template }: { template: TemplateKey }) {
+  const bar = (w: string, extra = '') => <span className={cn('block h-1.5 rounded-full bg-zinc-300', extra)} style={{ width: w }} />;
+  const hero = {
+    classico: (
+      <div className="flex gap-2 p-2">
+        <div className="flex-1 space-y-1 pt-1">{bar('90%', 'bg-zinc-500')}{bar('70%')}{bar('40%', 'mt-2 h-2 bg-zinc-800')}</div>
+        <div className="h-10 w-9 rounded bg-zinc-300" />
+      </div>
+    ),
+    moderno: (
+      <div className="relative h-14 bg-zinc-400">
+        <div className="absolute bottom-2 left-2 space-y-1">{bar('60px', 'bg-white')}{bar('40px', 'bg-white/70')}</div>
+      </div>
+    ),
+    minimalista: <div className="flex flex-col items-center gap-1 p-3">{bar('70%', 'bg-zinc-500')}{bar('45%')}</div>,
+    elegante: (
+      <div className="flex gap-2 p-2">
+        <div className="flex-1 space-y-1 pt-1">{bar('80%', 'bg-zinc-500')}{bar('60%')}</div>
+        <div className="h-10 w-9 rounded border border-zinc-300 p-0.5"><div className="h-full rounded-sm bg-zinc-300" /></div>
+      </div>
+    ),
+    impacto: <div className="flex flex-col items-center gap-1 bg-zinc-800 p-3">{bar('80%', 'h-2 bg-white')}{bar('50%', 'bg-zinc-500')}</div>,
+  }[template];
+  const body = {
+    classico: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded border border-zinc-300 bg-white" />)}</div>,
+    moderno: <><div className="mx-auto mb-1">{bar('40px', 'mx-auto bg-zinc-500')}</div><div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded-md bg-white shadow" />)}</div></>,
+    minimalista: <div className="space-y-1.5">{[0, 1, 2].map((i) => <div key={i} className="flex gap-1 border-b border-zinc-200 pb-1">{bar('8px', 'bg-zinc-400')}{bar('55%')}</div>)}</div>,
+    elegante: <><div className="mb-1">{bar('40px', 'mx-auto bg-zinc-500')}</div><div className="space-y-1">{[0, 1].map((i) => <div key={i} className="flex gap-1 border-b border-zinc-200 pb-1">{bar('8px', 'bg-zinc-400')}{bar('60%')}</div>)}</div></>,
+    impacto: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded border-t-2 border-zinc-800 bg-white shadow-sm" />)}</div>,
+  }[template];
+  return (
+    <div className="overflow-hidden rounded-md border border-zinc-200 bg-zinc-50" aria-hidden>
+      {hero}
+      <div className={cn('p-2', template === 'minimalista' ? 'bg-white' : 'bg-zinc-100')}>{body}</div>
+    </div>
+  );
+}
+
+export function TemplateTab({ theme, onChange, hasPhoto }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; hasPhoto: boolean }) {
+  const { data: templates } = useAsync(() => landingPageService.templates(), []);
+  const current = theme.template ?? 'classico';
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-zinc-500">
+        O modelo define a estrutura da página e se adapta ao conteúdo: sem foto liberada, o topo usa uma versão sem imagem, e a disposição dos serviços muda conforme a quantidade. As cores e fontes continuam em "Cores e estilo".
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {templates?.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            // Ao trocar de modelo, o topo segue a recomendação do modelo para o conteúdo atual
+            onClick={() => onChange({ ...theme, template: t.key, heroVariant: hasPhoto ? t.hero.withPhoto : t.hero.withoutPhoto })}
+            className={cn('rounded-lg border p-2.5 text-left transition', current === t.key ? 'border-ink ring-1 ring-ink' : 'border-zinc-200 hover:border-zinc-300')}
+            aria-pressed={current === t.key}
+          >
+            <TemplateThumb template={t.key} />
+            <span className="mt-2 flex items-center gap-1.5 text-[13px] font-medium">
+              {t.label}
+              {current === t.key ? <Check className="size-3.5" /> : null}
+            </span>
+            <span className="mt-0.5 block text-[11px] leading-snug text-zinc-500">{t.description}</span>
+          </button>
+        )) ?? <div className="skeleton h-48 rounded-lg sm:col-span-2" />}
       </div>
     </div>
   );

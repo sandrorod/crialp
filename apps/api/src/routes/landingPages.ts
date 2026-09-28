@@ -10,7 +10,7 @@ import { getCompanyFull } from '../repositories/companies.js';
 import * as repo from '../repositories/landingPages.js';
 import { LandingContentEditSchema, type LandingContent } from '../services/ai/schemas.js';
 import { DEFAULT_LABELS } from '../landing/labels.js';
-import { IMAGE_PLACEMENTS, normalizeThemeSettings, PRESETS } from '../landing/theme.js';
+import { IMAGE_PLACEMENTS, normalizeThemeSettings, PRESETS, TEMPLATE_KEYS, TEMPLATES } from '../landing/theme.js';
 import { publicUrl, refreshSnapshot, renderFromData } from '../landing/publish.js';
 import { renderUnavailablePage } from '../landing/render.js';
 import { landingPageHeaders } from './public.js';
@@ -37,6 +37,10 @@ landingPagesRouter.get('/', async (req, res) => {
 
 landingPagesRouter.get('/labels', (_req, res) => {
   res.json(DEFAULT_LABELS);
+});
+
+landingPagesRouter.get('/templates', (_req, res) => {
+  res.json(Object.entries(TEMPLATES).map(([key, t]) => ({ key, label: t.label, description: t.description, hero: t.hero })));
 });
 
 landingPagesRouter.get('/presets', (_req, res) => {
@@ -99,6 +103,7 @@ const ContentUpdateSchema = z.object({
       .optional(),
     // Local de cada foto: { "<url>": "hero" | "about" | "gallery" | "hidden" }; ausente = automático
     images: z.record(z.string().max(2048), z.enum(IMAGE_PLACEMENTS)).optional(),
+    template: z.enum(TEMPLATE_KEYS).optional(),
   }),
   seo: z.object({
     seo_title: z.string().trim().max(120).nullish().transform((v) => v || null),

@@ -221,6 +221,17 @@ export interface ThemeSettings {
   sections?: Record<string, SectionColors>;
   /** Local escolhido para cada foto (chave = URL). Sem entrada = automático. */
   images?: Record<string, ImagePlacement>;
+  /** Modelo de layout da página (estrutura); cores e fontes vêm do preset. */
+  template?: TemplateKey;
+}
+
+export type TemplateKey = 'classico' | 'moderno' | 'minimalista' | 'elegante' | 'impacto';
+
+export interface TemplateInfo {
+  key: TemplateKey;
+  label: string;
+  description: string;
+  hero: { withPhoto: HeroVariant; withoutPhoto: HeroVariant };
 }
 
 export type ImagePlacement = 'hero' | 'about' | 'gallery' | 'hidden';

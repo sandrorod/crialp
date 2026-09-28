@@ -1,4 +1,5 @@
 import type { RenderContext } from '../context.js';
+import { TEMPLATES } from '../theme.js';
 import { Icon } from './Icon.js';
 import { SectionHead } from './SectionHead.js';
 
@@ -48,7 +49,7 @@ export function AboutSection({ ctx, alt }: { ctx: RenderContext; alt: boolean })
 export function ServicesSection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {
   const s = ctx.content.services;
   if (!s || !s.items.length) return null;
-  const list = ctx.theme.p.servicesLayout === 'list';
+  const list = (TEMPLATES[ctx.theme.template].services(s.items.length) ?? ctx.theme.p.servicesLayout) === 'list';
   return (
     <section id="servicos" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">

@@ -207,6 +207,67 @@ p{margin:0;text-wrap:pretty}
 .wa-float{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:50;width:60px;height:60px;border-radius:50%;display:grid;place-items:center;background:#25d366;color:#fff;box-shadow:0 14px 30px -10px rgba(0,0,0,.45);transition:transform .2s}
 .wa-float:hover{transform:scale(1.06)}
 
+/* ─── Modelos de layout (classe no body); "Clássico" usa o estilo base ─── */
+/* Títulos de seção centralizados (não afeta títulos dentro de colunas, como "Sobre" e "Contato") */
+.tpl-moderno .section>.container>.section-head,.tpl-elegante .section>.container>.section-head{margin-left:auto;margin-right:auto;text-align:center}
+.tpl-moderno .section>.container>.section-head .lead,.tpl-elegante .section>.container>.section-head .lead{margin-left:auto;margin-right:auto}
+.tpl-moderno .section>.container>.section-head .eyebrow::before{display:none}
+
+/* Moderno: cartões flutuantes, cantos mais arredondados, galeria sem vãos */
+.tpl-moderno .card,.tpl-moderno .quote{border-color:transparent;box-shadow:0 18px 40px -24px rgba(0,0,0,.28)}
+.tpl-moderno .section-alt .card,.tpl-moderno .section-alt .quote{background:var(--bg)}
+.tpl-moderno .card .icon-box{border-radius:50%}
+.tpl-moderno .hero-image h1{font-size:clamp(2.8rem,1.4rem + 6vw,5.5rem)}
+.tpl-moderno .about-media,.tpl-moderno .hero-media{border-radius:calc(var(--radius) + 12px)}
+.tpl-moderno .gallery{gap:6px}
+.tpl-moderno .diff-grid{gap:16px;background:transparent;border:0;border-radius:0;overflow:visible}
+.tpl-moderno .diff{border-radius:var(--radius);box-shadow:none;background:color-mix(in srgb,var(--band-text) 7%,var(--band))}
+
+/* Minimalista: sem faixas de fundo, linhas finas, sem sombras e sem padrão no topo */
+.tpl-minimalista{--section-y:clamp(64px,8vw,112px)}
+.tpl-minimalista .section-alt{background:transparent}
+.tpl-minimalista .section+.section,.tpl-minimalista [data-section]+[data-section] .section{border-top:1px solid var(--border)}
+.tpl-minimalista .hero-pattern{display:none}
+.tpl-minimalista .hero h1{font-size:clamp(2.3rem,1.3rem + 4vw,4rem)}
+.tpl-minimalista .card,.tpl-minimalista .quote{box-shadow:none;background:transparent}
+.tpl-minimalista .card:hover{transform:none;box-shadow:none}
+.tpl-minimalista .hero-media,.tpl-minimalista .hero-card{box-shadow:none}
+.tpl-minimalista .btn-primary{box-shadow:none}
+.tpl-minimalista .eyebrow::before{display:none}
+.tpl-minimalista .band{background:var(--surface);color:var(--text)}
+.tpl-minimalista .band .eyebrow{color:var(--primary-ink)}.tpl-minimalista .band .lead,.tpl-minimalista .diff p{color:var(--muted)}
+.tpl-minimalista .diff-grid,.tpl-minimalista .diff{background:transparent;border-color:var(--border);box-shadow:0 0 0 .5px var(--border)}
+.tpl-minimalista .diff .ico{color:var(--primary-ink)}
+
+/* Elegante: molduras finas, eyebrow com traços dos dois lados, depoimentos em destaque */
+.tpl-elegante{--container:1080px;--section-y:clamp(84px,11vw,144px)}
+.tpl-elegante .band{background:var(--surface);color:var(--text)}
+.tpl-elegante .band .eyebrow{color:var(--primary-ink)}.tpl-elegante .band .lead,.tpl-elegante .diff p{color:var(--muted)}
+.tpl-elegante .diff-grid,.tpl-elegante .diff{background:transparent;border-color:var(--border);box-shadow:0 0 0 .5px var(--border)}
+.tpl-elegante .diff{text-align:center}.tpl-elegante .diff .ico{color:var(--primary-ink);justify-content:center;width:100%}
+.tpl-elegante .section>.container>.section-head .eyebrow::after{content:"";width:22px;height:1.5px;background:currentColor;opacity:.7}
+.tpl-elegante .eyebrow{letter-spacing:.22em}
+.tpl-elegante .hero-media,.tpl-elegante .about-media{padding:10px;background:var(--bg);border:1px solid var(--border);box-shadow:none}
+.tpl-elegante .hero-media img,.tpl-elegante .about-media img{border-radius:calc(var(--radius) * .7)}
+.tpl-elegante .quote{text-align:center;align-items:center;border:0;background:transparent}
+.tpl-elegante .quote p{font-family:var(--font-heading);font-size:clamp(1.2rem,1.05rem + .6vw,1.5rem);font-style:italic;line-height:1.5}
+.tpl-elegante .card{box-shadow:none}
+.tpl-elegante .final{background:var(--band);color:var(--band-text)}
+.tpl-elegante .final .btn{background:var(--primary);color:var(--on-primary)}
+
+/* Impacto: topo em faixa escura, títulos grandes, cartões com borda de destaque */
+.tpl-impacto .hero-centered,.tpl-impacto .hero-split{background:var(--band);color:var(--band-text)}
+.tpl-impacto .hero-centered .sub,.tpl-impacto .hero-split .sub,.tpl-impacto .hero-centered .highlights,.tpl-impacto .hero-split .highlights{color:var(--band-muted)}
+.tpl-impacto .hero-centered .eyebrow,.tpl-impacto .hero-split .eyebrow,.tpl-impacto .hero .highlights .ico{color:var(--band-accent)}
+.tpl-impacto .hero-centered .btn-ghost,.tpl-impacto .hero-split .btn-ghost{color:var(--band-text);border-color:var(--band-border)}
+.tpl-impacto .hero-pattern{background-image:radial-gradient(color-mix(in srgb,var(--band-accent) 30%,transparent) 1.2px,transparent 1.2px)}
+.tpl-impacto .hero h1{font-size:clamp(2.8rem,1.3rem + 6.2vw,5.75rem);letter-spacing:-.03em}
+.tpl-impacto .section-head h2{font-size:clamp(2.3rem,1.3rem + 3.8vw,3.9rem)}
+.tpl-impacto .card{border-top:4px solid var(--primary);box-shadow:0 20px 44px -30px rgba(0,0,0,.35)}
+.tpl-impacto .section-alt{background:var(--primary-soft)}
+.tpl-impacto .btn{min-height:56px;font-weight:700}
+.tpl-impacto .row .num{font-size:34px;color:var(--primary-ink)}
+
 /* Animações discretas (somente com JS ativo e sem preferência por movimento reduzido) */
 .js .reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
 .js .reveal.in{opacity:1;transform:none}
