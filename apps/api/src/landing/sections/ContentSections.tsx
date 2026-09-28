@@ -26,7 +26,7 @@ export function AboutSection({ ctx, alt }: { ctx: RenderContext; alt: boolean })
         </div>
         {ctx.aboutImage ? (
           <div className="about-media reveal">
-            <img referrerPolicy="no-referrer" src={ctx.aboutImage.url} alt={ctx.aboutImage.alt} loading="lazy" decoding="async" />
+            <img referrerPolicy="no-referrer" src={ctx.aboutImage.url} alt={ctx.aboutImage.alt} loading="lazy" decoding="async" data-lp-img={ctx.aboutImage.url} style={ctx.aboutImage.position ? { objectPosition: ctx.aboutImage.position } : undefined} />
           </div>
         ) : facts.length ? (
           <dl className="facts reveal">

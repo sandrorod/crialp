@@ -12,6 +12,25 @@ export interface ThemeSettings {
   images?: Record<string, ImagePlacement>;
   /** Modelo de layout (estrutura da página); cores e fontes continuam vindo do preset. */
   template?: TemplateKey;
+  /** Ponto de corte (0–100%) das fotos do topo e de "sobre", por URL. Ausente = centro. */
+  focus?: Record<string, ImageFocus>;
+  /** Ordem das fotos (URLs) escolhida no editor; fotos fora da lista vêm depois, na ordem da empresa. */
+  imageOrder?: string[];
+}
+
+export interface ImageFocus {
+  x: number;
+  y: number;
+}
+
+function normalizeFocus(input: unknown): Record<string, ImageFocus> {
+  const out: Record<string, ImageFocus> = {};
+  if (!input || typeof input !== 'object') return out;
+  const pct = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.min(100, Math.max(0, v)) * 10) / 10 : 50);
+  for (const [url, f] of Object.entries(input).slice(0, 300)) {
+    if (url.length <= 2048 && f && typeof f === 'object') out[url] = { x: pct((f as ImageFocus).x), y: pct((f as ImageFocus).y) };
+  }
+  return out;
 }
 
 export const TEMPLATE_KEYS = ['classico', 'moderno', 'minimalista', 'elegante', 'impacto'] as const;
@@ -209,6 +228,8 @@ export interface ResolvedTheme {
   sections: Record<string, SectionColors>;
   images: Record<string, ImagePlacement>;
   template: TemplateKey;
+  focus: Record<string, ImageFocus>;
+  imageOrder: string[];
   fontsHref: string;
   vars: Record<string, string>;
 }
@@ -223,6 +244,10 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
     sections: normalizeSectionColors(input?.sections),
     images: normalizeImagePlacements(input?.images),
     template: TEMPLATE_KEYS.includes(input?.template) ? input.template : 'classico',
+    focus: normalizeFocus(input?.focus),
+    imageOrder: Array.isArray(input?.imageOrder)
+      ? [...new Set<string>(input.imageOrder.filter((u: unknown) => typeof u === 'string' && u.length <= 2048))].slice(0, 300)
+      : [],
   };
 }
 
@@ -252,6 +277,8 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
     sections: settings.sections ?? {},
     images: settings.images ?? {},
     template: settings.template ?? 'classico',
+    focus: settings.focus ?? {},
+    imageOrder: settings.imageOrder ?? [],
     fontsHref: `https://fonts.googleapis.com/css2?${families}&display=swap`,
     vars: {
       '--bg': c.bg,

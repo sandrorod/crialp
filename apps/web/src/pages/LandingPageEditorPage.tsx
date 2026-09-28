@@ -188,7 +188,18 @@ export function LandingPageEditorPage() {
           </div>
           <div className="bg-zinc-100 p-3 sm:p-4">
             {dirty ? <p className="mb-2 text-center text-xs text-amber-700">A prévia mostra a última versão salva. Salve para ver as alterações.</p> : null}
-            <PreviewFrame key={`${frameKey}-${device}`} src={landingPageService.previewUrl(lp.id)} device={device} height={Math.round(window.innerHeight * 0.72)} />
+            <p className="mb-2 text-center text-xs text-zinc-500">Arraste as fotos do topo e da seção "Sobre" para ajustar o corte.</p>
+            <PreviewFrame
+              key={`${frameKey}-${device}`}
+              src={landingPageService.previewUrl(lp.id)}
+              device={device}
+              height={Math.round(window.innerHeight * 0.72)}
+              focus={theme.focus}
+              onFocus={(url, f) => {
+                setTheme((t) => (t ? { ...t, focus: { ...t.focus, [url]: f } } : t));
+                setDirty(true);
+              }}
+            />
           </div>
         </Card>
 

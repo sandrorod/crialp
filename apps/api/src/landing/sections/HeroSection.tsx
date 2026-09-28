@@ -73,7 +73,7 @@ export function HeroSection({ ctx }: { ctx: RenderContext }) {
     return (
       <section id="inicio" className="hero hero-image">
         <div className="bg">
-          <img referrerPolicy="no-referrer" src={ctx.heroImage.url} alt={ctx.heroImage.alt} fetchPriority="high" />
+          <img referrerPolicy="no-referrer" src={ctx.heroImage.url} alt={ctx.heroImage.alt} fetchPriority="high" data-lp-img={ctx.heroImage.url} style={ctx.heroImage.position ? { objectPosition: ctx.heroImage.position } : undefined} />
         </div>
         <div className="container">
           <Copy ctx={ctx} />
@@ -101,7 +101,7 @@ export function HeroSection({ ctx }: { ctx: RenderContext }) {
         </div>
         {ctx.heroImage ? (
           <div className="hero-media reveal">
-            <img referrerPolicy="no-referrer" src={ctx.heroImage.url} alt={ctx.heroImage.alt} fetchPriority="high" />
+            <img referrerPolicy="no-referrer" src={ctx.heroImage.url} alt={ctx.heroImage.alt} fetchPriority="high" data-lp-img={ctx.heroImage.url} style={ctx.heroImage.position ? { objectPosition: ctx.heroImage.position } : undefined} />
           </div>
         ) : (
           <InfoCard ctx={ctx} />

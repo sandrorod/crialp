@@ -104,6 +104,9 @@ const ContentUpdateSchema = z.object({
     // Local de cada foto: { "<url>": "hero" | "about" | "gallery" | "hidden" }; ausente = automático
     images: z.record(z.string().max(2048), z.enum(IMAGE_PLACEMENTS)).optional(),
     template: z.enum(TEMPLATE_KEYS).optional(),
+    // Ponto de corte das fotos do topo/"sobre": { "<url>": { "x": 0-100, "y": 0-100 } }
+    focus: z.record(z.string().max(2048), z.object({ x: z.number().min(0).max(100), y: z.number().min(0).max(100) })).optional(),
+    imageOrder: z.array(z.string().max(2048)).max(300).optional(),
   }),
   seo: z.object({
     seo_title: z.string().trim().max(120).nullish().transform((v) => v || null),

@@ -223,6 +223,15 @@ export interface ThemeSettings {
   images?: Record<string, ImagePlacement>;
   /** Modelo de layout da página (estrutura); cores e fontes vêm do preset. */
   template?: TemplateKey;
+  /** Ponto de corte (0–100%) das fotos do topo e de "sobre", por URL. */
+  focus?: Record<string, ImageFocus>;
+  /** Ordem das fotos (URLs) escolhida no editor. */
+  imageOrder?: string[];
+}
+
+export interface ImageFocus {
+  x: number;
+  y: number;
 }
 
 export type TemplateKey = 'classico' | 'moderno' | 'minimalista' | 'elegante' | 'impacto';

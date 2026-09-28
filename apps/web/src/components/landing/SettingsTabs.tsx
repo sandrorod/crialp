@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, CheckCircle2, Clock, Copy, Globe, ImageOff, RotateCcw, ShieldAlert, XCircle } from 'lucide-react';
+import { Check, CheckCircle2, Clock, Copy, Globe, GripVertical, ImageOff, RotateCcw, ShieldAlert, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Field, Input, ListEditor, Select, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
@@ -281,10 +281,33 @@ function resolvePlacements(urls: string[], chosen: Record<string, ImagePlacement
 }
 
 export function PhotosTab({ theme, onChange, images }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; images: CompanyImage[] | null }) {
+  // Ordem provisória enquanto uma foto está sendo arrastada
+  const [dragOrder, setDragOrder] = useState<string[] | null>(null);
+  const [dragging, setDragging] = useState<string | null>(null);
   if (!images) return <div className="skeleton h-40 rounded-lg" />;
   const photos = images.filter((i) => i.type !== 'logo');
-  const allowed = photos.filter((i) => i.usage_allowed);
   const blocked = photos.filter((i) => !i.usage_allowed);
+  // Mesma ordem da renderização: a escolhida no editor e, depois, a da empresa
+  const saved = theme.imageOrder ?? [];
+  const rank = (order: string[], url: string, index: number) => (order.includes(url) ? order.indexOf(url) : order.length + index);
+  const order = dragOrder ?? saved;
+  const allowed = photos
+    .filter((i) => i.usage_allowed)
+    .map((img, index) => ({ img, index }))
+    .sort((a, b) => rank(order, a.img.url, a.index) - rank(order, b.img.url, b.index))
+    .map(({ img }) => img);
+
+  const dragOver = (overUrl: string) => {
+    if (!dragging || dragging === overUrl) return;
+    const urls = allowed.map((i) => i.url).filter((u) => u !== dragging);
+    urls.splice(urls.indexOf(overUrl) + (allowed.findIndex((i) => i.url === dragging) < allowed.findIndex((i) => i.url === overUrl) ? 1 : 0), 0, dragging);
+    setDragOrder(urls);
+  };
+  const dragEnd = () => {
+    if (dragOrder) onChange({ ...theme, imageOrder: dragOrder });
+    setDragOrder(null);
+    setDragging(null);
+  };
   const chosen = theme.images ?? {};
   const resolved = resolvePlacements(allowed.map((i) => i.url), chosen);
   const galleryCount = Object.values(resolved).filter((p) => p === 'gallery').length;
@@ -309,7 +332,7 @@ export function PhotosTab({ theme, onChange, images }: { theme: ThemeSettings; o
   return (
     <div className="space-y-4">
       <p className="text-xs text-zinc-500">
-        Escolha onde cada foto aparece. Em "Automático", as fotos preenchem o topo, a seção "Sobre" e a galeria, nessa ordem.
+        Escolha onde cada foto aparece e arraste pela alça para mudar a ordem. Em "Automático", as fotos preenchem o topo, a seção "Sobre" e a galeria, seguindo a ordem da lista.
       </p>
       {theme.heroVariant === 'centered' ? (
         <p className="text-xs text-amber-700">O topo está no estilo "Centralizado", que não exibe foto. Para mostrar a foto do topo, escolha "Dividido" ou "Imagem cheia" em "Cores e estilo".</p>
@@ -318,7 +341,26 @@ export function PhotosTab({ theme, onChange, images }: { theme: ThemeSettings; o
 
       <ul className="space-y-2">
         {allowed.map((img) => (
-          <li key={img.url} className="flex items-center gap-3 rounded-lg border border-zinc-200 p-2">
+          <li
+            key={img.url}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = 'move';
+              e.dataTransfer.setData('text/plain', img.url);
+              // Mudar o elemento durante o dragstart cancela o arrasto no Chrome: aplica o destaque em seguida
+              setTimeout(() => setDragging(img.url), 0);
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              dragOver(img.url);
+            }}
+            onDrop={(e) => e.preventDefault()}
+            onDragEnd={dragEnd}
+            className={cn('flex items-center gap-2 rounded-lg border border-zinc-200 bg-white p-2 transition', dragging === img.url && 'opacity-50 ring-2 ring-brand-500')}
+          >
+            <span className="cursor-grab text-zinc-400 hover:text-ink active:cursor-grabbing" title="Arraste para reordenar" aria-hidden>
+              <GripVertical className="size-4" />
+            </span>
             <PhotoThumb url={img.url} alt={img.alt_text ?? ''} dimmed={resolved[img.url] === 'hidden'} />
             <div className="min-w-0 flex-1">
               <Select className="h-9 text-[13px]" value={chosen[img.url] ?? ''} onChange={(e) => setPlacement(img.url, e.target.value as ImagePlacement | '')}>

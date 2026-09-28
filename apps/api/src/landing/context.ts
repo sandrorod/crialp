@@ -7,6 +7,8 @@ import { resolveLabels, type Labels } from './labels.js';
 export interface LpImage {
   url: string;
   alt: string;
+  /** object-position escolhido no editor (ex.: "30% 60%"); ausente = centro */
+  position?: string;
 }
 
 export interface RenderContext {
@@ -58,9 +60,16 @@ export function buildContext(opts: {
   // Imagens só entram na página com permissão de uso confirmada pelo administrador.
   const allowed = company.images.filter((i) => i.usage_allowed && safeHref(i.url));
   const logoImg = allowed.find((i) => i.type === 'logo');
+  // Ordem escolhida no editor; fotos que não estão na lista seguem a ordem da empresa
+  const rank = new Map(theme.imageOrder.map((u, i) => [u, i]));
   const photos = allowed
     .filter((i) => i.type !== 'logo')
-    .map((i) => ({ url: i.url, alt: i.alt_text || displayName }));
+    .map((i, index) => ({ i, index }))
+    .sort((a, b) => (rank.get(a.i.url) ?? theme.imageOrder.length + a.index) - (rank.get(b.i.url) ?? theme.imageOrder.length + b.index))
+    .map(({ i }): LpImage => {
+      const f = theme.focus[i.url];
+      return { url: i.url, alt: i.alt_text || displayName, ...(f ? { position: `${f.x}% ${f.y}%` } : {}) };
+    });
   // Local escolhido no editor; fotos sem escolha preenchem topo, "sobre" e galeria nessa ordem
   const place = (url: string) => theme.images[url];
   const visible = photos.filter((p) => place(p.url) !== 'hidden');
