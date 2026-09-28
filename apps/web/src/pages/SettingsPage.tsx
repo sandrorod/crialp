@@ -5,9 +5,13 @@ import { Button, CardSection, ErrorBlock, Field, Input, LoadingBlock, PageHeader
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { authService, miscService } from '@/services';
+import { AIKeysSection } from '@/components/settings/AIKeysSection';
+import { useAuth } from '@/hooks/useAuth';
 
 export function SettingsPage() {
   const { data, error, loading, reload } = useAsync(() => miscService.settings(), []);
+  const { user } = useAuth();
+  const canManageKeys = user?.role === 'owner' || user?.role === 'admin';
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [saving, setSaving] = useState(false);
@@ -41,7 +45,7 @@ export function SettingsPage() {
                 <dt className="text-xs text-zinc-500">Inteligência artificial</dt>
                 <dd className="mt-1 flex items-center gap-1.5 font-medium">
                   {data.ai.configured ? <CheckCircle2 className="size-4 text-emerald-600" /> : <XCircle className="size-4 text-red-600" />}
-                  {data.ai.configured ? `${data.ai.provider} · ${data.ai.model}` : 'Não configurada (defina a chave do provedor no .env)'}
+                  {data.ai.configured ? `${data.ai.provider} · ${data.ai.model}` : 'Não configurada (cadastre uma chave abaixo ou defina no .env)'}
                 </dd>
               </div>
               <div>
@@ -59,9 +63,11 @@ export function SettingsPage() {
             </dl>
           )}
           <p className="mt-5 rounded-lg bg-zinc-50 px-3 py-2.5 text-xs leading-relaxed text-zinc-500">
-            Chaves de API e credenciais ficam somente em variáveis de ambiente do servidor e nunca são enviadas ao navegador.
+            Chaves de API ficam no servidor (variáveis de ambiente ou criptografadas no banco) e nunca são enviadas ao navegador.
           </p>
         </CardSection>
+
+        {canManageKeys ? <AIKeysSection /> : null}
 
         <CardSection title="Alterar senha" description={data ? `${data.user.name} · ${data.user.email}` : undefined}>
           <form onSubmit={changePassword} className="grid gap-4 sm:grid-cols-2">

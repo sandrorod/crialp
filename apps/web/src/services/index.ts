@@ -1,5 +1,6 @@
 import { api } from '@/lib/api';
 import type {
+  AIKeyInfo,
   AnalysisResult,
   Company,
   CompanyDraft,
@@ -82,6 +83,10 @@ export const miscService = {
   dashboard: () => api.get<DashboardStats>('/dashboard'),
   settings: () =>
     api.get<{ user: User; ai: { provider: string; model: string; configured: boolean }; app_url: string; storage: string; environment: string }>('/settings'),
+  aiKeys: () => api.get<{ keys: AIKeyInfo[]; env_key: { last4: string } | null; provider_active: boolean }>('/settings/ai-keys'),
+  addAiKey: (key: string, label?: string) => api.post<AIKeyInfo>('/settings/ai-keys', { key, label: label || null }),
+  updateAiKey: (id: string, body: { active?: boolean; label?: string | null }) => api.patch(`/settings/ai-keys/${id}`, body),
+  removeAiKey: (id: string) => api.del(`/settings/ai-keys/${id}`),
   upload: async (file: File) => {
     const form = new FormData();
     form.append('file', file);

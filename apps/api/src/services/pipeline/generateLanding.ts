@@ -72,7 +72,7 @@ export async function generateLanding(
   job: JobHandle,
   opts: { orgId: string; userId: string; companyId: string; landingPageId?: string; keepTheme?: boolean },
 ) {
-  if (!aiService.isConfigured()) throw new AppError(503, Messages.aiNotConfigured);
+  if (!(await aiService.isConfigured())) throw new AppError(503, Messages.aiNotConfigured);
 
   await job.step(GENERATE_STEPS.structure);
   const company = await getCompanyFull(opts.orgId, opts.companyId);

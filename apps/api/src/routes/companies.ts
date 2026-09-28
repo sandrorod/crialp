@@ -115,7 +115,7 @@ companiesRouter.post('/:id/fetch-images', async (req, res) => {
   if (!scrape.images.length) throw new AppError(422, 'Nenhuma foto utilizável foi encontrada neste site.');
 
   let classification = null;
-  if (aiService.isConfigured()) {
+  if (await aiService.isConfigured()) {
     try {
       classification = await aiService.classifyImages(company.trade_name || company.name, company.segment, describeImages(scrape.images));
     } catch (err) {

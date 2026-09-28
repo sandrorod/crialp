@@ -15,7 +15,7 @@ export interface StructuredRequest<T extends z.ZodType> {
 export interface AIProvider {
   readonly name: string;
   readonly model: string;
-  isConfigured(): boolean;
+  isConfigured(): Promise<boolean>;
   generateStructured<T extends z.ZodType>(req: StructuredRequest<T>): Promise<z.infer<T>>;
 }
 

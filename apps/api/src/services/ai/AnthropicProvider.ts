@@ -22,7 +22,7 @@ export class AnthropicProvider implements AIProvider {
       : null;
   }
 
-  isConfigured() {
+  async isConfigured() {
     return this.client !== null;
   }
 

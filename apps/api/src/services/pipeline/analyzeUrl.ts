@@ -21,7 +21,7 @@ export const ANALYZE_STEPS = {
 const scraper = new ScraperService();
 
 export async function analyzeUrl(job: JobHandle, url: URL, opts: { allowImages?: boolean } = {}) {
-  if (!aiService.isConfigured()) throw new AppError(503, Messages.aiNotConfigured);
+  if (!(await aiService.isConfigured())) throw new AppError(503, Messages.aiNotConfigured);
 
   await job.step(ANALYZE_STEPS.access);
   const scrape = await scraper.scrape(url);

@@ -36,7 +36,7 @@ analyzeRouter.post('/analyze-url', aiLimiter, async (req, res) => {
   // Evita cadastrar de novo (e gastar uma análise) uma empresa que já existe
   const dup = await findDuplicateCompany(user.organizationId, { url: parsed.toString() });
   if (dup) throw new AppError(409, `Esta empresa já foi cadastrada: "${dup.name}" (mesmo link).`, 'DUPLICATE_COMPANY');
-  if (!aiService.isConfigured()) throw new AppError(503, Messages.aiNotConfigured);
+  if (!(await aiService.isConfigured())) throw new AppError(503, Messages.aiNotConfigured);
   const jobId = await jobService.create(user.organizationId, 'analyze_url', { url: parsed.toString() });
   jobService.run(jobId, (job) => analyzeUrl(job, parsed, { allowImages }));
   res.status(202).json({ jobId });
@@ -52,7 +52,7 @@ analyzeRouter.post('/generate-landing-page', aiLimiter, async (req, res) => {
     z.object({ companyId: uuidParam, landingPageId: uuidParam.optional(), keepTheme: z.boolean().optional() }),
     req.body,
   );
-  if (!aiService.isConfigured()) throw new AppError(503, Messages.aiNotConfigured);
+  if (!(await aiService.isConfigured())) throw new AppError(503, Messages.aiNotConfigured);
   if (!(await getCompanyFull(user.organizationId, body.companyId))) throw notFound('Empresa não encontrada.');
   const jobId = await jobService.create(user.organizationId, 'generate_landing_page', body);
   jobService.run(jobId, (job) =>

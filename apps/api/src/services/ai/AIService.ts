@@ -98,10 +98,17 @@ export class AIService {
   get providerName() {
     return this.provider.name;
   }
+  /** Valida uma chave do Gemini antes de cadastrá-la. */
+  async testGeminiKey(key: string) {
+    const { GeminiProvider } = await import('./GeminiProvider.js');
+    const gemini = this.provider instanceof GeminiProvider ? this.provider : new GeminiProvider(undefined, 'gemini-2.5-flash');
+    await gemini.testKey(key);
+  }
+
   get model() {
     return this.provider.model;
   }
-  isConfigured() {
+  isConfigured(): Promise<boolean> {
     return this.provider.isConfigured();
   }
 

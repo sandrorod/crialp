@@ -309,3 +309,15 @@ export interface DashboardStats {
   inactive: number;
   recent: { id: string; slug: string; status: LpStatus; created_at: string; company_name: string; segment: string | null }[];
 }
+
+export interface AIKeyInfo {
+  id: string;
+  label: string | null;
+  last4: string;
+  active: boolean;
+  uses: number;
+  last_used_at: string | null;
+  last_error: string | null;
+  last_error_at: string | null;
+  created_at: string;
+}
