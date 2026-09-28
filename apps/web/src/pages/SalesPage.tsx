@@ -1,11 +1,11 @@
 import { useDeferredValue, useState, type FormEvent } from 'react';
-import { Building2, ChevronDown, ExternalLink, Eye, MessageSquarePlus, Search, Trash2 } from 'lucide-react';
+import { Building2, ChevronDown, Eye, MessageSquarePlus, Search, Share2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBlock, Modal, PageHeader, Select, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/lib/api';
-import { cn, formatDate } from '@/lib/utils';
+import { cn, copyToClipboard, formatDate } from '@/lib/utils';
 import { salesService } from '@/services';
 import type { ProspectingNote, SalesCompany } from '@/types';
 
@@ -20,6 +20,11 @@ export function SalesPage() {
   );
   const [prospecting, setProspecting] = useState<SalesCompany | null>(null);
   const filtered = !!(search || segment || city);
+
+  const shareLink = async (slug: string) => {
+    if (await copyToClipboard(`${window.location.origin}/lp/${slug}`)) toast.success('Link da Landing Page copiado.');
+    else toast.error('Não foi possível copiar o link.');
+  };
 
   return (
     <>
@@ -53,14 +58,13 @@ export function SalesPage() {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
                   <th className="px-5 py-3">Empresa</th>
                   <th className="px-3 py-3">Segmento</th>
                   <th className="px-3 py-3">Cidade</th>
                   <th className="px-3 py-3">Contato</th>
-                  <th className="px-3 py-3">Landing Page</th>
                   <th className="px-3 py-3">Última prospecção</th>
                   <th className="px-5 py-3 text-right">Ações</th>
                 </tr>
@@ -72,24 +76,20 @@ export function SalesPage() {
                     <td className="px-3 py-3.5 text-zinc-600">{c.segment ?? '—'}</td>
                     <td className="px-3 py-3.5 text-zinc-600">{c.city ? `${c.city}${c.state ? ` – ${c.state}` : ''}` : '—'}</td>
                     <td className="px-3 py-3.5 text-zinc-600">{c.whatsapp || c.phone || c.email || '—'}</td>
-                    <td className="px-3 py-3.5">
-                      {c.slug ? (
-                        <a href={`/lp/${c.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
-                          /lp/{c.slug} <ExternalLink className="size-3" />
-                        </a>
-                      ) : (
-                        <span className="text-zinc-400">—</span>
-                      )}
-                    </td>
                     <td className="px-3 py-3.5 text-zinc-500">
                       {c.last_note_at ? `${formatDate(c.last_note_at)} · ${c.notes_count} ${c.notes_count === 1 ? 'lançamento' : 'lançamentos'}` : '—'}
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center justify-end gap-1">
                         {c.slug ? (
-                          <a href={`/lp/${c.slug}`} target="_blank" rel="noreferrer" title="Visualizar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
-                            <Eye className="size-4" />
-                          </a>
+                          <>
+                            <a href={`/lp/${c.slug}`} target="_blank" rel="noreferrer" title="Abrir Landing Page" aria-label="Abrir Landing Page" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
+                              <Eye className="size-4" />
+                            </a>
+                            <button type="button" onClick={() => void shareLink(c.slug!)} title="Copiar link da Landing Page" aria-label="Copiar link da Landing Page" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
+                              <Share2 className="size-4" />
+                            </button>
+                          </>
                         ) : null}
                         <Button size="sm" variant="secondary" onClick={() => setProspecting(c)} icon={<MessageSquarePlus className="size-4" />}>
                           Prospecção
