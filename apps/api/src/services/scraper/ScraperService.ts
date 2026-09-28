@@ -46,8 +46,11 @@ const MAX_BYTES = 3 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
 const MAX_EXTRA_PAGES = 12;
 /** Limite do material enviado à IA (o conteúdo integral fica guardado para o administrador). */
-const MAX_AI_DOCUMENT = 70_000;
-const MAX_PAGE_TEXT = 12_000;
+const MAX_AI_DOCUMENT = 140_000;
+/** A página informada pelo usuário é a mais importante: pode ocupar bem mais espaço que as demais. */
+const MAX_FIRST_PAGE_TEXT = 60_000;
+const MAX_PAGE_TEXT = 15_000;
+const MAX_JSON_LD = 30_000;
 const MAX_IMAGE_CANDIDATES = 120;
 const MAX_IMAGES = 40;
 const IMG_EXT = /\.(jpe?g|png|webp|gif|avif)(\?|$)/i;
@@ -106,6 +109,71 @@ const PAGE_KEYWORDS = [
   'contato', 'fale-conosco', 'faleconosco', 'localizacao', 'onde-estamos', 'unidades',
   'depoimentos', 'avaliacoes', 'clientes',
 ];
+
+/**
+ * Diretórios e plataformas em que a URL é o perfil de um cliente dentro de um site maior.
+ * Nesses casos o leitor fica só no perfil e descarta o que é da própria plataforma
+ * (menus, rodapé, outros profissionais, contatos e redes da plataforma).
+ */
+const DIRECTORIES: { host: RegExp; aliases: string[] }[] = [
+  { host: /(^|\.)doctoralia\.com(\.br)?$/, aliases: ['doctoralia', 'docplanner'] },
+  { host: /(^|\.)boaconsulta\.com$/, aliases: ['boaconsulta'] },
+  { host: /(^|\.)dentmap\.com\.br$/, aliases: ['dentmap'] },
+  { host: /(^|\.)(ifood\.com\.br|ifood\.com)$/, aliases: ['ifood'] },
+  { host: /(^|\.)getninjas\.com\.br$/, aliases: ['getninjas'] },
+  { host: /(^|\.)tripadvisor\.com(\.br)?$/, aliases: ['tripadvisor'] },
+  { host: /(^|\.)reclameaqui\.com\.br$/, aliases: ['reclameaqui', 'reclame aqui'] },
+  { host: /(^|\.)(linktr\.ee|beacons\.ai|bio\.link|linkin\.bio)$/, aliases: ['linktree', 'linktr.ee', 'beacons'] },
+  { host: /(^|\.)(apontador|guiamais|telelistas|solutudo|encontrasp|encontrabrasil)\.com\.br$/, aliases: ['apontador', 'guiamais', 'telelistas', 'solutudo', 'encontra'] },
+  { host: /(^|\.)(habitissimo|triider)\.com\.br$/, aliases: ['habitissimo', 'triider'] },
+  { host: /(^|\.)(zapimoveis|vivareal|olx)\.com\.br$/, aliases: ['zapimoveis', 'vivareal', 'olx'] },
+  { host: /(^|\.)sympla\.com\.br$/, aliases: ['sympla'] },
+];
+
+/** Primeiro segmento de caminho que não identifica o perfil (ex.: /delivery/..., /perfil/...). */
+const GENERIC_SEGMENTS = new Set([
+  'delivery', 'perfil', 'profile', 'p', 'u', 'user', 'usuario', 'empresa', 'empresas', 'restaurante', 'loja', 'store',
+  'b', 'biz', 'local', 'anuncio', 'imovel', 'evento', 'e', 'dentistas', 'dentista', 'medicos', 'medico', 'profissionais',
+  'profissional', 'clinicas', 'clinica', 'advogados', 'servicos', 'estabelecimento',
+]);
+
+/** Último segmento com identificador no fim (…-eb626cd7, …/12345): padrão típico de perfil em marketplace. */
+const PROFILE_ID_SEGMENT = /(^|[-_])([0-9a-f]{6,}|\d{4,})$/i;
+
+interface ProfileScope {
+  /** Só páginas cujo caminho começa com este prefixo são lidas */
+  pathPrefix: string;
+  /** Nomes da plataforma: e-mails, redes e dados estruturados com eles são descartados */
+  aliases: string[];
+}
+
+function profileScopeOf(url: URL): ProfileScope | null {
+  const host = url.hostname.toLowerCase();
+  const segments = url.pathname.split('/').filter(Boolean);
+  if (!segments.length) return null; // página inicial: não é um perfil
+  let dir = DIRECTORIES.find((d) => d.host.test(host));
+  // Plataformas fora da lista: caminho com vários níveis terminando num identificador
+  if (!dir && segments.length >= 2 && PROFILE_ID_SEGMENT.test(segments[segments.length - 1])) {
+    const brand = host.replace(/^www\./, '').split('.')[0];
+    dir = { host: /$^/, aliases: brand.length >= 4 ? [brand] : [] };
+  }
+  if (!dir) return null;
+  const first = segments[0].toLowerCase();
+  const pathPrefix = GENERIC_SEGMENTS.has(first) ? url.pathname.replace(/\/$/, '') : `/${segments[0]}`;
+  return { pathPrefix, aliases: dir.aliases };
+}
+
+function mentionsPlatform(value: string, scope: ProfileScope | null) {
+  if (!scope) return false;
+  const v = value.toLowerCase();
+  return scope.aliases.some((a) => v.includes(a));
+}
+
+/** Blocos que, num perfil de plataforma, pertencem à plataforma e não ao cliente. */
+const PLATFORM_CHROME =
+  'header, footer, nav, aside, [role="navigation"], [role="banner"], [role="contentinfo"], [role="search"], ' +
+  '[class*="cookie" i], [id*="cookie" i], [class*="breadcrumb" i], [class*="newsletter" i], ' +
+  '[class*="similar" i], [class*="related" i], [class*="recommend" i], [class*="banner" i], [class*="advert" i]';
 
 const SOCIAL_PATTERNS: [SocialNetwork, RegExp][] = [
   ['instagram', /(^|\.)instagram\.com$/],
@@ -268,9 +336,10 @@ function extractJsonLd($: cheerio.CheerioAPI): unknown[] {
   return out;
 }
 
-function pageText($: cheerio.CheerioAPI): string {
+function pageText($: cheerio.CheerioAPI, scope: ProfileScope | null = null): string {
   const $body = $('body').clone();
   $body.find('script, style, noscript, svg, iframe, template, form select').remove();
+  if (scope) $body.find(PLATFORM_CHROME).remove();
   $body.find('br, p, div, li, h1, h2, h3, h4, h5, h6, section, article, header, footer, tr, td, th, dt, dd, blockquote, figcaption, address').each((_, el) => {
     $(el).append('\n');
   });
@@ -283,8 +352,13 @@ function pageText($: cheerio.CheerioAPI): string {
 
 export class ScraperService {
   async scrape(start: URL): Promise<ScrapeResult> {
+    // O fragmento (#...) não muda a página: sem ele, a mesma página não é lida duas vezes
+    start = new URL(start.toString());
+    start.hash = '';
     const first = await fetchHtml(start);
+    first.url.hash = '';
     const base = first.url;
+    const scope = profileScopeOf(base);
     const pagesHtml: FetchedHtml[] = [first];
 
     // Descobre páginas internas relevantes (sobre, serviços, contato...)
@@ -294,6 +368,8 @@ export class ScraperService {
       const url = absolutize($first(el).attr('href'), base);
       if (!url || !['http:', 'https:'].includes(url.protocol) || !sameSite(url, base)) return;
       url.hash = '';
+      // Perfil em plataforma: só as páginas do próprio perfil (não as da plataforma)
+      if (scope && !(url.hostname === base.hostname && url.pathname.startsWith(scope.pathPrefix))) return;
       if (/\.(pdf|jpe?g|png|gif|webp|zip|docx?|xlsx?|mp4)$/i.test(url.pathname)) return;
       const key = url.toString();
       if (key === base.toString() || url.pathname === '/' ) return;
@@ -311,7 +387,7 @@ export class ScraperService {
     const extra = await Promise.allSettled(extraUrls.map((u) => fetchHtml(u)));
     for (const r of extra) if (r.status === 'fulfilled') pagesHtml.push(r.value);
 
-    const result = this.parse(start, pagesHtml);
+    const result = this.parse(start, pagesHtml, scope);
     result.images = await this.rankImages(result.images);
     return result;
   }
@@ -340,7 +416,7 @@ export class ScraperService {
     return kept.slice(0, MAX_IMAGES).map((img, index) => ({ ...img, index }));
   }
 
-  private parse(requested: URL, fetched: FetchedHtml[]): ScrapeResult {
+  private parse(requested: URL, fetched: FetchedHtml[], scope: ProfileScope | null = null): ScrapeResult {
     const pages: ScrapedPage[] = [];
     const jsonLd: unknown[] = [];
     const phones = new Set<string>();
@@ -355,7 +431,8 @@ export class ScraperService {
       const url = absolutize(raw?.split(/\s+/)[0], base);
       if (!url || !['http:', 'https:'].includes(url.protocol)) return;
       if (/\.(svg)(\?|$)/i.test(url.pathname) && !logoHint) return;
-      if (/(pixel|tracking|spacer|blank|facebook\.com\/tr)/i.test(url.toString())) return;
+      // Pixels de rastreamento e espaçadores (pelo nome do arquivo, não pelo domínio: "pixel-p1.s3..." é foto de verdade)
+      if (/(^|\/)(pixel|tracking|spacer|blank|1x1|transparent)(\.[a-z]+)?$/i.test(url.pathname) || /(^|\.)facebook\.com$/i.test(url.hostname) && url.pathname.startsWith('/tr')) return;
       const key = url.toString();
       const prev = images.get(key);
       if (prev) {
@@ -366,9 +443,16 @@ export class ScraperService {
       images.set(key, { url: key, alt: cleanLine(alt).slice(0, 160), context, logoHint });
     };
 
-    for (const { url, html } of fetched) {
+    const seenPages = new Set<string>();
+    for (const [pageIndex, { url, html }] of fetched.entries()) {
+      const pageKey = url.toString().replace(/#.*$/, '').replace(/\/$/, '');
+      if (seenPages.has(pageKey)) continue;
+      seenPages.add(pageKey);
       const $ = cheerio.load(html);
       jsonLd.push(...extractJsonLd($));
+      // Em perfis de plataforma, links e textos vêm só do conteúdo do perfil (sem menus/rodapé da plataforma)
+      const $scope = scope ? $('body').clone() : $('body');
+      if (scope) $scope.find(PLATFORM_CHROME).remove();
 
       const title = cleanLine($('title').first().text());
       const description = cleanLine(
@@ -376,7 +460,7 @@ export class ScraperService {
       );
 
       // Links: telefone, e-mail, WhatsApp, redes sociais
-      $('a[href]').each((_, el) => {
+      $scope.find('a[href]').each((_, el) => {
         const href = $(el).attr('href')?.trim() ?? '';
         if (/^tel:/i.test(href)) {
           const d = toBrazilE164Digits(decodeURIComponent(href.slice(4)));
@@ -385,7 +469,7 @@ export class ScraperService {
         }
         if (/^mailto:/i.test(href)) {
           const email = decodeURIComponent(href.slice(7).split('?')[0]).trim().toLowerCase();
-          if (EMAIL_RE.test(email)) emails.add(email);
+          if (EMAIL_RE.test(email) && !mentionsPlatform(email, scope)) emails.add(email);
           EMAIL_RE.lastIndex = 0;
           return;
         }
@@ -397,16 +481,20 @@ export class ScraperService {
           return;
         }
         const network = socialNetworkOf(abs);
-        if (network && abs.pathname.length > 1 && !SOCIAL_SHARE_PATH.test(abs.pathname + abs.search)) {
+        if (network && abs.pathname.length > 1 && !SOCIAL_SHARE_PATH.test(abs.pathname + abs.search) && !mentionsPlatform(abs.pathname, scope)) {
           const normalized = normalizeSocialUrl(abs);
           socials.set(normalized.toLowerCase(), { network, url: normalized });
         }
       });
 
       // Imagens: og:image, ícones, logos e imagens de conteúdo
-      addImage($('meta[property="og:image"]').attr('content'), url, title, 'og:image');
-      $('link[rel~="apple-touch-icon"]').each((_, el) => addImage($(el).attr('href'), url, 'ícone do site', 'icon', true));
-      $('img, picture source').each((_, el) => {
+      // Em perfis, o ícone é da plataforma; a imagem de compartilhamento também, quando genérica
+      const ogImage = $('meta[property="og:image"]').attr('content');
+      if (!scope || (ogImage && !mentionsPlatform(ogImage.replace(/^https?:\/\/[^/]+/, ''), scope) && !/open-graph|og\.(png|jpe?g)/i.test(ogImage))) {
+        addImage(ogImage, url, title, 'og:image');
+      }
+      if (!scope) $('link[rel~="apple-touch-icon"]').each((_, el) => addImage($(el).attr('href'), url, 'ícone do site', 'icon', true));
+      $scope.find('img, picture source').each((_, el) => {
         const $el = $(el);
         const src = imageUrlFromAttributes((el as any).attribs ?? {});
         if (!src) return;
@@ -420,7 +508,7 @@ export class ScraperService {
         addImage(src, url, alt, inHeader ? 'cabeçalho' : 'conteúdo', logoHint);
       });
       // Imagens de fundo (banners, seções) em style inline ou atributos data-bg
-      $('[style*="url("], [data-bg], [data-background], [data-bg-src], [data-background-image]').each((_, el) => {
+      $scope.find('[style*="url("], [data-bg], [data-background], [data-bg-src], [data-background-image]').each((_, el) => {
         const attribs = ((el as any).attribs ?? {}) as Record<string, string>;
         const style = attribs.style ?? '';
         for (const m of style.matchAll(BG_URL_RE)) addImage(m[2], url, $(el).attr('aria-label') ?? '', 'fundo');
@@ -430,7 +518,7 @@ export class ScraperService {
       });
 
       // Texto visível (sem repetir menus/rodapés já vistos em outras páginas)
-      const text = pageText($)
+      const text = pageText($, scope)
         .split('\n')
         .filter((line) => {
           if (line.length < 60 && seenLines.has(line)) return false;
@@ -438,10 +526,10 @@ export class ScraperService {
           return true;
         })
         .join('\n')
-        .slice(0, MAX_PAGE_TEXT);
+        .slice(0, pageIndex === 0 ? MAX_FIRST_PAGE_TEXT : MAX_PAGE_TEXT);
 
       for (const m of text.match(EMAIL_RE) ?? []) {
-        if (!/\.(png|jpe?g|gif|webp|svg)$/i.test(m)) emails.add(m.toLowerCase());
+        if (!/\.(png|jpe?g|gif|webp|svg)$/i.test(m) && !mentionsPlatform(m, scope)) emails.add(m.toLowerCase());
       }
       for (const m of text.match(PHONE_RE) ?? []) {
         const d = toBrazilE164Digits(m);
@@ -452,6 +540,21 @@ export class ScraperService {
       pages.push({ url: url.toString(), title, description, text });
     }
 
+    // Dados estruturados: sem duplicatas, sem navegação (breadcrumb/busca) e, em perfis, sem a própria plataforma
+    const seenLd = new Set<string>();
+    const cleanLd = (jsonLd as any[]).filter((item) => {
+      if (!item || typeof item !== 'object') return false;
+      const type = String([item['@type']].flat()[0] ?? '');
+      if (/^(BreadcrumbList|WebSite|SearchAction|SiteNavigationElement|WebPage)$/i.test(type)) return false;
+      if (scope && /^(Organization|Corporation)$/i.test(type) && mentionsPlatform(`${item.name ?? ''} ${item.legalName ?? ''} ${item.url ?? ''} ${JSON.stringify(item.brand ?? '')}`, scope)) return false;
+      const key = JSON.stringify(item);
+      if (seenLd.has(key)) return false;
+      seenLd.add(key);
+      return true;
+    });
+    jsonLd.length = 0;
+    jsonLd.push(...cleanLd);
+
     // JSON-LD também pode conter contatos e redes (sameAs)
     for (const item of jsonLd as any[]) {
       if (!item || typeof item !== 'object') continue;
@@ -460,12 +563,12 @@ export class ScraperService {
         const d = typeof t === 'string' ? toBrazilE164Digits(t) : null;
         if (d) phones.add(d);
       }
-      if (typeof item.email === 'string') emails.add(item.email.replace(/^mailto:/, '').toLowerCase());
+      if (typeof item.email === 'string' && !mentionsPlatform(item.email, scope)) emails.add(item.email.replace(/^mailto:/, '').toLowerCase());
       const sameAs = Array.isArray(item.sameAs) ? item.sameAs : item.sameAs ? [item.sameAs] : [];
       for (const s of sameAs) {
         const u = typeof s === 'string' ? absolutize(s, new URL(fetched[0].url)) : null;
         const network = u && socialNetworkOf(u);
-        if (u && network) {
+        if (u && network && !mentionsPlatform(u.pathname, scope)) {
           const normalized = normalizeSocialUrl(u);
           socials.set(normalized.toLowerCase(), { network, url: normalized });
         }
@@ -483,7 +586,7 @@ export class ScraperService {
 
     return {
       requestedUrl: requested.toString(),
-      finalUrl: fetched[0].url.toString(),
+      finalUrl: fetched[0].url.toString().replace(/#.*$/, ''),
       pages,
       jsonLd,
       found: {
@@ -503,15 +606,26 @@ export class ScraperService {
 export function buildAnalysisDocument(scrape: ScrapeResult): string {
   const parts: string[] = [];
   parts.push(`URL ANALISADA: ${scrape.finalUrl}`);
-  // Orçamento de texto por página, para que todas as páginas lidas contribuam
-  const perPage = Math.floor((MAX_AI_DOCUMENT - 20_000) / Math.max(scrape.pages.length, 1));
-  for (const page of scrape.pages) {
+  const profile = profileScopeOf(new URL(scrape.finalUrl));
+  if (profile) {
     parts.push(
-      `\n=== PÁGINA: ${page.url} ===\nTítulo: ${page.title}\nDescrição (meta): ${page.description}\n\n${page.text.slice(0, Math.max(perPage, 3000))}`,
+      `ATENÇÃO: esta URL é o PERFIL de um profissional/empresa dentro de uma plataforma (${profile.aliases[0]}). ` +
+        `Extraia somente os dados do perfil; a plataforma, seus menus e outros profissionais não fazem parte do cadastro.`,
+    );
+  }
+  // A página informada vem inteira (até o limite); as demais dividem o espaço que sobra
+  const [firstPage, ...others] = scrape.pages;
+  const reserved = 25_000; // dados estruturados, contatos e imagens
+  const firstBudget = Math.min(firstPage?.text.length ?? 0, MAX_FIRST_PAGE_TEXT);
+  const perPage = Math.floor((MAX_AI_DOCUMENT - reserved - firstBudget) / Math.max(others.length, 1));
+  for (const [i, page] of scrape.pages.entries()) {
+    const budget = i === 0 ? firstBudget : Math.max(perPage, 3000);
+    parts.push(
+      `\n=== PÁGINA${i === 0 ? ' INFORMADA' : ''}: ${page.url} ===\nTítulo: ${page.title}\nDescrição (meta): ${page.description}\n\n${page.text.slice(0, budget)}`,
     );
   }
   if (scrape.jsonLd.length) {
-    parts.push(`\n=== DADOS ESTRUTURADOS (JSON-LD) ===\n${JSON.stringify(scrape.jsonLd).slice(0, 8000)}`);
+    parts.push(`\n=== DADOS ESTRUTURADOS (JSON-LD) ===\n${JSON.stringify(scrape.jsonLd).slice(0, MAX_JSON_LD)}`);
   }
   const f = scrape.found;
   parts.push(

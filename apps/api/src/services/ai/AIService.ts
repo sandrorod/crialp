@@ -29,9 +29,23 @@ Diretrizes:
   no material. Prefira os itens da seção "CONTATOS ENCONTRADOS", que vieram de links do site.
   "mobile" é um celular (DDD + 9 dígitos começando com 9). "whatsapp" só quando o site indicar WhatsApp.
 - Redes sociais: use as URLs completas encontradas; não monte URLs a partir de suposições.
+- Leia TODO o material com atenção (todas as páginas e os dados estruturados): o objetivo é o cadastro
+  mais completo possível, sem perder nenhum fato útil para a Landing Page.
+- Perfil em plataforma (Doctoralia, iFood, guias, Linktree...): o cadastro é do profissional/empresa do
+  perfil, nunca da plataforma. Ignore menus, anúncios, "profissionais semelhantes" e contatos da plataforma.
 - Serviços e produtos: liste todos os encontrados, com descrição e benefícios baseados no texto do site.
-- Depoimentos: somente trechos literais que o site apresenta como depoimento/avaliação de cliente,
-  copiados palavra por palavra. Se não houver, retorne lista vazia.
+  Se houver preço ou valor, registre em "details" exatamente como aparece (ex.: "Valor: R$ 450").
+- description: use o texto de apresentação ("Sobre", "Sobre mim", "Quem somos") como base.
+- commercial.additional_info: um item por fato relevante que não caiba nos outros campos, por exemplo
+  registro profissional (CRM, RQE, OAB, CRO, CREA...), formação e especializações, experiência,
+  doenças/condições tratadas, idiomas, convênios e planos aceitos, teleconsulta/atendimento online,
+  todos os endereços de atendimento (quando houver mais de um), formas de pagamento, estacionamento,
+  acessibilidade, nota média e quantidade de avaliações (ex.: "Nota 5,0 com 10 opiniões").
+- commercial.differentials: diferenciais que o próprio material apresenta (não crie).
+- opening_hours: horários de atendimento, quando informados.
+- Depoimentos: somente trechos literais que o site apresenta como depoimento/avaliação de cliente
+  (inclusive opiniões de pacientes/clientes publicadas no perfil), copiados palavra por palavra.
+  Se não houver, retorne lista vazia.
 - Imagens: classifique pelo índice TODAS as fotos úteis para uma Landing Page da empresa (fachada,
   ambiente, equipe, atendimento, procedimentos, produtos, pratos, imóveis...), com texto alternativo descritivo.
   Ignore ícones, selos, prêmios em forma de logo, banners com muito texto, formulários, mapas e marcas de terceiros.
