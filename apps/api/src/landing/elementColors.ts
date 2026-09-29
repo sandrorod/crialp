@@ -6,6 +6,8 @@ export interface ElementColor {
   text?: string;
   /** Cor de fundo */
   bg?: string;
+  /** Tamanho da fonte em px */
+  size?: number;
 }
 
 /** Cores por elemento, separadas por layout: celular (até 767px) e computador. */
@@ -35,7 +37,9 @@ function normalizeMap(input: unknown): Record<string, ElementColor> {
     if (!isElementSelector(sel)) continue;
     const text = hex(value?.text);
     const bg = hex(value?.bg);
-    if (text || bg) out[sel] = { ...(text ? { text } : {}), ...(bg ? { bg } : {}) };
+    const raw = Number(value?.size);
+    const size = Number.isFinite(raw) && raw > 0 ? Math.round(Math.min(200, Math.max(6, raw))) : null;
+    if (text || bg || size) out[sel] = { ...(text ? { text } : {}), ...(bg ? { bg } : {}), ...(size ? { size } : {}) };
   }
   return out;
 }
@@ -48,13 +52,19 @@ export function normalizeElementColors(input: unknown): ElementColors {
 function rules(map: Record<string, ElementColor>) {
   return Object.entries(map)
     .map(([sel, c]) => {
-      const decl = [c.text ? `color:${c.text}!important` : '', c.bg ? `background-color:${c.bg}!important` : ''].filter(Boolean).join(';');
+      const decl = [
+        c.text ? `color:${c.text}!important` : '',
+        c.bg ? `background-color:${c.bg}!important` : '',
+        c.size ? `font-size:${c.size}px!important` : '',
+      ]
+        .filter(Boolean)
+        .join(';');
       return decl ? `${sel}{${decl}}` : '';
     })
     .join('');
 }
 
-/** CSS das cores por elemento; o layout de celular e o de computador são independentes. */
+/** CSS das cores e tamanhos por elemento; o layout de celular e o de computador são independentes. */
 export function elementColorsCss(colors: ElementColors): string {
   const desktop = rules(colors.desktop);
   const mobile = rules(colors.mobile);

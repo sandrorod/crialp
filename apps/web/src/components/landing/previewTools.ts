@@ -10,7 +10,13 @@ export function elementColorsCss(colors: ElementColors | undefined): string {
   const rules = (map: Record<string, ElementColor> = {}) =>
     Object.entries(map)
       .map(([sel, c]) => {
-        const decl = [c.text ? `color:${c.text}!important` : '', c.bg ? `background-color:${c.bg}!important` : ''].filter(Boolean).join(';');
+        const decl = [
+          c.text ? `color:${c.text}!important` : '',
+          c.bg ? `background-color:${c.bg}!important` : '',
+          c.size ? `font-size:${c.size}px!important` : '',
+        ]
+          .filter(Boolean)
+          .join(';');
         return decl ? `${sel}{${decl}}` : '';
       })
       .join('');
@@ -201,6 +207,8 @@ export interface PickedElement {
   text: string;
   bg: string;
   bgTransparent: boolean;
+  /** Tamanho da fonte atual, em px */
+  size: number;
   /** Posição do clique no documento da prévia (px da prévia) */
   x: number;
   y: number;
@@ -210,6 +218,16 @@ export interface PickedElement {
 /** Classes que mudam conforme estado/posição e não devem entrar no seletor. */
 const VOLATILE = new Set(['reveal', 'in', 'section-alt']);
 
+/**
+ * Elementos que existem só na prévia do editor (barras de controle e campos opcionais vazios):
+ * não entram na contagem do :nth-child, senão o seletor não bateria com a página publicada.
+ */
+function editorOnly(c: Element) {
+  if (c.hasAttribute('data-lp-ui')) return true;
+  const empty = (e: Element | null) => !!e && e.hasAttribute('data-lp-empty') && !e.textContent?.trim();
+  return empty(c) || (c.hasAttribute('data-lp-hide-empty') && empty(c.querySelector('[data-lp-empty]')));
+}
+
 function segment(el: Element, withIndex: boolean) {
   const tag = el.tagName.toLowerCase();
   const classes = Array.from(el.classList)
@@ -217,11 +235,12 @@ function segment(el: Element, withIndex: boolean) {
     .slice(0, 6);
   let s = tag + classes.map((c) => `.${c}`).join('');
   const parent = el.parentElement;
-  if (withIndex && parent && parent.children.length > 1) s += `:nth-child(${Array.from(parent.children).indexOf(el) + 1})`;
+  const siblings = parent ? Array.from(parent.children).filter((c) => c === el || !editorOnly(c)) : [];
+  if (withIndex && siblings.length > 1) s += `:nth-child(${siblings.indexOf(el) + 1})`;
   return s;
 }
 
-function selectorFor(el: HTMLElement, withIndex: boolean) {
+export function selectorFor(el: HTMLElement, withIndex: boolean) {
   const parts: string[] = [];
   let cur: HTMLElement | null = el;
   while (cur && cur.tagName !== 'BODY') {
@@ -338,6 +357,7 @@ export function attachColorPick(doc: Document, onPick: (p: PickedElement) => voi
         text: cssColorToHex(cs.color) ?? '#000000',
         bg: bg ?? '#ffffff',
         bgTransparent,
+        size: Math.round(parseFloat(cs.fontSize)) || 16,
         x: e.clientX,
         y: e.clientY,
         el,
@@ -345,6 +365,16 @@ export function attachColorPick(doc: Document, onPick: (p: PickedElement) => voi
     },
     true,
   );
+}
+
+/**
+ * Na prévia existem elementos que a página publicada não tem (barras do editor e campos opcionais
+ * vazios). Os seletores gravados contam posições como na página publicada; aqui o :nth-child passa a
+ * ignorar esses elementos para acertar o mesmo alvo.
+ */
+const EDITOR_ONLY_SEL = '[data-lp-ui],[data-lp-empty]:empty,[data-lp-hide-empty]:has([data-lp-empty]:empty)';
+function forPreview(css: string) {
+  return css.replace(/:nth-child\((\d+)\)/g, `:nth-child($1 of :not(${EDITOR_ONLY_SEL}))`);
 }
 
 /** Rascunho ao vivo enquanto o popup está aberto (some ao salvar ou cancelar). */
@@ -355,7 +385,7 @@ export function setDraftCss(doc: Document, css: string) {
     style.id = 'lp-editor-draft';
     doc.head.appendChild(style);
   }
-  style.textContent = css;
+  style.textContent = forPreview(css);
 }
 
 export function setColorsCss(doc: Document, css: string) {
@@ -365,7 +395,7 @@ export function setColorsCss(doc: Document, css: string) {
     style.id = 'lp-colors';
     doc.head.appendChild(style);
   }
-  style.textContent = css;
+  style.textContent = forPreview(css);
 }
 
 // ─── Editar textos direto na página ────────────────────────────────
@@ -373,16 +403,107 @@ export function setColorsCss(doc: Document, css: string) {
  * Textos marcados com data-lp-text (só na prévia) viram editáveis ao clicar.
  * Enter ou clicar fora confirma; Esc desfaz. `onText` devolve false quando o valor é recusado.
  */
-export function attachTextEdit(doc: Document, onText: (path: string, value: string) => boolean) {
+export interface TextSizeOptions {
+  /** Tamanho salvo para o seletor no layout atual */
+  getSize: (selector: string) => number | undefined;
+  /** Salva (ou remove, com null) o tamanho do seletor no layout atual */
+  setSize: (selector: string, size: number | null) => void;
+  /** Layout mostrado na prévia (texto da barra) */
+  deviceLabel: string;
+  uiScale?: number;
+}
+
+/** Barra flutuante com A− / A+ sobre o texto em edição (só na prévia do editor). */
+function sizeToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions) {
+  const win = doc.defaultView!;
+  const px = (n: number) => `${Math.round(n * (opts.uiScale ?? 1))}px`;
+  const exact = selectorFor(el, true);
+  const similar = selectorFor(el, false);
+  let scope: 'exact' | 'similar' = opts.getSize(similar) !== undefined && opts.getSize(exact) === undefined ? 'similar' : 'exact';
+  const sel = () => (scope === 'exact' ? exact : similar);
+  const computed = () => Math.round(parseFloat(win.getComputedStyle(el).fontSize)) || 16;
+  let size = opts.getSize(sel()) ?? computed();
+
+  const bar = doc.createElement('div');
+  bar.dataset.lpUi = 'size';
+  bar.setAttribute('style', `position:fixed;z-index:9999;display:flex;align-items:center;gap:${px(2)};padding:${px(4)};border-radius:${px(10)};background:rgba(17,24,39,.94);color:#fff;font:500 ${px(12)}/1 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.3);white-space:nowrap`);
+  const btnCss = `height:${px(28)};min-width:${px(28)};padding:0 ${px(8)};border:0;border-radius:${px(7)};background:transparent;color:#fff;font:600 ${px(13)}/1 system-ui,sans-serif;cursor:pointer`;
+  const mk = (label: string, title: string, onClick: () => void) => {
+    const b = doc.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.title = title;
+    b.setAttribute('aria-label', title);
+    b.setAttribute('style', btnCss);
+    // mousedown sem padrão: o texto continua em edição (sem perder o foco)
+    b.addEventListener('mousedown', (e) => e.preventDefault());
+    b.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onClick();
+    });
+    return b;
+  };
+  const value = doc.createElement('span');
+  value.setAttribute('style', `min-width:${px(42)};text-align:center;font-variant-numeric:tabular-nums`);
+  const tag = doc.createElement('span');
+  tag.setAttribute('style', `opacity:.6;padding:0 ${px(6)}`);
+  tag.textContent = opts.deviceLabel;
+  const scopeBtn = mk('', 'Aplicar só neste texto ou em todos os textos iguais a este', () => {
+    scope = scope === 'exact' ? 'similar' : 'exact';
+    size = opts.getSize(sel()) ?? computed();
+    render();
+  });
+  const render = () => {
+    value.textContent = `${size}px`;
+    scopeBtn.textContent = scope === 'exact' ? 'Só este' : 'Todos iguais';
+  };
+  const apply = (next: number | null) => {
+    opts.setSize(sel(), next);
+    if (next) size = next;
+    else win.requestAnimationFrame(() => win.requestAnimationFrame(() => ((size = computed()), render())));
+    render();
+  };
+  const step = () => (size < 24 ? 1 : 2);
+  bar.append(
+    mk('A−', 'Diminuir fonte', () => apply(Math.max(8, size - step()))),
+    value,
+    mk('A+', 'Aumentar fonte', () => apply(Math.min(160, size + step()))),
+    mk('⟲', 'Tamanho original', () => apply(null)),
+    scopeBtn,
+    tag,
+  );
+  render();
+  doc.body.appendChild(bar);
+
+  const place = () => {
+    const r = el.getBoundingClientRect();
+    const h = bar.offsetHeight;
+    const top = r.top - h - 8 >= 4 ? r.top - h - 8 : r.bottom + 8;
+    bar.style.top = `${top}px`;
+    bar.style.left = `${Math.max(4, Math.min(r.left, win.innerWidth - bar.offsetWidth - 4))}px`;
+  };
+  place();
+  win.addEventListener('scroll', place, true);
+  win.addEventListener('resize', place);
+  return () => {
+    win.removeEventListener('scroll', place, true);
+    win.removeEventListener('resize', place);
+    bar.remove();
+  };
+}
+
+export function attachTextEdit(doc: Document, onText: (path: string, value: string) => boolean, sizes?: TextSizeOptions) {
   const win = doc.defaultView;
   if (!win || doc.body.dataset.lpTexts) return;
   doc.body.dataset.lpTexts = '1';
-  let editing: { el: HTMLElement; original: string; cancelled: boolean } | null = null;
+  let editing: { el: HTMLElement; original: string; cancelled: boolean; closeBar?: () => void } | null = null;
 
   const finish = () => {
     if (!editing) return;
-    const { el, original, cancelled } = editing;
+    const { el, original, cancelled, closeBar } = editing;
     editing = null;
+    closeBar?.();
     el.removeAttribute('contenteditable');
     const path = el.dataset.lpText!;
     const value = el.innerText.replace(/[ \t]+\n/g, '\n').trim();
@@ -436,6 +557,7 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
     // Navegadores sem "plaintext-only" recusam o valor: usa o modo comum (o texto é lido sem formatação)
     if (el.contentEditable !== 'plaintext-only') el.setAttribute('contenteditable', 'true');
     el.addEventListener('blur', finish, { once: true });
+    if (sizes) editing.closeBar = sizeToolbar(doc, el, sizes);
   };
 
   // No mousedown (antes do navegador posicionar o cursor) para o cursor cair onde foi clicado

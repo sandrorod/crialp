@@ -107,8 +107,8 @@ function ElementColorsSummary({ theme, onChange }: { theme: ThemeSettings; onCha
   ];
   return (
     <div className="border-t border-zinc-100 pt-6">
-      <h4 className="mb-1 text-sm font-semibold">Cores de elementos</h4>
-      <p className="mb-3 text-xs text-zinc-500">Na prévia, escolha o modo "Cores" e clique em qualquer título, texto, botão ou fundo para mudar a cor. Celular e computador têm cores independentes.</p>
+      <h4 className="mb-1 text-sm font-semibold">Cores e tamanhos de elementos</h4>
+      <p className="mb-3 text-xs text-zinc-500">Na prévia, no modo "Textos" clique num texto e use A− / A+ para o tamanho; no modo "Cores" clique em qualquer elemento para mudar cor e tamanho. Celular e computador são independentes.</p>
       <ul className="space-y-1.5">
         {rows.map((r) => (
           <li key={r.key} className="flex items-center justify-between rounded-md bg-zinc-50 px-3 py-2 text-[13px]">

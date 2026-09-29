@@ -28,10 +28,10 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 const MODES: { key: PreviewMode; label: string; icon: typeof Monitor; hint: string }[] = [
-  { key: 'textos', label: 'Textos', icon: PenLine, hint: 'Clique em qualquer texto contornado para editar ali mesmo. Enter ou clicar fora confirma; Esc desfaz.' },
+  { key: 'textos', label: 'Textos', icon: PenLine, hint: 'Clique em qualquer texto contornado para editar ali mesmo (A− / A+ mudam o tamanho). Enter ou clicar fora confirma; Esc desfaz.' },
   { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste as fotos do topo e da seção "Sobre" para ajustar o enquadramento; use − / + para o zoom.' },
   { key: 'secoes', label: 'Seções', icon: Rows3, hint: 'Arraste as seções pelo botão ⠿ (ou use ↑ ↓) para mudar a ordem.' },
-  { key: 'cores', label: 'Cores', icon: Palette, hint: 'Clique em qualquer elemento (título, texto, botão, fundo…) para escolher a cor da fonte e do fundo.' },
+  { key: 'cores', label: 'Cores', icon: Palette, hint: 'Clique em qualquer elemento (título, texto, botão, fundo…) para escolher a cor da fonte, do fundo e o tamanho.' },
 ];
 
 /** Aplica a nova ordem das seções visíveis mantendo as demais (sem dados ou fixas) na lista. */
@@ -225,7 +225,7 @@ export function LandingPageEditorPage() {
             </div>
             <p className="mb-2 text-center text-xs text-zinc-500">
               {MODES.find((m) => m.key === mode)?.hint}
-              {mode === 'secoes' || mode === 'cores' ? ` Vale só para o layout de ${device === 'mobile' ? 'celular' : 'computador'}.` : ''}
+              {mode !== 'fotos' ? ` ${mode === 'textos' ? 'O tamanho vale' : 'Vale'} só para o layout de ${device === 'mobile' ? 'celular' : 'computador'}.` : ''}
             </p>
             {dirty ? <p className="mb-2 text-center text-xs text-amber-700">Há alterações não salvas. Clique em Salvar para publicá-las nesta versão.</p> : null}
             <PreviewFrame

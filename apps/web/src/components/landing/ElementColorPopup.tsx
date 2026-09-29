@@ -42,7 +42,40 @@ function ColorRow({ label, value, original, changed, onChange, onReset }: { labe
   );
 }
 
-/** Popup aberto ao clicar num elemento da prévia: escolhe cor do texto e do fundo e salva. */
+function SizeRow({ value, changed, onChange, onReset }: { value: number; changed: boolean; onChange: (v: number) => void; onReset: () => void }) {
+  const clamp = (n: number) => Math.min(160, Math.max(8, Math.round(n)));
+  const step = value < 24 ? 1 : 2;
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-xs font-medium text-zinc-600">Tamanho da fonte</span>
+        {changed ? (
+          <button type="button" onClick={onReset} className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-ink">
+            <RotateCcw className="size-3" /> original
+          </button>
+        ) : null}
+      </div>
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={() => onChange(clamp(value - step))} className="h-9 w-10 flex-none rounded-md border border-zinc-200 text-sm font-semibold hover:bg-zinc-50" aria-label="Diminuir fonte">A−</button>
+        <div className="flex h-9 flex-1 items-center rounded-md border border-zinc-200 px-2">
+          <input
+            type="number"
+            min={8}
+            max={160}
+            value={value}
+            onChange={(e) => e.target.value && onChange(clamp(Number(e.target.value)))}
+            className="w-full bg-transparent text-center text-sm outline-none"
+            aria-label="Tamanho da fonte em px"
+          />
+          <span className="text-xs text-zinc-400">px</span>
+        </div>
+        <button type="button" onClick={() => onChange(clamp(value + step))} className="h-9 w-10 flex-none rounded-md border border-zinc-200 text-sm font-semibold hover:bg-zinc-50" aria-label="Aumentar fonte">A+</button>
+      </div>
+    </div>
+  );
+}
+
+/** Popup aberto ao clicar num elemento da prévia: escolhe cor do texto, do fundo e o tamanho da fonte. */
 export function ElementColorPopup({
   picked,
   device,
@@ -66,6 +99,7 @@ export function ElementColorPopup({
   const saved: ElementColor | undefined = colors[device][selector];
   const [text, setText] = useState<string | null>(saved?.text ?? null);
   const [bg, setBg] = useState<string | null>(saved?.bg ?? null);
+  const [size, setSize] = useState<number | null>(saved?.size ?? null);
   const [both, setBoth] = useState(false);
 
   // Ao trocar o alcance, carrega o que já estava salvo para ele
@@ -73,15 +107,18 @@ export function ElementColorPopup({
     const s = colors[device][selector];
     setText(s?.text ?? null);
     setBg(s?.bg ?? null);
+    setSize(s?.size ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selector]);
 
   // Mostra a cor na prévia enquanto escolhe
   useEffect(() => {
-    const decl = [text ? `color:${text}!important` : '', bg ? `background-color:${bg}!important` : ''].filter(Boolean).join(';');
+    const decl = [text ? `color:${text}!important` : '', bg ? `background-color:${bg}!important` : '', size ? `font-size:${size}px!important` : '']
+      .filter(Boolean)
+      .join(';');
     onDraft(decl ? `${selector}{${decl}}` : '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selector, text, bg]);
+  }, [selector, text, bg, size]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -92,7 +129,7 @@ export function ElementColorPopup({
   const write = (entry: ElementColor | null) => {
     const next: ElementColors = { desktop: { ...colors.desktop }, mobile: { ...colors.mobile } };
     for (const d of both ? [device, other] : [device]) {
-      if (entry && (entry.text || entry.bg)) next[d][selector] = entry;
+      if (entry && (entry.text || entry.bg || entry.size)) next[d][selector] = entry;
       else delete next[d][selector];
     }
     onSave(next);
@@ -104,7 +141,7 @@ export function ElementColorPopup({
   const DeviceIcon = device === 'mobile' ? Smartphone : Monitor;
 
   return createPortal(
-    <div className="fixed z-50 rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl" style={{ left, top, width: WIDTH }} role="dialog" aria-label="Alterar cor do elemento">
+    <div className="fixed z-50 rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl" style={{ left, top, width: WIDTH }} role="dialog" aria-label="Alterar cor e tamanho do elemento">
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-semibold">{picked.label}</p>
@@ -126,6 +163,7 @@ export function ElementColorPopup({
       <div className="space-y-3">
         <ColorRow label="Cor da fonte (texto)" value={text ?? picked.text} original={picked.text} changed={!!text} onChange={setText} onReset={() => setText(null)} />
         <ColorRow label={picked.bgTransparent ? 'Cor de fundo (hoje transparente)' : 'Cor de fundo'} value={bg ?? picked.bg} original={picked.bg} changed={!!bg} onChange={setBg} onReset={() => setBg(null)} />
+        <SizeRow value={size ?? picked.size} changed={!!size} onChange={setSize} onReset={() => setSize(null)} />
       </div>
 
       <label className="mt-3 flex items-center gap-2 text-xs text-zinc-600">
@@ -139,7 +177,7 @@ export function ElementColorPopup({
         ) : <span />}
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" onClick={() => write({ ...(text ? { text } : {}), ...(bg ? { bg } : {}) })} disabled={!text && !bg && !saved}>Salvar cor</Button>
+          <Button size="sm" onClick={() => write({ ...(text ? { text } : {}), ...(bg ? { bg } : {}), ...(size ? { size } : {}) })} disabled={!text && !bg && !size && !saved}>Salvar</Button>
         </div>
       </div>
     </div>,

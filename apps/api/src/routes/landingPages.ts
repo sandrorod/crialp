@@ -109,11 +109,11 @@ const ContentUpdateSchema = z.object({
     imageOrder: z.array(z.string().max(2048)).max(300).optional(),
     // Ordem das seções só no celular (vazia = igual ao computador)
     mobileOrder: z.array(z.string().max(60)).max(60).optional(),
-    // Cores de elementos clicados na prévia: { desktop: { "<seletor>": { text, bg } }, mobile: {...} }
+    // Cores e tamanho da fonte de elementos clicados na prévia: { desktop: { "<seletor>": { text, bg, size } }, mobile: {...} }
     elementColors: z
       .object({
-        desktop: z.record(z.string().max(600), z.object({ text: z.string().max(9).nullish(), bg: z.string().max(9).nullish() })).optional(),
-        mobile: z.record(z.string().max(600), z.object({ text: z.string().max(9).nullish(), bg: z.string().max(9).nullish() })).optional(),
+        desktop: z.record(z.string().max(600), z.object({ text: z.string().max(9).nullish(), bg: z.string().max(9).nullish(), size: z.number().min(6).max(200).nullish() })).optional(),
+        mobile: z.record(z.string().max(600), z.object({ text: z.string().max(9).nullish(), bg: z.string().max(9).nullish(), size: z.number().min(6).max(200).nullish() })).optional(),
       })
       .optional(),
   }),

@@ -209,6 +209,8 @@ export function PreviewFrame({
   orderRef.current = sectionOrder;
   const colorsRef = useRef(elementColors);
   colorsRef.current = elementColors;
+  const onColorsRef = useRef(onElementColors);
+  onColorsRef.current = onElementColors;
 
   useEffect(() => {
     const el = box.current;
@@ -244,7 +246,32 @@ export function PreviewFrame({
     setColorsCss(d, elementColorsCss(colorsRef.current));
     if (onReorderRef.current) attachSectionDrag(d, (keys) => onReorderRef.current?.(keys), uiScale, orderRef.current);
     if (onElementColors) attachColorPick(d, setPicked);
-    if (onTextRef.current) attachTextEdit(d, (path, value) => onTextRef.current?.(path, value) ?? false);
+    if (onTextRef.current) {
+      attachTextEdit(
+        d,
+        (path, value) => onTextRef.current?.(path, value) ?? false,
+        onColorsRef.current
+          ? {
+              uiScale,
+              deviceLabel: device === 'mobile' ? 'Celular' : 'Computador',
+              getSize: (sel) => colorsRef.current?.[device]?.[sel]?.size,
+              // Tamanho fica junto das cores do elemento, por layout (celular / computador)
+              setSize: (sel, size) => {
+                const all = colorsRef.current ?? { desktop: {}, mobile: {} };
+                const map = { ...all[device] };
+                const entry = { ...(map[sel] ?? {}) };
+                if (size) entry.size = size;
+                else delete entry.size;
+                if (entry.text || entry.bg || entry.size) map[sel] = entry;
+                else delete map[sel];
+                const next = { ...all, [device]: map };
+                colorsRef.current = next;
+                onColorsRef.current?.(next);
+              },
+            }
+          : undefined,
+      );
+    }
   };
 
   const popup =

@@ -239,6 +239,8 @@ export interface ThemeSettings {
 export interface ElementColor {
   text?: string;
   bg?: string;
+  /** Tamanho da fonte em px */
+  size?: number;
 }
 
 export interface ElementColors {
