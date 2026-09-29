@@ -1,5 +1,5 @@
 import type { RenderContext } from '../context.js';
-import { ed } from '../context.js';
+import { cad, ed } from '../context.js';
 import { CtaButton } from './CtaButton.js';
 import { Icon } from './Icon.js';
 
@@ -9,7 +9,7 @@ export function Header({ ctx, nav }: { ctx: RenderContext; nav: { href: string; 
     <header className="site-header">
       <div className="container">
         <a className="brand" href="#inicio" aria-label={ctx.displayName}>
-          {ctx.logo ? <img referrerPolicy="no-referrer" src={ctx.logo.url} alt={ctx.logo.alt} height={44} /> : <span>{ctx.displayName}</span>}
+          {ctx.logo ? <img referrerPolicy="no-referrer" src={ctx.logo.url} alt={ctx.logo.alt} height={44} /> : <span {...cad(ctx, 'company.name', ctx.displayName).attrs}>{cad(ctx, 'company.name', ctx.displayName).text}</span>}
         </a>
         <nav className="nav" aria-label="Seções">
           {nav.map((n) => (

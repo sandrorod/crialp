@@ -1,6 +1,6 @@
 import type { RenderContext } from '../context.js';
 import { formatBrazilPhone } from '../../lib/phone.js';
-import { ed } from '../context.js';
+import { cad, ed, edOptional } from '../context.js';
 import { CtaButton } from './CtaButton.js';
 import { Icon } from './Icon.js';
 import { SectionHead } from './SectionHead.js';
@@ -11,19 +11,19 @@ const SOCIAL_ICON: Record<string, string> = {
 
 export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {
   const { company, links } = ctx;
-  const items: { icon: string; label: string; value: string; href?: string | null; key?: string }[] = [];
-  if (links.whatsapp) items.push({ key: 'contact_whatsapp', icon: 'message', label: ctx.labels.contact_whatsapp, value: formatBrazilPhone(company.whatsapp || company.mobile), href: links.whatsapp });
-  if (links.phoneLabel && links.phone) items.push({ key: 'contact_phone', icon: 'phone', label: ctx.labels.contact_phone, value: links.phoneLabel, href: links.phone });
-  if (company.email) items.push({ key: 'contact_email', icon: 'mail', label: ctx.labels.contact_email, value: company.email, href: links.email });
-  if (ctx.addressLine) items.push({ key: 'contact_address', icon: 'map-pin', label: ctx.labels.contact_address, value: ctx.addressLine, href: links.map });
-  if (company.opening_hours) items.push({ key: 'contact_hours', icon: 'clock', label: ctx.labels.contact_hours, value: company.opening_hours });
+  const items: { icon: string; label: string; value: string; href?: string | null; key: string; data: string }[] = [];
+  if (links.whatsapp) items.push({ key: 'contact_whatsapp', data: 'contact.whatsapp', icon: 'message', label: ctx.labels.contact_whatsapp, value: formatBrazilPhone(company.whatsapp || company.mobile), href: links.whatsapp });
+  if (links.phoneLabel && links.phone) items.push({ key: 'contact_phone', data: 'contact.phone', icon: 'phone', label: ctx.labels.contact_phone, value: links.phoneLabel, href: links.phone });
+  if (company.email) items.push({ key: 'contact_email', data: 'contact.email', icon: 'mail', label: ctx.labels.contact_email, value: company.email, href: links.email });
+  if (ctx.addressLine) items.push({ key: 'contact_address', data: 'contact.address', icon: 'map-pin', label: ctx.labels.contact_address, value: ctx.addressLine, href: links.map });
+  if (company.opening_hours) items.push({ key: 'contact_hours', data: 'contact.hours', icon: 'clock', label: ctx.labels.contact_hours, value: company.opening_hours });
   if (!items.length && !ctx.socials.length) return null;
 
   return (
     <section id="contato" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container contact">
         <div>
-          <SectionHead eyebrow={ctx.labels.eyebrow_contact} title={ctx.content.contact.title} lead={ctx.content.contact.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_contact'), title: ed(ctx, 'contact.title'), lead: ed(ctx, 'contact.subtitle') }} />
+          <SectionHead eyebrow={ctx.labels.eyebrow_contact} title={ctx.content.contact.title} lead={ctx.content.contact.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_contact'), title: ed(ctx, 'contact.title'), lead: edOptional(ctx, 'contact.subtitle', 'Texto de apoio (opcional)') }} />
           <div className="reveal">
             <CtaButton ctx={ctx} label={ctx.content.final_cta.cta} path="final_cta.cta" />
           </div>
@@ -39,12 +39,13 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
         </div>
         <ul className="contact-list reveal">
           {items.map((i) => {
+            const v = cad(ctx, i.data, i.value);
             const inner = (
               <>
                 <Icon name={i.icon} />
                 <span>
-                  <small {...(i.key ? ed(ctx, `labels.${i.key}`) : {})}>{i.label}</small>
-                  <strong>{i.value}</strong>
+                  <small {...ed(ctx, `labels.${i.key}`)}>{i.label}</small>
+                  <strong {...v.attrs}>{v.text}</strong>
                 </span>
               </>
             );
@@ -72,7 +73,7 @@ export function FinalCTA({ ctx }: { ctx: RenderContext }) {
     <section className="section final">
       <div className="container">
         <h2 className="reveal" {...ed(ctx, 'final_cta.title')}>{f.title}</h2>
-        {f.subtitle ? <p className="reveal" {...ed(ctx, 'final_cta.subtitle')}>{f.subtitle}</p> : null}
+        {f.subtitle || ctx.editable ? <p className="reveal" {...edOptional(ctx, 'final_cta.subtitle', 'Texto de apoio (opcional)')}>{f.subtitle}</p> : null}
         <div className="reveal">
           <CtaButton ctx={ctx} label={f.cta} path="final_cta.cta" />
         </div>
@@ -83,14 +84,20 @@ export function FinalCTA({ ctx }: { ctx: RenderContext }) {
 
 export function Footer({ ctx }: { ctx: RenderContext }) {
   const year = new Date().getFullYear();
+  const copyright = cad(
+    ctx,
+    'footer.copyright',
+    `© ${year} ${ctx.displayName}${ctx.company.legal_name && ctx.company.legal_name !== ctx.displayName ? ` · ${ctx.company.legal_name}` : ''}`,
+  );
+  // Observação do rodapé; sem ela aparece o endereço (apagar a observação volta ao endereço)
+  const note = ctx.labels.footer_note || ctx.addressLine;
   return (
     <footer className="site-footer">
       <div className="container">
-        <span>
-          © {year} {ctx.displayName}
-          {ctx.company.legal_name && ctx.company.legal_name !== ctx.displayName ? ` · ${ctx.company.legal_name}` : ''}
-        </span>
-        {ctx.labels.footer_note ? <span>{ctx.labels.footer_note}</span> : ctx.addressLine ? <span>{ctx.addressLine}</span> : null}
+        <span {...copyright.attrs}>{copyright.text}</span>
+        {note || ctx.editable ? (
+          <span {...(ctx.editable ? { ...edOptional(ctx, 'labels.footer_note', 'Observação do rodapé (opcional)'), ...(ctx.addressLine ? { 'data-lp-orig': ctx.addressLine } : {}) } : {})}>{note}</span>
+        ) : null}
       </div>
     </footer>
   );

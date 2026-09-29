@@ -2,7 +2,7 @@ import type { CompanyFull } from '../repositories/companies.js';
 import type { LandingContent } from '../services/ai/schemas.js';
 import { formatBrazilPhone, telLink, whatsappLink } from '../lib/phone.js';
 import type { ResolvedTheme } from './theme.js';
-import { resolveLabels, type Labels } from './labels.js';
+import { DEFAULT_LABELS, resolveLabels, type LabelKey, type Labels } from './labels.js';
 
 export interface LpImage {
   url: string;
@@ -38,9 +38,31 @@ export interface RenderContext {
   editable?: boolean;
 }
 
-/** Atributo que liga um texto da página ao campo do conteúdo, para edição direto na prévia. */
-export function ed(ctx: RenderContext, path: string): Record<string, string> {
-  return ctx.editable ? { 'data-lp-text': path } : {};
+/**
+ * Atributos que ligam um texto da página ao campo do conteúdo, para edição direto na prévia.
+ * `orig`: texto que volta quando o campo é apagado (rótulo padrão ou dado do cadastro).
+ */
+export function ed(ctx: RenderContext, path: string, orig?: string): Record<string, string> {
+  if (!ctx.editable) return {};
+  const fallback = orig ?? (path.startsWith('labels.') ? DEFAULT_LABELS[path.slice(7) as LabelKey] : undefined);
+  return fallback === undefined ? { 'data-lp-text': path } : { 'data-lp-text': path, 'data-lp-orig': fallback };
+}
+
+/**
+ * Campo opcional: na prévia continua clicável mesmo vazio (mostra `placeholder` no modo Textos)
+ * e, ao ser apagado, vira de novo um espaço para escrever.
+ */
+export function edOptional(ctx: RenderContext, path: string, placeholder: string): Record<string, string> {
+  return ctx.editable ? { 'data-lp-text': path, 'data-lp-empty': '', 'data-lp-placeholder': placeholder } : {};
+}
+
+/**
+ * Texto que vem do cadastro da empresa (nome, contatos, depoimentos...) com a troca feita
+ * só nesta Landing Page (content.overrides). Os links (tel:, WhatsApp, mapa) não mudam.
+ */
+export function cad(ctx: RenderContext, key: string, original: string): { text: string; attrs: Record<string, string> } {
+  const custom = ctx.content.overrides?.[key]?.trim();
+  return { text: custom || original, attrs: ed(ctx, `ov:${key}`, original) };
 }
 
 /** Só aceita URLs seguras para uso em href/src (evita javascript: e afins). */

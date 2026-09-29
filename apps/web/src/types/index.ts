@@ -176,6 +176,8 @@ export interface LandingContent {
   section_order: SectionOrderKey[];
   labels?: Record<string, string>;
   custom_sections?: CustomSection[];
+  /** Textos do cadastro trocados só nesta LP (nome, contatos, depoimentos...) */
+  overrides?: Record<string, string>;
 }
 
 /** Seção livre criada pelo administrador. */

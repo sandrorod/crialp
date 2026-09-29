@@ -94,6 +94,8 @@ export async function generateLanding(
   const content = enforceFacts(generated, company);
   // Rótulos editados manualmente sobrevivem à regeneração
   if (existing?.content.labels) content.labels = existing.content.labels;
+  // Textos do cadastro trocados na LP também
+  if (existing?.content.overrides) content.overrides = existing.content.overrides;
   // Seções personalizadas também: voltam para antes do contato
   if (existing?.content.custom_sections?.length) {
     content.custom_sections = existing.content.custom_sections;

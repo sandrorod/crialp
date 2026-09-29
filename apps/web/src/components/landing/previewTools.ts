@@ -29,6 +29,8 @@ html.lp-mode-cores body *{cursor:crosshair!important}
 html.lp-mode-textos [data-lp-text]{outline:1px dashed rgba(37,99,235,.55);outline-offset:3px;cursor:text!important;border-radius:2px}
 html.lp-mode-textos [data-lp-text]:hover{outline:2px solid #2563eb}
 html.lp-mode-textos [data-lp-text][contenteditable]:not([contenteditable="false"]){outline:2px solid #2563eb;background:rgba(37,99,235,.07);caret-color:#2563eb}
+html.lp-mode-textos [data-lp-empty]:empty{min-width:4em;min-height:1em;display:inline-block}
+html.lp-mode-textos [data-lp-empty]:empty::before{content:attr(data-lp-placeholder);opacity:.5;font-style:italic;font-weight:400;letter-spacing:normal;text-transform:none}
 `;
 
 export function setupEditorDocument(doc: Document) {
@@ -43,6 +45,8 @@ export function setPreviewMode(doc: Document, mode: PreviewMode) {
   const root = doc.documentElement;
   root.classList.remove('lp-mode-textos', 'lp-mode-fotos', 'lp-mode-secoes', 'lp-mode-cores');
   root.classList.add(`lp-mode-${mode}`);
+  // Respostas do FAQ ficam abertas para poderem ser editadas
+  if (mode === 'textos') doc.querySelectorAll<HTMLDetailsElement>('.faq details').forEach((d) => (d.open = true));
 }
 
 export const currentMode = (doc: Document): PreviewMode =>
@@ -390,11 +394,22 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
       el.innerText = original;
       return;
     }
-    if (value) {
-      // O mesmo campo pode aparecer em mais de um lugar (ex.: botão do CTA)
+    // O mesmo campo pode aparecer em mais de um lugar (ex.: botão do CTA, telefone no topo e no contato)
+    const syncAll = (text: string) =>
       doc.querySelectorAll<HTMLElement>('[data-lp-text]').forEach((o) => {
-        if (o !== el && o.dataset.lpText === path) o.innerText = value;
+        if (o.dataset.lpText === path) o.innerText = text;
       });
+    if (value) {
+      syncAll(value);
+      return;
+    }
+    // Apagado: volta ao texto padrão/do cadastro, ou vira espaço vazio para escrever depois
+    if (el.dataset.lpOrig !== undefined) {
+      syncAll(el.dataset.lpOrig);
+      return;
+    }
+    if (el.hasAttribute('data-lp-empty')) {
+      syncAll('');
       return;
     }
     // Texto apagado: some da página (item de lista removido ou campo opcional vazio)
@@ -438,7 +453,10 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
     'click',
     (e) => {
       if (currentMode(doc) !== 'textos') return;
-      if ((e.target as Element | null)?.closest?.('a, summary')) e.preventDefault();
+      const t = e.target as Element | null;
+      // O menu do celular (summary sem texto editável) continua abrindo para editar os links dele
+      const summary = t?.closest?.('summary');
+      if (t?.closest?.('a') || (summary && summary.querySelector('[data-lp-text]'))) e.preventDefault();
     },
     true,
   );
@@ -480,8 +498,22 @@ const OPTIONAL_FIELDS = new Set(['eyebrow', 'subtitle', 'secondary_cta', 'benefi
  */
 export function applyTextEdit(content: LandingContent, path: string, raw: string): LandingContent | null {
   const value = raw.trim();
-  const parts = path.split('.');
   const next = structuredClone(content);
+  // Texto do cadastro trocado só nesta LP; vazio = volta ao cadastro
+  if (path.startsWith('ov:')) {
+    const overrides = { ...(next.overrides ?? {}) };
+    if (value) overrides[path.slice(3)] = value;
+    else delete overrides[path.slice(3)];
+    next.overrides = overrides;
+    return next;
+  }
+  // Título dos depoimentos quando a IA não criou a seção de texto
+  if (path === 'testimonials.title' && !next.testimonials) {
+    if (!value) return null;
+    next.testimonials = { title: value };
+    return next;
+  }
+  const parts = path.split('.');
   if (parts[0] === 'labels') {
     const labels = { ...(next.labels ?? {}) };
     if (value) labels[parts[1]] = value;

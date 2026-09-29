@@ -1,6 +1,6 @@
 import type { RenderContext } from '../context.js';
 import { TEMPLATES } from '../theme.js';
-import { ed } from '../context.js';
+import { cad, ed, edOptional } from '../context.js';
 import { Icon } from './Icon.js';
 import { SectionHead } from './SectionHead.js';
 
@@ -8,11 +8,11 @@ export function AboutSection({ ctx, alt }: { ctx: RenderContext; alt: boolean })
   const about = ctx.content.about;
   if (!about) return null;
   const { company } = ctx;
-  const facts: { icon: string; label: string; value: string }[] = [];
-  if (company.segment) facts.push({ icon: 'briefcase', label: ctx.labels.fact_specialty, value: company.segment });
-  if (company.city) facts.push({ icon: 'map-pin', label: ctx.labels.fact_location, value: [company.city, company.state].filter(Boolean).join(' – ') });
-  if (company.opening_hours) facts.push({ icon: 'clock', label: ctx.labels.fact_hours, value: company.opening_hours });
-  if (company.commercial_info?.target_audience) facts.push({ icon: 'users', label: ctx.labels.fact_audience, value: company.commercial_info.target_audience });
+  const facts: { icon: string; key: string; data: string; label: string; value: string }[] = [];
+  if (company.segment) facts.push({ icon: 'briefcase', key: 'fact_specialty', data: 'fact.specialty', label: ctx.labels.fact_specialty, value: company.segment });
+  if (company.city) facts.push({ icon: 'map-pin', key: 'fact_location', data: 'fact.location', label: ctx.labels.fact_location, value: [company.city, company.state].filter(Boolean).join(' – ') });
+  if (company.opening_hours) facts.push({ icon: 'clock', key: 'fact_hours', data: 'contact.hours', label: ctx.labels.fact_hours, value: company.opening_hours });
+  if (company.commercial_info?.target_audience) facts.push({ icon: 'users', key: 'fact_audience', data: 'fact.audience', label: ctx.labels.fact_audience, value: company.commercial_info.target_audience });
 
   return (
     <section id="sobre" className={`section${alt ? ' section-alt' : ''}`}>
@@ -35,8 +35,8 @@ export function AboutSection({ ctx, alt }: { ctx: RenderContext; alt: boolean })
               <div key={f.label}>
                 <Icon name={f.icon} />
                 <span>
-                  <dt>{f.label}</dt>
-                  <dd>{f.value}</dd>
+                  <dt {...ed(ctx, `labels.${f.key}`)}>{f.label}</dt>
+                  <dd {...cad(ctx, f.data, f.value).attrs}>{cad(ctx, f.data, f.value).text}</dd>
                 </span>
               </div>
             ))}
@@ -54,7 +54,7 @@ export function ServicesSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
   return (
     <section id="servicos" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_services} title={s.title} lead={s.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_services'), title: ed(ctx, 'services.title'), lead: ed(ctx, 'services.subtitle') }} />
+        <SectionHead eyebrow={ctx.labels.eyebrow_services} title={s.title} lead={s.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_services'), title: ed(ctx, 'services.title'), lead: edOptional(ctx, 'services.subtitle', 'Texto de apoio (opcional)') }} />
         {list ? (
           <div className="rows">
             {s.items.map((item, i) => (
@@ -63,10 +63,10 @@ export function ServicesSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
                 <h3 {...ed(ctx, `services.items.${i}.name`)}>{item.name}</h3>
                 <div>
                   <p {...ed(ctx, `services.items.${i}.description`)}>{item.description}</p>
-                  {item.benefit ? (
-                    <div className="benefit">
+                  {item.benefit || ctx.editable ? (
+                    <div className="benefit" {...(ctx.editable ? { 'data-lp-hide-empty': '' } : {})}>
                       <Icon name="check" size={18} stroke={2.2} />
-                      <span {...ed(ctx, `services.items.${i}.benefit`)}>{item.benefit}</span>
+                      <span {...edOptional(ctx, `services.items.${i}.benefit`, 'Benefício (opcional)')}>{item.benefit}</span>
                     </div>
                   ) : null}
                 </div>
@@ -82,10 +82,10 @@ export function ServicesSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
                 </div>
                 <h3 {...ed(ctx, `services.items.${i}.name`)}>{item.name}</h3>
                 <p {...ed(ctx, `services.items.${i}.description`)}>{item.description}</p>
-                {item.benefit ? (
-                  <div className="benefit">
+                {item.benefit || ctx.editable ? (
+                  <div className="benefit" {...(ctx.editable ? { 'data-lp-hide-empty': '' } : {})}>
                     <Icon name="check" size={18} stroke={2.2} />
-                    <span {...ed(ctx, `services.items.${i}.benefit`)}>{item.benefit}</span>
+                    <span {...edOptional(ctx, `services.items.${i}.benefit`, 'Benefício (opcional)')}>{item.benefit}</span>
                   </div>
                 ) : null}
               </article>
@@ -103,7 +103,7 @@ export function BenefitsSection({ ctx }: { ctx: RenderContext }) {
   return (
     <section id="diferenciais" className="section band">
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_differentials} title={d.title} lead={d.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_differentials'), title: ed(ctx, 'differentials.title'), lead: ed(ctx, 'differentials.subtitle') }} />
+        <SectionHead eyebrow={ctx.labels.eyebrow_differentials} title={d.title} lead={d.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_differentials'), title: ed(ctx, 'differentials.title'), lead: edOptional(ctx, 'differentials.subtitle', 'Texto de apoio (opcional)') }} />
         <div className="diff-grid reveal">
           {d.items.map((item, i) => (
             <div key={item.title} className="diff">
@@ -124,7 +124,7 @@ export function ProductsSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
   return (
     <section id="produtos" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_products} title={p.title} lead={p.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_products'), title: ed(ctx, 'products.title'), lead: ed(ctx, 'products.subtitle') }} />
+        <SectionHead eyebrow={ctx.labels.eyebrow_products} title={p.title} lead={p.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_products'), title: ed(ctx, 'products.title'), lead: edOptional(ctx, 'products.subtitle', 'Texto de apoio (opcional)') }} />
         <div className="grid">
           {p.items.map((item, i) => (
             <article key={item.name} className="card product reveal">
@@ -156,7 +156,7 @@ export function GallerySection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
   return (
     <section id="galeria" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_gallery} title={g.title} lead={g.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_gallery'), title: ed(ctx, 'gallery.title'), lead: ed(ctx, 'gallery.subtitle') }} />
+        <SectionHead eyebrow={ctx.labels.eyebrow_gallery} title={g.title} lead={g.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_gallery'), title: ed(ctx, 'gallery.title'), lead: edOptional(ctx, 'gallery.subtitle', 'Texto de apoio (opcional)') }} />
         <div className="gallery">
           {photos.slice(0, 9).map((img) => (
             <figure key={img.url} className="reveal">
@@ -176,12 +176,12 @@ export function TestimonialsSection({ ctx, alt }: { ctx: RenderContext; alt: boo
   return (
     <section id="depoimentos" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_testimonials} title={ctx.content.testimonials?.title ?? 'O que dizem nossos clientes'} center paths={{ eyebrow: ed(ctx, 'labels.eyebrow_testimonials'), title: ctx.content.testimonials ? ed(ctx, 'testimonials.title') : {} }} />
+        <SectionHead eyebrow={ctx.labels.eyebrow_testimonials} title={ctx.content.testimonials?.title ?? 'O que dizem nossos clientes'} center paths={{ eyebrow: ed(ctx, 'labels.eyebrow_testimonials'), title: ed(ctx, 'testimonials.title') }} />
         <div className="quotes">
           {items.slice(0, 6).map((t) => (
             <blockquote key={t.id} className="quote reveal">
-              <p>{t.text}</p>
-              {t.author ? <footer>{t.author}</footer> : null}
+              <p {...cad(ctx, `testimonial.${t.id}.text`, t.text).attrs}>{cad(ctx, `testimonial.${t.id}.text`, t.text).text}</p>
+              {t.author ? <footer {...cad(ctx, `testimonial.${t.id}.author`, t.author).attrs}>{cad(ctx, `testimonial.${t.id}.author`, t.author).text}</footer> : null}
             </blockquote>
           ))}
         </div>

@@ -180,6 +180,13 @@ export function renderLandingPage(ctx: RenderContext): string {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link rel="stylesheet" href={theme.fontsHref} />
         <style dangerouslySetInnerHTML={{ __html: landingCss(theme) }} />
+        {ctx.editable ? (
+          <style
+            dangerouslySetInnerHTML={{
+              __html: 'html:not(.lp-mode-textos) [data-lp-empty]:empty,html:not(.lp-mode-textos) [data-lp-hide-empty]:has([data-lp-empty]:empty){display:none!important}',
+            }}
+          />
+        ) : null}
         <style id="lp-order" dangerouslySetInnerHTML={{ __html: mobileOrderCss(sections, theme.mobileOrder) }} />
         {/* O editor substitui este bloco ao vivo quando uma cor é escolhida na prévia */}
         <style id="lp-colors" dangerouslySetInnerHTML={{ __html: elementColorsCss(theme.elementColors) }} />

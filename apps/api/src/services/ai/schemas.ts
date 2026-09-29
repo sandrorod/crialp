@@ -177,12 +177,15 @@ export type LandingContent = Omit<z.infer<typeof LandingContentSchema>, 'section
   section_order: SectionOrderKey[];
   labels?: Record<string, string>;
   custom_sections?: CustomSection[];
+  /** Textos do cadastro trocados só nesta LP (chave: "company.name", "contact.phone", "testimonial.<id>.text"...) */
+  overrides?: Record<string, string>;
 };
 
 /** Conteúdo editado manualmente: igual ao gerado, mais rótulos e seções personalizadas. */
 export const LandingContentEditSchema = LandingContentSchema.extend({
   labels: z.record(z.string(), z.string().max(400)).optional(),
   custom_sections: z.array(CustomSectionSchema).max(20).optional(),
+  overrides: z.record(z.string().regex(/^[a-z_]+(\.[a-z0-9_-]+){1,2}$/i).max(100), z.string().max(4000)).optional(),
   section_order: z
     .array(z.string().regex(/^(about|services|differentials|products|gallery|testimonials|faq|contact|final_cta|custom:[a-z0-9-]{1,40})$/))
     .max(60),
