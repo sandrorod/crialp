@@ -34,6 +34,13 @@ export interface RenderContext {
   socials: { network: string; url: string }[];
   pageUrl: string;
   seo: { title: string; description: string; keywords: string[]; ogImage: string | null };
+  /** Prévia do editor: marca os textos editáveis com data-lp-text (nunca na página pública). */
+  editable?: boolean;
+}
+
+/** Atributo que liga um texto da página ao campo do conteúdo, para edição direto na prévia. */
+export function ed(ctx: RenderContext, path: string): Record<string, string> {
+  return ctx.editable ? { 'data-lp-text': path } : {};
 }
 
 /** Só aceita URLs seguras para uso em href/src (evita javascript: e afins). */
@@ -53,6 +60,7 @@ export function buildContext(opts: {
   theme: ResolvedTheme;
   seo: { title?: string | null; description?: string | null; keywords?: string[] | null; ogImage?: string | null };
   pageUrl: string;
+  editable?: boolean;
 }): RenderContext {
   const { company, content, theme, pageUrl } = opts;
   const displayName = company.trade_name || company.name;
@@ -120,6 +128,7 @@ export function buildContext(opts: {
   const ogImage = opts.seo.ogImage ?? heroImage?.url ?? logoImg?.url ?? null;
 
   return {
+    editable: !!opts.editable,
     company,
     content,
     theme,

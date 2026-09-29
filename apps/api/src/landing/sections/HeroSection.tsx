@@ -1,4 +1,5 @@
 import type { RenderContext } from '../context.js';
+import { ed } from '../context.js';
 import { CtaButton } from './CtaButton.js';
 import { Icon } from './Icon.js';
 
@@ -6,23 +7,23 @@ function Copy({ ctx }: { ctx: RenderContext }) {
   const { hero } = ctx.content;
   return (
     <>
-      {hero.eyebrow ? <div className="eyebrow reveal">{hero.eyebrow}</div> : null}
-      <h1 className="reveal">{hero.headline}</h1>
-      <p className="sub reveal">{hero.subheadline}</p>
+      {hero.eyebrow ? <div className="eyebrow reveal" {...ed(ctx, 'hero.eyebrow')}>{hero.eyebrow}</div> : null}
+      <h1 className="reveal" {...ed(ctx, 'hero.headline')}>{hero.headline}</h1>
+      <p className="sub reveal" {...ed(ctx, 'hero.subheadline')}>{hero.subheadline}</p>
       <div className="hero-actions reveal">
-        <CtaButton ctx={ctx} label={hero.primary_cta} />
+        <CtaButton ctx={ctx} label={hero.primary_cta} path="hero.primary_cta" />
         {hero.secondary_cta ? (
           <a className="btn btn-ghost" href={ctx.content.services ? '#servicos' : '#contato'}>
-            {hero.secondary_cta}
+            <span {...ed(ctx, 'hero.secondary_cta')}>{hero.secondary_cta}</span>
           </a>
         ) : null}
       </div>
       {hero.highlights.length ? (
         <ul className="highlights reveal">
-          {hero.highlights.slice(0, 4).map((h) => (
+          {hero.highlights.slice(0, 4).map((h, i) => (
             <li key={h}>
               <Icon name="check" size={18} stroke={2.2} />
-              {h}
+              <span {...ed(ctx, `hero.highlights.${i}`)}>{h}</span>
             </li>
           ))}
         </ul>
@@ -61,7 +62,7 @@ function InfoCard({ ctx }: { ctx: RenderContext }) {
           </li>
         ))}
       </ul>
-      <CtaButton ctx={ctx} label={ctx.content.final_cta.cta} />
+      <CtaButton ctx={ctx} label={ctx.content.final_cta.cta} path="final_cta.cta" />
     </aside>
   );
 }

@@ -1,7 +1,7 @@
-import type { ElementColor, ElementColors } from '@/types';
+import type { ElementColor, ElementColors, LandingContent } from '@/types';
 
 /** Ferramentas ativas na prévia: enquadrar fotos, arrastar seções ou escolher cores. */
-export type PreviewMode = 'fotos' | 'secoes' | 'cores';
+export type PreviewMode = 'textos' | 'fotos' | 'secoes' | 'cores';
 
 export const MOBILE_MAX = 767;
 
@@ -26,6 +26,9 @@ html:not(.lp-mode-secoes) [data-lp-ui="section"]{display:none!important}
 html.lp-mode-secoes main>[data-section]:not([data-section="hero"]):not([data-section="contact"]):not([data-section="final_cta"]){outline:2px dashed rgba(37,99,235,.45);outline-offset:-3px}
 html:not(.lp-mode-fotos) [data-lp-drag-handle]{cursor:auto!important;touch-action:auto!important}
 html.lp-mode-cores body *{cursor:crosshair!important}
+html.lp-mode-textos [data-lp-text]{outline:1px dashed rgba(37,99,235,.55);outline-offset:3px;cursor:text!important;border-radius:2px}
+html.lp-mode-textos [data-lp-text]:hover{outline:2px solid #2563eb}
+html.lp-mode-textos [data-lp-text][contenteditable]:not([contenteditable="false"]){outline:2px solid #2563eb;background:rgba(37,99,235,.07);caret-color:#2563eb}
 `;
 
 export function setupEditorDocument(doc: Document) {
@@ -38,12 +41,12 @@ export function setupEditorDocument(doc: Document) {
 
 export function setPreviewMode(doc: Document, mode: PreviewMode) {
   const root = doc.documentElement;
-  root.classList.remove('lp-mode-fotos', 'lp-mode-secoes', 'lp-mode-cores');
+  root.classList.remove('lp-mode-textos', 'lp-mode-fotos', 'lp-mode-secoes', 'lp-mode-cores');
   root.classList.add(`lp-mode-${mode}`);
 }
 
 export const currentMode = (doc: Document): PreviewMode =>
-  doc.documentElement.classList.contains('lp-mode-secoes') ? 'secoes' : doc.documentElement.classList.contains('lp-mode-cores') ? 'cores' : 'fotos';
+  (['textos', 'secoes', 'cores'] as const).find((m) => doc.documentElement.classList.contains(`lp-mode-${m}`)) ?? 'fotos';
 
 // ─── Arrastar seções ────────────────────────────────────────────────
 /** Topo, contato e CTA final têm posição fixa na página. */
@@ -359,4 +362,152 @@ export function setColorsCss(doc: Document, css: string) {
     doc.head.appendChild(style);
   }
   style.textContent = css;
+}
+
+// ─── Editar textos direto na página ────────────────────────────────
+/**
+ * Textos marcados com data-lp-text (só na prévia) viram editáveis ao clicar.
+ * Enter ou clicar fora confirma; Esc desfaz. `onText` devolve false quando o valor é recusado.
+ */
+export function attachTextEdit(doc: Document, onText: (path: string, value: string) => boolean) {
+  const win = doc.defaultView;
+  if (!win || doc.body.dataset.lpTexts) return;
+  doc.body.dataset.lpTexts = '1';
+  let editing: { el: HTMLElement; original: string; cancelled: boolean } | null = null;
+
+  const finish = () => {
+    if (!editing) return;
+    const { el, original, cancelled } = editing;
+    editing = null;
+    el.removeAttribute('contenteditable');
+    const path = el.dataset.lpText!;
+    const value = el.innerText.replace(/[ \t]+\n/g, '\n').trim();
+    if (cancelled || value === original.trim()) {
+      el.innerText = original;
+      return;
+    }
+    if (!onText(path, value)) {
+      el.innerText = original;
+      return;
+    }
+    if (value) {
+      // O mesmo campo pode aparecer em mais de um lugar (ex.: botão do CTA)
+      doc.querySelectorAll<HTMLElement>('[data-lp-text]').forEach((o) => {
+        if (o !== el && o.dataset.lpText === path) o.innerText = value;
+      });
+      return;
+    }
+    // Texto apagado: some da página (item de lista removido ou campo opcional vazio)
+    const box = el.tagName === 'SPAN' && el.parentElement ? el.parentElement : el;
+    box.style.display = 'none';
+    el.removeAttribute('data-lp-text');
+    // Itens seguintes da mesma lista passam a ter o índice anterior
+    const m = /^(.*\.)(\d+)$/.exec(path);
+    if (m) {
+      const [, prefix, idx] = m;
+      doc.querySelectorAll<HTMLElement>('[data-lp-text]').forEach((o) => {
+        const rest = o.dataset.lpText!.startsWith(prefix) ? o.dataset.lpText!.slice(prefix.length) : null;
+        const n = rest ? /^(\d+)(.*)$/.exec(rest) : null;
+        if (n && Number(n[1]) > Number(idx)) o.dataset.lpText = `${prefix}${Number(n[1]) - 1}${n[2]}`;
+      });
+    }
+  };
+
+  const start = (el: HTMLElement) => {
+    if (editing?.el === el) return;
+    finish();
+    editing = { el, original: el.innerText, cancelled: false };
+    el.setAttribute('contenteditable', 'plaintext-only');
+    // Navegadores sem "plaintext-only" recusam o valor: usa o modo comum (o texto é lido sem formatação)
+    if (el.contentEditable !== 'plaintext-only') el.setAttribute('contenteditable', 'true');
+    el.addEventListener('blur', finish, { once: true });
+  };
+
+  // No mousedown (antes do navegador posicionar o cursor) para o cursor cair onde foi clicado
+  doc.addEventListener(
+    'mousedown',
+    (e) => {
+      if (currentMode(doc) !== 'textos') return;
+      const el = (e.target as Element | null)?.closest?.<HTMLElement>('[data-lp-text]');
+      if (el) start(el);
+    },
+    true,
+  );
+  // Links, botões e perguntas não navegam nem abrem enquanto edita
+  doc.addEventListener(
+    'click',
+    (e) => {
+      if (currentMode(doc) !== 'textos') return;
+      if ((e.target as Element | null)?.closest?.('a, summary')) e.preventDefault();
+    },
+    true,
+  );
+  doc.addEventListener(
+    'keydown',
+    (e) => {
+      if (!editing) return;
+      if (e.key === 'Escape') {
+        editing.cancelled = true;
+        editing.el.blur();
+      } else if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        editing.el.blur();
+      } else if ((e.key === 'End' || e.key === 'Home') && !e.shiftKey) {
+        // Dentro de botões (inline-flex) o Chrome não move o cursor com Home/End
+        e.preventDefault();
+        const range = doc.createRange();
+        range.selectNodeContents(editing.el);
+        range.collapse(e.key === 'Home');
+        const sel = win.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      } else if (e.key === ' ') {
+        // Espaço dentro de <summary>/<a> não deve abrir a pergunta nem acionar o link
+        e.stopPropagation();
+      }
+    },
+    true,
+  );
+}
+
+/** Campos que podem ficar vazios (somem da página); os demais recusam texto vazio. */
+const OPTIONAL_FIELDS = new Set(['eyebrow', 'subtitle', 'secondary_cta', 'benefit']);
+
+/**
+ * Aplica no conteúdo um texto editado na prévia. `path` vem do data-lp-text:
+ * "hero.headline", "services.items.2.name", "labels.header_cta", "custom.<id>.paragraphs.0"…
+ * Devolve null quando o valor não é aceito (campo obrigatório vazio ou caminho inválido).
+ */
+export function applyTextEdit(content: LandingContent, path: string, raw: string): LandingContent | null {
+  const value = raw.trim();
+  const parts = path.split('.');
+  const next = structuredClone(content);
+  if (parts[0] === 'labels') {
+    const labels = { ...(next.labels ?? {}) };
+    if (value) labels[parts[1]] = value;
+    else delete labels[parts[1]]; // vazio = volta ao rótulo padrão
+    next.labels = labels;
+    return next;
+  }
+  let target: unknown = next;
+  let rest = parts;
+  if (parts[0] === 'custom') {
+    target = next.custom_sections?.find((c) => c.id === parts[1]);
+    rest = parts.slice(2);
+  }
+  for (const k of rest.slice(0, -1)) {
+    target = target && typeof target === 'object' ? (target as Record<string, unknown>)[k] : null;
+  }
+  const last = rest[rest.length - 1];
+  if (Array.isArray(target)) {
+    const i = Number(last);
+    if (!Number.isInteger(i) || i < 0 || i >= target.length) return null;
+    if (value) target[i] = value;
+    else target.splice(i, 1);
+    return next;
+  }
+  if (!target || typeof target !== 'object' || !(last in target)) return null;
+  if (!value && !OPTIONAL_FIELDS.has(last)) return null;
+  (target as Record<string, unknown>)[last] = value || null;
+  return next;
 }

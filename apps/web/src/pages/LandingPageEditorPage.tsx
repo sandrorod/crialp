@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Building2, Copy, Download, ExternalLink, Image as ImageIcon, Monitor, Palette, RefreshCw, Rocket, Rows3, Save, Smartphone, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, Building2, Copy, Download, ExternalLink, Image as ImageIcon, Monitor, Palette, PenLine, RefreshCw, Rocket, Rows3, Save, Smartphone, Sparkles, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ContentTab } from '@/components/landing/ContentTab';
 import { PreviewFrame } from '@/components/landing/PreviewFrame';
-import type { PreviewMode } from '@/components/landing/previewTools';
+import { applyTextEdit, type PreviewMode } from '@/components/landing/previewTools';
 import { DesignTab, PhotosTab, TemplateTab, PublishTab, SeoTab, VersionsTab, type SeoState } from '@/components/landing/SettingsTabs';
 import { ProgressSteps } from '@/components/ProgressSteps';
 import { Button, Card, ConfirmDialog, ErrorBlock, LoadingBlock, StatusToggle } from '@/components/ui';
@@ -28,6 +28,7 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 const MODES: { key: PreviewMode; label: string; icon: typeof Monitor; hint: string }[] = [
+  { key: 'textos', label: 'Textos', icon: PenLine, hint: 'Clique em qualquer texto contornado para editar ali mesmo. Enter ou clicar fora confirma; Esc desfaz.' },
   { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste as fotos do topo e da seção "Sobre" para ajustar o enquadramento; use − / + para o zoom.' },
   { key: 'secoes', label: 'Seções', icon: Rows3, hint: 'Arraste as seções pelo botão ⠿ (ou use ↑ ↓) para mudar a ordem.' },
   { key: 'cores', label: 'Cores', icon: Palette, hint: 'Clique em qualquer elemento (título, texto, botão, fundo…) para escolher a cor da fonte e do fundo.' },
@@ -46,7 +47,7 @@ export function LandingPageEditorPage() {
   const { data: company } = useAsync(async () => (lp ? companyService.get(lp.company_id) : null), [lp?.company_id]);
   const [tab, setTab] = useState<Tab>('textos');
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
-  const [mode, setMode] = useState<PreviewMode>('fotos');
+  const [mode, setMode] = useState<PreviewMode>('textos');
   const [frameKey, setFrameKey] = useState(0);
   const [content, setContent] = useState<LandingContent | null>(null);
   const [theme, setTheme] = useState<ThemeSettings | null>(null);
@@ -224,7 +225,7 @@ export function LandingPageEditorPage() {
             </div>
             <p className="mb-2 text-center text-xs text-zinc-500">
               {MODES.find((m) => m.key === mode)?.hint}
-              {mode !== 'fotos' ? ` Vale só para o layout de ${device === 'mobile' ? 'celular' : 'computador'}.` : ''}
+              {mode === 'secoes' || mode === 'cores' ? ` Vale só para o layout de ${device === 'mobile' ? 'celular' : 'computador'}.` : ''}
             </p>
             {dirty ? <p className="mb-2 text-center text-xs text-amber-700">Há alterações não salvas. Clique em Salvar para publicá-las nesta versão.</p> : null}
             <PreviewFrame
@@ -244,6 +245,16 @@ export function LandingPageEditorPage() {
                 if (device === 'mobile') setTheme((t) => (t ? { ...t, mobileOrder: keys } : t));
                 else setContent((c) => (c ? { ...c, section_order: mergeSectionOrder(c.section_order, keys) } : c));
                 setDirty(true);
+              }}
+              onText={(path, value) => {
+                const next = applyTextEdit(content, path, value);
+                if (!next) {
+                  toast.error('Este texto não pode ficar vazio.');
+                  return false;
+                }
+                setContent(next);
+                setDirty(true);
+                return true;
               }}
               elementColors={theme.elementColors}
               onElementColors={(colors) => {

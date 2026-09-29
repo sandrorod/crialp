@@ -1,17 +1,19 @@
 import type { CustomSection } from '../../services/ai/schemas.js';
+import { ed, type RenderContext } from '../context.js';
 import { Icon } from './Icon.js';
 import { SectionHead } from './SectionHead.js';
 
 /** Seção livre criada pelo administrador (textos do site ou conteúdo próprio). */
-export function CustomSectionView({ section, alt }: { section: CustomSection; alt: boolean }) {
+export function CustomSectionView({ ctx, section, alt }: { ctx: RenderContext; section: CustomSection; alt: boolean }) {
+  const base = `custom.${section.id}`;
   return (
     <section id={`sec-${section.id}`} className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
-        {section.title ? <SectionHead eyebrow={section.eyebrow} title={section.title} /> : null}
+        {section.title ? <SectionHead eyebrow={section.eyebrow} title={section.title} paths={{ eyebrow: ed(ctx, `${base}.eyebrow`), title: ed(ctx, `${base}.title`) }} /> : null}
         {section.paragraphs.length ? (
           <div className="custom-text reveal">
             {section.paragraphs.map((p, i) => (
-              <p key={i}>{p}</p>
+              <p key={i} {...ed(ctx, `${base}.paragraphs.${i}`)}>{p}</p>
             ))}
           </div>
         ) : null}
@@ -20,7 +22,7 @@ export function CustomSectionView({ section, alt }: { section: CustomSection; al
             {section.items.map((item, i) => (
               <li key={i}>
                 <Icon name="check" size={18} stroke={2.2} />
-                <span>{item}</span>
+                <span {...ed(ctx, `${base}.items.${i}`)}>{item}</span>
               </li>
             ))}
           </ul>

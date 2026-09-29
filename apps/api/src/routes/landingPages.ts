@@ -72,7 +72,7 @@ landingPagesRouter.get('/:id', async (req, res) => {
 landingPagesRouter.get('/:id/preview', async (req, res) => {
   const user = authUser(req);
   const lp = await loadOr404(user.organizationId, req.params.id);
-  const html = await renderFromData(lp);
+  const html = await renderFromData(lp, { editable: true });
   landingPageHeaders(res, { preview: true });
   res.status(html ? 200 : 404).send(html ?? renderUnavailablePage());
 });

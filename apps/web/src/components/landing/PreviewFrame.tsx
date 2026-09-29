@@ -4,6 +4,7 @@ import { ElementColorPopup } from './ElementColorPopup';
 import {
   attachColorPick,
   attachSectionDrag,
+  attachTextEdit,
   currentMode,
   elementColorsCss,
   setColorsCss,
@@ -167,11 +168,12 @@ export function PreviewFrame({
   height,
   focus,
   onFocus,
-  mode = 'fotos',
+  mode = 'textos',
   onReorder,
   sectionOrder,
   elementColors,
   onElementColors,
+  onText,
 }: {
   src: string;
   device: 'desktop' | 'mobile';
@@ -185,6 +187,8 @@ export function PreviewFrame({
   sectionOrder?: string[];
   elementColors?: ElementColors;
   onElementColors?: (colors: ElementColors) => void;
+  /** Texto editado direto na prévia; false = valor recusado (volta o original) */
+  onText?: (path: string, value: string) => boolean;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -195,6 +199,8 @@ export function PreviewFrame({
   focusRef.current = focus ?? {};
   const onFocusRef = useRef(onFocus);
   onFocusRef.current = onFocus;
+  const onTextRef = useRef(onText);
+  onTextRef.current = onText;
   const onReorderRef = useRef(onReorder);
   onReorderRef.current = onReorder;
   const modeRef = useRef(mode);
@@ -238,6 +244,7 @@ export function PreviewFrame({
     setColorsCss(d, elementColorsCss(colorsRef.current));
     if (onReorderRef.current) attachSectionDrag(d, (keys) => onReorderRef.current?.(keys), uiScale, orderRef.current);
     if (onElementColors) attachColorPick(d, setPicked);
+    if (onTextRef.current) attachTextEdit(d, (path, value) => onTextRef.current?.(path, value) ?? false);
   };
 
   const popup =

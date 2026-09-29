@@ -1,5 +1,6 @@
 import type { RenderContext } from '../context.js';
 import { TEMPLATES } from '../theme.js';
+import { ed } from '../context.js';
 import { Icon } from './Icon.js';
 import { SectionHead } from './SectionHead.js';
 
@@ -17,10 +18,10 @@ export function AboutSection({ ctx, alt }: { ctx: RenderContext; alt: boolean })
     <section id="sobre" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container about">
         <div className="about-text">
-          <SectionHead eyebrow={ctx.labels.eyebrow_about} title={about.title} />
+          <SectionHead eyebrow={ctx.labels.eyebrow_about} title={about.title} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_about'), title: ed(ctx, 'about.title') }} />
           <div className="reveal">
             {about.paragraphs.map((p, i) => (
-              <p key={i}>{p}</p>
+              <p key={i} {...ed(ctx, `about.paragraphs.${i}`)}>{p}</p>
             ))}
           </div>
         </div>
@@ -53,19 +54,19 @@ export function ServicesSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
   return (
     <section id="servicos" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_services} title={s.title} lead={s.subtitle} />
+        <SectionHead eyebrow={ctx.labels.eyebrow_services} title={s.title} lead={s.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_services'), title: ed(ctx, 'services.title'), lead: ed(ctx, 'services.subtitle') }} />
         {list ? (
           <div className="rows">
             {s.items.map((item, i) => (
               <article key={item.name} className="row reveal">
                 <span className="num">{String(i + 1).padStart(2, '0')}</span>
-                <h3>{item.name}</h3>
+                <h3 {...ed(ctx, `services.items.${i}.name`)}>{item.name}</h3>
                 <div>
-                  <p>{item.description}</p>
+                  <p {...ed(ctx, `services.items.${i}.description`)}>{item.description}</p>
                   {item.benefit ? (
                     <div className="benefit">
                       <Icon name="check" size={18} stroke={2.2} />
-                      {item.benefit}
+                      <span {...ed(ctx, `services.items.${i}.benefit`)}>{item.benefit}</span>
                     </div>
                   ) : null}
                 </div>
@@ -74,17 +75,17 @@ export function ServicesSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
           </div>
         ) : (
           <div className="grid">
-            {s.items.map((item) => (
+            {s.items.map((item, i) => (
               <article key={item.name} className="card reveal">
                 <div className="icon-box">
                   <Icon name={item.icon} size={24} />
                 </div>
-                <h3>{item.name}</h3>
-                <p>{item.description}</p>
+                <h3 {...ed(ctx, `services.items.${i}.name`)}>{item.name}</h3>
+                <p {...ed(ctx, `services.items.${i}.description`)}>{item.description}</p>
                 {item.benefit ? (
                   <div className="benefit">
                     <Icon name="check" size={18} stroke={2.2} />
-                    {item.benefit}
+                    <span {...ed(ctx, `services.items.${i}.benefit`)}>{item.benefit}</span>
                   </div>
                 ) : null}
               </article>
@@ -102,13 +103,13 @@ export function BenefitsSection({ ctx }: { ctx: RenderContext }) {
   return (
     <section id="diferenciais" className="section band">
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_differentials} title={d.title} lead={d.subtitle} />
+        <SectionHead eyebrow={ctx.labels.eyebrow_differentials} title={d.title} lead={d.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_differentials'), title: ed(ctx, 'differentials.title'), lead: ed(ctx, 'differentials.subtitle') }} />
         <div className="diff-grid reveal">
-          {d.items.map((item) => (
+          {d.items.map((item, i) => (
             <div key={item.title} className="diff">
               <Icon name={item.icon} size={28} stroke={1.6} />
-              <h3>{item.title}</h3>
-              <p>{item.description}</p>
+              <h3 {...ed(ctx, `differentials.items.${i}.title`)}>{item.title}</h3>
+              <p {...ed(ctx, `differentials.items.${i}.description`)}>{item.description}</p>
             </div>
           ))}
         </div>
@@ -123,18 +124,18 @@ export function ProductsSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
   return (
     <section id="produtos" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_products} title={p.title} lead={p.subtitle} />
+        <SectionHead eyebrow={ctx.labels.eyebrow_products} title={p.title} lead={p.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_products'), title: ed(ctx, 'products.title'), lead: ed(ctx, 'products.subtitle') }} />
         <div className="grid">
-          {p.items.map((item) => (
+          {p.items.map((item, i) => (
             <article key={item.name} className="card product reveal">
-              <h3>{item.name}</h3>
-              <p>{item.description}</p>
+              <h3 {...ed(ctx, `products.items.${i}.name`)}>{item.name}</h3>
+              <p {...ed(ctx, `products.items.${i}.description`)}>{item.description}</p>
               {item.features.length ? (
                 <ul>
-                  {item.features.slice(0, 6).map((f) => (
+                  {item.features.slice(0, 6).map((f, j) => (
                     <li key={f}>
                       <Icon name="check" size={16} stroke={2.2} />
-                      {f}
+                      <span {...ed(ctx, `products.items.${i}.features.${j}`)}>{f}</span>
                     </li>
                   ))}
                 </ul>
@@ -155,7 +156,7 @@ export function GallerySection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
   return (
     <section id="galeria" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_gallery} title={g.title} lead={g.subtitle} />
+        <SectionHead eyebrow={ctx.labels.eyebrow_gallery} title={g.title} lead={g.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_gallery'), title: ed(ctx, 'gallery.title'), lead: ed(ctx, 'gallery.subtitle') }} />
         <div className="gallery">
           {photos.slice(0, 9).map((img) => (
             <figure key={img.url} className="reveal">
@@ -175,7 +176,7 @@ export function TestimonialsSection({ ctx, alt }: { ctx: RenderContext; alt: boo
   return (
     <section id="depoimentos" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_testimonials} title={ctx.content.testimonials?.title ?? 'O que dizem nossos clientes'} center />
+        <SectionHead eyebrow={ctx.labels.eyebrow_testimonials} title={ctx.content.testimonials?.title ?? 'O que dizem nossos clientes'} center paths={{ eyebrow: ed(ctx, 'labels.eyebrow_testimonials'), title: ctx.content.testimonials ? ed(ctx, 'testimonials.title') : {} }} />
         <div className="quotes">
           {items.slice(0, 6).map((t) => (
             <blockquote key={t.id} className="quote reveal">
@@ -195,15 +196,15 @@ export function FaqSection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {
   return (
     <section id="duvidas" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_faq} title={f.title} center />
+        <SectionHead eyebrow={ctx.labels.eyebrow_faq} title={f.title} center paths={{ eyebrow: ed(ctx, 'labels.eyebrow_faq'), title: ed(ctx, 'faq.title') }} />
         <div className="faq reveal">
-          {f.items.map((item) => (
+          {f.items.map((item, i) => (
             <details key={item.question}>
               <summary>
-                {item.question}
+                <span {...ed(ctx, `faq.items.${i}.question`)}>{item.question}</span>
                 <Icon name="plus" />
               </summary>
-              <p>{item.answer}</p>
+              <p {...ed(ctx, `faq.items.${i}.answer`)}>{item.answer}</p>
             </details>
           ))}
         </div>

@@ -12,11 +12,13 @@ export function publicUrl(lp: Pick<LandingPageRow, 'slug' | 'custom_domain' | 'd
 }
 
 /** Renderiza a LP a partir dos dados estruturados atuais (empresa + conteúdo + tema). */
-export async function renderFromData(lp: LandingPageRow): Promise<string | null> {
+/** `editable`: prévia do editor, com os textos marcados para edição direto na página. */
+export async function renderFromData(lp: LandingPageRow, opts: { editable?: boolean } = {}): Promise<string | null> {
   const company = await getCompanyFullById(lp.company_id);
   if (!company) return null;
   const theme = resolveTheme(normalizeThemeSettings(lp.theme));
   const ctx = buildContext({
+    editable: opts.editable,
     company,
     content: lp.content,
     theme,

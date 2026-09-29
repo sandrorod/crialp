@@ -127,7 +127,7 @@ export function renderLandingPage(ctx: RenderContext): string {
     .map((k) => NAV_ITEMS[k as SectionKey])
     .filter((n): n is [string, LabelKey] => !!n)
     .slice(0, 5)
-    .map(([href, key]) => ({ href, label: ctx.labels[key] }));
+    .map(([href, key]) => ({ href, label: ctx.labels[key], key }));
 
   // Alterna fundos para dar ritmo visual (a faixa de diferenciais e o CTA têm fundo próprio)
   let altToggle = false;
@@ -142,7 +142,7 @@ export function renderLandingPage(ctx: RenderContext): string {
     const alt = altToggle;
     if (key.startsWith('custom:')) {
       const section = ctx.content.custom_sections?.find((s) => s.id === key.slice(7));
-      return section ? <CustomSectionView key={key} section={section} alt={alt} /> : null;
+      return section ? <CustomSectionView key={key} ctx={ctx} section={section} alt={alt} /> : null;
     }
     switch (key) {
       case 'about': return <AboutSection key={key} ctx={ctx} alt={alt} />;
