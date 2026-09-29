@@ -1,5 +1,18 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import type { ImageFocus } from '@/types';
+import type { ElementColors, ImageFocus } from '@/types';
+import { ElementColorPopup } from './ElementColorPopup';
+import {
+  attachColorPick,
+  attachSectionDrag,
+  currentMode,
+  elementColorsCss,
+  setColorsCss,
+  setDraftCss,
+  setPreviewMode,
+  setupEditorDocument,
+  type PickedElement,
+  type PreviewMode,
+} from './previewTools';
 
 const DESKTOP_WIDTH = 1280;
 
@@ -43,6 +56,7 @@ function attachFocusDrag(doc: Document, getFocus: () => FocusMap, onFocus: (url:
 
     handle.style.cursor = 'grab';
     handle.style.touchAction = 'none';
+    handle.dataset.lpDragHandle = '1';
     handle.title = 'Arraste para ajustar o enquadramento da foto';
     if (doc.defaultView?.getComputedStyle(handle).position === 'static') handle.style.position = 'relative';
 
@@ -67,6 +81,7 @@ function attachFocusDrag(doc: Document, getFocus: () => FocusMap, onFocus: (url:
 
     // Barra de zoom (só existe na prévia do editor, não na página publicada)
     const bar = doc.createElement('div');
+    bar.dataset.lpUi = 'zoom';
     bar.setAttribute('style', `position:absolute;right:${px(10)};bottom:${px(10)};z-index:5;display:flex;gap:${px(4)};padding:${px(4)};border-radius:999px;background:rgba(17,17,17,.72);backdrop-filter:blur(6px);box-shadow:0 6px 18px rgba(0,0,0,.25)`);
     const mkButton = (label: string, title: string, onClick: () => void) => {
       const b = doc.createElement('button');
@@ -99,7 +114,7 @@ function attachFocusDrag(doc: Document, getFocus: () => FocusMap, onFocus: (url:
     handle.addEventListener(
       'wheel',
       (e) => {
-        if (!e.ctrlKey) return;
+        if (!e.ctrlKey || currentMode(doc) !== 'fotos') return;
         e.preventDefault();
         setZoom((current().z ?? 1) * Math.exp(-e.deltaY / 200));
       },
@@ -107,7 +122,7 @@ function attachFocusDrag(doc: Document, getFocus: () => FocusMap, onFocus: (url:
     );
 
     handle.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0 || (e.target as Element).closest('a, button, summary')) return;
+      if (currentMode(doc) !== 'fotos' || e.button !== 0 || (e.target as Element).closest('a, button, summary')) return;
       if (!img.naturalWidth || !img.naturalHeight) return;
       e.preventDefault();
       const start = current();
@@ -144,6 +159,7 @@ function attachFocusDrag(doc: Document, getFocus: () => FocusMap, onFocus: (url:
 /**
  * Prévia fiel: no modo desktop a página é renderizada a 1280px e reduzida
  * proporcionalmente para caber no painel; no modo celular, 390px reais.
+ * Ferramentas: enquadrar fotos, arrastar seções e escolher cores clicando nos elementos.
  */
 export function PreviewFrame({
   src,
@@ -151,20 +167,42 @@ export function PreviewFrame({
   height,
   focus,
   onFocus,
+  mode = 'fotos',
+  onReorder,
+  sectionOrder,
+  elementColors,
+  onElementColors,
 }: {
   src: string;
   device: 'desktop' | 'mobile';
   height: number;
   focus?: FocusMap;
   onFocus?: (url: string, focus: ImageFocus) => void;
+  mode?: PreviewMode;
+  /** Nova ordem das seções móveis (sem topo, contato e CTA final) */
+  onReorder?: (keys: string[]) => void;
+  /** Ordem atual (inclusive não salva) aplicada ao carregar a prévia */
+  sectionOrder?: string[];
+  elementColors?: ElementColors;
+  onElementColors?: (colors: ElementColors) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
+  const frame = useRef<HTMLIFrameElement>(null);
   const [width, setWidth] = useState(0);
+  const [picked, setPicked] = useState<PickedElement | null>(null);
   // Refs para os ouvintes do iframe sempre enxergarem o estado mais recente
   const focusRef = useRef(focus ?? {});
   focusRef.current = focus ?? {};
   const onFocusRef = useRef(onFocus);
   onFocusRef.current = onFocus;
+  const onReorderRef = useRef(onReorder);
+  onReorderRef.current = onReorder;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const orderRef = useRef(sectionOrder);
+  orderRef.current = sectionOrder;
+  const colorsRef = useRef(elementColors);
+  colorsRef.current = elementColors;
 
   useEffect(() => {
     const el = box.current;
@@ -174,26 +212,77 @@ export function PreviewFrame({
     return () => ro.disconnect();
   }, []);
 
+  const doc = () => frame.current?.contentDocument ?? null;
+
+  useEffect(() => {
+    const d = doc();
+    if (d?.documentElement) setPreviewMode(d, mode);
+    if (mode !== 'cores') setPicked(null);
+  }, [mode]);
+
+  // Cores salvas no editor aparecem na hora, sem esperar salvar a página
+  useEffect(() => {
+    const d = doc();
+    if (d?.head) setColorsCss(d, elementColorsCss(elementColors));
+  }, [elementColors]);
+
+  const scale = device === 'desktop' && width ? Math.min(1, width / DESKTOP_WIDTH) : 1;
+  const uiScale = device === 'desktop' && width ? Math.max(1, DESKTOP_WIDTH / width) : 1;
+
   const onLoad = (e: SyntheticEvent<HTMLIFrameElement>) => {
-    if (!onFocusRef.current) return;
-    const doc = e.currentTarget.contentDocument;
-    if (!doc) return;
-    attachFocusDrag(doc, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), device === 'desktop' && width ? Math.max(1, DESKTOP_WIDTH / width) : 1);
+    const d = e.currentTarget.contentDocument;
+    if (!d) return;
+    setupEditorDocument(d);
+    setPreviewMode(d, modeRef.current);
+    if (onFocusRef.current) attachFocusDrag(d, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), uiScale);
+    setColorsCss(d, elementColorsCss(colorsRef.current));
+    if (onReorderRef.current) attachSectionDrag(d, (keys) => onReorderRef.current?.(keys), uiScale, orderRef.current);
+    if (onElementColors) attachColorPick(d, setPicked);
   };
+
+  const popup =
+    picked && onElementColors && frame.current ? (
+      <ElementColorPopup
+        key={picked.exact}
+        picked={picked}
+        device={device}
+        colors={elementColors ?? { desktop: {}, mobile: {} }}
+        anchor={(() => {
+          const r = frame.current.getBoundingClientRect();
+          return { x: r.left + picked.x * scale, y: r.top + picked.y * scale };
+        })()}
+        onDraft={(css) => {
+          const d = doc();
+          if (d) setDraftCss(d, css);
+        }}
+        onSave={(next) => {
+          onElementColors(next);
+          const d = doc();
+          if (d) setDraftCss(d, '');
+          setPicked(null);
+        }}
+        onClose={() => {
+          const d = doc();
+          if (d) setDraftCss(d, '');
+          setPicked(null);
+        }}
+      />
+    ) : null;
 
   if (device === 'mobile') {
     return (
       <div ref={box} className="mx-auto w-[390px] max-w-full overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-black/5">
-        <iframe title="Prévia da Landing Page" src={src} onLoad={onLoad} className="w-full border-0" style={{ height }} />
+        <iframe ref={frame} title="Prévia da Landing Page" src={src} onLoad={onLoad} className="w-full border-0" style={{ height }} />
+        {popup}
       </div>
     );
   }
 
-  const scale = width ? Math.min(1, width / DESKTOP_WIDTH) : 1;
   return (
     <div ref={box} className="w-full overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-black/5" style={{ height }}>
       {width ? (
         <iframe
+          ref={frame}
           title="Prévia da Landing Page"
           src={src}
           onLoad={onLoad}
@@ -201,6 +290,7 @@ export function PreviewFrame({
           style={{ width: DESKTOP_WIDTH, height: height / scale, transform: `scale(${scale})` }}
         />
       ) : null}
+      {popup}
     </div>
   );
 }

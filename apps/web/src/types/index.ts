@@ -227,6 +227,21 @@ export interface ThemeSettings {
   focus?: Record<string, ImageFocus>;
   /** Ordem das fotos (URLs) escolhida no editor. */
   imageOrder?: string[];
+  /** Ordem das seções só no celular (arrastada na prévia). Vazia = igual ao computador. */
+  mobileOrder?: string[];
+  /** Cores de elementos clicados na prévia, por layout. */
+  elementColors?: ElementColors;
+}
+
+/** Cor escolhida para um elemento (chave = seletor CSS gerado pelo editor). */
+export interface ElementColor {
+  text?: string;
+  bg?: string;
+}
+
+export interface ElementColors {
+  desktop: Record<string, ElementColor>;
+  mobile: Record<string, ElementColor>;
 }
 
 export interface ImageFocus {

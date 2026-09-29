@@ -98,6 +98,33 @@ function SectionColorsEditor({ theme, onChange, content, palette, defaults }: { 
   );
 }
 
+/** Cores escolhidas clicando nos elementos da prévia (modo "Cores"), por layout. */
+function ElementColorsSummary({ theme, onChange }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void }) {
+  const colors = theme.elementColors ?? { desktop: {}, mobile: {} };
+  const rows = [
+    { key: 'desktop' as const, label: 'Computador', count: Object.keys(colors.desktop).length },
+    { key: 'mobile' as const, label: 'Celular', count: Object.keys(colors.mobile).length },
+  ];
+  return (
+    <div className="border-t border-zinc-100 pt-6">
+      <h4 className="mb-1 text-sm font-semibold">Cores de elementos</h4>
+      <p className="mb-3 text-xs text-zinc-500">Na prévia, escolha o modo "Cores" e clique em qualquer título, texto, botão ou fundo para mudar a cor. Celular e computador têm cores independentes.</p>
+      <ul className="space-y-1.5">
+        {rows.map((r) => (
+          <li key={r.key} className="flex items-center justify-between rounded-md bg-zinc-50 px-3 py-2 text-[13px]">
+            <span>{r.label}: {r.count ? `${r.count} ${r.count === 1 ? 'elemento personalizado' : 'elementos personalizados'}` : 'nenhum elemento personalizado'}</span>
+            {r.count ? (
+              <button type="button" className="text-xs text-zinc-500 hover:text-red-600" onClick={() => onChange({ ...theme, elementColors: { ...colors, [r.key]: {} } })}>
+                Limpar
+              </button>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function DesignTab({ theme, onChange, content }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; content: LandingContent }) {
   const { data: presets } = useAsync(() => landingPageService.presets(), []);
   const current = presets?.find((p) => p.key === theme.preset);
@@ -160,6 +187,8 @@ export function DesignTab({ theme, onChange, content }: { theme: ThemeSettings; 
           ))}
         </div>
       </div>
+
+      <ElementColorsSummary theme={theme} onChange={onChange} />
 
       <div className="border-t border-zinc-100 pt-6">
         <SectionColorsEditor

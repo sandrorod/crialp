@@ -107,6 +107,15 @@ const ContentUpdateSchema = z.object({
     // Ponto de corte das fotos do topo/"sobre": { "<url>": { "x": 0-100, "y": 0-100 } }
     focus: z.record(z.string().max(2048), z.object({ x: z.number().min(0).max(100), y: z.number().min(0).max(100), z: z.number().min(1).max(3).optional() })).optional(),
     imageOrder: z.array(z.string().max(2048)).max(300).optional(),
+    // Ordem das seções só no celular (vazia = igual ao computador)
+    mobileOrder: z.array(z.string().max(60)).max(60).optional(),
+    // Cores de elementos clicados na prévia: { desktop: { "<seletor>": { text, bg } }, mobile: {...} }
+    elementColors: z
+      .object({
+        desktop: z.record(z.string().max(600), z.object({ text: z.string().max(9).nullish(), bg: z.string().max(9).nullish() })).optional(),
+        mobile: z.record(z.string().max(600), z.object({ text: z.string().max(9).nullish(), bg: z.string().max(9).nullish() })).optional(),
+      })
+      .optional(),
   }),
   seo: z.object({
     seo_title: z.string().trim().max(120).nullish().transform((v) => v || null),

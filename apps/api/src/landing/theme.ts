@@ -1,5 +1,6 @@
 import { DESIGN_PRESETS, type DesignPreset } from '../services/ai/schemas.js';
 import { normalizeSectionColors, type SectionColors } from './sectionColors.js';
+import { normalizeElementColors, type ElementColors } from './elementColors.js';
 
 export interface ThemeSettings {
   preset: DesignPreset;
@@ -17,6 +18,10 @@ export interface ThemeSettings {
   focus?: Record<string, ImageFocus>;
   /** Ordem das fotos (URLs) escolhida no editor; fotos fora da lista vêm depois, na ordem da empresa. */
   imageOrder?: string[];
+  /** Ordem das seções só no celular (arrastada na prévia). Vazia = mesma ordem do computador. */
+  mobileOrder?: string[];
+  /** Cores de elementos escolhidas clicando na prévia, por layout (celular / computador). */
+  elementColors?: ElementColors;
 }
 
 export interface ImageFocus {
@@ -236,6 +241,8 @@ export interface ResolvedTheme {
   template: TemplateKey;
   focus: Record<string, ImageFocus>;
   imageOrder: string[];
+  mobileOrder: string[];
+  elementColors: ElementColors;
   fontsHref: string;
   vars: Record<string, string>;
 }
@@ -255,6 +262,10 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
     imageOrder: Array.isArray(input?.imageOrder)
       ? [...new Set<string>(input.imageOrder.filter((u: unknown) => typeof u === 'string' && u.length <= 2048))].slice(0, 300)
       : [],
+    mobileOrder: Array.isArray(input?.mobileOrder)
+      ? [...new Set<string>(input.mobileOrder.filter((k: unknown) => typeof k === 'string' && /^(about|services|differentials|products|gallery|testimonials|faq|custom:[a-z0-9-]{1,40})$/.test(k)))].slice(0, 60)
+      : [],
+    elementColors: normalizeElementColors(input?.elementColors),
   };
 }
 
@@ -286,6 +297,8 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
     template: settings.template ?? 'classico',
     focus: settings.focus ?? {},
     imageOrder: settings.imageOrder ?? [],
+    mobileOrder: settings.mobileOrder ?? [],
+    elementColors: settings.elementColors ?? { desktop: {}, mobile: {} },
     fontsHref: `https://fonts.googleapis.com/css2?${families}&display=swap`,
     vars: {
       '--bg': c.bg,

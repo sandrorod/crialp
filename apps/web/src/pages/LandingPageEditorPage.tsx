@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Building2, Copy, Download, ExternalLink, Monitor, RefreshCw, Rocket, Save, Smartphone, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, Building2, Copy, Download, ExternalLink, Image as ImageIcon, Monitor, Palette, RefreshCw, Rocket, Rows3, Save, Smartphone, Sparkles, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ContentTab } from '@/components/landing/ContentTab';
 import { PreviewFrame } from '@/components/landing/PreviewFrame';
+import type { PreviewMode } from '@/components/landing/previewTools';
 import { DesignTab, PhotosTab, TemplateTab, PublishTab, SeoTab, VersionsTab, type SeoState } from '@/components/landing/SettingsTabs';
 import { ProgressSteps } from '@/components/ProgressSteps';
 import { Button, Card, ConfirmDialog, ErrorBlock, LoadingBlock, StatusToggle } from '@/components/ui';
@@ -13,7 +14,7 @@ import { useLandingPageActions } from '@/hooks/useLandingPageActions';
 import { errorMessage } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
 import { analysisService, companyService, landingPageService } from '@/services';
-import type { LandingContent, ThemeSettings } from '@/types';
+import type { LandingContent, SectionOrderKey, ThemeSettings } from '@/types';
 
 type Tab = 'modelo' | 'textos' | 'fotos' | 'visual' | 'seo' | 'publicacao' | 'versoes';
 const TABS: { key: Tab; label: string }[] = [
@@ -26,6 +27,18 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'versoes', label: 'Versões' },
 ];
 
+const MODES: { key: PreviewMode; label: string; icon: typeof Monitor; hint: string }[] = [
+  { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste as fotos do topo e da seção "Sobre" para ajustar o enquadramento; use − / + para o zoom.' },
+  { key: 'secoes', label: 'Seções', icon: Rows3, hint: 'Arraste as seções pelo botão ⠿ (ou use ↑ ↓) para mudar a ordem.' },
+  { key: 'cores', label: 'Cores', icon: Palette, hint: 'Clique em qualquer elemento (título, texto, botão, fundo…) para escolher a cor da fonte e do fundo.' },
+];
+
+/** Aplica a nova ordem das seções visíveis mantendo as demais (sem dados ou fixas) na lista. */
+function mergeSectionOrder(order: SectionOrderKey[], keys: string[]): SectionOrderKey[] {
+  const moved = keys as SectionOrderKey[];
+  return [...moved, ...order.filter((k) => !moved.includes(k))];
+}
+
 export function LandingPageEditorPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
@@ -33,6 +46,7 @@ export function LandingPageEditorPage() {
   const { data: company } = useAsync(async () => (lp ? companyService.get(lp.company_id) : null), [lp?.company_id]);
   const [tab, setTab] = useState<Tab>('textos');
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
+  const [mode, setMode] = useState<PreviewMode>('fotos');
   const [frameKey, setFrameKey] = useState(0);
   const [content, setContent] = useState<LandingContent | null>(null);
   const [theme, setTheme] = useState<ThemeSettings | null>(null);
@@ -187,8 +201,32 @@ export function LandingPageEditorPage() {
             </div>
           </div>
           <div className="bg-zinc-100 p-3 sm:p-4">
-            {dirty ? <p className="mb-2 text-center text-xs text-amber-700">A prévia mostra a última versão salva. Salve para ver as alterações.</p> : null}
-            <p className="mb-2 text-center text-xs text-zinc-500">Arraste as fotos do topo e da seção "Sobre" para ajustar o enquadramento; use − / + para o zoom.</p>
+            <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
+              <div className="flex rounded-lg bg-white p-0.5 shadow-sm ring-1 ring-black/5">
+                {MODES.map((m) => (
+                  <button key={m.key} onClick={() => setMode(m.key)} className={cn('inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium', mode === m.key ? 'bg-ink text-white' : 'text-zinc-600 hover:text-ink')}>
+                    <m.icon className="size-3.5" /> {m.label}
+                  </button>
+                ))}
+              </div>
+              {mode === 'secoes' && device === 'mobile' && theme.mobileOrder?.length ? (
+                <button
+                  onClick={() => {
+                    setTheme((t) => (t ? { ...t, mobileOrder: [] } : t));
+                    setDirty(true);
+                    setFrameKey((k) => k + 1);
+                  }}
+                  className="text-xs text-zinc-500 underline hover:text-ink"
+                >
+                  Usar a mesma ordem do computador
+                </button>
+              ) : null}
+            </div>
+            <p className="mb-2 text-center text-xs text-zinc-500">
+              {MODES.find((m) => m.key === mode)?.hint}
+              {mode !== 'fotos' ? ` Vale só para o layout de ${device === 'mobile' ? 'celular' : 'computador'}.` : ''}
+            </p>
+            {dirty ? <p className="mb-2 text-center text-xs text-amber-700">Há alterações não salvas. Clique em Salvar para publicá-las nesta versão.</p> : null}
             <PreviewFrame
               key={`${frameKey}-${device}`}
               src={landingPageService.previewUrl(lp.id)}
@@ -197,6 +235,19 @@ export function LandingPageEditorPage() {
               focus={theme.focus}
               onFocus={(url, f) => {
                 setTheme((t) => (t ? { ...t, focus: { ...t.focus, [url]: f } } : t));
+                setDirty(true);
+              }}
+              mode={mode}
+              sectionOrder={device === 'mobile' && theme.mobileOrder?.length ? theme.mobileOrder : content.section_order}
+              onReorder={(keys) => {
+                // Celular tem ordem própria; no computador muda a ordem normal das seções
+                if (device === 'mobile') setTheme((t) => (t ? { ...t, mobileOrder: keys } : t));
+                else setContent((c) => (c ? { ...c, section_order: mergeSectionOrder(c.section_order, keys) } : c));
+                setDirty(true);
+              }}
+              elementColors={theme.elementColors}
+              onElementColors={(colors) => {
+                setTheme((t) => (t ? { ...t, elementColors: colors } : t));
                 setDirty(true);
               }}
             />

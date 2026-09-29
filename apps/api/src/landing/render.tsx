@@ -3,14 +3,15 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { SectionKey, SectionOrderKey } from '../services/ai/schemas.js';
 import { CustomSectionView } from './sections/CustomSection.js';
 import { finalCtaVars, sectionVars } from './sectionColors.js';
+import { elementColorsCss, MOBILE_MAX } from './elementColors.js';
 import type { CSSProperties, ReactNode } from 'react';
 
 /** Envolve a seção num contêiner que redefine as variáveis de cor (quando houver cores próprias). */
 function Colored({ ctx, name, children }: { ctx: RenderContext; name: string; children: ReactNode }) {
   const colors = ctx.theme.sections[name];
   const vars = name === 'final_cta' ? finalCtaVars(ctx.theme, colors) : sectionVars(ctx.theme, colors);
-  if (!vars) return <>{children}</>;
-  return <div data-section={name} style={vars as CSSProperties}>{children}</div>;
+  // Sempre há um contêiner: o editor o usa para arrastar seções e o celular para reordená-las
+  return <div data-section={name} style={(vars ?? undefined) as CSSProperties | undefined}>{children}</div>;
 }
 import type { RenderContext } from './context.js';
 import type { LabelKey } from './labels.js';
@@ -71,6 +72,24 @@ export function resolveSections(ctx: RenderContext): SectionOrderKey[] {
   // CTA final encerra a página; contato imediatamente antes
   const rest = order.filter((k) => k !== 'final_cta' && k !== 'contact');
   return [...rest, 'contact', 'final_cta'];
+}
+
+/**
+ * Ordem própria do celular: sem mexer no HTML, o <main> vira coluna flex e cada seção
+ * recebe "order". Topo primeiro; contato e CTA final continuam no fim.
+ */
+function mobileOrderCss(sections: SectionOrderKey[], mobileOrder: string[]): string {
+  if (!mobileOrder.length) return '';
+  const fixed = new Set<string>(['contact', 'final_cta']);
+  const movable = sections.filter((k) => !fixed.has(k));
+  const rank = new Map(mobileOrder.map((k, i) => [k, i]));
+  const sorted = movable
+    .map((k, i) => ({ k, r: rank.get(k) ?? mobileOrder.length + i }))
+    .sort((a, b) => a.r - b.r)
+    .map((x) => x.k);
+  if (sorted.every((k, i) => k === movable[i])) return '';
+  const rules = [...sorted, ...sections.filter((k) => fixed.has(k))].map((k, i) => `main>[data-section="${k}"]{order:${i + 1}}`).join('');
+  return `@media(max-width:${MOBILE_MAX}px){main{display:flex;flex-direction:column}${rules}}`;
 }
 
 function jsonLd(ctx: RenderContext) {
@@ -161,6 +180,9 @@ export function renderLandingPage(ctx: RenderContext): string {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link rel="stylesheet" href={theme.fontsHref} />
         <style dangerouslySetInnerHTML={{ __html: landingCss(theme) }} />
+        <style id="lp-order" dangerouslySetInnerHTML={{ __html: mobileOrderCss(sections, theme.mobileOrder) }} />
+        {/* O editor substitui este bloco ao vivo quando uma cor é escolhida na prévia */}
+        <style id="lp-colors" dangerouslySetInnerHTML={{ __html: elementColorsCss(theme.elementColors) }} />
         <script dangerouslySetInnerHTML={{ __html: REVEAL_SCRIPT }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ctx) }} />
       </head>
