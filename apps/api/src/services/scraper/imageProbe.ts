@@ -3,10 +3,13 @@ import { assertPublicHost } from '../../lib/url.js';
 export interface ImageSize {
   width: number;
   height: number;
-  type: 'png' | 'jpg' | 'gif' | 'webp';
+  type: 'png' | 'jpg' | 'gif' | 'webp' | 'avif';
 }
 
-/** Lê largura/altura do cabeçalho binário (PNG, JPEG, GIF, WebP) sem baixar a imagem inteira. */
+const BROWSER_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+
+/** Lê largura/altura do cabeçalho binário (PNG, JPEG, GIF, WebP, AVIF) sem baixar a imagem inteira. */
 export function parseImageSize(buf: Uint8Array): ImageSize | null {
   const b = Buffer.from(buf);
   if (b.length < 24) return null;
@@ -23,6 +26,12 @@ export function parseImageSize(buf: Uint8Array): ImageSize | null {
       return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1, type: 'webp' };
     }
     if (chunk === 'VP8X' && b.length >= 30) return { width: 1 + b.readUIntLE(24, 3), height: 1 + b.readUIntLE(27, 3), type: 'webp' };
+    return null;
+  }
+  // AVIF: caixa "ispe" (largura/altura) dentro do "meta"
+  if (b.toString('ascii', 4, 8) === 'ftyp' && /avi[fs]/.test(b.toString('ascii', 8, 12))) {
+    const at = b.indexOf('ispe');
+    if (at > 0 && at + 16 <= b.length) return { width: b.readUInt32BE(at + 8), height: b.readUInt32BE(at + 12), type: 'avif' };
     return null;
   }
   // JPEG: percorre os marcadores até um SOF
@@ -45,7 +54,8 @@ export function parseImageSize(buf: Uint8Array): ImageSize | null {
 }
 
 /** Baixa só o início do arquivo (Range) e devolve as dimensões; null se não for imagem suportada. */
-export async function probeImage(url: string, timeoutMs = 7000): Promise<ImageSize | null> {
+/** `referer`: página onde a imagem apareceu; sites com proteção contra hotlink recusam sem ele. */
+export async function probeImage(url: string, referer?: string, timeoutMs = 7000): Promise<ImageSize | null> {
   try {
     const u = new URL(url);
     await assertPublicHost(u);
@@ -54,7 +64,12 @@ export async function probeImage(url: string, timeoutMs = 7000): Promise<ImageSi
     try {
       const res = await fetch(u, {
         signal: controller.signal,
-        headers: { Range: 'bytes=0-65535', 'User-Agent': 'Mozilla/5.0 LPBot/1.0', Accept: 'image/webp,image/png,image/jpeg,image/*' },
+        headers: {
+          Range: 'bytes=0-65535',
+          'User-Agent': BROWSER_UA,
+          Accept: 'image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8',
+          ...(referer ? { Referer: referer } : {}),
+        },
       });
       if (!res.ok || !res.body) return null;
       const reader = res.body.getReader();

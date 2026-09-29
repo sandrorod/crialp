@@ -14,6 +14,8 @@ export interface ScrapedImage {
   logoHint: boolean;
   width?: number;
   height?: number;
+  /** Página onde a imagem apareceu (enviada como Referer: muitos sites bloqueiam imagens sem ele) */
+  page?: string;
 }
 
 export interface ScrapedPage {
@@ -51,9 +53,18 @@ const MAX_AI_DOCUMENT = 140_000;
 const MAX_FIRST_PAGE_TEXT = 60_000;
 const MAX_PAGE_TEXT = 15_000;
 const MAX_JSON_LD = 30_000;
-const MAX_IMAGE_CANDIDATES = 120;
-const MAX_IMAGES = 40;
+const MAX_IMAGE_CANDIDATES = 400;
+const MAX_IMAGES = 80;
+/** Imagens medidas ao mesmo tempo */
+const PROBE_CONCURRENCY = 12;
+/** Tempo máximo medindo imagens: em sites lentos, fica com o que deu para medir */
+const PROBE_BUDGET_MS = 40_000;
 const IMG_EXT = /\.(jpe?g|png|webp|gif|avif)(\?|$)/i;
+/**
+ * URLs de imagem citadas dentro de scripts/JSON (Wix, Next.js, construtores de site e galerias
+ * montadas por JavaScript). Aceita barras escapadas (\/) do JSON.
+ */
+const EMBEDDED_IMG_RE = /https?:(?:\\?\/){2}(?:[^\s"'<>()\\]|\\\/)+?\.(?:jpe?g|png|webp|avif)(?=[?"'\s)\\/,&]|$)/gi;
 
 /** "a.jpg 640w, b.jpg 1280w" → maior candidato. */
 function bestFromSrcset(value: string): string | null {
@@ -91,9 +102,23 @@ function imageUrlFromAttributes(attribs: Record<string, string>): string | null 
 
 const BG_URL_RE = /background(?:-image)?\s*:[^;]*url\((['"]?)([^'")]+)\1\)/gi;
 
+/** Miniatura no padrão do WordPress (foto-300x200.jpg) → endereço da foto original (foto.jpg). */
+function originalOfThumbnail(url: string): string | null {
+  const u = url.replace(/[?#].*$/, '');
+  const original = u.replace(/-\d{2,4}x\d{2,4}(?=\.(jpe?g|png|webp|gif|avif)$)/i, '');
+  return original !== u ? original : null;
+}
+
 /** Mesma foto em tamanhos diferentes (WordPress: foto-700x480.jpg) conta uma vez só. */
 function imageKey(url: string) {
-  return url
+  let u = url;
+  try {
+    u = decodeURIComponent(url);
+  } catch {
+    /* URL com % inválido: compara como está */
+  }
+  return u
+    .replace(/[\u200b-\u200d\ufeff]/g, '') // caracteres invisíveis no nome do arquivo
     .toLowerCase()
     .replace(/[?#].*$/, '')
     .replace(/-\d{2,4}x\d{2,4}(?=\.\w+$)/, '')
@@ -397,21 +422,48 @@ export class ScraperService {
    * remove duplicatas de tamanho e ordena: logotipo primeiro, depois as maiores fotos.
    */
   async rankImages(images: ScrapedImage[]): Promise<ScrapedImage[]> {
-    const seen = new Set<string>();
-    const unique = images.filter((img) => {
+    // Agrupa os tamanhos da mesma foto; a miniatura do WordPress ganha a original como primeira opção
+    const groups = new Map<string, { base: ScrapedImage; urls: string[] }>();
+    for (const img of images) {
       const k = imageKey(img.url);
-      if (seen.has(k)) return false;
-      seen.add(k);
-      return true;
+      const g = groups.get(k) ?? { base: img, urls: [] };
+      if (!groups.has(k)) groups.set(k, g);
+      g.base = { ...g.base, logoHint: g.base.logoHint || img.logoHint, alt: g.base.alt || img.alt };
+      const original = originalOfThumbnail(img.url);
+      if (original && !g.urls.includes(original)) g.urls.unshift(original);
+      if (!g.urls.includes(img.url)) g.urls.push(img.url);
+    }
+    // Sem sufixo de tamanho primeiro; depois as variantes maiores
+    const sizeOf = (u: string) => {
+      const m = /-(\d{2,4})x(\d{2,4})\.\w+$/.exec(u.replace(/[?#].*$/, ''));
+      return m ? Number(m[1]) * Number(m[2]) : Infinity;
+    };
+    const deadline = Date.now() + PROBE_BUDGET_MS;
+    const measured = await mapLimit([...groups.values()], PROBE_CONCURRENCY, async ({ base, urls }) => {
+      const ordered = [...urls].sort((a, b) => sizeOf(b) - sizeOf(a)).slice(0, 3);
+      for (const url of ordered) {
+        if (Date.now() > deadline) break;
+        const size = await probeImage(url, base.page);
+        if (size) return { ...base, url, width: size.width, height: size.height };
+      }
+      return { ...base, width: undefined, height: undefined };
     });
-    const sizes = await mapLimit(unique, 8, (img) => probeImage(img.url));
-    const measured = unique.map((img, i) => ({ ...img, width: sizes[i]?.width, height: sizes[i]?.height }));
     const kept = measured.filter((img) => {
       if (!img.width || !img.height) return false; // inacessível ou formato não suportado
       if (img.logoHint) return img.width >= 40;
       const ratio = img.width / img.height;
-      return Math.min(img.width, img.height) >= 280 && img.width * img.height >= 150_000 && ratio < 4 && ratio > 0.25;
+      return Math.min(img.width, img.height) >= 200 && img.width * img.height >= 60_000 && ratio < 4.5 && ratio > 0.22;
     });
+    // Mesma foto enviada duas vezes (foto.jpg e foto-1.jpg) com as mesmas dimensões: fica uma
+    const seenPhoto = new Set<string>();
+    const distinct = kept.filter((img) => {
+      const k = `${imageKey(img.url).replace(/-\d{1,2}$/, '').replace(/[_\s-]+/g, '-')}|${img.width}x${img.height}`;
+      if (seenPhoto.has(k)) return false;
+      seenPhoto.add(k);
+      return true;
+    });
+    kept.length = 0;
+    kept.push(...distinct);
     kept.sort((a, b) => Number(b.logoHint) - Number(a.logoHint) || b.width! * b.height! - a.width! * a.height!);
     return kept.slice(0, MAX_IMAGES).map((img, index) => ({ ...img, index }));
   }
@@ -431,6 +483,7 @@ export class ScraperService {
       const url = absolutize(raw?.split(/\s+/)[0], base);
       if (!url || !['http:', 'https:'].includes(url.protocol)) return;
       if (/\.(svg)(\?|$)/i.test(url.pathname) && !logoHint) return;
+      if (/\.ico$/i.test(url.pathname) || /favicon/i.test(url.pathname)) return;
       // Pixels de rastreamento e espaçadores (pelo nome do arquivo, não pelo domínio: "pixel-p1.s3..." é foto de verdade)
       if (/(^|\/)(pixel|tracking|spacer|blank|1x1|transparent)(\.[a-z]+)?$/i.test(url.pathname) || /(^|\.)facebook\.com$/i.test(url.hostname) && url.pathname.startsWith('/tr')) return;
       const key = url.toString();
@@ -440,7 +493,7 @@ export class ScraperService {
         return;
       }
       if (images.size >= MAX_IMAGE_CANDIDATES) return;
-      images.set(key, { url: key, alt: cleanLine(alt).slice(0, 160), context, logoHint });
+      images.set(key, { url: key, alt: cleanLine(alt).slice(0, 160), context, logoHint, page: base.toString() });
     };
 
     const seenPages = new Set<string>();
@@ -494,6 +547,24 @@ export class ScraperService {
         addImage(ogImage, url, title, 'og:image');
       }
       if (!scope) $('link[rel~="apple-touch-icon"]').each((_, el) => addImage($(el).attr('href'), url, 'ícone do site', 'icon', true));
+      if (!scope) {
+        addImage($('meta[name="twitter:image"], meta[property="twitter:image"]').attr('content'), url, title, 'og:image');
+        addImage($('link[rel="image_src"]').attr('href'), url, title, 'og:image');
+      }
+      // Lazy loading: muitos sites só colocam a <img> de verdade dentro de <noscript>
+      $scope.find('noscript').each((_, el) => {
+        const inner = cheerio.load($(el).text());
+        inner('img').each((__, img) => {
+          const src = imageUrlFromAttributes((img as any).attribs ?? {});
+          if (src) addImage(src, url, inner(img).attr('alt') ?? '', 'conteúdo');
+        });
+      });
+      // Galerias: a miniatura aponta para a foto ampliada
+      $scope.find('a[href]').each((_, el) => {
+        const href = $(el).attr('href') ?? '';
+        if (IMG_EXT.test(href)) addImage(href, url, $(el).find('img').attr('alt') ?? $(el).attr('title') ?? '', 'galeria');
+      });
+      $scope.find('video[poster]').each((_, el) => addImage($(el).attr('poster'), url, '', 'vídeo'));
       $scope.find('img, picture source').each((_, el) => {
         const $el = $(el);
         const src = imageUrlFromAttributes((el as any).attribs ?? {});
@@ -507,6 +578,10 @@ export class ScraperService {
         const logoHint = marker.includes('logo') || marker.includes('marca') || (inHeader && $el.closest('a[href="/"], a[href="./"], .logo, .brand').length > 0);
         addImage(src, url, alt, inHeader ? 'cabeçalho' : 'conteúdo', logoHint);
       });
+      // Imagens de fundo declaradas em <style> (banners e seções montados por construtores de site)
+      $('style').each((_, el) => {
+        for (const m of $(el).text().matchAll(BG_URL_RE)) addImage(m[2], url, '', 'fundo');
+      });
       // Imagens de fundo (banners, seções) em style inline ou atributos data-bg
       $scope.find('[style*="url("], [data-bg], [data-background], [data-bg-src], [data-background-image]').each((_, el) => {
         const attribs = ((el as any).attribs ?? {}) as Record<string, string>;
@@ -516,6 +591,13 @@ export class ScraperService {
           if (attribs[key]) addImage(attribs[key].replace(/^url\((['"]?)(.+)\1\)$/, '$2'), url, '', 'fundo');
         }
       });
+
+      // Por último, imagens citadas em scripts/JSON (páginas montadas por JavaScript), fora de perfis de plataforma
+      if (!scope) {
+        $('script:not([type="application/ld+json"])').each((_, el) => {
+          for (const m of $(el).text().matchAll(EMBEDDED_IMG_RE)) addImage(m[0].replace(/\\\//g, '/'), url, '', 'script');
+        });
+      }
 
       // Texto visível (sem repetir menus/rodapés já vistos em outras páginas)
       const text = pageText($, scope)

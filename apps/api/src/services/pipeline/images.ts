@@ -17,8 +17,7 @@ const TYPE_WEIGHT: Record<string, number> = {
   product: 1.1,
   other: 0.8,
 };
-const MIN_PHOTOS = 6;
-const MAX_PHOTOS = 24;
+const MAX_PHOTOS = 40;
 
 function score(img: ScrapedImage, type: string) {
   const w = img.width ?? 0;
@@ -62,18 +61,18 @@ export function assembleImages(opts: {
     used.add(c.index);
     photos.push({ img, type: c.type, alt: c.alt_text || img.alt || null });
   }
-  // Completa com as maiores fotos restantes quando a IA selecionou poucas (ou não rodou)
-  if (photos.length < MIN_PHOTOS) {
-    for (const img of scraped) {
-      if (photos.length >= (classified ? MIN_PHOTOS : MAX_PHOTOS)) break;
-      if (used.has(img.index) || img.logoHint) continue;
-      used.add(img.index);
-      photos.push({ img, type: 'gallery', alt: img.alt || null });
-    }
-  }
-
+  // As escolhidas pela IA vêm primeiro (a primeira vira a foto de destaque)
   photos.sort((a, b) => score(b.img, b.type) - score(a.img, a.type));
-  for (const p of photos.slice(0, MAX_PHOTOS)) {
+  // Depois todas as outras fotos encontradas, para o administrador decidir o que usar.
+  // A IA só vê endereço e texto alternativo, então não descarta fotos que ela não reconheceu.
+  const rest: typeof photos = [];
+  for (const img of scraped) {
+    if (used.has(img.index) || img.logoHint) continue;
+    used.add(img.index);
+    rest.push({ img, type: classified ? 'other' : 'gallery', alt: img.alt || null });
+  }
+  rest.sort((a, b) => score(b.img, b.type) - score(a.img, a.type));
+  for (const p of [...photos, ...rest].slice(0, MAX_PHOTOS)) {
     out.push({ url: p.img.url, type: p.type, alt_text: p.alt, source: 'scraped', usage_allowed: allowUsage });
   }
   return out;
