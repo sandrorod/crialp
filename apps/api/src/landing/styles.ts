@@ -8,7 +8,7 @@ export function landingCss(theme: ResolvedTheme): string {
   const dark = theme.p.dark;
 
   return `
-:root{${vars};--container:1180px;--gutter:20px;--section-y:clamp(72px,10vw,128px);--title-scale:1;color-scheme:${dark ? 'dark' : 'light'}}
+:root{${vars};--container:1180px;--gutter:20px;--section-y:clamp(72px,10vw,128px);--section-y-scale:.85;--title-scale:1;color-scheme:${dark ? 'dark' : 'light'}}
 /* Celular: títulos 10% menores em todos os modelos */
 @media(max-width:767px){:root{--title-scale:.9}}
 *,*::before,*::after{box-sizing:border-box}
@@ -52,7 +52,8 @@ p{margin:0;text-wrap:pretty}
 /* Tipografia de seção */
 .eyebrow{display:inline-flex;align-items:center;gap:10px;font:600 13px/1.2 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--primary-ink);margin-bottom:18px}
 .eyebrow::before{content:"";width:22px;height:1.5px;background:currentColor;opacity:.7}
-.section{padding:var(--section-y) 0}
+/* Margem interna superior/inferior das seções: 15% menor em todos os modelos */
+.section{padding:calc(var(--section-y) * var(--section-y-scale)) 0}
 .section-alt{background:var(--surface)}
 .section-head{max-width:720px;margin-bottom:clamp(40px,6vw,64px)}
 .section-head.center{margin-left:auto;margin-right:auto;text-align:center}
@@ -62,7 +63,7 @@ p{margin:0;text-wrap:pretty}
 .section-head.center .lead{margin-left:auto;margin-right:auto}
 
 /* Hero */
-.hero{position:relative;overflow:hidden;padding:clamp(56px,9vw,120px) 0 clamp(64px,9vw,120px)}
+.hero{position:relative;overflow:hidden;padding:calc(clamp(56px,9vw,120px) * var(--section-y-scale)) 0 calc(clamp(64px,9vw,120px) * var(--section-y-scale))}
 .hero h1{font-size:calc((clamp(2.5rem,1.3rem + 5vw,4.75rem)) * var(--title-scale))}
 .hero .sub{margin-top:24px;font-size:clamp(1.08rem,1rem + .45vw,1.3rem);color:var(--muted);max-width:600px}
 .hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:36px}
@@ -193,7 +194,7 @@ p{margin:0;text-wrap:pretty}
 .custom-list .ico{color:var(--primary-ink);margin-top:3px}
 
 /* Rodapé */
-.site-footer{padding:40px 0 calc(40px + env(safe-area-inset-bottom));font-size:14px;color:var(--muted);border-top:1px solid var(--border)}
+.site-footer{padding:calc(40px * var(--section-y-scale)) 0 calc(40px * var(--section-y-scale) + env(safe-area-inset-bottom));font-size:14px;color:var(--muted);border-top:1px solid var(--border)}
 .site-footer .container{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-between}
 
 /* WhatsApp flutuante */
