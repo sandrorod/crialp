@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { Check, CheckCircle2, Clock, Copy, Globe, GripVertical, ImageOff, Link2, RotateCcw, ShieldAlert, Upload, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Field, Input, ListEditor, Select, Textarea } from '@/components/ui';
@@ -438,12 +438,6 @@ export function PhotosTab({ theme, onChange, images, onAddPhotos }: { theme: The
     .sort((a, b) => rank(order, a.img.url, a.index) - rank(order, b.img.url, b.index))
     .map(({ img }) => img);
 
-  const dragOver = (overUrl: string) => {
-    if (!dragging || dragging === overUrl) return;
-    const urls = allowed.map((i) => i.url).filter((u) => u !== dragging);
-    urls.splice(urls.indexOf(overUrl) + (allowed.findIndex((i) => i.url === dragging) < allowed.findIndex((i) => i.url === overUrl) ? 1 : 0), 0, dragging);
-    setDragOrder(urls);
-  };
   const dragEnd = () => {
     if (dragOrder) onChange({ ...theme, imageOrder: dragOrder });
     setDragOrder(null);
@@ -451,6 +445,17 @@ export function PhotosTab({ theme, onChange, images, onAddPhotos }: { theme: The
   };
   const chosen = theme.images ?? {};
   const resolved = resolvePlacements(allowed.map((i) => i.url), chosen);
+  // Ativas (as que aparecem na página) primeiro; "Não usar" vai para o fim sem mudar a página,
+  // já que fotos ocultas não entram na distribuição de topo, "sobre" e galeria
+  const listed = [...allowed.filter((i) => resolved[i.url] !== 'hidden'), ...allowed.filter((i) => resolved[i.url] === 'hidden')];
+  const activeCount = allowed.length - allowed.filter((i) => resolved[i.url] === 'hidden').length;
+
+  const dragOver = (overUrl: string) => {
+    if (!dragging || dragging === overUrl) return;
+    const urls = listed.map((i) => i.url).filter((u) => u !== dragging);
+    urls.splice(urls.indexOf(overUrl) + (listed.findIndex((i) => i.url === dragging) < listed.findIndex((i) => i.url === overUrl) ? 1 : 0), 0, dragging);
+    setDragOrder(urls);
+  };
   const galleryCount = Object.values(resolved).filter((p) => p === 'gallery').length;
 
   const setPlacement = (url: string, value: ImagePlacement | '') => {
@@ -496,38 +501,42 @@ export function PhotosTab({ theme, onChange, images, onAddPhotos }: { theme: The
       <AddPhotos onAdd={addPhotos} />
 
       <ul className="space-y-2">
-        {allowed.map((img) => (
-          <li
-            key={img.url}
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.effectAllowed = 'move';
-              e.dataTransfer.setData('text/plain', img.url);
-              // Mudar o elemento durante o dragstart cancela o arrasto no Chrome: aplica o destaque em seguida
-              setTimeout(() => setDragging(img.url), 0);
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              dragOver(img.url);
-            }}
-            onDrop={(e) => e.preventDefault()}
-            onDragEnd={dragEnd}
-            className={cn('flex items-center gap-2 rounded-lg border border-zinc-200 bg-white p-2 transition', dragging === img.url && 'opacity-50 ring-2 ring-brand-500')}
-          >
-            <span className="cursor-grab text-zinc-400 hover:text-ink active:cursor-grabbing" title="Arraste para reordenar" aria-hidden>
-              <GripVertical className="size-4" />
-            </span>
-            <PhotoThumb url={img.url} alt={img.alt_text ?? ''} dimmed={resolved[img.url] === 'hidden'} />
-            <div className="min-w-0 flex-1">
-              <Select className="h-9 text-[13px]" value={chosen[img.url] ?? ''} onChange={(e) => setPlacement(img.url, e.target.value as ImagePlacement | '')}>
-                <option value="">Automático{chosen[img.url] ? '' : ` (${PLACEMENT_LABELS[resolved[img.url]]})`}</option>
-                {(Object.keys(PLACEMENT_LABELS) as ImagePlacement[]).map((p) => (
-                  <option key={p} value={p}>{PLACEMENT_LABELS[p]}</option>
-                ))}
-              </Select>
-              {img.alt_text ? <p className="mt-1 truncate text-[11px] text-zinc-500">{img.alt_text}</p> : null}
-            </div>
-          </li>
+        {listed.map((img, i) => (
+          <Fragment key={img.url}>
+            {i === activeCount && activeCount > 0 ? (
+              <li className="pt-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Não usadas na página</li>
+            ) : null}
+            <li
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', img.url);
+                // Mudar o elemento durante o dragstart cancela o arrasto no Chrome: aplica o destaque em seguida
+                setTimeout(() => setDragging(img.url), 0);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                dragOver(img.url);
+              }}
+              onDrop={(e) => e.preventDefault()}
+              onDragEnd={dragEnd}
+              className={cn('flex items-center gap-2 rounded-lg border border-zinc-200 bg-white p-2 transition', dragging === img.url && 'opacity-50 ring-2 ring-brand-500')}
+            >
+              <span className="cursor-grab text-zinc-400 hover:text-ink active:cursor-grabbing" title="Arraste para reordenar" aria-hidden>
+                <GripVertical className="size-4" />
+              </span>
+              <PhotoThumb url={img.url} alt={img.alt_text ?? ''} dimmed={resolved[img.url] === 'hidden'} />
+              <div className="min-w-0 flex-1">
+                <Select className="h-9 text-[13px]" value={chosen[img.url] ?? ''} onChange={(e) => setPlacement(img.url, e.target.value as ImagePlacement | '')}>
+                  <option value="">Automático{chosen[img.url] ? '' : ` (${PLACEMENT_LABELS[resolved[img.url]]})`}</option>
+                  {(Object.keys(PLACEMENT_LABELS) as ImagePlacement[]).map((p) => (
+                    <option key={p} value={p}>{PLACEMENT_LABELS[p]}</option>
+                  ))}
+                </Select>
+                {img.alt_text ? <p className="mt-1 truncate text-[11px] text-zinc-500">{img.alt_text}</p> : null}
+              </div>
+            </li>
+          </Fragment>
         ))}
       </ul>
 
