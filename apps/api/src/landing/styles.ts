@@ -63,7 +63,8 @@ p{margin:0;text-wrap:pretty}
 .section-head.center .lead{margin-left:auto;margin-right:auto}
 
 /* Hero */
-.hero{position:relative;overflow:hidden;padding:calc(clamp(56px,9vw,120px) * var(--section-y-scale)) 0 calc(clamp(64px,9vw,120px) * var(--section-y-scale))}
+/* Topo: metade do espaço até a barra superior e até a seção seguinte */
+.hero{position:relative;overflow:hidden;padding:calc(clamp(56px,9vw,120px) * var(--section-y-scale) * .5) 0 calc(clamp(64px,9vw,120px) * var(--section-y-scale) * .5)}
 .hero h1{font-size:calc((clamp(2.5rem,1.3rem + 5vw,4.75rem)) * var(--title-scale))}
 .hero .sub{margin-top:24px;font-size:clamp(1.08rem,1rem + .45vw,1.3rem);color:var(--muted);max-width:600px}
 .hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:36px}
@@ -73,7 +74,7 @@ p{margin:0;text-wrap:pretty}
 .highlights{display:flex;flex-wrap:wrap;gap:10px 22px;margin:40px 0 0;padding:0;list-style:none;font-size:15px;color:var(--muted)}
 .highlights li{display:flex;align-items:center;gap:8px}
 .highlights .ico{color:var(--primary-ink)}
-.hero-split .container{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(40px,6vw,72px);align-items:center}
+.hero-split .container{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(40px,6vw,72px);align-items:start}
 @media(min-width:960px){.hero-split .container{grid-template-columns:1.15fr .85fr}}
 .hero-media{position:relative;border-radius:var(--radius);overflow:hidden;aspect-ratio:4/5;background:var(--surface);box-shadow:0 40px 80px -40px rgba(0,0,0,.35)}
 .hero-media img{width:100%;height:100%;object-fit:cover}
@@ -304,7 +305,7 @@ p{margin:0;text-wrap:pretty}
 @media(min-width:860px){.tpl-elegante .gallery{grid-template-columns:repeat(3,1fr);grid-auto-rows:auto;gap:26px}.tpl-elegante .gallery figure:first-child{grid-column:auto;grid-row:auto}.tpl-elegante .gallery figure{aspect-ratio:4/5}}
 
 /* Impacto: topo alto ocupando a tela, fotos com bloco de cor deslocado, serviços numerados, galeria com a 1ª foto em faixa larga */
-.tpl-impacto .hero{min-height:min(86vh,880px);display:flex;align-items:center}
+.tpl-impacto .hero{display:flex;align-items:flex-start}
 .tpl-impacto .hero>.container{width:100%}
 .tpl-impacto .hero-media,.tpl-impacto .about-media{border-radius:0;box-shadow:18px 18px 0 var(--primary);margin:0 18px 18px 0}
 .tpl-impacto .grid{counter-reset:svc}
