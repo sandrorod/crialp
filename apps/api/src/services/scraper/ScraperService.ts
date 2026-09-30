@@ -109,11 +109,35 @@ function originalOfThumbnail(url: string): string | null {
   return original !== u ? original : null;
 }
 
+/** Parâmetros que só mudam o tamanho/qualidade da mesma foto em CDNs e otimizadores. */
+const SIZE_PARAMS = /^(w|h|q|width|height|quality|fit|format|fm|auto|dpr|crop|resize|size|v|ver|version)$/i;
+
+/**
+ * Endereço que identifica a foto. Otimizadores servem fotos diferentes pelo mesmo caminho
+ * (Next.js: /_next/image?url=..., Nuxt/Vercel: ?url=...), então a foto está no parâmetro;
+ * em caminhos sem extensão o parâmetro também distingue uma foto da outra.
+ */
+function imageIdentity(url: string) {
+  try {
+    const u = new URL(url);
+    const inner = u.searchParams.get('url') ?? u.searchParams.get('src') ?? u.searchParams.get('image');
+    if (inner && (IMG_EXT.test(inner) || /^(https?:)?\/\//.test(inner) || inner.startsWith('/'))) return inner;
+    // Cloudflare: /cdn-cgi/image/width=800,quality=80/fotos/a.jpg
+    const cf = /\/cdn-cgi\/image\/[^/]+(\/.+)$/.exec(u.pathname);
+    if (cf) return `${u.origin}${cf[1]}`;
+    if (IMG_EXT.test(u.pathname)) return url;
+    const kept = [...u.searchParams].filter(([k]) => !SIZE_PARAMS.test(k)).sort(([a], [b]) => a.localeCompare(b));
+    return `${u.origin}${u.pathname}${kept.length ? `@${new URLSearchParams(kept)}` : ''}`;
+  } catch {
+    return url;
+  }
+}
+
 /** Mesma foto em tamanhos diferentes (WordPress: foto-700x480.jpg) conta uma vez só. */
 function imageKey(url: string) {
-  let u = url;
+  let u = imageIdentity(url);
   try {
-    u = decodeURIComponent(url);
+    u = decodeURIComponent(u);
   } catch {
     /* URL com % inválido: compara como está */
   }
@@ -133,6 +157,8 @@ const PAGE_KEYWORDS = [
   'produto', 'produtos', 'cardapio', 'cardápio', 'menu', 'planos', 'modalidades',
   'contato', 'fale-conosco', 'faleconosco', 'localizacao', 'onde-estamos', 'unidades',
   'depoimentos', 'avaliacoes', 'clientes',
+  // Páginas com mais fotos do negócio
+  'galeria', 'fotos', 'portfolio', 'portfólio', 'projetos', 'obras', 'trabalhos', 'ambiente', 'estrutura', 'instalacoes', 'instalações', 'espaco', 'espaço', 'nosso-espaco',
 ];
 
 /**
@@ -468,7 +494,8 @@ export class ScraperService {
       if (!img.width || !img.height) return false; // inacessível ou formato não suportado
       if (img.logoHint) return img.width >= 40;
       const ratio = img.width / img.height;
-      return Math.min(img.width, img.height) >= 200 && img.width * img.height >= 60_000 && ratio < 4.5 && ratio > 0.22;
+      // Banners largos (1920x400) também são fotos do negócio: só barras e faixas finas ficam de fora
+      return Math.min(img.width, img.height) >= 200 && img.width * img.height >= 60_000 && ratio < 6.5 && ratio > 0.2;
     });
     // Mesma foto enviada duas vezes (foto.jpg e foto-1.jpg) com as mesmas dimensões: fica uma
     const seenPhoto = new Set<string>();

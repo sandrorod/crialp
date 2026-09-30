@@ -17,7 +17,7 @@ const TYPE_WEIGHT: Record<string, number> = {
   product: 1.1,
   other: 0.8,
 };
-const MAX_PHOTOS = 40;
+const MAX_PHOTOS = 60;
 
 function score(img: ScrapedImage, type: string) {
   const w = img.width ?? 0;

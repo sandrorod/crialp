@@ -6,6 +6,13 @@ export interface ImageSize {
   type: 'png' | 'jpg' | 'gif' | 'webp' | 'avif';
 }
 
+/**
+ * Quanto ler do início do arquivo. Fotos de câmera/celular e exportadas do Photoshop trazem
+ * EXIF, miniatura e perfil de cor antes das dimensões: com pouco, a foto era descartada.
+ * A leitura para assim que acha as dimensões.
+ */
+const HEAD_BYTES = 512 * 1024;
+
 const BROWSER_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 
@@ -65,7 +72,7 @@ export async function probeImage(url: string, referer?: string, timeoutMs = 7000
       const res = await fetch(u, {
         signal: controller.signal,
         headers: {
-          Range: 'bytes=0-65535',
+          Range: `bytes=0-${HEAD_BYTES - 1}`,
           'User-Agent': BROWSER_UA,
           Accept: 'image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8',
           ...(referer ? { Referer: referer } : {}),
@@ -75,7 +82,7 @@ export async function probeImage(url: string, referer?: string, timeoutMs = 7000
       const reader = res.body.getReader();
       const chunks: Uint8Array[] = [];
       let total = 0;
-      while (total < 65536) {
+      while (total < HEAD_BYTES) {
         const { done, value } = await reader.read();
         if (done) break;
         chunks.push(value);
