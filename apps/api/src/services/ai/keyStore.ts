@@ -59,13 +59,13 @@ export const aiKeyStore = {
   /** A chave da variável de ambiente, se não foi removida pelo painel. */
   async activeEnvKey(envKey?: string): Promise<string | undefined> {
     if (!envKey) return undefined;
-    const row = await one<{ value: string }>('select value from app_settings where key = $1', [ENV_KEY_REMOVED]);
+    const row = await one<{ value: string }>('select value from lp_settings where key = $1', [ENV_KEY_REMOVED]);
     return row?.value === hashKey(envKey) ? undefined : envKey;
   },
 
   async removeEnvKey(envKey: string) {
     await query(
-      `insert into app_settings (key, value) values ($1, $2)
+      `insert into lp_settings (key, value) values ($1, $2)
        on conflict (key) do update set value = excluded.value, updated_at = now()`,
       [ENV_KEY_REMOVED, hashKey(envKey)],
     );

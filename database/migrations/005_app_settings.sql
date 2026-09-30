@@ -3,10 +3,10 @@
 -- Ex.: chave do Gemini da variável de ambiente removida do rodízio
 -- ════════════════════════════════════════════════════════════════
 
-create table app_settings (
+create table if not exists lp_settings (
   key         text primary key,
   value       text not null,
   updated_at  timestamptz not null default now()
 );
 
-alter table app_settings enable row level security;
+alter table lp_settings enable row level security;
