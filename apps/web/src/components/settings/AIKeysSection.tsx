@@ -15,7 +15,8 @@ export function AIKeysSection() {
   const [label, setLabel] = useState('');
   const [adding, setAdding] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [toDelete, setToDelete] = useState<AIKeyInfo | null>(null);
+  // id "env" = chave da variável de ambiente (sai do rodízio; a variável fica no servidor)
+  const [toDelete, setToDelete] = useState<Pick<AIKeyInfo, 'id' | 'label' | 'last4'> | null>(null);
 
   const add = async (e: FormEvent) => {
     e.preventDefault();
@@ -49,7 +50,8 @@ export function AIKeysSection() {
     if (!toDelete) return;
     setBusyId(toDelete.id);
     try {
-      await miscService.removeAiKey(toDelete.id);
+      if (toDelete.id === 'env') await miscService.removeEnvAiKey();
+      else await miscService.removeAiKey(toDelete.id);
       toast.success('Chave removida.');
       setToDelete(null);
       reload();
@@ -85,8 +87,11 @@ export function AIKeysSection() {
                 <KeyRound className="size-4 flex-none text-zinc-400" />
                 <div className="min-w-0 flex-1">
                   <div className="font-medium">Chave do servidor <span className="font-mono text-zinc-500">•••• {data.env_key.last4}</span></div>
-                  <div className="text-xs text-zinc-500">Variável de ambiente GEMINI_API_KEY · sempre no rodízio</div>
+                  <div className="text-xs text-zinc-500">Variável de ambiente GEMINI_API_KEY · no rodízio</div>
                 </div>
+                <button onClick={() => setToDelete({ id: 'env', label: 'Chave do servidor', last4: data.env_key!.last4 })} title="Remover chave" aria-label="Remover chave do servidor" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
+                  <Trash2 className="size-4" />
+                </button>
               </li>
             ) : null}
             {data.keys.map((k) => (
@@ -136,7 +141,10 @@ export function AIKeysSection() {
         title="Remover chave?"
         description={
           <>
-            A chave <strong>{toDelete?.label || 'sem nome'} (•••• {toDelete?.last4})</strong> sai do rodízio e é apagada do sistema.
+            A chave <strong>{toDelete?.label || 'sem nome'} (•••• {toDelete?.last4})</strong>{' '}
+            {toDelete?.id === 'env'
+              ? 'sai do rodízio. Ela continua na variável GEMINI_API_KEY do servidor, mas deixa de ser usada.'
+              : 'sai do rodízio e é apagada do sistema.'}
           </>
         }
         confirmLabel="Remover"

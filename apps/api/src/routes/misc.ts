@@ -53,7 +53,7 @@ miscRouter.get('/settings/ai-keys', requireRole(...MANAGER_ROLES), async (_req, 
   res.json({
     keys: await aiKeyStore.list('gemini'),
     // A chave da variável de ambiente também entra no rodízio (não é editável pelo painel)
-    env_key: env.ai.geminiApiKey ? { last4: env.ai.geminiApiKey.slice(-4) } : null,
+    env_key: (await aiKeyStore.activeEnvKey(env.ai.geminiApiKey)) ? { last4: env.ai.geminiApiKey!.slice(-4) } : null,
     provider_active: aiService.providerName === 'gemini',
   });
 });
@@ -61,7 +61,7 @@ miscRouter.get('/settings/ai-keys', requireRole(...MANAGER_ROLES), async (_req, 
 miscRouter.post('/settings/ai-keys', requireRole(...MANAGER_ROLES), async (req, res) => {
   const user = authUser(req);
   const body = parseBody(KeySchema, req.body);
-  if ((await aiKeyStore.exists(body.key)) || body.key === env.ai.geminiApiKey) throw new AppError(409, 'Esta chave já está cadastrada.', 'CONFLICT');
+  if ((await aiKeyStore.exists(body.key)) || body.key === (await aiKeyStore.activeEnvKey(env.ai.geminiApiKey))) throw new AppError(409, 'Esta chave já está cadastrada.', 'CONFLICT');
   // Só salva chaves que funcionam
   try {
     await aiService.testGeminiKey(body.key);
@@ -75,6 +75,13 @@ miscRouter.post('/settings/ai-keys', requireRole(...MANAGER_ROLES), async (req, 
 miscRouter.patch('/settings/ai-keys/:id', requireRole(...MANAGER_ROLES), async (req, res) => {
   const body = parseBody(z.object({ active: z.boolean().optional(), label: z.string().trim().max(60).nullish() }), req.body);
   if (!(await aiKeyStore.update(uuidParam.parse(req.params.id), body))) throw notFound('Chave não encontrada.');
+  res.json({ ok: true });
+});
+
+// Chave da variável de ambiente: sai do rodízio (a variável continua no servidor, mas é ignorada)
+miscRouter.delete('/settings/ai-keys/env', requireRole(...MANAGER_ROLES), async (_req, res) => {
+  if (!env.ai.geminiApiKey) throw notFound('Não há chave do servidor.');
+  await aiKeyStore.removeEnvKey(env.ai.geminiApiKey);
   res.json({ ok: true });
 });
 

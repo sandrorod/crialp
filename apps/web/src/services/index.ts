@@ -55,6 +55,8 @@ export const companyService = {
   /** Fotos adicionadas pelo editor da LP (entram liberadas para uso). */
   addImages: (id: string, images: { url: string; alt_text?: string | null; source: 'upload' | 'manual' }[]) =>
     api.post<Company>(`/companies/${id}/images`, { images }),
+  /** Apaga fotos do cadastro (somem de todas as páginas da empresa). */
+  removeImages: (id: string, urls: string[]) => api.post<Company>(`/companies/${id}/images/remove`, { urls }),
   fetchImages: (id: string, allowImages: boolean) =>
     api.post<{ images: CompanyImage[]; found: number; classified: boolean }>(`/companies/${id}/fetch-images`, { allowImages }),
 };
@@ -92,6 +94,8 @@ export const miscService = {
   addAiKey: (key: string, label?: string) => api.post<AIKeyInfo>('/settings/ai-keys', { key, label: label || null }),
   updateAiKey: (id: string, body: { active?: boolean; label?: string | null }) => api.patch(`/settings/ai-keys/${id}`, body),
   removeAiKey: (id: string) => api.del(`/settings/ai-keys/${id}`),
+  /** Tira do rodízio a chave da variável de ambiente GEMINI_API_KEY */
+  removeEnvAiKey: () => api.del('/settings/ai-keys/env'),
   upload: async (file: File) => {
     const form = new FormData();
     form.append('file', file);

@@ -1,7 +1,7 @@
 import { Fragment, useRef, useState } from 'react';
-import { Check, CheckCircle2, Clock, Copy, Globe, GripVertical, ImageOff, Link2, RotateCcw, ShieldAlert, Upload, XCircle } from 'lucide-react';
+import { Check, CheckCircle2, Clock, Copy, Globe, GripVertical, ImageOff, Link2, RotateCcw, ShieldAlert, Trash2, Upload, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, Field, Input, ListEditor, Select, Textarea } from '@/components/ui';
+import { Button, ConfirmDialog, Field, Input, ListEditor, Select, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { cn, copyToClipboard, formatDate } from '@/lib/utils';
@@ -421,10 +421,25 @@ function AddPhotos({ onAdd }: { onAdd: (photos: NewPhoto[]) => Promise<void> }) 
   );
 }
 
-export function PhotosTab({ theme, onChange, images, onAddPhotos }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; images: CompanyImage[] | null; onAddPhotos: (photos: NewPhoto[]) => Promise<void> }) {
+export function PhotosTab({
+  theme,
+  onChange,
+  images,
+  onAddPhotos,
+  onRemovePhotos,
+}: {
+  theme: ThemeSettings;
+  onChange: (t: ThemeSettings) => void;
+  images: CompanyImage[] | null;
+  onAddPhotos: (photos: NewPhoto[]) => Promise<void>;
+  onRemovePhotos: (urls: string[]) => Promise<void>;
+}) {
   // Ordem provisória enquanto uma foto está sendo arrastada
   const [dragOrder, setDragOrder] = useState<string[] | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
+  // Fotos a apagar (confirmação aberta)
+  const [toRemove, setToRemove] = useState<string[] | null>(null);
+  const [removing, setRemoving] = useState(false);
   if (!images) return <div className="skeleton h-40 rounded-lg" />;
   const photos = images.filter((i) => i.type !== 'logo');
   const blocked = photos.filter((i) => !i.usage_allowed);
@@ -479,6 +494,27 @@ export function PhotosTab({ theme, onChange, images, onAddPhotos }: { theme: The
     onChange({ ...theme, images: nextImages, imageOrder: [...urls, ...allowed.map((i) => i.url).filter((u) => !urls.includes(u))] });
   };
 
+  const removePhotos = async () => {
+    if (!toRemove) return;
+    setRemoving(true);
+    try {
+      await onRemovePhotos(toRemove);
+      // Tira as fotos apagadas das escolhas de local e da ordem
+      const gone = new Set(toRemove);
+      const nextImages = Object.fromEntries(Object.entries(chosen).filter(([u]) => !gone.has(u)));
+      if (Object.keys(nextImages).length !== Object.keys(chosen).length || saved.some((u) => gone.has(u))) {
+        onChange({ ...theme, images: nextImages, imageOrder: saved.filter((u) => !gone.has(u)) });
+      }
+      toast.success(toRemove.length === 1 ? 'Foto apagada.' : `${toRemove.length} fotos apagadas.`);
+      setToRemove(null);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setRemoving(false);
+    }
+  };
+  const outside = listed.slice(activeCount).map((i) => i.url);
+
   if (!allowed.length) {
     return (
       <div className="space-y-4">
@@ -510,7 +546,12 @@ export function PhotosTab({ theme, onChange, images, onAddPhotos }: { theme: The
               <li className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Ativas na página ({activeCount})</li>
             ) : null}
             {i === activeCount ? (
-              <li className="pt-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Fora da página ({listed.length - activeCount})</li>
+              <li className="flex items-center justify-between gap-2 pt-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                Fora da página ({listed.length - activeCount})
+                <button type="button" onClick={() => setToRemove(outside)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 normal-case tracking-normal text-zinc-500 hover:bg-red-50 hover:text-red-600">
+                  <Trash2 className="size-3.5" /> Apagar todas
+                </button>
+              </li>
             ) : null}
             <li
               draggable
@@ -541,10 +582,24 @@ export function PhotosTab({ theme, onChange, images, onAddPhotos }: { theme: The
                 </Select>
                 {img.alt_text ? <p className="mt-1 truncate text-[11px] text-zinc-500">{img.alt_text}</p> : null}
               </div>
+              <button type="button" onClick={() => setToRemove([img.url])} title="Apagar foto" aria-label="Apagar foto" className="flex-none rounded-md p-2 text-zinc-400 hover:bg-red-50 hover:text-red-600">
+                <Trash2 className="size-4" />
+              </button>
             </li>
           </Fragment>
         ))}
       </ul>
+
+      <ConfirmDialog
+        open={!!toRemove}
+        title={toRemove && toRemove.length > 1 ? `Apagar ${toRemove.length} fotos?` : 'Apagar foto?'}
+        description="As fotos saem do cadastro da empresa e de todas as Landing Pages dela. Não dá para desfazer."
+        confirmLabel="Apagar"
+        danger
+        loading={removing}
+        onConfirm={() => void removePhotos()}
+        onClose={() => setToRemove(null)}
+      />
 
       {blocked.length ? (
         <p className="text-xs text-zinc-500">

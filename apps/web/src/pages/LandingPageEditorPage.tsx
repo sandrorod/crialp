@@ -164,6 +164,11 @@ export function LandingPageEditorPage() {
     }
   };
 
+  const removePhotos = async (urls: string[]) => {
+    await companyService.removeImages(lp.company_id, urls);
+    await reloadCompany();
+  };
+
   const publish = async () => {
     if (dirty && !(await save())) return;
     setPublishing(true);
@@ -340,7 +345,7 @@ export function LandingPageEditorPage() {
           <div className="xl:max-h-[calc(72vh+10px)] xl:overflow-y-auto xl:pr-1">
             {tab === 'textos' ? <ContentTab content={content} onChange={change(setContent)} company={company} /> : null}
             {tab === 'modelo' ? <Card className="p-5"><TemplateTab theme={theme} onChange={change(setTheme)} hasPhoto={!!company?.images.some((i) => i.usage_allowed && i.type !== 'logo')} /></Card> : null}
-            {tab === 'fotos' ? <Card className="p-5"><PhotosTab theme={theme} onChange={change(setTheme)} images={company?.images ?? null} onAddPhotos={addPhotos} /></Card> : null}
+            {tab === 'fotos' ? <Card className="p-5"><PhotosTab theme={theme} onChange={change(setTheme)} images={company?.images ?? null} onAddPhotos={addPhotos} onRemovePhotos={removePhotos} /></Card> : null}
             {tab === 'visual' ? <Card className="p-5"><DesignTab theme={theme} onChange={change(setTheme)} content={content} /></Card> : null}
             {tab === 'seo' ? <Card className="p-5"><SeoTab seo={seo} onChange={change(setSeo)} slug={lp.slug} /></Card> : null}
             {tab === 'publicacao' ? <Card className="p-5"><PublishTab lp={lp} onUpdated={refresh} /></Card> : null}

@@ -52,7 +52,25 @@ function decrypt(payload: string): string | null {
 
 const hashKey = (key: string) => crypto.createHash('sha256').update(key.trim()).digest('hex');
 
+/** Chave da variável de ambiente removida pelo painel (vale só para aquela chave: trocar a variável a traz de volta). */
+const ENV_KEY_REMOVED = 'gemini_env_key_removed';
+
 export const aiKeyStore = {
+  /** A chave da variável de ambiente, se não foi removida pelo painel. */
+  async activeEnvKey(envKey?: string): Promise<string | undefined> {
+    if (!envKey) return undefined;
+    const row = await one<{ value: string }>('select value from app_settings where key = $1', [ENV_KEY_REMOVED]);
+    return row?.value === hashKey(envKey) ? undefined : envKey;
+  },
+
+  async removeEnvKey(envKey: string) {
+    await query(
+      `insert into app_settings (key, value) values ($1, $2)
+       on conflict (key) do update set value = excluded.value, updated_at = now()`,
+      [ENV_KEY_REMOVED, hashKey(envKey)],
+    );
+  },
+
   async list(provider = 'gemini'): Promise<AIKeyInfo[]> {
     const { rows } = await query<AIKeyInfo>(
       `select id, label, last4, active, uses::int as uses, last_used_at, last_error, last_error_at, created_at
@@ -92,7 +110,7 @@ export const aiKeyStore = {
 
   /** Há alguma chave utilizável (ambiente ou banco ativa)? */
   async hasAny(provider = 'gemini', envKey?: string) {
-    if (envKey) return true;
+    if (await this.activeEnvKey(envKey)) return true;
     return !!(await one('select 1 from ai_api_keys where provider = $1 and active limit 1', [provider]));
   },
 
@@ -106,6 +124,7 @@ export const aiKeyStore = {
       [provider],
     );
     const keys: AIKey[] = [];
+    envKey = await this.activeEnvKey(envKey);
     if (envKey) keys.push({ id: null, key: envKey, label: 'variável de ambiente' });
     for (const r of rows) {
       const key = decrypt(r.key_encrypted);

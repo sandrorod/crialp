@@ -81,6 +81,14 @@ export async function appendCompanyImages(orgId: string, companyId: string, imag
   });
 }
 
+/** Apaga fotos do cadastro da empresa (pelo endereço). */
+export async function removeCompanyImages(orgId: string, companyId: string, urls: string[]) {
+  const owner = await one('select 1 from companies where id = $1 and organization_id = $2', [companyId, orgId]);
+  if (!owner) return false;
+  await query('delete from company_images where company_id = $1 and url = any($2::text[])', [companyId, urls]);
+  return true;
+}
+
 async function replaceChildren(db: pg.PoolClient, companyId: string, input: CompanyInput) {
   await db.query('delete from company_services where company_id = $1', [companyId]);
   await db.query('delete from company_products where company_id = $1', [companyId]);
