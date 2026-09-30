@@ -51,10 +51,13 @@ export class GeminiProvider implements AIProvider {
     return c;
   }
 
-  /** Valida uma chave antes de cadastrá-la (consulta o modelo configurado). */
+  /**
+   * Valida uma chave antes de cadastrá-la. Só confere se o Google aceita a chave: a disponibilidade
+   * do modelo não recusa o cadastro, porque na geração o modelo reserva assume.
+   */
   async testKey(key: string): Promise<void> {
     try {
-      await new GoogleGenAI({ apiKey: key.trim() }).models.get({ model: this.model });
+      await new GoogleGenAI({ apiKey: key.trim() }).models.list({ config: { pageSize: 1 } });
     } catch (err) {
       throw this.mapError(err);
     }
@@ -139,9 +142,10 @@ export class GeminiProvider implements AIProvider {
       try {
         return await fn(models[i]);
       } catch (err) {
-        // Sobrecarga ou cota do modelo (no Gemini a cota é por modelo): tenta o modelo reserva
+        // Sobrecarga, cota do modelo (no Gemini a cota é por modelo) ou modelo inexistente para a chave: tenta o reserva
         const overloaded = err instanceof ApiError && (err.status >= 500 || err.status === 429);
-        if (!overloaded || i >= models.length - 1) throw err;
+        const missing = err instanceof ApiError && (err.status === 404 || /not found|is not supported/i.test(err.message ?? ''));
+        if (!(overloaded || missing) || i >= models.length - 1) throw err;
         console.warn(`[ia] ${models[i]} indisponível (${(err as ApiError).status}); usando ${models[i + 1]}`);
       }
     }
