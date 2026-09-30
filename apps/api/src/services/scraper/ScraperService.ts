@@ -170,6 +170,8 @@ interface ProfileScope {
   pathPrefix: string;
   /** Nomes da plataforma: e-mails, redes e dados estruturados com eles são descartados */
   aliases: string[];
+  /** Identificadores do perfil (último trecho do caminho, com e sem o código final): fotos com eles no endereço são do cliente */
+  ids: string[];
 }
 
 function profileScopeOf(url: URL): ProfileScope | null {
@@ -185,7 +187,21 @@ function profileScopeOf(url: URL): ProfileScope | null {
   if (!dir) return null;
   const first = segments[0].toLowerCase();
   const pathPrefix = GENERIC_SEGMENTS.has(first) ? url.pathname.replace(/\/$/, '') : `/${segments[0]}`;
-  return { pathPrefix, aliases: dir.aliases };
+  const last = decodeURIComponent(segments[segments.length - 1]).toLowerCase();
+  const withoutCode = last.replace(/[-_][a-z0-9]{4,}$/, '');
+  const ids = [...new Set([last, withoutCode])].filter((s) => s.length >= 8 && /[a-z]/.test(s));
+  return { pathPrefix, aliases: dir.aliases, ids };
+}
+
+/** Imagem citada em script dentro de um perfil: só entra se o endereço tiver o identificador do próprio perfil. */
+function belongsToProfile(imageUrl: string, scope: ProfileScope) {
+  let v = imageUrl.toLowerCase();
+  try {
+    v = decodeURIComponent(v);
+  } catch {
+    // mantém como está
+  }
+  return scope.ids.some((id) => v.includes(id));
 }
 
 function mentionsPlatform(value: string, scope: ProfileScope | null) {
@@ -592,12 +608,14 @@ export class ScraperService {
         }
       });
 
-      // Por último, imagens citadas em scripts/JSON (páginas montadas por JavaScript), fora de perfis de plataforma
-      if (!scope) {
-        $('script:not([type="application/ld+json"])').each((_, el) => {
-          for (const m of $(el).text().matchAll(EMBEDDED_IMG_RE)) addImage(m[0].replace(/\\\//g, '/'), url, '', 'script');
-        });
-      }
+      // Por último, imagens citadas em scripts/JSON (páginas montadas por JavaScript, galerias carregadas depois).
+      // Em perfis de plataforma, só as fotos do próprio perfil (as de outras empresas também aparecem nos scripts).
+      $('script:not([type="application/ld+json"])').each((_, el) => {
+        for (const m of $(el).text().matchAll(EMBEDDED_IMG_RE)) {
+          const src = m[0].replace(/\\\//g, '/');
+          if (!scope || belongsToProfile(src, scope)) addImage(src, url, '', 'script');
+        }
+      });
 
       // Texto visível (sem repetir menus/rodapés já vistos em outras páginas)
       const text = pageText($, scope)
