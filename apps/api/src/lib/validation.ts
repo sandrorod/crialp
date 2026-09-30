@@ -2,26 +2,42 @@ import { z } from 'zod';
 import { badRequest } from './errors.js';
 import { IMAGE_TYPES } from '../services/ai/schemas.js';
 
-/** Texto opcional: aparado, com limite de tamanho; vazio vira null. */
+/**
+ * Texto opcional: aparado, com limite de tamanho; vazio vira null.
+ * Boa parte do cadastro vem da IA a partir do site: texto além do limite é cortado, não recusado.
+ */
 export const text = (max = 500) =>
   z
     .string()
-    .max(max)
     .nullish()
     .transform((v) => {
-      const t = v?.replace(/\s+/g, ' ').trim();
+      const t = v?.replace(/\s+/g, ' ').trim().slice(0, max).trim();
       return t ? t : null;
     });
 
 export const longText = (max = 5000) =>
   z
     .string()
-    .max(max)
     .nullish()
     .transform((v) => {
-      const t = v?.trim();
+      const t = v?.trim().slice(0, max).trim();
       return t ? t : null;
     });
+
+/** Lista com limite de itens: o excesso é descartado em vez de recusar o cadastro inteiro. */
+const capped = <T extends z.ZodTypeAny>(item: T, max: number) =>
+  z
+    .array(item)
+    .default([])
+    .transform((arr) => arr.slice(0, max) as z.infer<T>[]);
+
+/** Nome obrigatório (serviço, produto): aparado e cortado no limite. */
+const requiredName = (max = 200) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .transform((v) => v.slice(0, max).trim());
 
 /** URL http(s) ou caminho de upload local. Bloqueia javascript:, data: etc. */
 export const safeUrl = z
@@ -95,51 +111,40 @@ export const CompanyInputSchema = z.object({
   youtube: safeUrl,
   linkedin: safeUrl,
   tiktok: safeUrl,
-  other_socials: z
-    .array(z.object({ network: z.string().trim().max(60), url: safeUrl }))
-    .max(20)
-    .default([])
-    .transform((arr) => arr.filter((s): s is { network: string; url: string } => !!s.url)),
+  other_socials: capped(z.object({ network: z.string().trim().transform((v) => v.slice(0, 60)), url: safeUrl }), 20).transform((arr) =>
+    arr.filter((s): s is { network: string; url: string } => !!s.url),
+  ),
   opening_hours: longText(1000),
   commercial_info: CommercialInfoSchema,
-  services: z
-    .array(
-      z.object({
-        name: z.string().trim().min(1).max(200),
-        description: longText(2000),
-        benefits: stringList(15),
-        details: longText(2000),
-      }),
-    )
-    .max(60)
-    .default([]),
-  products: z
-    .array(
-      z.object({
-        name: z.string().trim().min(1).max(200),
-        description: longText(2000),
-        features: stringList(15),
-        benefits: stringList(15),
-      }),
-    )
-    .max(60)
-    .default([]),
-  images: z
-    .array(
-      z.object({
-        url: safeUrl.refine((v) => !!v, 'URL da imagem inválida.').transform((v) => v as string),
-        type: z.enum(IMAGE_TYPES).default('other'),
-        alt_text: text(300),
-        source: z.enum(['scraped', 'upload', 'manual']).default('manual'),
-        usage_allowed: z.boolean().default(false),
-      }),
-    )
-    .max(60)
-    .default([]),
-  testimonials: z
-    .array(z.object({ author: text(200), text: z.string().trim().min(1).max(3000), source_url: safeUrl }))
-    .max(40)
-    .default([]),
+  services: capped(
+    z.object({
+      name: requiredName(),
+      description: longText(2000),
+      benefits: stringList(15),
+      details: longText(4000),
+    }),
+    150,
+  ),
+  products: capped(
+    z.object({
+      name: requiredName(),
+      description: longText(2000),
+      features: stringList(15),
+      benefits: stringList(15),
+    }),
+    150,
+  ),
+  images: capped(
+    z.object({
+      url: safeUrl.refine((v) => !!v, 'URL da imagem inválida.').transform((v) => v as string),
+      type: z.enum(IMAGE_TYPES).default('other'),
+      alt_text: text(300),
+      source: z.enum(['scraped', 'upload', 'manual']).default('manual'),
+      usage_allowed: z.boolean().default(false),
+    }),
+    200,
+  ),
+  testimonials: capped(z.object({ author: text(200), text: requiredName(3000), source_url: safeUrl }), 100),
 });
 export type CompanyInput = z.infer<typeof CompanyInputSchema>;
 
