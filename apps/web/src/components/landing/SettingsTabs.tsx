@@ -445,10 +445,13 @@ export function PhotosTab({ theme, onChange, images, onAddPhotos }: { theme: The
   };
   const chosen = theme.images ?? {};
   const resolved = resolvePlacements(allowed.map((i) => i.url), chosen);
-  // Ativas (as que aparecem na página) primeiro; "Não usar" vai para o fim sem mudar a página,
-  // já que fotos ocultas não entram na distribuição de topo, "sobre" e galeria
-  const listed = [...allowed.filter((i) => resolved[i.url] !== 'hidden'), ...allowed.filter((i) => resolved[i.url] === 'hidden')];
-  const activeCount = allowed.length - allowed.filter((i) => resolved[i.url] === 'hidden').length;
+  // Ativas = as que aparecem na página: topo, "sobre" e as 9 primeiras da galeria (se tiver 2 ou mais).
+  // Vêm primeiro; as demais vão para o fim sem mudar a página, já que ficam depois das ativas na ordem.
+  const galleryUrls = allowed.map((i) => i.url).filter((u) => resolved[u] === 'gallery');
+  const shownGallery = new Set(galleryUrls.length >= 2 ? galleryUrls.slice(0, 9) : []);
+  const isActive = (u: string) => resolved[u] === 'hero' || resolved[u] === 'about' || shownGallery.has(u);
+  const listed = [...allowed.filter((i) => isActive(i.url)), ...allowed.filter((i) => !isActive(i.url))];
+  const activeCount = allowed.filter((i) => isActive(i.url)).length;
 
   const dragOver = (overUrl: string) => {
     if (!dragging || dragging === overUrl) return;
@@ -503,8 +506,11 @@ export function PhotosTab({ theme, onChange, images, onAddPhotos }: { theme: The
       <ul className="space-y-2">
         {listed.map((img, i) => (
           <Fragment key={img.url}>
-            {i === activeCount && activeCount > 0 ? (
-              <li className="pt-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Não usadas na página</li>
+            {i === 0 && activeCount > 0 ? (
+              <li className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Ativas na página ({activeCount})</li>
+            ) : null}
+            {i === activeCount ? (
+              <li className="pt-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Fora da página ({listed.length - activeCount})</li>
             ) : null}
             <li
               draggable
@@ -525,7 +531,7 @@ export function PhotosTab({ theme, onChange, images, onAddPhotos }: { theme: The
               <span className="cursor-grab text-zinc-400 hover:text-ink active:cursor-grabbing" title="Arraste para reordenar" aria-hidden>
                 <GripVertical className="size-4" />
               </span>
-              <PhotoThumb url={img.url} alt={img.alt_text ?? ''} dimmed={resolved[img.url] === 'hidden'} />
+              <PhotoThumb url={img.url} alt={img.alt_text ?? ''} dimmed={!isActive(img.url)} />
               <div className="min-w-0 flex-1">
                 <Select className="h-9 text-[13px]" value={chosen[img.url] ?? ''} onChange={(e) => setPlacement(img.url, e.target.value as ImagePlacement | '')}>
                   <option value="">Automático{chosen[img.url] ? '' : ` (${PLACEMENT_LABELS[resolved[img.url]]})`}</option>
