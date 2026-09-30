@@ -166,6 +166,7 @@ function attachFocusDrag(doc: Document, getFocus: () => FocusMap, onFocus: (url:
  */
 export function PreviewFrame({
   src,
+  html,
   device,
   height,
   focus,
@@ -179,6 +180,8 @@ export function PreviewFrame({
   sectionSpacing,
 }: {
   src: string;
+  /** HTML do rascunho (mudanças ainda não salvas); ausente = página salva em `src` */
+  html?: string | null;
   device: 'desktop' | 'mobile';
   height: number;
   focus?: FocusMap;
@@ -199,6 +202,8 @@ export function PreviewFrame({
   const frame = useRef<HTMLIFrameElement>(null);
   const [width, setWidth] = useState(0);
   const [picked, setPicked] = useState<PickedElement | null>(null);
+  // Posição da rolagem, mantida quando a prévia é recarregada com o rascunho
+  const scrollY = useRef(0);
   // Refs para os ouvintes do iframe sempre enxergarem o estado mais recente
   const focusRef = useRef(focus ?? {});
   focusRef.current = focus ?? {};
@@ -252,6 +257,11 @@ export function PreviewFrame({
   const onLoad = (e: SyntheticEvent<HTMLIFrameElement>) => {
     const d = e.currentTarget.contentDocument;
     if (!d) return;
+    const win = d.defaultView;
+    if (win) {
+      if (scrollY.current) win.scrollTo({ top: scrollY.current, behavior: 'instant' });
+      win.addEventListener('scroll', () => (scrollY.current = win.scrollY), { passive: true });
+    }
     setupEditorDocument(d);
     setPreviewMode(d, modeRef.current);
     if (onFocusRef.current) attachFocusDrag(d, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), uiScale);
@@ -319,7 +329,7 @@ export function PreviewFrame({
   if (device === 'mobile') {
     return (
       <div ref={box} className="mx-auto w-[390px] max-w-full overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-black/5">
-        <iframe ref={frame} title="Prévia da Landing Page" src={src} onLoad={onLoad} className="w-full border-0" style={{ height }} />
+        <iframe ref={frame} title="Prévia da Landing Page" src={src} srcDoc={html ?? undefined} onLoad={onLoad} className="w-full border-0" style={{ height }} />
         {popup}
       </div>
     );
@@ -332,6 +342,7 @@ export function PreviewFrame({
           ref={frame}
           title="Prévia da Landing Page"
           src={src}
+          srcDoc={html ?? undefined}
           onLoad={onLoad}
           className="origin-top-left border-0"
           style={{ width: DESKTOP_WIDTH, height: height / scale, transform: `scale(${scale})` }}

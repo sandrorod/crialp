@@ -160,7 +160,7 @@ export function GallerySection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
         <div className="gallery">
           {photos.slice(0, 9).map((img) => (
             <figure key={img.url} className="reveal">
-              <img referrerPolicy="no-referrer" src={img.url} alt={img.alt} loading="lazy" decoding="async" />
+              <img referrerPolicy="no-referrer" src={img.url} alt={img.alt} loading="lazy" decoding="async" data-lp-img={img.url} style={img.style} />
             </figure>
           ))}
         </div>

@@ -39,6 +39,7 @@ html:not(.lp-mode-fotos) [data-lp-ui="zoom"]{display:none!important}
 html:not(.lp-mode-secoes) [data-lp-ui="section"]{display:none!important}
 html.lp-mode-secoes main>[data-section]:not([data-section="hero"]):not([data-section="contact"]):not([data-section="final_cta"]){outline:2px dashed rgba(37,99,235,.45);outline-offset:-3px}
 html:not(.lp-mode-fotos) [data-lp-drag-handle]{cursor:auto!important;touch-action:auto!important}
+html.lp-mode-fotos .gallery figure:hover img:not([style*=scale]){transform:none}
 html.lp-mode-cores body *{cursor:crosshair!important}
 html.lp-mode-textos [data-lp-text]{outline:1px dashed rgba(37,99,235,.55);outline-offset:3px;cursor:text!important;border-radius:2px}
 html.lp-mode-textos [data-lp-text]:hover{outline:2px solid #2563eb}

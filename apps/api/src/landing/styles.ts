@@ -147,7 +147,7 @@ p{margin:0;text-wrap:pretty}
 .gallery figure{margin:0;border-radius:var(--radius-sm);overflow:hidden;background:var(--surface);aspect-ratio:1}
 @media(min-width:860px){.gallery figure{aspect-ratio:auto}}
 .gallery img{width:100%;height:100%;object-fit:cover;transition:transform .6s ease}
-.gallery figure:hover img{transform:scale(1.04)}
+.gallery figure:hover img:not([style*=scale]){transform:scale(1.04)}
 
 /* Depoimentos */
 .quotes{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}

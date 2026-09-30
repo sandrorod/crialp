@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { ContentTab } from '@/components/landing/ContentTab';
 import { PreviewFrame } from '@/components/landing/PreviewFrame';
 import { applyTextEdit, type PreviewMode } from '@/components/landing/previewTools';
-import { DesignTab, PhotosTab, TemplateTab, PublishTab, SeoTab, VersionsTab, type SeoState } from '@/components/landing/SettingsTabs';
+import { DesignTab, PhotosTab, TemplateTab, PublishTab, SeoTab, VersionsTab, type NewPhoto, type SeoState } from '@/components/landing/SettingsTabs';
 import { ProgressSteps } from '@/components/ProgressSteps';
 import { Button, Card, ConfirmDialog, ErrorBlock, LoadingBlock, StatusToggle } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
@@ -29,7 +29,7 @@ const TABS: { key: Tab; label: string }[] = [
 
 const MODES: { key: PreviewMode; label: string; icon: typeof Monitor; hint: string }[] = [
   { key: 'textos', label: 'Textos', icon: PenLine, hint: 'Clique em qualquer texto contornado para editar ali mesmo (A− / A+ mudam o tamanho). Enter ou clicar fora confirma; Esc desfaz.' },
-  { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste as fotos do topo e da seção "Sobre" para ajustar o enquadramento; use − / + para o zoom.' },
+  { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste qualquer foto (topo, "Sobre" e galeria) para ajustar o enquadramento; use − / + para o zoom.' },
   { key: 'secoes', label: 'Seções', icon: Rows3, hint: 'Arraste as seções pelo botão ⠿ (ou use ↑ ↓) para mudar a ordem.' },
   { key: 'cores', label: 'Cores', icon: Palette, hint: 'Clique em qualquer elemento (título, texto, botão, fundo…) para escolher a cor da fonte, do fundo e o tamanho.' },
 ];
@@ -40,11 +40,21 @@ function mergeSectionOrder(order: SectionOrderKey[], keys: string[]): SectionOrd
   return [...moved, ...order.filter((k) => !moved.includes(k))];
 }
 
+/**
+ * Partes do tema que mudam a estrutura/cores renderizadas no servidor. Enquadramento, cores de
+ * elementos, margens e ordem no celular são aplicados direto na prévia e não entram aqui.
+ */
+function renderedThemeKey(t: ThemeSettings | null | undefined) {
+  if (!t) return '';
+  const { preset, primary, accent, heroVariant, sections, images, template, imageOrder } = t;
+  return JSON.stringify({ preset, primary, accent, heroVariant, sections, images, template, imageOrder });
+}
+
 export function LandingPageEditorPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const { data: lp, error, loading, reload } = useAsync(() => landingPageService.get(id), [id]);
-  const { data: company } = useAsync(async () => (lp ? companyService.get(lp.company_id) : null), [lp?.company_id]);
+  const { data: company, reload: reloadCompany } = useAsync(async () => (lp ? companyService.get(lp.company_id) : null), [lp?.company_id]);
   const [tab, setTab] = useState<Tab>('textos');
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [mode, setMode] = useState<PreviewMode>('textos');
@@ -53,6 +63,8 @@ export function LandingPageEditorPage() {
   const [theme, setTheme] = useState<ThemeSettings | null>(null);
   const [seo, setSeo] = useState<SeoState | null>(null);
   const [dirty, setDirty] = useState(false);
+  // Prévia do rascunho: modelo, cores, topo e fotos aparecem na hora, antes de salvar
+  const [draftHtml, setDraftHtml] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [regenOpen, setRegenOpen] = useState(false);
@@ -73,7 +85,28 @@ export function LandingPageEditorPage() {
     setTheme(lp.theme);
     setSeo({ seo_title: lp.seo_title, seo_description: lp.seo_description, seo_keywords: lp.seo_keywords, og_image: lp.og_image });
     setDirty(false);
+    setDraftHtml(null);
   }, [lp]);
+
+  const draftKey = renderedThemeKey(theme);
+  const savedKey = renderedThemeKey(lp?.theme);
+  useEffect(() => {
+    if (!lp || !content || !theme) return;
+    // Sem mudança de tema desde o último salvamento, a página salva já é a prévia certa
+    if (draftKey === savedKey && draftHtml === null) return;
+    let cancelled = false;
+    const t = setTimeout(() => {
+      landingPageService
+        .previewDraft(lp.id, { content, theme })
+        .then((r) => !cancelled && setDraftHtml(r.html))
+        .catch((err) => !cancelled && toast.error(`Prévia: ${errorMessage(err)}`));
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey, savedKey]);
 
   useEffect(() => {
     if (job?.status === 'done') {
@@ -111,6 +144,22 @@ export function LandingPageEditorPage() {
       return false;
     } finally {
       setSaving(false);
+    }
+  };
+
+  const addPhotos = async (photos: NewPhoto[]) => {
+    await companyService.addImages(lp.company_id, photos);
+    await reloadCompany();
+    // Sem galeria na página: cria a seção antes de depoimentos/FAQ/contato
+    if (!content.gallery) {
+      setContent((c) => {
+        if (!c || c.gallery) return c;
+        const order: SectionOrderKey[] = c.section_order.filter((k) => k !== 'gallery');
+        const before = ['testimonials', 'faq', 'contact', 'final_cta'].map((k) => order.indexOf(k as SectionOrderKey)).filter((i) => i >= 0);
+        order.splice(before.length ? Math.min(...before) : order.length, 0, 'gallery');
+        return { ...c, gallery: { title: 'Conheça nosso espaço', subtitle: null }, section_order: order };
+      });
+      setDirty(true);
     }
   };
 
@@ -231,6 +280,7 @@ export function LandingPageEditorPage() {
             <PreviewFrame
               key={`${frameKey}-${device}`}
               src={landingPageService.previewUrl(lp.id)}
+              html={draftHtml}
               device={device}
               height={Math.round(window.innerHeight * 0.72)}
               focus={theme.focus}
@@ -278,7 +328,7 @@ export function LandingPageEditorPage() {
           <div className="xl:max-h-[calc(72vh+10px)] xl:overflow-y-auto xl:pr-1">
             {tab === 'textos' ? <ContentTab content={content} onChange={change(setContent)} company={company} /> : null}
             {tab === 'modelo' ? <Card className="p-5"><TemplateTab theme={theme} onChange={change(setTheme)} hasPhoto={!!company?.images.some((i) => i.usage_allowed && i.type !== 'logo')} /></Card> : null}
-            {tab === 'fotos' ? <Card className="p-5"><PhotosTab theme={theme} onChange={change(setTheme)} images={company?.images ?? null} /></Card> : null}
+            {tab === 'fotos' ? <Card className="p-5"><PhotosTab theme={theme} onChange={change(setTheme)} images={company?.images ?? null} onAddPhotos={addPhotos} /></Card> : null}
             {tab === 'visual' ? <Card className="p-5"><DesignTab theme={theme} onChange={change(setTheme)} content={content} /></Card> : null}
             {tab === 'seo' ? <Card className="p-5"><SeoTab seo={seo} onChange={change(setSeo)} slug={lp.slug} /></Card> : null}
             {tab === 'publicacao' ? <Card className="p-5"><PublishTab lp={lp} onUpdated={refresh} /></Card> : null}

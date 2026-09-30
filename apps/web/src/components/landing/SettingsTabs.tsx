@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { Check, CheckCircle2, Clock, Copy, Globe, GripVertical, ImageOff, RotateCcw, ShieldAlert, XCircle } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Check, CheckCircle2, Clock, Copy, Globe, GripVertical, ImageOff, Link2, RotateCcw, ShieldAlert, Upload, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Field, Input, ListEditor, Select, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { cn, copyToClipboard, formatDate } from '@/lib/utils';
-import { landingPageService } from '@/services';
+import { landingPageService, miscService } from '@/services';
 import type { CompanyImage, HeroVariant, ImagePlacement, LandingContent, TemplateKey, LandingPageDetail, SectionColors, SectionOrderKey, ThemeSettings } from '@/types';
 
 // ─── Visual ─────────────────────────────────────────────────────────
@@ -344,7 +344,68 @@ function resolvePlacements(urls: string[], chosen: Record<string, ImagePlacement
   return out;
 }
 
-export function PhotosTab({ theme, onChange, images }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; images: CompanyImage[] | null }) {
+export type NewPhoto = { url: string; source: 'upload' | 'manual' };
+
+/** Envio de arquivos ou URL: as fotos vão para o cadastro da empresa, já liberadas, e entram no início da galeria. */
+function AddPhotos({ onAdd }: { onAdd: (photos: NewPhoto[]) => Promise<void> }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [url, setUrl] = useState('');
+  const run = async (task: () => Promise<NewPhoto[]>) => {
+    setBusy(true);
+    try {
+      const photos = await task();
+      if (photos.length) {
+        await onAdd(photos);
+        toast.success(photos.length === 1 ? 'Foto adicionada à galeria.' : `${photos.length} fotos adicionadas à galeria.`);
+      }
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const upload = (files: File[]) =>
+    run(async () => {
+      const out: NewPhoto[] = [];
+      for (const f of files) out.push({ url: (await miscService.upload(f)).url, source: 'upload' });
+      return out;
+    });
+  const addUrl = () =>
+    run(async () => {
+      const u = url.trim();
+      if (!/^https?:\/\//i.test(u)) throw new Error('Informe uma URL começando com http:// ou https://');
+      setUrl('');
+      return [{ url: u, source: 'manual' }];
+    });
+  return (
+    <div className="rounded-lg border border-dashed border-zinc-300 p-3">
+      <h4 className="mb-1 text-sm font-semibold">Adicionar fotos à galeria</h4>
+      <p className="mb-2 text-xs text-zinc-500">As fotos entram no cadastro da empresa, já liberadas para uso, e aparecem no início da galeria.</p>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="secondary" size="sm" loading={busy} icon={<Upload className="size-4" />} onClick={() => fileRef.current?.click()}>Enviar fotos</Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          multiple
+          hidden
+          onChange={(e) => {
+            const files = [...(e.target.files ?? [])];
+            e.target.value = '';
+            if (files.length) void upload(files);
+          }}
+        />
+        <div className="flex min-w-0 flex-1 gap-2">
+          <Input value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), void addUrl())} placeholder="https://… (URL da foto)" className="h-9 min-w-0 text-[13px]" />
+          <Button type="button" variant="secondary" size="sm" disabled={busy || !url.trim()} icon={<Link2 className="size-4" />} onClick={() => void addUrl()}>Adicionar</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function PhotosTab({ theme, onChange, images, onAddPhotos }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; images: CompanyImage[] | null; onAddPhotos: (photos: NewPhoto[]) => Promise<void> }) {
   // Ordem provisória enquanto uma foto está sendo arrastada
   const [dragOrder, setDragOrder] = useState<string[] | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -385,11 +446,23 @@ export function PhotosTab({ theme, onChange, images }: { theme: ThemeSettings; o
     onChange({ ...theme, images: next });
   };
 
+  const addPhotos = async (photos: NewPhoto[]) => {
+    await onAddPhotos(photos);
+    const urls = photos.map((p) => p.url);
+    const nextImages = { ...chosen };
+    for (const u of urls) nextImages[u] = 'gallery';
+    // Novas fotos primeiro na ordem: marcadas como galeria, não tomam o lugar do topo nem de "sobre"
+    onChange({ ...theme, images: nextImages, imageOrder: [...urls, ...allowed.map((i) => i.url).filter((u) => !urls.includes(u))] });
+  };
+
   if (!allowed.length) {
     return (
-      <p className="text-sm text-zinc-500">
-        Nenhuma foto liberada para uso. Libere fotos em "Editar empresa" para escolher onde cada uma aparece.
-      </p>
+      <div className="space-y-4">
+        <p className="text-sm text-zinc-500">
+          Nenhuma foto liberada para uso. Adicione fotos abaixo ou libere as fotos coletadas em "Editar empresa".
+        </p>
+        <AddPhotos onAdd={addPhotos} />
+      </div>
     );
   }
 
@@ -402,6 +475,9 @@ export function PhotosTab({ theme, onChange, images }: { theme: ThemeSettings; o
         <p className="text-xs text-amber-700">O topo está no estilo "Centralizado", que não exibe foto. Para mostrar a foto do topo, escolha "Dividido" ou "Imagem cheia" em "Cores e estilo".</p>
       ) : null}
       {galleryCount === 1 ? <p className="text-xs text-amber-700">A galeria só aparece com pelo menos 2 fotos.</p> : null}
+      {galleryCount > 9 ? <p className="text-xs text-amber-700">A galeria mostra até 9 fotos: as {galleryCount - 9} últimas da lista ficam de fora.</p> : null}
+
+      <AddPhotos onAdd={addPhotos} />
 
       <ul className="space-y-2">
         {allowed.map((img) => (

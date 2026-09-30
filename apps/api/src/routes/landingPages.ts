@@ -128,6 +128,16 @@ const ContentUpdateSchema = z.object({
   note: z.string().max(200).optional(),
 });
 
+/** Prévia do rascunho (conteúdo e tema ainda não salvos), para o editor mostrar as mudanças na hora. */
+landingPagesRouter.post('/:id/preview', async (req, res) => {
+  const user = authUser(req);
+  const lp = await loadOr404(user.organizationId, req.params.id);
+  const body = parseBody(ContentUpdateSchema.pick({ content: true, theme: true }), req.body);
+  const html = await renderFromData({ ...lp, content: body.content as LandingContent, theme: normalizeThemeSettings(body.theme) }, { editable: true });
+  if (!html) throw notFound('Empresa não encontrada.');
+  res.json({ html });
+});
+
 /** Edição manual de textos/cores/SEO — sempre gera uma nova versão. */
 landingPagesRouter.put('/:id/content', async (req, res) => {
   const user = authUser(req);

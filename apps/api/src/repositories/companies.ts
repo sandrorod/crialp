@@ -57,6 +57,29 @@ const colValue = (input: CompanyInput, col: (typeof COMPANY_COLUMNS)[number]) =>
   return JSON_COLUMNS.has(col) ? JSON.stringify(v ?? (col === 'other_socials' ? [] : {})) : v ?? null;
 };
 
+/** Acrescenta fotos ao fim da lista da empresa (já liberadas para uso). Ignora URLs repetidas. */
+export async function appendCompanyImages(orgId: string, companyId: string, images: { url: string; alt_text: string | null; source: string }[]) {
+  return transaction(async (db) => {
+    const owner = await db.query('select 1 from companies where id = $1 and organization_id = $2', [companyId, orgId]);
+    if (!owner.rowCount) return false;
+    const { rows } = await db.query<{ url: string; pos: number }>(
+      'select url, position as pos from company_images where company_id = $1',
+      [companyId],
+    );
+    const existing = new Set(rows.map((r) => r.url));
+    let pos = rows.reduce((m, r) => Math.max(m, r.pos), -1);
+    for (const img of images) {
+      if (existing.has(img.url)) continue;
+      existing.add(img.url);
+      await db.query(
+        `insert into company_images (company_id, url, type, alt_text, source, usage_allowed, position) values ($1,$2,'gallery',$3,$4,true,$5)`,
+        [companyId, img.url, img.alt_text, img.source, ++pos],
+      );
+    }
+    return true;
+  });
+}
+
 async function replaceChildren(db: pg.PoolClient, companyId: string, input: CompanyInput) {
   await db.query('delete from company_services where company_id = $1', [companyId]);
   await db.query('delete from company_products where company_id = $1', [companyId]);

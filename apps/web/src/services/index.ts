@@ -52,6 +52,9 @@ export const companyService = {
   remove: (id: string) => api.del(`/companies/${id}`),
   sources: (id: string) => api.get<CompanySources>(`/companies/${id}/sources`),
   refreshSources: (id: string) => api.post<CompanySources>(`/companies/${id}/sources/refresh`),
+  /** Fotos adicionadas pelo editor da LP (entram liberadas para uso). */
+  addImages: (id: string, images: { url: string; alt_text?: string | null; source: 'upload' | 'manual' }[]) =>
+    api.post<Company>(`/companies/${id}/images`, { images }),
   fetchImages: (id: string, allowImages: boolean) =>
     api.post<{ images: CompanyImage[]; found: number; classified: boolean }>(`/companies/${id}/fetch-images`, { allowImages }),
 };
@@ -76,6 +79,8 @@ export const landingPageService = {
   restore: (id: string, version: number) => api.post<LandingPage>(`/landing-pages/${id}/versions/${version}/restore`),
   remove: (id: string) => api.del(`/landing-pages/${id}`),
   previewUrl: (id: string) => `/api/landing-pages/${id}/preview`,
+  /** HTML da prévia com conteúdo e tema ainda não salvos. */
+  previewDraft: (id: string, body: { content: LandingContent; theme: ThemeSettings }) => api.post<{ html: string }>(`/landing-pages/${id}/preview`, body),
   exportUrl: (id: string) => `/api/landing-pages/${id}/export`,
 };
 

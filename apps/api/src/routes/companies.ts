@@ -3,9 +3,9 @@ import { z } from 'zod';
 import { query } from '../db/pool.js';
 import { AppError, notFound } from '../lib/errors.js';
 import { normalizeInputUrl } from '../lib/url.js';
-import { CompanyInputSchema, parseBody, uuidParam, type CompanyInput } from '../lib/validation.js';
+import { CompanyInputSchema, parseBody, safeUrl, uuidParam, type CompanyInput } from '../lib/validation.js';
 import { authUser } from '../middleware/auth.js';
-import { createCompany, deleteCompany, findDuplicateCompany, getCompanyFull, listCompanies, updateCompany } from '../repositories/companies.js';
+import { appendCompanyImages, createCompany, deleteCompany, findDuplicateCompany, getCompanyFull, listCompanies, updateCompany } from '../repositories/companies.js';
 import { saveVersion, type LandingPageRow } from '../repositories/landingPages.js';
 import { refreshSnapshot } from '../landing/publish.js';
 import { aiService } from '../services/ai/index.js';
@@ -95,6 +95,32 @@ companiesRouter.put('/:id', async (req, res) => {
   const company = (await getCompanyFull(user.organizationId, id))!;
   const { rows } = await query<LandingPageRow>('select * from landing_pages where company_id = $1', [id]);
   for (const lp of rows) await refreshSnapshot(await ensureGallery(lp, company, user.organizationId, user.id));
+  res.json(company);
+});
+
+/** Fotos adicionadas pelo editor da LP (envio ou URL): entram já liberadas para uso. */
+companiesRouter.post('/:id/images', async (req, res) => {
+  const user = authUser(req);
+  const id = uuidParam.parse(req.params.id);
+  const { images } = parseBody(
+    z.object({
+      images: z
+        .array(
+          z.object({
+            url: safeUrl.refine((v) => !!v, 'URL da imagem inválida.').transform((v) => v as string),
+            alt_text: z.string().trim().max(300).nullish().transform((v) => v || null),
+            source: z.enum(['upload', 'manual']).default('manual'),
+          }),
+        )
+        .min(1)
+        .max(30),
+    }),
+    req.body,
+  );
+  if (!(await appendCompanyImages(user.organizationId, id, images))) throw notFound('Empresa não encontrada.');
+  const company = (await getCompanyFull(user.organizationId, id))!;
+  const { rows } = await query<LandingPageRow>('select * from landing_pages where company_id = $1', [id]);
+  for (const lp of rows) await refreshSnapshot(lp);
   res.json(company);
 });
 
