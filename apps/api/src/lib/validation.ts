@@ -43,12 +43,13 @@ export const safeUrl = z
     }
   });
 
+/** Itens longos (textos extraídos do site pela IA) são cortados em vez de recusar o cadastro inteiro. */
+const LIST_ITEM_MAX = 2000;
 const stringList = (max = 30) =>
   z
-    .array(z.string().max(500))
-    .max(max)
+    .array(z.string())
     .default([])
-    .transform((arr) => [...new Set(arr.map((s) => s.trim()).filter(Boolean))]);
+    .transform((arr) => [...new Set(arr.map((s) => s.trim().slice(0, LIST_ITEM_MAX).trim()).filter(Boolean))].slice(0, max));
 
 export const CommercialInfoSchema = z
   .object({
@@ -59,7 +60,7 @@ export const CommercialInfoSchema = z
     calls_to_action: stringList(),
     promotions: stringList(),
     guarantees: stringList(),
-    additional_info: stringList(),
+    additional_info: stringList(60),
   })
   .partial()
   .default({});
