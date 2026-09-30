@@ -29,6 +29,8 @@ function isKeyError(err: unknown) {
 export class GeminiProvider implements AIProvider {
   readonly name = 'gemini';
   private readonly clients = new Map<string, GoogleGenAI>();
+  /** Modelo encontrado para cada chave quando os configurados não existem para ela */
+  private readonly discoveredModels = new Map<string, string | null>();
 
   constructor(
     /** Chave da variável de ambiente (opcional): entra no rodízio junto com as cadastradas no painel. */
@@ -96,7 +98,7 @@ export class GeminiProvider implements AIProvider {
     for (let attempt = 1; attempt <= 2; attempt++) {
       let text: string | undefined;
       try {
-        const response = await this.withFallback((model) =>
+        const response = await this.withFallback(client, key.key, (model) =>
           this.withBackoff(onlyKey, () =>
             client.models.generateContent({
               model,
@@ -136,8 +138,13 @@ export class GeminiProvider implements AIProvider {
   }
 
   /** Tenta o modelo principal e, se continuar sobrecarregado, os modelos reserva. */
-  private async withFallback<R>(fn: (model: string) => Promise<R>): Promise<R> {
+  /**
+   * Tenta o modelo principal e os reservas. Se nenhum existir para a chave (nome descontinuado ou
+   * indisponível no projeto), pergunta ao Google quais modelos a chave pode usar e escolhe um Flash.
+   */
+  private async withFallback<R>(client: GoogleGenAI, apiKey: string, fn: (model: string) => Promise<R>): Promise<R> {
     const models = [this.model, ...this.fallbackModels.filter((m) => m && m !== this.model)];
+    let discovered = false;
     for (let i = 0; ; i++) {
       try {
         return await fn(models[i]);
@@ -145,11 +152,49 @@ export class GeminiProvider implements AIProvider {
         // Sobrecarga, cota do modelo (no Gemini a cota é por modelo) ou modelo inexistente para a chave: tenta o reserva
         const overloaded = err instanceof ApiError && (err.status >= 500 || err.status === 429);
         const missing = err instanceof ApiError && (err.status === 404 || /not found|is not supported/i.test(err.message ?? ''));
-        if (!(overloaded || missing) || i >= models.length - 1) throw err;
+        if (!(overloaded || missing)) throw err;
+        if (i >= models.length - 1) {
+          if (!missing || discovered) throw err;
+          discovered = true;
+          const available = await this.availableModel(client, apiKey, models);
+          if (!available) throw err;
+          models.push(available);
+        }
         console.warn(`[ia] ${models[i]} indisponível (${(err as ApiError).status}); usando ${models[i + 1]}`);
       }
     }
   }
+
+  /** Melhor modelo Flash que a chave pode usar (estável antes de prévia, versão mais nova primeiro). */
+  private async availableModel(client: GoogleGenAI, apiKey: string, tried: string[]): Promise<string | null> {
+    const cached = this.discoveredModels.get(apiKey);
+    if (cached !== undefined) return cached && !tried.includes(cached) ? cached : null;
+    const names: string[] = [];
+    try {
+      const pager = await client.models.list({ config: { pageSize: 100 } });
+      for await (const m of pager) {
+        if (m.name && (m.supportedActions ?? ['generateContent']).includes('generateContent')) names.push(m.name.replace(/^models\//, ''));
+      }
+    } catch (err) {
+      console.warn('[ia] não foi possível listar os modelos da chave:', err instanceof Error ? err.message : err);
+      return null;
+    }
+    const version = (n: string) => Number(/gemini-(\d+(?:\.\d+)?)/.exec(n)?.[1] ?? 0);
+    const candidates = names
+      .filter((n) => /^gemini-/.test(n) && !/(image|tts|audio|live|embedding|vision|robotics|computer-use|native)/i.test(n) && !tried.includes(n))
+      .sort(
+        (a, b) =>
+          Number(/flash/.test(b) && !/lite/.test(b)) - Number(/flash/.test(a) && !/lite/.test(a)) ||
+          Number(/preview|exp/.test(a)) - Number(/preview|exp/.test(b)) ||
+          version(b) - version(a) ||
+          a.length - b.length,
+      );
+    const pick = candidates[0] ?? null;
+    console.warn(`[ia] modelos disponíveis para a chave: ${names.join(', ') || 'nenhum'}; escolhido: ${pick ?? 'nenhum'}`);
+    this.discoveredModels.set(apiKey, pick);
+    return pick;
+  }
+
 
   /** Sobrecarga momentânea (503) ou limite por minuto (429): espera e tenta de novo. */
   private async withBackoff<R>(onlyKey: boolean, fn: () => Promise<R>): Promise<R> {
