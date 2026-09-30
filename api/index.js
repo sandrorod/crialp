@@ -16,7 +16,9 @@ function setupError(req, res, err) {
   res.statusCode = 503;
   if ((req.url || '').startsWith('/api/')) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.end(JSON.stringify({ error: message, code: 'SETUP' }));
+    // Só o código do erro (ex.: ENOTFOUND, ECONNREFUSED, 28P01, 42P07): ajuda o diagnóstico sem expor dados
+    const detail = typeof err?.code === 'string' && /^[A-Z0-9_]{2,40}$/.test(err.code) ? err.code : null;
+    res.end(JSON.stringify({ error: message, code: 'SETUP', detail }));
     return;
   }
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
