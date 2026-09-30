@@ -21,6 +21,14 @@ function toGeminiSchema(schema: z.ZodType): unknown {
 }
 
 /** Erro que é da chave (cota esgotada, chave inválida/sem permissão): vale tentar a próxima chave. */
+/** Gemini sobrecarregado ou instável (500/503): não é culpa da chave, mas outra chave ou uma nova tentativa costuma resolver. */
+function isOverloaded(err: unknown) {
+  return err instanceof ApiError && (err.status >= 500 || /overloaded|unavailable|high demand/i.test(err.message ?? ''));
+}
+
+/** Pausas entre as rodadas por todas as chaves quando o Gemini está sobrecarregado. */
+const OVERLOAD_ROUND_DELAYS = [6000, 15000, 30000];
+
 function isKeyError(err: unknown) {
   if (!(err instanceof ApiError)) return false;
   return err.status === 401 || err.status === 403 || err.status === 429 || /api key not valid|API_KEY_INVALID|permission|quota|exhausted/i.test(err.message ?? '');
@@ -73,19 +81,32 @@ export class GeminiProvider implements AIProvider {
     const keys = await aiKeyStore.rotation('gemini', this.envKey);
     if (!keys.length) throw new AIProviderError('Nenhuma chave do Gemini configurada.', false, 'Nenhuma chave do Gemini cadastrada. Adicione uma em Configurações.');
     let lastError: unknown;
-    for (const [i, key] of keys.entries()) {
-      try {
-        const result = await this.generateWithKey(req, key, keys.length === 1);
-        await aiKeyStore.recordUse(key.id);
-        await aiKeyStore.clearError(key.id);
-        return result;
-      } catch (err) {
-        const raw = (err as { cause?: unknown }).cause ?? err;
-        if (!isKeyError(raw)) throw err;
-        lastError = err;
-        await aiKeyStore.recordError(key.id, raw instanceof Error ? raw.message : String(raw));
-        if (i < keys.length - 1) console.warn(`[ia] chave "${key.label}" indisponível (${(raw as ApiError).status}); tentando a próxima`);
+    // Sobrecarga não aparece para o usuário: passa para a próxima chave e, se todas estiverem
+    // sobrecarregadas, espera um pouco e faz outra rodada
+    for (let round = 0; round <= OVERLOAD_ROUND_DELAYS.length; round++) {
+      let overloaded = false;
+      for (const [i, key] of keys.entries()) {
+        try {
+          const result = await this.generateWithKey(req, key, keys.length === 1);
+          await aiKeyStore.recordUse(key.id);
+          await aiKeyStore.clearError(key.id);
+          return result;
+        } catch (err) {
+          const raw = (err as { cause?: unknown }).cause ?? err;
+          if (isOverloaded(raw)) {
+            overloaded = true;
+            lastError = err;
+            console.warn(`[ia] Gemini sobrecarregado na chave "${key.label}" (${(raw as ApiError).status}); tentando ${i < keys.length - 1 ? 'a próxima chave' : 'nova rodada'}`);
+            continue;
+          }
+          if (!isKeyError(raw)) throw err;
+          lastError = err;
+          await aiKeyStore.recordError(key.id, raw instanceof Error ? raw.message : String(raw));
+          if (i < keys.length - 1) console.warn(`[ia] chave "${key.label}" indisponível (${(raw as ApiError).status}); tentando a próxima`);
+        }
       }
+      if (!overloaded || round === OVERLOAD_ROUND_DELAYS.length) break;
+      await new Promise((r) => setTimeout(r, OVERLOAD_ROUND_DELAYS[round]));
     }
     throw lastError instanceof AIProviderError ? lastError : this.mapError(lastError);
   }
@@ -205,7 +226,8 @@ export class GeminiProvider implements AIProvider {
       } catch (err) {
         // Limite por minuto (429): com uma chave só, espera e tenta de novo; com várias, o rodízio passa para a próxima
         const perMinute = err instanceof ApiError && err.status === 429 && !/per ?day|daily/i.test(err.message);
-        const transient = err instanceof ApiError && (err.status === 503 || err.status === 500 || (onlyKey && perMinute));
+        // Sobrecarga com várias chaves: não insiste nesta, o rodízio passa para a próxima na hora
+        const transient = err instanceof ApiError && onlyKey && (err.status === 503 || err.status === 500 || perMinute);
         if (!transient || i >= delays.length) throw err;
         await new Promise((r) => setTimeout(r, delays[i]));
       }
