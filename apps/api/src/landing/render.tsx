@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { SectionKey, SectionOrderKey } from '../services/ai/schemas.js';
 import { CustomSectionView } from './sections/CustomSection.js';
 import { finalCtaVars, sectionVars } from './sectionColors.js';
-import { elementColorsCss, MOBILE_MAX } from './elementColors.js';
+import { elementColorsCss, elementFontsHref, MOBILE_MAX } from './elementColors.js';
 import { sectionSpacingCss } from './spacing.js';
 import type { CSSProperties, ReactNode } from 'react';
 
@@ -180,6 +180,7 @@ export function renderLandingPage(ctx: RenderContext): string {
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link rel="stylesheet" href={theme.fontsHref} />
+        {elementFontsHref(theme.elementColors) ? <link rel="stylesheet" href={elementFontsHref(theme.elementColors)!} /> : null}
         <style dangerouslySetInnerHTML={{ __html: landingCss(theme) }} />
         {ctx.editable ? (
           <style

@@ -8,7 +8,35 @@ export interface ElementColor {
   bg?: string;
   /** Tamanho da fonte em px */
   size?: number;
+  /** Fonte escolhida (chave de TEXT_FONTS) */
+  font?: string;
+  /** true = negrito, false = sem negrito (ausente = padrão do modelo) */
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
 }
+
+/**
+ * Fontes oferecidas ao editar um texto. `google` = família carregada do Google Fonts;
+ * as demais já vêm instaladas nos aparelhos. Mantenha igual em apps/web/src/components/landing/previewTools.ts.
+ */
+export const TEXT_FONTS: Record<string, { label: string; stack: string; google?: string }> = {
+  arial: { label: 'Arial', stack: 'Arial,Helvetica,sans-serif' },
+  verdana: { label: 'Verdana', stack: 'Verdana,Geneva,sans-serif' },
+  tahoma: { label: 'Tahoma', stack: 'Tahoma,Verdana,sans-serif' },
+  trebuchet: { label: 'Trebuchet MS', stack: '"Trebuchet MS",Helvetica,sans-serif' },
+  georgia: { label: 'Georgia', stack: 'Georgia,serif' },
+  times: { label: 'Times New Roman', stack: '"Times New Roman",Times,serif' },
+  courier: { label: 'Courier New', stack: '"Courier New",Courier,monospace' },
+  roboto: { label: 'Roboto', stack: '"Roboto",sans-serif', google: 'Roboto:ital,wght@0,400;0,700;1,400;1,700' },
+  opensans: { label: 'Open Sans', stack: '"Open Sans",sans-serif', google: 'Open+Sans:ital,wght@0,400;0,700;1,400;1,700' },
+  montserrat: { label: 'Montserrat', stack: '"Montserrat",sans-serif', google: 'Montserrat:ital,wght@0,400;0,700;1,400;1,700' },
+  poppins: { label: 'Poppins', stack: '"Poppins",sans-serif', google: 'Poppins:ital,wght@0,400;0,700;1,400;1,700' },
+  lato: { label: 'Lato', stack: '"Lato",sans-serif', google: 'Lato:ital,wght@0,400;0,700;1,400;1,700' },
+  oswald: { label: 'Oswald', stack: '"Oswald",sans-serif', google: 'Oswald:wght@400;700' },
+  playfair: { label: 'Playfair Display', stack: '"Playfair Display",serif', google: 'Playfair+Display:ital,wght@0,400;0,700;1,400;1,700' },
+  merriweather: { label: 'Merriweather', stack: '"Merriweather",serif', google: 'Merriweather:ital,wght@0,400;0,700;1,400;1,700' },
+};
 
 /** Cores por elemento, separadas por layout: celular (até 767px) e computador. */
 export interface ElementColors {
@@ -39,7 +67,18 @@ function normalizeMap(input: unknown): Record<string, ElementColor> {
     const bg = hex(value?.bg);
     const raw = Number(value?.size);
     const size = Number.isFinite(raw) && raw > 0 ? Math.round(Math.min(200, Math.max(6, raw))) : null;
-    if (text || bg || size) out[sel] = { ...(text ? { text } : {}), ...(bg ? { bg } : {}), ...(size ? { size } : {}) };
+    const font = typeof value?.font === 'string' && TEXT_FONTS[value.font] ? value.font : null;
+    const flag = (v: unknown) => (typeof v === 'boolean' ? v : null);
+    const entry: ElementColor = {
+      ...(text ? { text } : {}),
+      ...(bg ? { bg } : {}),
+      ...(size ? { size } : {}),
+      ...(font ? { font } : {}),
+      ...(flag(value?.bold) !== null ? { bold: value.bold } : {}),
+      ...(flag(value?.italic) !== null ? { italic: value.italic } : {}),
+      ...(flag(value?.underline) !== null ? { underline: value.underline } : {}),
+    };
+    if (Object.keys(entry).length) out[sel] = entry;
   }
   return out;
 }
@@ -56,6 +95,10 @@ function rules(map: Record<string, ElementColor>) {
         c.text ? `color:${c.text}!important` : '',
         c.bg ? `background-color:${c.bg}!important` : '',
         c.size ? `font-size:${c.size}px!important` : '',
+        c.font && TEXT_FONTS[c.font] ? `font-family:${TEXT_FONTS[c.font].stack}!important` : '',
+        c.bold !== undefined ? `font-weight:${c.bold ? 700 : 400}!important` : '',
+        c.italic !== undefined ? `font-style:${c.italic ? 'italic' : 'normal'}!important` : '',
+        c.underline !== undefined ? `text-decoration:${c.underline ? 'underline' : 'none'}!important` : '',
       ]
         .filter(Boolean)
         .join(';');
@@ -72,4 +115,12 @@ export function elementColorsCss(colors: ElementColors): string {
     desktop ? `@media(min-width:${MOBILE_MAX + 1}px){${desktop}}` : '',
     mobile ? `@media(max-width:${MOBILE_MAX}px){${mobile}}` : '',
   ].join('');
+}
+
+/** Google Fonts das fontes escolhidas nos textos (null se nenhuma precisa ser carregada). */
+export function elementFontsHref(colors: ElementColors): string | null {
+  const used = new Set<string>();
+  for (const map of [colors.desktop, colors.mobile]) for (const c of Object.values(map)) if (c.font) used.add(c.font);
+  const families = [...used].map((k) => TEXT_FONTS[k]?.google).filter(Boolean);
+  return families.length ? `https://fonts.googleapis.com/css2?${families.map((f) => `family=${f}`).join('&')}&display=swap` : null;
 }

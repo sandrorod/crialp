@@ -87,6 +87,17 @@ landingPagesRouter.get('/:id/export', async (req, res) => {
   res.send(html);
 });
 
+// Cor, tamanho e estilo do texto de um elemento clicado na prévia
+const ElementStyleSchema = z.object({
+  text: z.string().max(9).nullish(),
+  bg: z.string().max(9).nullish(),
+  size: z.number().min(6).max(200).nullish(),
+  font: z.string().max(40).nullish(),
+  bold: z.boolean().nullish(),
+  italic: z.boolean().nullish(),
+  underline: z.boolean().nullish(),
+});
+
 const ContentUpdateSchema = z.object({
   content: LandingContentEditSchema,
   theme: z.object({
@@ -109,11 +120,11 @@ const ContentUpdateSchema = z.object({
     imageOrder: z.array(z.string().max(2048)).max(300).optional(),
     // Ordem das seções só no celular (vazia = igual ao computador)
     mobileOrder: z.array(z.string().max(60)).max(60).optional(),
-    // Cores e tamanho da fonte de elementos clicados na prévia: { desktop: { "<seletor>": { text, bg, size } }, mobile: {...} }
+    // Cores e estilo do texto de elementos clicados na prévia: { desktop: { "<seletor>": { text, bg, size, font, bold, italic, underline } }, mobile: {...} }
     elementColors: z
       .object({
-        desktop: z.record(z.string().max(600), z.object({ text: z.string().max(9).nullish(), bg: z.string().max(9).nullish(), size: z.number().min(6).max(200).nullish() })).optional(),
-        mobile: z.record(z.string().max(600), z.object({ text: z.string().max(9).nullish(), bg: z.string().max(9).nullish(), size: z.number().min(6).max(200).nullish() })).optional(),
+        desktop: z.record(z.string().max(600), ElementStyleSchema).optional(),
+        mobile: z.record(z.string().max(600), ElementStyleSchema).optional(),
       })
       .optional(),
     // Margem interna das seções em % do padrão: { desktop: 20-100, mobile: 20-100 }

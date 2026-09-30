@@ -250,6 +250,12 @@ export interface ElementColor {
   bg?: string;
   /** Tamanho da fonte em px */
   size?: number;
+  /** Fonte escolhida (chave de TEXT_FONTS) */
+  font?: string;
+  /** true = negrito, false = sem negrito (ausente = padrão do modelo) */
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
 }
 
 export interface ElementColors {

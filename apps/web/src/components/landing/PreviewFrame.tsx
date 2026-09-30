@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import type { ElementColors, ImageFocus, SectionSpacing } from '@/types';
+import type { ElementColor, ElementColors, ImageFocus, SectionSpacing } from '@/types';
 import { ElementColorPopup } from './ElementColorPopup';
 import {
   attachColorPick,
@@ -9,6 +9,7 @@ import {
   currentMode,
   elementColorsCss,
   sectionSpacingCss,
+  loadElementFonts,
   setColorsCss,
   setSpacingCss,
   setDraftCss,
@@ -249,7 +250,10 @@ export function PreviewFrame({
   // Cores salvas no editor aparecem na hora, sem esperar salvar a página
   useEffect(() => {
     const d = doc();
-    if (d?.head) setColorsCss(d, elementColorsCss(elementColors));
+    if (d?.head) {
+      setColorsCss(d, elementColorsCss(elementColors));
+      loadElementFonts(d, elementColors);
+    }
   }, [elementColors]);
 
   useEffect(() => {
@@ -272,6 +276,7 @@ export function PreviewFrame({
     setPreviewMode(d, modeRef.current);
     if (onFocusRef.current) attachFocusDrag(d, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), uiScale);
     setColorsCss(d, elementColorsCss(colorsRef.current));
+    loadElementFonts(d, colorsRef.current);
     setSpacingCss(d, sectionSpacingCss(spacingRef.current));
     if (onSpacingRef.current) attachSpacingDrag(d, (key, pct) => onSpacingRef.current?.(key, pct), uiScale);
     if (onReorderRef.current) attachSectionDrag(d, (keys) => onReorderRef.current?.(keys), uiScale, orderRef.current);
@@ -284,15 +289,17 @@ export function PreviewFrame({
           ? {
               uiScale,
               deviceLabel: device === 'mobile' ? 'Celular' : 'Computador',
-              getSize: (sel) => colorsRef.current?.[device]?.[sel]?.size,
-              // Tamanho fica junto das cores do elemento, por layout (celular / computador)
-              setSize: (sel, size) => {
+              getStyle: (sel) => colorsRef.current?.[device]?.[sel],
+              // Estilo do texto fica junto das cores do elemento, por layout (celular / computador)
+              setStyle: (sel, patch) => {
                 const all = colorsRef.current ?? { desktop: {}, mobile: {} };
                 const map = { ...all[device] };
-                const entry = { ...(map[sel] ?? {}) };
-                if (size) entry.size = size;
-                else delete entry.size;
-                if (entry.text || entry.bg || entry.size) map[sel] = entry;
+                const entry: Record<string, unknown> = { ...(map[sel] ?? {}) };
+                for (const [k, v] of Object.entries(patch)) {
+                  if (v === null || v === undefined) delete entry[k];
+                  else entry[k] = v;
+                }
+                if (Object.keys(entry).length) map[sel] = entry as ElementColor;
                 else delete map[sel];
                 const next = { ...all, [device]: map };
                 colorsRef.current = next;

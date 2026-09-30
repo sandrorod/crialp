@@ -5,18 +5,62 @@ export type PreviewMode = 'textos' | 'fotos' | 'secoes' | 'espacos' | 'cores';
 
 export const MOBILE_MAX = 767;
 
+/** Fontes oferecidas ao editar um texto (iguais a TEXT_FONTS em apps/api/src/landing/elementColors.ts). */
+export const TEXT_FONTS: Record<string, { label: string; stack: string; google?: string }> = {
+  arial: { label: 'Arial', stack: 'Arial,Helvetica,sans-serif' },
+  verdana: { label: 'Verdana', stack: 'Verdana,Geneva,sans-serif' },
+  tahoma: { label: 'Tahoma', stack: 'Tahoma,Verdana,sans-serif' },
+  trebuchet: { label: 'Trebuchet MS', stack: '"Trebuchet MS",Helvetica,sans-serif' },
+  georgia: { label: 'Georgia', stack: 'Georgia,serif' },
+  times: { label: 'Times New Roman', stack: '"Times New Roman",Times,serif' },
+  courier: { label: 'Courier New', stack: '"Courier New",Courier,monospace' },
+  roboto: { label: 'Roboto', stack: '"Roboto",sans-serif', google: 'Roboto:ital,wght@0,400;0,700;1,400;1,700' },
+  opensans: { label: 'Open Sans', stack: '"Open Sans",sans-serif', google: 'Open+Sans:ital,wght@0,400;0,700;1,400;1,700' },
+  montserrat: { label: 'Montserrat', stack: '"Montserrat",sans-serif', google: 'Montserrat:ital,wght@0,400;0,700;1,400;1,700' },
+  poppins: { label: 'Poppins', stack: '"Poppins",sans-serif', google: 'Poppins:ital,wght@0,400;0,700;1,400;1,700' },
+  lato: { label: 'Lato', stack: '"Lato",sans-serif', google: 'Lato:ital,wght@0,400;0,700;1,400;1,700' },
+  oswald: { label: 'Oswald', stack: '"Oswald",sans-serif', google: 'Oswald:wght@400;700' },
+  playfair: { label: 'Playfair Display', stack: '"Playfair Display",serif', google: 'Playfair+Display:ital,wght@0,400;0,700;1,400;1,700' },
+  merriweather: { label: 'Merriweather', stack: '"Merriweather",serif', google: 'Merriweather:ital,wght@0,400;0,700;1,400;1,700' },
+};
+
+/** Declarações CSS de um elemento (mesma regra da página publicada). */
+export function elementStyleDecl(c: ElementColor): string {
+  return [
+    c.text ? `color:${c.text}!important` : '',
+    c.bg ? `background-color:${c.bg}!important` : '',
+    c.size ? `font-size:${c.size}px!important` : '',
+    c.font && TEXT_FONTS[c.font] ? `font-family:${TEXT_FONTS[c.font].stack}!important` : '',
+    c.bold !== undefined ? `font-weight:${c.bold ? 700 : 400}!important` : '',
+    c.italic !== undefined ? `font-style:${c.italic ? 'italic' : 'normal'}!important` : '',
+    c.underline !== undefined ? `text-decoration:${c.underline ? 'underline' : 'none'}!important` : '',
+  ]
+    .filter(Boolean)
+    .join(';');
+}
+
+/** Carrega na prévia a fonte do Google escolhida (a página publicada já traz o link). */
+export function loadTextFont(doc: Document, key: string | undefined) {
+  const f = key ? TEXT_FONTS[key] : undefined;
+  if (!f?.google || doc.querySelector(`link[data-lp-font="${key}"]`)) return;
+  const link = doc.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${f.google}&display=swap`;
+  link.dataset.lpFont = key;
+  doc.head.appendChild(link);
+}
+
+/** Carrega na prévia todas as fontes escolhidas nos textos. */
+export function loadElementFonts(doc: Document, colors: ElementColors | undefined) {
+  for (const map of [colors?.desktop, colors?.mobile]) for (const c of Object.values(map ?? {})) loadTextFont(doc, c.font);
+}
+
 /** Mesmo CSS gerado na página publicada (apps/api/src/landing/elementColors.ts). */
 export function elementColorsCss(colors: ElementColors | undefined): string {
   const rules = (map: Record<string, ElementColor> = {}) =>
     Object.entries(map)
       .map(([sel, c]) => {
-        const decl = [
-          c.text ? `color:${c.text}!important` : '',
-          c.bg ? `background-color:${c.bg}!important` : '',
-          c.size ? `font-size:${c.size}px!important` : '',
-        ]
-          .filter(Boolean)
-          .join(';');
+        const decl = elementStyleDecl(c);
         return decl ? `${sel}{${decl}}` : '';
       })
       .join('');
@@ -516,37 +560,46 @@ export function setColorsCss(doc: Document, css: string) {
  * Enter ou clicar fora confirma; Esc desfaz. `onText` devolve false quando o valor é recusado.
  */
 export interface TextSizeOptions {
-  /** Tamanho salvo para o seletor no layout atual */
-  getSize: (selector: string) => number | undefined;
-  /** Salva (ou remove, com null) o tamanho do seletor no layout atual */
-  setSize: (selector: string, size: number | null) => void;
+  /** Estilo salvo para o seletor no layout atual */
+  getStyle: (selector: string) => ElementColor | undefined;
+  /** Altera o estilo do seletor no layout atual; `null` remove a propriedade */
+  setStyle: (selector: string, patch: { [K in keyof ElementColor]?: ElementColor[K] | null }) => void;
   /** Layout mostrado na prévia (texto da barra) */
   deviceLabel: string;
   uiScale?: number;
 }
 
-/** Barra flutuante com A− / A+ sobre o texto em edição (só na prévia do editor). */
-function sizeToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions) {
+const TEXT_STYLE_KEYS = ['text', 'size', 'font', 'bold', 'italic', 'underline'] as const;
+
+/** Barra flutuante sobre o texto em edição: fonte, tamanho, negrito, itálico, sublinhado e cor (só na prévia). */
+function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions) {
   const win = doc.defaultView!;
   const px = (n: number) => `${Math.round(n * (opts.uiScale ?? 1))}px`;
   const exact = selectorFor(el, true);
   const similar = selectorFor(el, false);
-  let scope: 'exact' | 'similar' = opts.getSize(similar) !== undefined && opts.getSize(exact) === undefined ? 'similar' : 'exact';
+  const hasStyle = (sel: string) => TEXT_STYLE_KEYS.some((k) => opts.getStyle(sel)?.[k] !== undefined);
+  let scope: 'exact' | 'similar' = hasStyle(similar) && !hasStyle(exact) ? 'similar' : 'exact';
   const sel = () => (scope === 'exact' ? exact : similar);
-  const computed = () => Math.round(parseFloat(win.getComputedStyle(el).fontSize)) || 16;
-  let size = opts.getSize(sel()) ?? computed();
+  const saved = () => opts.getStyle(sel()) ?? {};
+  const cs = () => win.getComputedStyle(el);
+  const computedSize = () => Math.round(parseFloat(cs().fontSize)) || 16;
 
   const bar = doc.createElement('div');
   bar.dataset.lpUi = 'size';
-  bar.setAttribute('style', `position:fixed;z-index:9999;display:flex;align-items:center;gap:${px(2)};padding:${px(4)};border-radius:${px(10)};background:rgba(17,24,39,.94);color:#fff;font:500 ${px(12)}/1 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.3);white-space:nowrap`);
+  bar.setAttribute('style', `position:fixed;z-index:9999;display:flex;flex-direction:column;gap:${px(2)};padding:${px(4)};border-radius:${px(10)};background:rgba(17,24,39,.94);color:#fff;font:500 ${px(12)}/1 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.3);white-space:nowrap`);
+  const row = () => {
+    const r = doc.createElement('div');
+    r.setAttribute('style', `display:flex;align-items:center;gap:${px(2)}`);
+    return r;
+  };
   const btnCss = `height:${px(28)};min-width:${px(28)};padding:0 ${px(8)};border:0;border-radius:${px(7)};background:transparent;color:#fff;font:600 ${px(13)}/1 system-ui,sans-serif;cursor:pointer`;
-  const mk = (label: string, title: string, onClick: () => void) => {
+  const mk = (label: string, title: string, onClick: () => void, extra = '') => {
     const b = doc.createElement('button');
     b.type = 'button';
     b.textContent = label;
     b.title = title;
     b.setAttribute('aria-label', title);
-    b.setAttribute('style', btnCss);
+    b.setAttribute('style', btnCss + extra);
     // mousedown sem padrão: o texto continua em edição (sem perder o foco)
     b.addEventListener('mousedown', (e) => e.preventDefault());
     b.addEventListener('click', (e) => {
@@ -556,52 +609,104 @@ function sizeToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions) {
     });
     return b;
   };
+  const fieldCss = `height:${px(28)};border:0;border-radius:${px(7)};background:rgba(255,255,255,.12);color:#fff;font:500 ${px(12)}/1 system-ui,sans-serif;cursor:pointer`;
+
+  // Fonte
+  const font = doc.createElement('select');
+  font.title = 'Fonte';
+  font.setAttribute('style', `${fieldCss};max-width:${px(150)};padding:0 ${px(6)}`);
+  font.append(new Option('Fonte padrão', ''));
+  for (const [key, f] of Object.entries(TEXT_FONTS)) {
+    const o = new Option(f.label, key);
+    o.style.fontFamily = f.stack;
+    o.style.color = '#111';
+    font.append(o);
+  }
+  font.addEventListener('change', () => {
+    loadTextFont(doc, font.value || undefined);
+    opts.setStyle(sel(), { font: font.value || null });
+    later(render);
+  });
+
+  // Tamanho
   const value = doc.createElement('span');
   value.setAttribute('style', `min-width:${px(42)};text-align:center;font-variant-numeric:tabular-nums`);
+  const size = () => saved().size ?? computedSize();
+  const setSize = (next: number) => {
+    opts.setStyle(sel(), { size: next });
+    render();
+  };
+  const step = () => (size() < 24 ? 1 : 2);
+
+  // Negrito, itálico e sublinhado: o botão inverte o que está aparecendo agora
+  const isBold = () => saved().bold ?? Number(cs().fontWeight) >= 600;
+  const isItalic = () => saved().italic ?? cs().fontStyle === 'italic';
+  const isUnderline = () => saved().underline ?? cs().textDecorationLine.includes('underline');
+  const bold = mk('B', 'Negrito', () => (opts.setStyle(sel(), { bold: !isBold() }), render()), ';font-weight:800');
+  const italic = mk('I', 'Itálico', () => (opts.setStyle(sel(), { italic: !isItalic() }), render()), ';font-style:italic;font-family:Georgia,serif');
+  const underline = mk('U', 'Sublinhado', () => (opts.setStyle(sel(), { underline: !isUnderline() }), render()), ';text-decoration:underline');
+
+  // Cor do texto
+  const color = doc.createElement('input');
+  color.type = 'color';
+  color.title = 'Cor do texto';
+  color.setAttribute('style', `${fieldCss};width:${px(34)};padding:${px(3)}`);
+  color.addEventListener('input', () => opts.setStyle(sel(), { text: color.value }));
+
+  const scopeBtn = mk('', 'Aplicar só neste texto ou em todos os textos iguais a este', () => {
+    scope = scope === 'exact' ? 'similar' : 'exact';
+    render();
+  });
+  const reset = mk('⟲', 'Voltar ao padrão (fonte, tamanho, estilo e cor do texto)', () => {
+    opts.setStyle(sel(), { text: null, size: null, font: null, bold: null, italic: null, underline: null });
+    later(render);
+  });
   const tag = doc.createElement('span');
   tag.setAttribute('style', `opacity:.6;padding:0 ${px(6)}`);
   tag.textContent = opts.deviceLabel;
-  const scopeBtn = mk('', 'Aplicar só neste texto ou em todos os textos iguais a este', () => {
-    scope = scope === 'exact' ? 'similar' : 'exact';
-    size = opts.getSize(sel()) ?? computed();
-    render();
-  });
-  const render = () => {
-    value.textContent = `${size}px`;
+
+  const on = (b: HTMLButtonElement, active: boolean) => {
+    b.style.background = active ? 'rgba(255,255,255,.22)' : 'transparent';
+    b.setAttribute('aria-pressed', String(active));
+  };
+  function render() {
+    const s = saved();
+    font.value = s.font ?? '';
+    value.textContent = `${size()}px`;
+    on(bold, isBold());
+    on(italic, isItalic());
+    on(underline, isUnderline());
+    color.value = s.text ?? cssColorToHex(cs().color) ?? '#000000';
     scopeBtn.textContent = scope === 'exact' ? 'Só este' : 'Todos iguais';
-  };
-  const apply = (next: number | null) => {
-    opts.setSize(sel(), next);
-    if (next) size = next;
-    else win.requestAnimationFrame(() => win.requestAnimationFrame(() => ((size = computed()), render())));
-    render();
-  };
-  const step = () => (size < 24 ? 1 : 2);
-  bar.append(
-    mk('A−', 'Diminuir fonte', () => apply(Math.max(8, size - step()))),
-    value,
-    mk('A+', 'Aumentar fonte', () => apply(Math.min(160, size + step()))),
-    mk('⟲', 'Tamanho original', () => apply(null)),
-    scopeBtn,
-    tag,
-  );
+  }
+  // Valores que dependem do CSS recém-aplicado: lê depois do navegador redesenhar
+  const later = (fn: () => void) => win.requestAnimationFrame(() => win.requestAnimationFrame(fn));
+
+  const top = row();
+  top.append(font, mk('A−', 'Diminuir fonte', () => setSize(Math.max(8, size() - step()))), value, mk('A+', 'Aumentar fonte', () => setSize(Math.min(160, size() + step()))), reset);
+  const bottom = row();
+  bottom.append(bold, italic, underline, color, scopeBtn, tag);
+  bar.append(top, bottom);
   render();
   doc.body.appendChild(bar);
 
   const place = () => {
     const r = el.getBoundingClientRect();
     const h = bar.offsetHeight;
-    const top = r.top - h - 8 >= 4 ? r.top - h - 8 : r.bottom + 8;
-    bar.style.top = `${top}px`;
+    const y = r.top - h - 8 >= 4 ? r.top - h - 8 : r.bottom + 8;
+    bar.style.top = `${y}px`;
     bar.style.left = `${Math.max(4, Math.min(r.left, win.innerWidth - bar.offsetWidth - 4))}px`;
   };
   place();
   win.addEventListener('scroll', place, true);
   win.addEventListener('resize', place);
-  return () => {
-    win.removeEventListener('scroll', place, true);
-    win.removeEventListener('resize', place);
-    bar.remove();
+  return {
+    bar,
+    close: () => {
+      win.removeEventListener('scroll', place, true);
+      win.removeEventListener('resize', place);
+      bar.remove();
+    },
   };
 }
 
@@ -609,13 +714,15 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
   const win = doc.defaultView;
   if (!win || doc.body.dataset.lpTexts) return;
   doc.body.dataset.lpTexts = '1';
-  let editing: { el: HTMLElement; original: string; cancelled: boolean; closeBar?: () => void } | null = null;
+  let editing: { el: HTMLElement; original: string; cancelled: boolean; closeBar?: () => void; bar?: HTMLElement; unlisten?: () => void } | null = null;
 
   const finish = () => {
     if (!editing) return;
-    const { el, original, cancelled, closeBar } = editing;
+    const { el, original, cancelled, closeBar, unlisten } = editing;
     editing = null;
+    unlisten?.();
     closeBar?.();
+    if (doc.activeElement === el) el.blur();
     el.removeAttribute('contenteditable');
     const path = el.dataset.lpText!;
     const value = el.innerText.replace(/[ \t]+\n/g, '\n').trim();
@@ -668,8 +775,22 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
     el.setAttribute('contenteditable', 'plaintext-only');
     // Navegadores sem "plaintext-only" recusam o valor: usa o modo comum (o texto é lido sem formatação)
     if (el.contentEditable !== 'plaintext-only') el.setAttribute('contenteditable', 'true');
-    el.addEventListener('blur', finish, { once: true });
-    if (sizes) editing.closeBar = sizeToolbar(doc, el, sizes);
+    const current = editing;
+    if (sizes) {
+      const tb = textToolbar(doc, el, sizes);
+      current.bar = tb.bar;
+      current.closeBar = tb.close;
+    }
+    // Usar a fonte ou a cor da barra tira o foco do texto sem encerrar a edição;
+    // ela termina quando o foco sai do texto e da barra
+    const outside = (to: EventTarget | null) => to !== el && !current.bar?.contains(to as Node);
+    const onBlur = (e: FocusEvent) => outside(e.relatedTarget) && finish();
+    el.addEventListener('blur', onBlur);
+    current.bar?.addEventListener('focusout', onBlur);
+    current.unlisten = () => {
+      el.removeEventListener('blur', onBlur);
+      current.bar?.removeEventListener('focusout', onBlur);
+    };
   };
 
   // No mousedown (antes do navegador posicionar o cursor) para o cursor cair onde foi clicado
@@ -698,12 +819,14 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
     'keydown',
     (e) => {
       if (!editing) return;
+      // Teclas dentro da barra (fonte, cor) são dela
+      if (editing.bar?.contains(e.target as Node) && e.key !== 'Escape') return;
       if (e.key === 'Escape') {
         editing.cancelled = true;
-        editing.el.blur();
+        finish();
       } else if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        editing.el.blur();
+        finish();
       } else if ((e.key === 'End' || e.key === 'Home') && !e.shiftKey) {
         // Dentro de botões (inline-flex) o Chrome não move o cursor com Home/End
         e.preventDefault();
