@@ -1,7 +1,7 @@
 import type { ElementColor, ElementColors, LandingContent, SectionSpacing } from '@/types';
 
 /** Ferramentas ativas na prévia: enquadrar fotos, arrastar seções ou escolher cores. */
-export type PreviewMode = 'textos' | 'fotos' | 'secoes' | 'cores';
+export type PreviewMode = 'textos' | 'fotos' | 'secoes' | 'espacos' | 'cores';
 
 export const MOBILE_MAX = 767;
 
@@ -25,18 +25,108 @@ export function elementColorsCss(colors: ElementColors | undefined): string {
   return [desktop ? `@media(min-width:${MOBILE_MAX + 1}px){${desktop}}` : '', mobile ? `@media(max-width:${MOBILE_MAX}px){${mobile}}` : ''].join('');
 }
 
-/** Mesmo CSS gerado na página publicada (apps/api/src/landing/spacing.ts). 0.85 = escala base dos modelos. */
+/** Escala base das margens das seções em todos os modelos (apps/api/src/landing/styles.ts). */
+const SPACING_BASE = 0.85;
+const spacingScale = (pct: number) => +((SPACING_BASE * pct) / 100).toFixed(4);
+
+/** Mesmo CSS gerado na página publicada (apps/api/src/landing/spacing.ts). */
 export function sectionSpacingCss(s: SectionSpacing | undefined): string {
-  const rule = (pct?: number) => (pct && pct < 100 ? `:root{--section-y-scale:${+((0.85 * pct) / 100).toFixed(4)}}` : '');
-  const desktop = rule(s?.desktop);
-  const mobile = rule(s?.mobile);
+  const layout = (pct: number | undefined, map: Record<string, number> = {}) =>
+    (pct && pct < 100 ? `:root{--section-y-scale:${spacingScale(pct)}}` : '') +
+    Object.entries(map)
+      .map(([k, v]) => `[data-section="${k}"]{--section-y-scale:${spacingScale(v)}}`)
+      .join('');
+  const desktop = layout(s?.desktop, s?.sections?.desktop);
+  const mobile = layout(s?.mobile, s?.sections?.mobile);
   return [desktop ? `@media(min-width:${MOBILE_MAX + 1}px){${desktop}}` : '', mobile ? `@media(max-width:${MOBILE_MAX}px){${mobile}}` : ''].join('');
+}
+
+/**
+ * Modo "Espaços": cada seção ganha uma alça na borda de baixo. Arrastar para cima diminui
+ * (para baixo aumenta) a margem interna de cima e de baixo daquela seção; duplo clique volta ao padrão.
+ * `onChange(key, pct)` com pct = null remove o valor próprio da seção.
+ */
+export function attachSpacingDrag(doc: Document, onChange: (key: string, pct: number | null) => void, uiScale = 1) {
+  const win = doc.defaultView;
+  if (!win || doc.body.dataset.lpSpacing) return;
+  doc.body.dataset.lpSpacing = '1';
+  const px = (n: number) => `${Math.round(n * uiScale)}px`;
+  const scaleOf = (w: HTMLElement) => parseFloat(win.getComputedStyle(w).getPropertyValue('--section-y-scale')) || SPACING_BASE;
+  const pctOf = (w: HTMLElement) => Math.round((scaleOf(w) / SPACING_BASE) * 100);
+
+  doc.querySelectorAll<HTMLElement>('[data-section]').forEach((w) => {
+    const key = w.dataset.section;
+    const inner = w.firstElementChild as HTMLElement | null;
+    if (!key || !inner) return;
+    if (win.getComputedStyle(w).position === 'static') w.style.position = 'relative';
+
+    const handle = doc.createElement('div');
+    handle.dataset.lpUi = 'spacing';
+    handle.title = 'Arraste para cima para diminuir o espaço interno desta seção (para baixo aumenta). Duplo clique: padrão.';
+    handle.setAttribute(
+      'style',
+      `position:absolute;left:50%;bottom:0;transform:translate(-50%,50%);z-index:46;display:flex;align-items:center;gap:${px(6)};padding:${px(6)} ${px(12)};border-radius:999px;background:#2563eb;color:#fff;font:600 ${px(12)}/1 system-ui,sans-serif;box-shadow:0 6px 18px rgba(37,99,235,.35);cursor:ns-resize;touch-action:none;user-select:none;white-space:nowrap`,
+    );
+    const label = () => (handle.textContent = `↕ Espaço ${pctOf(w)}%`);
+    label();
+    w.appendChild(handle);
+
+    handle.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      w.style.removeProperty('--section-y-scale');
+      onChange(key, null);
+      setTimeout(label, 50);
+    });
+
+    handle.addEventListener('pointerdown', (e) => {
+      if (currentMode(doc) !== 'espacos' || e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const startScale = scaleOf(w);
+      const startPad = parseFloat(win.getComputedStyle(inner).paddingBottom) || 0;
+      // Padding que esta seção teria com escala 1 (a borda de baixo acompanha o ponteiro)
+      const unit = startScale > 0 ? startPad / startScale : 0;
+      const sy = e.clientY;
+      let pct = pctOf(w);
+      handle.setPointerCapture(e.pointerId);
+      const move = (ev: PointerEvent) => {
+        if (!unit) return;
+        const pad = Math.max(0, startPad + (ev.clientY - sy));
+        pct = Math.round(Math.min(150, Math.max(0, (pad / unit / SPACING_BASE) * 100)));
+        w.style.setProperty('--section-y-scale', String(spacingScale(pct)));
+        handle.textContent = `↕ Espaço ${pct}%`;
+      };
+      const end = () => {
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', end);
+        handle.removeEventListener('pointercancel', end);
+        onChange(key, pct);
+      };
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', end);
+      handle.addEventListener('pointercancel', end);
+    });
+  });
+}
+
+/** Atualiza o rótulo das alças depois que o CSS de espaços muda (ex.: controle geral na aba Visual). */
+function refreshSpacingLabels(doc: Document) {
+  const win = doc.defaultView;
+  if (!win) return;
+  doc.querySelectorAll<HTMLElement>('[data-lp-ui="spacing"]').forEach((h) => {
+    const w = h.parentElement;
+    if (!w) return;
+    const s = parseFloat(win.getComputedStyle(w).getPropertyValue('--section-y-scale')) || SPACING_BASE;
+    h.textContent = `↕ Espaço ${Math.round((s / SPACING_BASE) * 100)}%`;
+  });
 }
 
 /** Estilo dos controles do editor dentro da prévia (não existe na página publicada). */
 const EDITOR_CSS = `
 html:not(.lp-mode-fotos) [data-lp-ui="zoom"]{display:none!important}
 html:not(.lp-mode-secoes) [data-lp-ui="section"]{display:none!important}
+html:not(.lp-mode-espacos) [data-lp-ui="spacing"]{display:none!important}
+html.lp-mode-espacos [data-section]{outline:1px dashed rgba(37,99,235,.5);outline-offset:-1px}
 html.lp-mode-secoes main>[data-section]:not([data-section="hero"]):not([data-section="contact"]):not([data-section="final_cta"]){outline:2px dashed rgba(37,99,235,.45);outline-offset:-3px}
 html:not(.lp-mode-fotos) [data-lp-drag-handle]{cursor:auto!important;touch-action:auto!important}
 html.lp-mode-fotos .gallery figure:hover img:not([style*=scale]){transform:none}
@@ -58,14 +148,14 @@ export function setupEditorDocument(doc: Document) {
 
 export function setPreviewMode(doc: Document, mode: PreviewMode) {
   const root = doc.documentElement;
-  root.classList.remove('lp-mode-textos', 'lp-mode-fotos', 'lp-mode-secoes', 'lp-mode-cores');
+  root.classList.remove('lp-mode-textos', 'lp-mode-fotos', 'lp-mode-secoes', 'lp-mode-espacos', 'lp-mode-cores');
   root.classList.add(`lp-mode-${mode}`);
   // Respostas do FAQ ficam abertas para poderem ser editadas
   if (mode === 'textos') doc.querySelectorAll<HTMLDetailsElement>('.faq details').forEach((d) => (d.open = true));
 }
 
 export const currentMode = (doc: Document): PreviewMode =>
-  (['textos', 'secoes', 'cores'] as const).find((m) => doc.documentElement.classList.contains(`lp-mode-${m}`)) ?? 'fotos';
+  (['textos', 'secoes', 'espacos', 'cores'] as const).find((m) => doc.documentElement.classList.contains(`lp-mode-${m}`)) ?? 'fotos';
 
 // ─── Arrastar seções ────────────────────────────────────────────────
 /** Topo, contato e CTA final têm posição fixa na página. */
@@ -405,6 +495,9 @@ export function setSpacingCss(doc: Document, css: string) {
     doc.head.appendChild(style);
   }
   style.textContent = forPreview(css);
+  // O valor aplicado durante o arrasto sai do estilo em linha: passa a valer o CSS salvo no editor
+  doc.querySelectorAll<HTMLElement>('[data-section]').forEach((w) => w.style.removeProperty('--section-y-scale'));
+  refreshSpacingLabels(doc);
 }
 
 export function setColorsCss(doc: Document, css: string) {

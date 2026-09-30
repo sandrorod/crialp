@@ -240,6 +240,8 @@ export interface ThemeSettings {
 export interface SectionSpacing {
   desktop?: number;
   mobile?: number;
+  /** Espaço próprio de cada seção (0–150%), arrastado na prévia no modo "Espaços" */
+  sections?: { desktop?: Record<string, number>; mobile?: Record<string, number> };
 }
 
 /** Cor escolhida para um elemento (chave = seletor CSS gerado pelo editor). */

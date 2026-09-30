@@ -4,6 +4,7 @@ import { ElementColorPopup } from './ElementColorPopup';
 import {
   attachColorPick,
   attachSectionDrag,
+  attachSpacingDrag,
   attachTextEdit,
   currentMode,
   elementColorsCss,
@@ -178,6 +179,7 @@ export function PreviewFrame({
   onElementColors,
   onText,
   sectionSpacing,
+  onSpacing,
 }: {
   src: string;
   /** HTML do rascunho (mudanças ainda não salvas); ausente = página salva em `src` */
@@ -197,6 +199,8 @@ export function PreviewFrame({
   onText?: (path: string, value: string) => boolean;
   /** Margem interna das seções (inclusive não salva), aplicada na hora */
   sectionSpacing?: SectionSpacing;
+  /** Espaço de uma seção arrastado na prévia (null = volta ao padrão) */
+  onSpacing?: (key: string, pct: number | null) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -219,6 +223,8 @@ export function PreviewFrame({
   orderRef.current = sectionOrder;
   const colorsRef = useRef(elementColors);
   colorsRef.current = elementColors;
+  const onSpacingRef = useRef(onSpacing);
+  onSpacingRef.current = onSpacing;
   const spacingRef = useRef(sectionSpacing);
   spacingRef.current = sectionSpacing;
   const onColorsRef = useRef(onElementColors);
@@ -267,6 +273,7 @@ export function PreviewFrame({
     if (onFocusRef.current) attachFocusDrag(d, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), uiScale);
     setColorsCss(d, elementColorsCss(colorsRef.current));
     setSpacingCss(d, sectionSpacingCss(spacingRef.current));
+    if (onSpacingRef.current) attachSpacingDrag(d, (key, pct) => onSpacingRef.current?.(key, pct), uiScale);
     if (onReorderRef.current) attachSectionDrag(d, (keys) => onReorderRef.current?.(keys), uiScale, orderRef.current);
     if (onElementColors) attachColorPick(d, setPicked);
     if (onTextRef.current) {

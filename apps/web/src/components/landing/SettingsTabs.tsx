@@ -227,7 +227,7 @@ function SectionSpacingEditor({ theme, onChange }: { theme: ThemeSettings; onCha
   return (
     <div className="border-t border-zinc-100 pt-6">
       <h4 className="mb-1 text-sm font-semibold">Margem interna das seções</h4>
-      <p className="mb-3 text-xs text-zinc-500">Espaço acima e abaixo do conteúdo de cada seção. Menor = página mais compacta. Celular e computador são independentes.</p>
+      <p className="mb-3 text-xs text-zinc-500">Espaço acima e abaixo do conteúdo de todas as seções. Menor = página mais compacta. Para ajustar uma seção só, use o modo "Espaços" na prévia e arraste a alça azul. Celular e computador são independentes.</p>
       <div className="space-y-3">
         {rows.map((r) => {
           const pct = spacing[r.key] ?? 100;
@@ -240,6 +240,12 @@ function SectionSpacingEditor({ theme, onChange }: { theme: ThemeSettings; onCha
                 </span>
               </div>
               <input type="range" min={20} max={100} step={5} value={pct} onChange={(e) => set(r.key, Number(e.target.value))} className="w-full accent-zinc-900" aria-label={`Margem interna das seções no ${r.label.toLowerCase()}`} />
+              {Object.keys(spacing.sections?.[r.key] ?? {}).length ? (
+                <div className="mt-1 flex items-center justify-between text-[11px] text-zinc-500">
+                  <span>{Object.keys(spacing.sections?.[r.key] ?? {}).length} seção(ões) com espaço próprio (arrastado na prévia)</span>
+                  <button type="button" className="hover:text-red-600" onClick={() => onChange({ ...theme, sectionSpacing: { ...spacing, sections: { ...spacing.sections, [r.key]: {} } } })}>Limpar</button>
+                </div>
+              ) : null}
             </div>
           );
         })}

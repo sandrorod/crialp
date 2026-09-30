@@ -117,7 +117,16 @@ const ContentUpdateSchema = z.object({
       })
       .optional(),
     // Margem interna das seções em % do padrão: { desktop: 20-100, mobile: 20-100 }
-    sectionSpacing: z.object({ desktop: z.number().min(0).max(100).nullish(), mobile: z.number().min(0).max(100).nullish() }).optional(),
+    sectionSpacing: z
+      .object({
+        desktop: z.number().min(0).max(100).nullish(),
+        mobile: z.number().min(0).max(100).nullish(),
+        // Espaço próprio de cada seção, arrastado na prévia: { desktop: { "about": 60 }, mobile: {...} }
+        sections: z
+          .object({ desktop: z.record(z.string().max(60), z.number().min(0).max(150)).optional(), mobile: z.record(z.string().max(60), z.number().min(0).max(150)).optional() })
+          .optional(),
+      })
+      .optional(),
   }),
   seo: z.object({
     seo_title: z.string().trim().max(120).nullish().transform((v) => v || null),
