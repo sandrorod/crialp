@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import type { ElementColors, ImageFocus } from '@/types';
+import type { ElementColors, ImageFocus, SectionSpacing } from '@/types';
 import { ElementColorPopup } from './ElementColorPopup';
 import {
   attachColorPick,
@@ -7,7 +7,9 @@ import {
   attachTextEdit,
   currentMode,
   elementColorsCss,
+  sectionSpacingCss,
   setColorsCss,
+  setSpacingCss,
   setDraftCss,
   setPreviewMode,
   setupEditorDocument,
@@ -174,6 +176,7 @@ export function PreviewFrame({
   elementColors,
   onElementColors,
   onText,
+  sectionSpacing,
 }: {
   src: string;
   device: 'desktop' | 'mobile';
@@ -189,6 +192,8 @@ export function PreviewFrame({
   onElementColors?: (colors: ElementColors) => void;
   /** Texto editado direto na prévia; false = valor recusado (volta o original) */
   onText?: (path: string, value: string) => boolean;
+  /** Margem interna das seções (inclusive não salva), aplicada na hora */
+  sectionSpacing?: SectionSpacing;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -209,6 +214,8 @@ export function PreviewFrame({
   orderRef.current = sectionOrder;
   const colorsRef = useRef(elementColors);
   colorsRef.current = elementColors;
+  const spacingRef = useRef(sectionSpacing);
+  spacingRef.current = sectionSpacing;
   const onColorsRef = useRef(onElementColors);
   onColorsRef.current = onElementColors;
 
@@ -234,6 +241,11 @@ export function PreviewFrame({
     if (d?.head) setColorsCss(d, elementColorsCss(elementColors));
   }, [elementColors]);
 
+  useEffect(() => {
+    const d = doc();
+    if (d?.head) setSpacingCss(d, sectionSpacingCss(sectionSpacing));
+  }, [sectionSpacing]);
+
   const scale = device === 'desktop' && width ? Math.min(1, width / DESKTOP_WIDTH) : 1;
   const uiScale = device === 'desktop' && width ? Math.max(1, DESKTOP_WIDTH / width) : 1;
 
@@ -244,6 +256,7 @@ export function PreviewFrame({
     setPreviewMode(d, modeRef.current);
     if (onFocusRef.current) attachFocusDrag(d, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), uiScale);
     setColorsCss(d, elementColorsCss(colorsRef.current));
+    setSpacingCss(d, sectionSpacingCss(spacingRef.current));
     if (onReorderRef.current) attachSectionDrag(d, (keys) => onReorderRef.current?.(keys), uiScale, orderRef.current);
     if (onElementColors) attachColorPick(d, setPicked);
     if (onTextRef.current) {

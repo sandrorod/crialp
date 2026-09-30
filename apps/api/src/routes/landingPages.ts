@@ -116,6 +116,8 @@ const ContentUpdateSchema = z.object({
         mobile: z.record(z.string().max(600), z.object({ text: z.string().max(9).nullish(), bg: z.string().max(9).nullish(), size: z.number().min(6).max(200).nullish() })).optional(),
       })
       .optional(),
+    // Margem interna das seções em % do padrão: { desktop: 20-100, mobile: 20-100 }
+    sectionSpacing: z.object({ desktop: z.number().min(0).max(100).nullish(), mobile: z.number().min(0).max(100).nullish() }).optional(),
   }),
   seo: z.object({
     seo_title: z.string().trim().max(120).nullish().transform((v) => v || null),

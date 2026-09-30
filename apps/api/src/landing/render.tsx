@@ -4,6 +4,7 @@ import type { SectionKey, SectionOrderKey } from '../services/ai/schemas.js';
 import { CustomSectionView } from './sections/CustomSection.js';
 import { finalCtaVars, sectionVars } from './sectionColors.js';
 import { elementColorsCss, MOBILE_MAX } from './elementColors.js';
+import { sectionSpacingCss } from './spacing.js';
 import type { CSSProperties, ReactNode } from 'react';
 
 /** Envolve a seção num contêiner que redefine as variáveis de cor (quando houver cores próprias). */
@@ -190,6 +191,7 @@ export function renderLandingPage(ctx: RenderContext): string {
         <style id="lp-order" dangerouslySetInnerHTML={{ __html: mobileOrderCss(sections, theme.mobileOrder) }} />
         {/* O editor substitui este bloco ao vivo quando uma cor é escolhida na prévia */}
         <style id="lp-colors" dangerouslySetInnerHTML={{ __html: elementColorsCss(theme.elementColors) }} />
+        <style id="lp-spacing" dangerouslySetInnerHTML={{ __html: sectionSpacingCss(theme.sectionSpacing) }} />
         <script dangerouslySetInnerHTML={{ __html: REVEAL_SCRIPT }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ctx) }} />
       </head>

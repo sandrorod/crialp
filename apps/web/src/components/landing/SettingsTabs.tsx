@@ -188,6 +188,8 @@ export function DesignTab({ theme, onChange, content }: { theme: ThemeSettings; 
         </div>
       </div>
 
+      <SectionSpacingEditor theme={theme} onChange={onChange} />
+
       <ElementColorsSummary theme={theme} onChange={onChange} />
 
       <div className="border-t border-zinc-100 pt-6">
@@ -205,6 +207,42 @@ export function DesignTab({ theme, onChange, content }: { theme: ThemeSettings; 
             theme.accent ?? current?.accent ?? '#0f172a',
           ].map((c) => c.toLowerCase()))]}
         />
+      </div>
+    </div>
+  );
+}
+
+function SectionSpacingEditor({ theme, onChange }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void }) {
+  const spacing = theme.sectionSpacing ?? {};
+  const set = (key: 'desktop' | 'mobile', pct: number) => {
+    const next = { ...spacing };
+    if (pct >= 100) delete next[key];
+    else next[key] = pct;
+    onChange({ ...theme, sectionSpacing: next });
+  };
+  const rows = [
+    { key: 'desktop' as const, label: 'Computador' },
+    { key: 'mobile' as const, label: 'Celular' },
+  ];
+  return (
+    <div className="border-t border-zinc-100 pt-6">
+      <h4 className="mb-1 text-sm font-semibold">Margem interna das seções</h4>
+      <p className="mb-3 text-xs text-zinc-500">Espaço acima e abaixo do conteúdo de cada seção. Menor = página mais compacta. Celular e computador são independentes.</p>
+      <div className="space-y-3">
+        {rows.map((r) => {
+          const pct = spacing[r.key] ?? 100;
+          return (
+            <div key={r.key}>
+              <div className="mb-1 flex items-center justify-between text-[13px]">
+                <span>{r.label}</span>
+                <span className="flex items-center gap-2 text-xs text-zinc-500">
+                  {pct}%{pct < 100 ? <button type="button" className="hover:text-ink" onClick={() => set(r.key, 100)}>padrão</button> : ' (padrão)'}
+                </span>
+              </div>
+              <input type="range" min={20} max={100} step={5} value={pct} onChange={(e) => set(r.key, Number(e.target.value))} className="w-full accent-zinc-900" aria-label={`Margem interna das seções no ${r.label.toLowerCase()}`} />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

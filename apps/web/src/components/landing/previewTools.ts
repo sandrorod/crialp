@@ -1,4 +1,4 @@
-import type { ElementColor, ElementColors, LandingContent } from '@/types';
+import type { ElementColor, ElementColors, LandingContent, SectionSpacing } from '@/types';
 
 /** Ferramentas ativas na prévia: enquadrar fotos, arrastar seções ou escolher cores. */
 export type PreviewMode = 'textos' | 'fotos' | 'secoes' | 'cores';
@@ -22,6 +22,14 @@ export function elementColorsCss(colors: ElementColors | undefined): string {
       .join('');
   const desktop = rules(colors?.desktop);
   const mobile = rules(colors?.mobile);
+  return [desktop ? `@media(min-width:${MOBILE_MAX + 1}px){${desktop}}` : '', mobile ? `@media(max-width:${MOBILE_MAX}px){${mobile}}` : ''].join('');
+}
+
+/** Mesmo CSS gerado na página publicada (apps/api/src/landing/spacing.ts). 0.85 = escala base dos modelos. */
+export function sectionSpacingCss(s: SectionSpacing | undefined): string {
+  const rule = (pct?: number) => (pct && pct < 100 ? `:root{--section-y-scale:${+((0.85 * pct) / 100).toFixed(4)}}` : '');
+  const desktop = rule(s?.desktop);
+  const mobile = rule(s?.mobile);
   return [desktop ? `@media(min-width:${MOBILE_MAX + 1}px){${desktop}}` : '', mobile ? `@media(max-width:${MOBILE_MAX}px){${mobile}}` : ''].join('');
 }
 
@@ -383,6 +391,16 @@ export function setDraftCss(doc: Document, css: string) {
   if (!style) {
     style = doc.createElement('style');
     style.id = 'lp-editor-draft';
+    doc.head.appendChild(style);
+  }
+  style.textContent = forPreview(css);
+}
+
+export function setSpacingCss(doc: Document, css: string) {
+  let style = doc.getElementById('lp-spacing');
+  if (!style) {
+    style = doc.createElement('style');
+    style.id = 'lp-spacing';
     doc.head.appendChild(style);
   }
   style.textContent = forPreview(css);

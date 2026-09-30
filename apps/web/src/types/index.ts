@@ -233,6 +233,13 @@ export interface ThemeSettings {
   mobileOrder?: string[];
   /** Cores de elementos clicados na prévia, por layout. */
   elementColors?: ElementColors;
+  /** Margem interna (topo/base) das seções em % do padrão (20–100), por layout. Ausente = 100%. */
+  sectionSpacing?: SectionSpacing;
+}
+
+export interface SectionSpacing {
+  desktop?: number;
+  mobile?: number;
 }
 
 /** Cor escolhida para um elemento (chave = seletor CSS gerado pelo editor). */

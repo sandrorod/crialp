@@ -1,6 +1,7 @@
 import { DESIGN_PRESETS, type DesignPreset } from '../services/ai/schemas.js';
 import { normalizeSectionColors, type SectionColors } from './sectionColors.js';
 import { normalizeElementColors, type ElementColors } from './elementColors.js';
+import { normalizeSectionSpacing, type SectionSpacing } from './spacing.js';
 
 export interface ThemeSettings {
   preset: DesignPreset;
@@ -22,6 +23,8 @@ export interface ThemeSettings {
   mobileOrder?: string[];
   /** Cores de elementos escolhidas clicando na prévia, por layout (celular / computador). */
   elementColors?: ElementColors;
+  /** Margem interna (topo/base) das seções em % do padrão, por layout (celular / computador). */
+  sectionSpacing?: SectionSpacing;
 }
 
 export interface ImageFocus {
@@ -243,6 +246,7 @@ export interface ResolvedTheme {
   imageOrder: string[];
   mobileOrder: string[];
   elementColors: ElementColors;
+  sectionSpacing: SectionSpacing;
   fontsHref: string;
   vars: Record<string, string>;
 }
@@ -266,6 +270,7 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
       ? [...new Set<string>(input.mobileOrder.filter((k: unknown) => typeof k === 'string' && /^(about|services|differentials|products|gallery|testimonials|faq|custom:[a-z0-9-]{1,40})$/.test(k)))].slice(0, 60)
       : [],
     elementColors: normalizeElementColors(input?.elementColors),
+    sectionSpacing: normalizeSectionSpacing(input?.sectionSpacing),
   };
 }
 
@@ -299,6 +304,7 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
     imageOrder: settings.imageOrder ?? [],
     mobileOrder: settings.mobileOrder ?? [],
     elementColors: settings.elementColors ?? { desktop: {}, mobile: {} },
+    sectionSpacing: settings.sectionSpacing ?? {},
     fontsHref: `https://fonts.googleapis.com/css2?${families}&display=swap`,
     vars: {
       '--bg': c.bg,

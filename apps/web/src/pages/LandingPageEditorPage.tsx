@@ -257,6 +257,7 @@ export function LandingPageEditorPage() {
                 return true;
               }}
               elementColors={theme.elementColors}
+              sectionSpacing={theme.sectionSpacing}
               onElementColors={(colors) => {
                 setTheme((t) => (t ? { ...t, elementColors: colors } : t));
                 setDirty(true);
