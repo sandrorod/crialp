@@ -8,8 +8,8 @@ export function landingCss(theme: ResolvedTheme): string {
   const dark = theme.p.dark;
 
   return `
-:root{${vars};--container:1180px;--gutter:20px;--section-y:clamp(72px,10vw,128px);--section-y-scale:.85;--title-scale:1;color-scheme:${dark ? 'dark' : 'light'}}
-/* Celular: títulos 10% menores em todos os modelos */
+:root{${vars};--container:1180px;--gutter:20px;--section-y:clamp(72px,10vw,128px);--section-y-scale:.85;--title-scale:.9;color-scheme:${dark ? 'dark' : 'light'}}
+/* Títulos 10% menores em todos os modelos: no computador (acima) e no celular */
 @media(max-width:767px){:root{--title-scale:.9}}
 *,*::before,*::after{box-sizing:border-box}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
