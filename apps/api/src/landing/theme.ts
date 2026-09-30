@@ -62,33 +62,33 @@ interface Template {
 export const TEMPLATES: Record<TemplateKey, Template> = {
   classico: {
     label: 'Clássico',
-    description: 'Equilibrado e versátil: topo dividido com foto ou cartão de contato, serviços em cartões.',
+    description: 'Equilibrado e versátil: texto à esquerda e foto à direita no topo, serviços em cartões, galeria em mosaico.',
     hero: { withPhoto: 'split', withoutPhoto: 'split' },
     services: () => null,
   },
   moderno: {
     label: 'Moderno',
-    description: 'Foto com cantos bem arredondados no topo, títulos centralizados e cartões flutuantes com sombra.',
+    description: 'Foto antes do texto, fotos quadradas bem arredondadas, títulos e cartões centralizados, galeria em 3 colunas.',
     hero: { withPhoto: 'split', withoutPhoto: 'centered' },
     // Poucos serviços ficam melhores em lista; a partir de 3, cartões
     services: (n) => (n <= 2 ? 'list' : 'grid'),
   },
   minimalista: {
     label: 'Minimalista',
-    description: 'Muito respiro, sem faixas de fundo: serviços em lista numerada e linhas finas.',
+    description: 'Coluna única: foto larga abaixo do título, "Sobre" em duas colunas, serviços em lista e galeria em 2 colunas.',
     hero: { withPhoto: 'split', withoutPhoto: 'centered' },
     services: () => 'list',
   },
   elegante: {
     label: 'Elegante',
-    description: 'Títulos centralizados, molduras finas nas fotos e depoimentos em destaque.',
+    description: 'Topo centralizado com foto emoldurada embaixo, foto em retrato no "Sobre", galeria emoldurada.',
     hero: { withPhoto: 'split', withoutPhoto: 'centered' },
     // Listas longas viram cartões para não alongar demais a página
     services: (n) => (n <= 6 ? 'list' : 'grid'),
   },
   impacto: {
     label: 'Impacto',
-    description: 'Topo em faixa escura, títulos grandes e cartões com borda de destaque. Chama atenção.',
+    description: 'Topo ocupando a tela, títulos enormes, fotos com bloco de cor, serviços numerados e galeria com foto em destaque.',
     hero: { withPhoto: 'split', withoutPhoto: 'centered' },
     services: (n) => (n === 1 ? 'list' : 'grid'),
   },

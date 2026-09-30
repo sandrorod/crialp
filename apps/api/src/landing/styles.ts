@@ -261,6 +261,59 @@ p{margin:0;text-wrap:pretty}
 .tpl-impacto .btn{min-height:56px;font-weight:700}
 .tpl-impacto .row .num{font-size:34px;color:var(--primary-ink)}
 
+/* ─── Estrutura própria de cada modelo (vale mesmo com cores personalizadas por seção) ─── */
+/* Moderno: foto antes do texto (topo e "Sobre"), fotos quadradas bem arredondadas, cartões centralizados, galeria em 3 colunas iguais */
+.tpl-moderno .hero-split .container>.hero-media,.tpl-moderno .about>.about-media{order:-1}
+@media(min-width:960px){.tpl-moderno .hero-split .container{grid-template-columns:.95fr 1.05fr}}
+.tpl-moderno .hero-media{aspect-ratio:1;border-radius:36px}
+.tpl-moderno .about-media{aspect-ratio:1;border-radius:36px}
+.tpl-moderno .card{text-align:center;border-radius:24px}
+.tpl-moderno .card .icon-box{margin-left:auto;margin-right:auto;width:64px;height:64px}
+.tpl-moderno .card .benefit{justify-content:center;text-align:left}
+.tpl-moderno .gallery figure{border-radius:22px}
+@media(min-width:860px){.tpl-moderno .gallery{grid-template-columns:repeat(3,1fr);grid-auto-rows:300px;gap:14px}.tpl-moderno .gallery figure:first-child{grid-column:auto;grid-row:auto}}
+.tpl-moderno .quote{border-radius:24px}
+
+/* Minimalista: topo em coluna única com foto larga embaixo, "Sobre" com foto larga em cima e texto em duas colunas, galeria em 2 colunas */
+.tpl-minimalista .hero-split .container{grid-template-columns:minmax(0,1fr);gap:clamp(36px,5vw,56px)}
+.tpl-minimalista .hero-split h1{max-width:920px}
+.tpl-minimalista .hero-media,.tpl-minimalista .about-media{aspect-ratio:21/9;border-radius:0;box-shadow:none}
+@media(max-width:767px){.tpl-minimalista .hero-media,.tpl-minimalista .about-media{aspect-ratio:4/3}}
+.tpl-minimalista .hero-card{max-width:560px}
+.tpl-minimalista .about{grid-template-columns:minmax(0,1fr)}
+.tpl-minimalista .about>.about-media{order:-1}
+@media(min-width:960px){.tpl-minimalista .about-text>.reveal:not(.section-head){columns:2;column-gap:56px}.tpl-minimalista .about-text p{break-inside:avoid}}
+.tpl-minimalista .gallery{grid-template-columns:minmax(0,1fr);gap:20px}
+.tpl-minimalista .gallery figure{border-radius:0;aspect-ratio:3/2}
+@media(min-width:860px){.tpl-minimalista .gallery{grid-template-columns:repeat(2,1fr);grid-auto-rows:auto;gap:28px}.tpl-minimalista .gallery figure:first-child{grid-column:auto;grid-row:auto}.tpl-minimalista .gallery figure{aspect-ratio:3/2}}
+.tpl-minimalista .quote{border:0;border-top:1px solid var(--border);border-radius:0;padding:28px 0 0}
+
+/* Elegante: topo centralizado com foto emoldurada larga embaixo, "Sobre" com foto em retrato à esquerda, galeria emoldurada em 3 colunas */
+.tpl-elegante .hero-split .container{grid-template-columns:minmax(0,1fr);justify-items:center;text-align:center;gap:clamp(40px,5vw,64px)}
+.tpl-elegante .hero-split h1{max-width:900px;margin:0 auto}
+.tpl-elegante .hero-split .sub{margin-left:auto;margin-right:auto}
+.tpl-elegante .hero-split .hero-actions,.tpl-elegante .hero-split .highlights{justify-content:center}
+.tpl-elegante .hero-split .eyebrow::before{display:none}
+.tpl-elegante .hero-split .hero-media{width:100%;max-width:980px;aspect-ratio:16/9}
+@media(max-width:767px){.tpl-elegante .hero-split .hero-media{aspect-ratio:4/3}}
+.tpl-elegante .hero-split .hero-card{width:100%;max-width:520px;text-align:left}
+.tpl-elegante .about>.about-media{order:-1;aspect-ratio:4/5}
+@media(min-width:960px){.tpl-elegante .about{grid-template-columns:.85fr 1.15fr}}
+.tpl-elegante .gallery figure{padding:8px;border:1px solid var(--border);background:var(--bg);border-radius:calc(var(--radius-sm) * .8)}
+.tpl-elegante .gallery img{border-radius:calc(var(--radius-sm) * .5)}
+@media(min-width:860px){.tpl-elegante .gallery{grid-template-columns:repeat(3,1fr);grid-auto-rows:auto;gap:26px}.tpl-elegante .gallery figure:first-child{grid-column:auto;grid-row:auto}.tpl-elegante .gallery figure{aspect-ratio:4/5}}
+
+/* Impacto: topo alto ocupando a tela, fotos com bloco de cor deslocado, serviços numerados, galeria com a 1ª foto em faixa larga */
+.tpl-impacto .hero{min-height:min(86vh,880px);display:flex;align-items:center}
+.tpl-impacto .hero>.container{width:100%}
+.tpl-impacto .hero-media,.tpl-impacto .about-media{border-radius:0;box-shadow:18px 18px 0 var(--primary);margin:0 18px 18px 0}
+.tpl-impacto .grid{counter-reset:svc}
+.tpl-impacto .card{counter-increment:svc;padding-top:44px}
+.tpl-impacto .card::after{content:counter(svc,decimal-leading-zero);position:absolute;top:16px;right:22px;font:800 46px/1 var(--font-heading);color:color-mix(in srgb,var(--primary) 22%,transparent)}
+.tpl-impacto .gallery figure:first-child{grid-column:1/-1;aspect-ratio:16/9}
+@media(min-width:860px){.tpl-impacto .gallery{grid-template-columns:repeat(3,1fr);grid-auto-rows:240px}.tpl-impacto .gallery figure:first-child{grid-column:1/-1;grid-row:span 2;aspect-ratio:auto}}
+.tpl-impacto .final h2{font-size:calc((clamp(2.4rem,1.3rem + 4.4vw,4.4rem)) * var(--title-scale))}
+
 /* Animações discretas (somente com JS ativo e sem preferência por movimento reduzido) */
 .js .reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
 .js .reveal.in{opacity:1;transform:none}

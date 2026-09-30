@@ -261,25 +261,35 @@ function TemplateThumb({ template }: { template: TemplateKey }) {
     ),
     moderno: (
       <div className="flex gap-2 p-2">
+        <div className="size-10 rounded-xl bg-zinc-300" />
         <div className="flex-1 space-y-1 pt-2">{bar('85%', 'bg-zinc-500')}{bar('55%')}</div>
-        <div className="h-10 w-9 rounded-xl bg-zinc-300" />
       </div>
     ),
-    minimalista: <div className="flex flex-col items-center gap-1 p-3">{bar('70%', 'bg-zinc-500')}{bar('45%')}</div>,
+    minimalista: (
+      <div className="space-y-1 p-2">
+        {bar('75%', 'bg-zinc-500')}{bar('45%')}
+        <div className="mt-1 h-5 w-full bg-zinc-300" />
+      </div>
+    ),
     elegante: (
-      <div className="flex gap-2 p-2">
-        <div className="flex-1 space-y-1 pt-1">{bar('80%', 'bg-zinc-500')}{bar('60%')}</div>
-        <div className="h-10 w-9 rounded border border-zinc-300 p-0.5"><div className="h-full rounded-sm bg-zinc-300" /></div>
+      <div className="flex flex-col items-center gap-1 p-2">
+        {bar('70%', 'bg-zinc-500')}{bar('45%')}
+        <div className="mt-0.5 h-5 w-4/5 rounded border border-zinc-300 p-0.5"><div className="h-full rounded-sm bg-zinc-300" /></div>
       </div>
     ),
-    impacto: <div className="flex flex-col items-center gap-1 bg-zinc-800 p-3">{bar('80%', 'h-2 bg-white')}{bar('50%', 'bg-zinc-500')}</div>,
+    impacto: (
+      <div className="flex gap-2 bg-zinc-800 p-2.5">
+        <div className="flex-1 space-y-1 pt-1">{bar('95%', 'h-2.5 bg-white')}{bar('60%', 'bg-zinc-500')}</div>
+        <div className="h-10 w-8 bg-zinc-400 shadow-[4px_4px_0_#a1a1aa]" />
+      </div>
+    ),
   }[template];
   const body = {
     classico: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded border border-zinc-300 bg-white" />)}</div>,
-    moderno: <><div className="mx-auto mb-1">{bar('40px', 'mx-auto bg-zinc-500')}</div><div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded-md bg-white shadow" />)}</div></>,
+    moderno: <><div className="mx-auto mb-1">{bar('40px', 'mx-auto bg-zinc-500')}</div><div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="grid h-5 place-items-center rounded-lg bg-white shadow"><span className="size-1.5 rounded-full bg-zinc-400" /></div>)}</div></>,
     minimalista: <div className="space-y-1.5">{[0, 1, 2].map((i) => <div key={i} className="flex gap-1 border-b border-zinc-200 pb-1">{bar('8px', 'bg-zinc-400')}{bar('55%')}</div>)}</div>,
     elegante: <><div className="mb-1">{bar('40px', 'mx-auto bg-zinc-500')}</div><div className="space-y-1">{[0, 1].map((i) => <div key={i} className="flex gap-1 border-b border-zinc-200 pb-1">{bar('8px', 'bg-zinc-400')}{bar('60%')}</div>)}</div></>,
-    impacto: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded border-t-2 border-zinc-800 bg-white shadow-sm" />)}</div>,
+    impacto: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="relative h-5 rounded border-t-2 border-zinc-800 bg-white shadow-sm"><span className="absolute right-0.5 top-0.5 text-[6px] font-bold leading-none text-zinc-300">0{i + 1}</span></div>)}</div>,
   }[template];
   return (
     <div className="overflow-hidden rounded-md border border-zinc-200 bg-zinc-50" aria-hidden>
@@ -396,7 +406,7 @@ function AddPhotos({ onAdd }: { onAdd: (photos: NewPhoto[]) => Promise<void> }) 
             if (files.length) void upload(files);
           }}
         />
-        <div className="flex min-w-0 flex-1 gap-2">
+        <div className="flex w-full min-w-0 gap-2">
           <Input value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), void addUrl())} placeholder="https://… (URL da foto)" className="h-9 min-w-0 text-[13px]" />
           <Button type="button" variant="secondary" size="sm" disabled={busy || !url.trim()} icon={<Link2 className="size-4" />} onClick={() => void addUrl()}>Adicionar</Button>
         </div>
