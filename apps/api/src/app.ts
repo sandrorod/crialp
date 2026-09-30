@@ -35,7 +35,8 @@ export function createApp() {
   api.use(express.json({ limit: '1mb' }));
   api.use(cookieParser());
   api.use(requireSameOriginWrite);
-  api.get('/health', (_req, res) => res.json({ ok: true }));
+  // Versão publicada (commit) para conferir se um deploy já está no ar
+  api.get('/health', (_req, res) => res.json({ ok: true, version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null }));
   api.use('/auth', authRouter);
   api.use(requireAuth);
   api.use('/sales', salesRouter); // único acesso do vendedor

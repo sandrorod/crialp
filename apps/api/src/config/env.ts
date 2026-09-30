@@ -83,10 +83,10 @@ export const env = {
     anthropicWorkspaceId: process.env.ANTHROPIC_WORKSPACE_ID || undefined,
     geminiApiKey: process.env.GEMINI_API_KEY || undefined,
     // Modelos reserva (separados por vírgula) para quando o principal estiver sobrecarregado
-    fallbackModels: (process.env.AI_FALLBACK_MODELS || (aiProvider === 'gemini' ? 'gemini-2.5-flash' : ''))
-      .split(',')
+    // No Gemini, o gemini-2.5-flash é sempre o último reserva (mesmo com AI_FALLBACK_MODELS definido)
+    fallbackModels: [...new Set([...(process.env.AI_FALLBACK_MODELS ?? '').split(','), ...(aiProvider === 'gemini' ? ['gemini-2.5-flash'] : [])]
       .map((m) => m.trim())
-      .filter(Boolean),
+      .filter(Boolean))],
   },
   storage: {
     // No Vercel o disco é somente leitura: usa Vercel Blob quando o token existe
