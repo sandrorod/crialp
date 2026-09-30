@@ -2,6 +2,7 @@ import { one, query, transaction } from '../db/pool.js';
 import { uniqueSlug } from '../lib/slug.js';
 import type { LandingContent } from '../services/ai/schemas.js';
 import type { ThemeSettings } from '../landing/theme.js';
+import { dropNullText } from '../lib/nullText.js';
 
 export interface LandingPageRow {
   id: string;
@@ -92,18 +93,25 @@ export async function saveVersion(opts: {
   });
 }
 
-export function getLandingPage(orgId: string, id: string) {
-  return one<LandingPageRow>('select * from landing_pages where id = $1 and organization_id = $2', [id, orgId]);
+/** Textos "null" escritos pela IA em páginas antigas não aparecem na página nem no editor. */
+function withoutNullText(row: LandingPageRow | null) {
+  return row ? { ...row, content: dropNullText(row.content, '') } : row;
 }
 
-export function getLandingPageBySlug(slug: string) {
-  return one<LandingPageRow>('select * from landing_pages where slug = $1', [slug]);
+export async function getLandingPage(orgId: string, id: string) {
+  return withoutNullText(await one<LandingPageRow>('select * from landing_pages where id = $1 and organization_id = $2', [id, orgId]));
 }
 
-export function getLandingPageByDomain(domain: string) {
-  return one<LandingPageRow>(
-    `select * from landing_pages where lower(custom_domain) = lower($1) and domain_status in ('verified','active')`,
-    [domain],
+export async function getLandingPageBySlug(slug: string) {
+  return withoutNullText(await one<LandingPageRow>('select * from landing_pages where slug = $1', [slug]));
+}
+
+export async function getLandingPageByDomain(domain: string) {
+  return withoutNullText(
+    await one<LandingPageRow>(
+      `select * from landing_pages where lower(custom_domain) = lower($1) and domain_status in ('verified','active')`,
+      [domain],
+    ),
   );
 }
 

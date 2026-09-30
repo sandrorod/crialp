@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import type { z } from 'zod';
+import { parseWithoutNullText } from '../../lib/nullText.js';
 import { AIProviderError, type AIProvider, type StructuredRequest } from './AIProvider.js';
 
 export class AnthropicProvider implements AIProvider {
@@ -47,7 +48,8 @@ export class AnthropicProvider implements AIProvider {
       if (response.stop_reason === 'refusal') throw new AIProviderError('A IA recusou a solicitação.');
       if (response.stop_reason === 'max_tokens') throw new AIProviderError('Resposta da IA truncada.', true);
       if (!response.parsed_output) throw new AIProviderError('A IA retornou um formato inválido.', true);
-      return response.parsed_output as z.infer<T>;
+      const cleaned = parseWithoutNullText(req.schema, response.parsed_output);
+      return (cleaned.success ? cleaned.data : response.parsed_output) as z.infer<T>;
     } catch (err) {
       if (err instanceof AIProviderError) throw err;
       if (err instanceof Anthropic.AuthenticationError) throw new AIProviderError('Chave da API de IA inválida.', false, 'A chave da API de IA é inválida ou foi revogada. Verifique ANTHROPIC_API_KEY no servidor.');

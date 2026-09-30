@@ -1,6 +1,7 @@
 import type pg from 'pg';
 import { one, query, transaction } from '../db/pool.js';
 import type { CompanyInput } from '../lib/validation.js';
+import { dropNullText } from '../lib/nullText.js';
 
 export const COMPANY_COLUMNS = [
   'name', 'trade_name', 'legal_name', 'description', 'segment', 'reference_url', 'logo_url',
@@ -164,12 +165,14 @@ async function hydrate(company: CompanyRow): Promise<CompanyFull> {
     query('select id, author, text, source_url from company_testimonials where company_id = $1 order by position', [company.id]),
     one('select id, slug, status from landing_pages where company_id = $1 order by created_at limit 1', [company.id]),
   ]);
+  // Dados antigos podem ter "null" escrito pela IA: nunca chegam à página nem aos formulários
   return {
-    ...company,
-    services: services.rows,
-    products: products.rows,
-    images: images.rows,
-    testimonials: testimonials.rows,
+    ...dropNullText({ ...company, name: undefined }),
+    name: company.name,
+    services: dropNullText(services.rows),
+    products: dropNullText(products.rows),
+    images: images.rows.map((i) => ({ ...i, alt_text: dropNullText(i.alt_text) })),
+    testimonials: dropNullText(testimonials.rows),
     landing_page: lp,
   };
 }

@@ -1,5 +1,6 @@
 import { ApiError, GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
+import { parseWithoutNullText } from '../../lib/nullText.js';
 import { AIProviderError, type AIProvider, type StructuredRequest } from './AIProvider.js';
 import { aiKeyStore, type AIKey } from './keyStore.js';
 
@@ -120,7 +121,7 @@ export class GeminiProvider implements AIProvider {
       }
 
       try {
-        const parsed = req.schema.safeParse(JSON.parse(text ?? ''));
+        const parsed = parseWithoutNullText(req.schema, JSON.parse(text ?? ''));
         if (parsed.success) return parsed.data;
         if (attempt === 2) throw new AIProviderError(`Formato inválido: ${parsed.error.issues[0]?.message}`, true);
       } catch (err) {
