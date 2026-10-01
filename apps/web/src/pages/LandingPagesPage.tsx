@@ -1,8 +1,9 @@
 import { useDeferredValue, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Eye, PanelsTopLeft, Pencil, Plus, Search, Share2, Trash2 } from 'lucide-react';
-import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBlock, PageHeader, Select, StatusToggle } from '@/components/ui';
+import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBlock, PageHeader, Pagination, Select, StatusToggle } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
+import { usePagination } from '@/hooks/usePagination';
 import { useLandingPageActions } from '@/hooks/useLandingPageActions';
 import { formatDate } from '@/lib/utils';
 import { landingPageService } from '@/services';
@@ -17,6 +18,8 @@ export function LandingPagesPage() {
     () => landingPageService.list({ search: deferred || undefined, status: status || undefined }),
     [deferred, status],
   );
+  // 10 por página; volta para a primeira ao mudar os filtros
+  const pager = usePagination(data?.items, 10, [deferred, status].join('|'));
   const actions = useLandingPageActions(reload);
   const [toDelete, setToDelete] = useState<LandingPageListItem | null>(null);
 
@@ -56,6 +59,7 @@ export function LandingPagesPage() {
             action={!search && !status ? <Link to="/nova"><Button icon={<Plus className="size-4" />}>Criar Landing Page</Button></Link> : undefined}
           />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-sm">
               <thead>
@@ -68,7 +72,7 @@ export function LandingPagesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {data.items.map((lp) => (
+                {pager.items.map((lp) => (
                   <tr key={lp.id} className="transition hover:bg-zinc-50/70">
                     <td className="px-5 py-3.5">
                       <Link to={`/landing-pages/${lp.id}`} className="font-medium hover:underline">{lp.company_name}</Link>
@@ -100,6 +104,8 @@ export function LandingPagesPage() {
               </tbody>
             </table>
           </div>
+          <Pagination page={pager.page} pages={pager.pages} total={pager.total} pageSize={pager.pageSize} onPage={(p) => { pager.setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+          </>
         )}
       </Card>
 

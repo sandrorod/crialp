@@ -1,8 +1,9 @@
 import { useDeferredValue, useState, type FormEvent } from 'react';
 import { Building2, ChevronDown, Eye, MessageSquarePlus, Search, Share2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBlock, Modal, PageHeader, Select, Textarea } from '@/components/ui';
+import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBlock, Modal, PageHeader, Pagination, Select, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
+import { usePagination } from '@/hooks/usePagination';
 import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/lib/api';
 import { cn, copyToClipboard, formatDate } from '@/lib/utils';
@@ -18,6 +19,8 @@ export function SalesPage() {
     () => salesService.companies({ search: deferredSearch || undefined, segment: segment || undefined, city: city || undefined }),
     [deferredSearch, segment, city],
   );
+  // 10 por página; volta para a primeira ao mudar os filtros
+  const pager = usePagination(data?.items, 10, [deferredSearch, segment, city].join('|'));
   const [prospecting, setProspecting] = useState<SalesCompany | null>(null);
   const filtered = !!(search || segment || city);
 
@@ -57,6 +60,7 @@ export function SalesPage() {
             description={filtered ? 'Ajuste a busca ou os filtros.' : 'As empresas cadastradas pelo administrador aparecem aqui.'}
           />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-sm">
               <thead>
@@ -70,7 +74,7 @@ export function SalesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {data.items.map((c) => (
+                {pager.items.map((c) => (
                   <tr key={c.id} className="transition hover:bg-zinc-50/70">
                     <td className="px-5 py-3.5 font-medium text-ink">{c.name}</td>
                     <td className="px-3 py-3.5 text-zinc-600">{c.segment ?? '—'}</td>
@@ -101,6 +105,8 @@ export function SalesPage() {
               </tbody>
             </table>
           </div>
+          <Pagination page={pager.page} pages={pager.pages} total={pager.total} pageSize={pager.pageSize} onPage={(p) => { pager.setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+          </>
         )}
       </Card>
 

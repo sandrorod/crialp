@@ -2,8 +2,9 @@ import { useDeferredValue, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Building2, Eye, Pencil, PanelsTopLeft, Plus, Search, Share2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBlock, PageHeader, Select, StatusBadge, StatusToggle } from '@/components/ui';
+import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBlock, PageHeader, Pagination, Select, StatusBadge, StatusToggle } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
+import { usePagination } from '@/hooks/usePagination';
 import { useLandingPageActions } from '@/hooks/useLandingPageActions';
 import { errorMessage } from '@/lib/api';
 import { copyToClipboard, formatDate } from '@/lib/utils';
@@ -21,6 +22,8 @@ export function CompaniesPage() {
     () => companyService.list({ search: deferredSearch || undefined, segment: segment || undefined, city: city || undefined, status: status || undefined }),
     [deferredSearch, segment, city, status],
   );
+  // 10 por página; volta para a primeira ao mudar os filtros
+  const pager = usePagination(data?.items, 10, [deferredSearch, segment, city, status].join('|'));
   const actions = useLandingPageActions(reload);
   const [toDelete, setToDelete] = useState<CompanyListItem | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -93,6 +96,7 @@ export function CompaniesPage() {
             action={!filtered ? <Link to="/nova"><Button icon={<Plus className="size-4" />}>Cadastrar pela URL</Button></Link> : undefined}
           />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] text-sm">
               <thead>
@@ -107,7 +111,7 @@ export function CompaniesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {data.items.map((c) => (
+                {pager.items.map((c) => (
                   <tr key={c.id} className="transition hover:bg-zinc-50/70">
                     <td className="px-5 py-3.5">
                       <Link to={`/empresas/${c.id}`} className="font-medium text-ink hover:underline">{c.name}</Link>
@@ -153,6 +157,8 @@ export function CompaniesPage() {
               </tbody>
             </table>
           </div>
+          <Pagination page={pager.page} pages={pager.pages} total={pager.total} pageSize={pager.pageSize} onPage={(p) => { pager.setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+          </>
         )}
       </Card>
 

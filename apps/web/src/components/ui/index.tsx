@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
-import { Loader2, Plus, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { LpStatus } from '@/types';
 
@@ -340,5 +340,44 @@ export function Modal({
         </div>
       ) : null}
     </dialog>
+  );
+}
+
+// ─── Paginação ──────────────────────────────────────────────────────
+/** Rodapé de lista: "1–10 de 37" e navegação entre páginas. Some quando cabe tudo em uma página. */
+export function Pagination({ page, pages, total, pageSize, onPage }: { page: number; pages: number; total: number; pageSize: number; onPage: (p: number) => void }) {
+  if (pages <= 1) return null;
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+  // Primeira, última e vizinhas da atual; o resto vira "…"
+  const nums = [...new Set([1, page - 1, page, page + 1, pages])].filter((n) => n >= 1 && n <= pages).sort((a, b) => a - b);
+  const btn = 'grid h-8 min-w-8 place-items-center rounded-md px-2 text-sm transition disabled:pointer-events-none disabled:opacity-40';
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 px-5 py-3 text-sm text-zinc-500">
+      <span>
+        {from}–{to} de {total}
+      </span>
+      <nav className="flex items-center gap-1" aria-label="Paginação">
+        <button type="button" className={cn(btn, 'hover:bg-zinc-100 hover:text-ink')} disabled={page === 1} onClick={() => onPage(page - 1)} aria-label="Página anterior">
+          <ChevronLeft className="size-4" />
+        </button>
+        {nums.map((n, i) => (
+          <span key={n} className="flex items-center gap-1">
+            {i > 0 && n - nums[i - 1] > 1 ? <span className="px-1">…</span> : null}
+            <button
+              type="button"
+              onClick={() => onPage(n)}
+              aria-current={n === page ? 'page' : undefined}
+              className={cn(btn, n === page ? 'bg-ink font-medium text-white' : 'hover:bg-zinc-100 hover:text-ink')}
+            >
+              {n}
+            </button>
+          </span>
+        ))}
+        <button type="button" className={cn(btn, 'hover:bg-zinc-100 hover:text-ink')} disabled={page === pages} onClick={() => onPage(page + 1)} aria-label="Próxima página">
+          <ChevronRight className="size-4" />
+        </button>
+      </nav>
+    </div>
   );
 }
