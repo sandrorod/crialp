@@ -156,11 +156,12 @@ p{margin:0;text-wrap:pretty}
 .quote::before{content:"\\201C";font-family:var(--font-heading);font-size:64px;line-height:.6;color:var(--primary-ink);height:28px}
 .quote p{font-size:17px;flex:1}
 .quote footer{margin-top:22px;font-weight:600;font-size:15px}
-.quote-more{flex:1}
-.quote-more summary{list-style:none;cursor:pointer}
-.quote-more summary::-webkit-details-marker{display:none}
-.quote-more[open] summary{display:none}
-.quote-more-link{font-weight:600;color:var(--primary-ink);text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
+.quote-more{flex:1;position:relative}
+.quote-more-toggle{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.quote-more-full,.quote-more-toggle:checked~.quote-more-short{display:none}
+.quote-more-toggle:checked~.quote-more-full{display:block}
+.quote-more-link{font-weight:600;color:var(--primary-ink);text-decoration:underline;text-underline-offset:3px;white-space:nowrap;cursor:pointer}
+.quote-more-toggle:focus-visible~p .quote-more-link{outline:2px solid var(--primary);outline-offset:2px;border-radius:2px}
 
 /* FAQ */
 .faq{max-width:860px;margin:0 auto;border-top:1px solid var(--border)}

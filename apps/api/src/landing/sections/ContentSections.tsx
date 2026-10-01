@@ -169,7 +169,7 @@ export function GallerySection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
   );
 }
 
-/** Depoimentos longos mostram os primeiros 250 caracteres e "Ler mais" (sem JavaScript: <details>). */
+/** Depoimentos longos mostram os primeiros 250 caracteres com "Ler mais" / "Ler menos" (sem JavaScript). */
 const QUOTE_LIMIT = 250;
 
 function QuoteText({ ctx, id, text }: { ctx: RenderContext; id: string; text: string }) {
@@ -178,15 +178,24 @@ function QuoteText({ ctx, id, text }: { ctx: RenderContext; id: string; text: st
   const cut = full.slice(0, QUOTE_LIMIT);
   const space = cut.lastIndexOf(' ');
   const short = (space > QUOTE_LIMIT * 0.75 ? cut.slice(0, space) : cut).replace(/[\s,.;:!?-]+$/, '');
+  // Caixa de seleção escondida + rótulos: alterna resumo / texto inteiro sem JavaScript
+  const toggle = `quote-more-${id}`;
   const more = (
-    <details className="quote-more">
-      <summary>
-        <p>
-          {short}… <span className="quote-more-link">{ctx.labels.testimonial_more}</span>
-        </p>
-      </summary>
-      <p>{full}</p>
-    </details>
+    <div className="quote-more">
+      <input type="checkbox" id={toggle} className="quote-more-toggle" />
+      <p className="quote-more-short">
+        {short}…{' '}
+        <label htmlFor={toggle} className="quote-more-link">
+          {ctx.labels.testimonial_more}
+        </label>
+      </p>
+      <p className="quote-more-full">
+        {full}{' '}
+        <label htmlFor={toggle} className="quote-more-link">
+          {ctx.labels.testimonial_less}
+        </label>
+      </p>
+    </div>
   );
   // No editor: o resumo com "Ler mais" aparece como na página; no modo Textos, o texto inteiro para editar
   return ctx.editable ? (
