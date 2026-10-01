@@ -427,12 +427,15 @@ export function PhotosTab({
   images,
   onAddPhotos,
   onRemovePhotos,
+  sectionOrder,
 }: {
   theme: ThemeSettings;
   onChange: (t: ThemeSettings) => void;
   images: CompanyImage[] | null;
   onAddPhotos: (photos: NewPhoto[]) => Promise<void>;
   onRemovePhotos: (urls: string[]) => Promise<void>;
+  /** Ordem das seções da página: decide se "Sobre" aparece antes ou depois da galeria */
+  sectionOrder?: string[];
 }) {
   // Ordem provisória enquanto uma foto está sendo arrastada
   const [dragOrder, setDragOrder] = useState<string[] | null>(null);
@@ -446,27 +449,73 @@ export function PhotosTab({
   // Mesma ordem da renderização: a escolhida no editor e, depois, a da empresa
   const saved = theme.imageOrder ?? [];
   const rank = (order: string[], url: string, index: number) => (order.includes(url) ? order.indexOf(url) : order.length + index);
-  const order = dragOrder ?? saved;
   const allowed = photos
     .filter((i) => i.usage_allowed)
     .map((img, index) => ({ img, index }))
-    .sort((a, b) => rank(order, a.img.url, a.index) - rank(order, b.img.url, b.index))
+    .sort((a, b) => rank(saved, a.img.url, a.index) - rank(saved, b.img.url, b.index))
     .map(({ img }) => img);
+  const byUrl = new Map(allowed.map((i) => [i.url, i]));
 
-  const dragEnd = () => {
-    if (dragOrder) onChange({ ...theme, imageOrder: dragOrder });
-    setDragOrder(null);
-    setDragging(null);
-  };
   const chosen = theme.images ?? {};
   const resolved = resolvePlacements(allowed.map((i) => i.url), chosen);
-  // Ativas = as que aparecem na página: topo, "sobre" e as 9 primeiras da galeria (se tiver 2 ou mais).
-  // Vêm primeiro; as demais vão para o fim sem mudar a página, já que ficam depois das ativas na ordem.
+  // Ativas = as que aparecem na página: topo, "sobre" e as 9 primeiras da galeria (se tiver 2 ou mais),
+  // listadas na ordem em que aparecem na página (topo, depois "sobre" e galeria conforme a ordem das seções)
   const galleryUrls = allowed.map((i) => i.url).filter((u) => resolved[u] === 'gallery');
-  const shownGallery = new Set(galleryUrls.length >= 2 ? galleryUrls.slice(0, 9) : []);
-  const isActive = (u: string) => resolved[u] === 'hero' || resolved[u] === 'about' || shownGallery.has(u);
-  const listed = [...allowed.filter((i) => isActive(i.url)), ...allowed.filter((i) => !isActive(i.url))];
-  const activeCount = allowed.filter((i) => isActive(i.url)).length;
+  const shownGallery = galleryUrls.length >= 2 ? galleryUrls.slice(0, 9) : [];
+  const heroUrl = allowed.find((i) => resolved[i.url] === 'hero')?.url;
+  const aboutUrl = allowed.find((i) => resolved[i.url] === 'about')?.url;
+  const sectionPos = (k: string) => {
+    const i = sectionOrder?.indexOf(k) ?? -1;
+    return i < 0 ? Infinity : i;
+  };
+  const aboutFirst = sectionPos('about') <= sectionPos('gallery');
+  const roles: { url: string; role: 'hero' | 'about' | 'gallery' }[] = [
+    ...(heroUrl ? [{ url: heroUrl, role: 'hero' as const }] : []),
+    ...(aboutFirst && aboutUrl ? [{ url: aboutUrl, role: 'about' as const }] : []),
+    ...shownGallery.map((url) => ({ url, role: 'gallery' as const })),
+    ...(!aboutFirst && aboutUrl ? [{ url: aboutUrl, role: 'about' as const }] : []),
+  ];
+  const activeSet = new Set(roles.map((r) => r.url));
+  const isActive = (u: string) => activeSet.has(u);
+  const baseOrder = [...roles.map((r) => r.url), ...allowed.map((i) => i.url).filter((u) => !activeSet.has(u))];
+  // Enquanto arrasta, a lista segue a ordem provisória
+  const listed = (dragOrder ?? baseOrder).map((u) => byUrl.get(u)).filter((i): i is CompanyImage => !!i);
+  const activeCount = roles.length;
+
+  /**
+   * Ao soltar: a foto que ficou no lugar do topo/"sobre" passa a ser a do topo/"sobre", a galeria segue
+   * a nova ordem, e o que foi arrastado para "Fora da página" deixa de ser usado.
+   */
+  const dragEnd = () => {
+    const D = dragOrder;
+    setDragOrder(null);
+    setDragging(null);
+    if (!D || D.join('|') === baseOrder.join('|')) return;
+    const newActive = D.slice(0, activeCount);
+    const newOutside = D.slice(activeCount);
+    const at = (role: 'hero' | 'about') => {
+      const i = roles.findIndex((r) => r.role === role);
+      return i >= 0 ? newActive[i] : undefined;
+    };
+    const heroPick = at('hero');
+    const aboutPick = at('about');
+    const next = { ...chosen };
+    const assign = (pick: string | undefined, role: 'hero' | 'about') => {
+      if (!pick) return;
+      const others = Object.keys(next).filter((u) => u !== pick && next[u] === role);
+      if (others.length || (next[pick] && next[pick] !== role)) {
+        for (const u of others) delete next[u];
+        next[pick] = role;
+      }
+    };
+    assign(heroPick, 'hero');
+    assign(aboutPick, 'about');
+    const gallery = newActive.filter((u) => u !== heroPick && u !== aboutPick);
+    for (const u of gallery) if (next[u] && next[u] !== 'gallery') delete next[u];
+    for (const u of newOutside) if (activeSet.has(u)) next[u] = 'hidden';
+    const imageOrder = [heroPick, aboutPick, ...gallery, ...newOutside].filter((u): u is string => !!u);
+    onChange({ ...theme, images: next, imageOrder });
+  };
 
   const dragOver = (overUrl: string) => {
     if (!dragging || dragging === overUrl) return;
