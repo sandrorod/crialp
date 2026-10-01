@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Building2, Copy, Download, ExternalLink, Image as ImageIcon, Monitor, MoveVertical, Palette, PenLine, RefreshCw, Rocket, Rows3, Save, Smartphone, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, Building2, Copy, Download, ExternalLink, Image as ImageIcon, Monitor, MoveVertical, Palette, PenLine, RefreshCw, Rows3, Save, Smartphone, Sparkles, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ClientAccessTab } from '@/components/landing/ClientAccessTab';
 import { ContentTab } from '@/components/landing/ContentTab';
@@ -77,7 +77,6 @@ export function LandingPageEditorPage() {
   // Prévia do rascunho: modelo, cores, topo e fotos aparecem na hora, antes de salvar
   const [draftHtml, setDraftHtml] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [publishing, setPublishing] = useState(false);
   const [regenOpen, setRegenOpen] = useState(false);
   const [keepTheme, setKeepTheme] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -174,44 +173,9 @@ export function LandingPageEditorPage() {
     }
   };
 
-  /**
-   * Fotos da galeria arrastadas na prévia: as novas posições ocupam os mesmos lugares que as fotos
-   * da galeria tinham na ordem geral, então topo e "sobre" continuam com as mesmas fotos.
-   */
-  const reorderGallery = (urls: string[]) => {
-    setTheme((t) => {
-      if (!t || !company) return t;
-      const saved = t.imageOrder ?? [];
-      const rank = (url: string, index: number) => (saved.includes(url) ? saved.indexOf(url) : saved.length + index);
-      const order = company.images
-        .filter((i) => i.usage_allowed && i.type !== 'logo')
-        .map((img, index) => ({ url: img.url, r: rank(img.url, index) }))
-        .sort((a, b) => a.r - b.r)
-        .map((x) => x.url);
-      const moved = new Set(urls);
-      const queue = [...urls];
-      return { ...t, imageOrder: order.map((u) => (moved.has(u) ? queue.shift()! : u)) };
-    });
-    setDirty(true);
-  };
-
   const removePhotos = async (urls: string[]) => {
     await companyService.removeImages(lp.company_id, urls);
     await reloadCompany();
-  };
-
-  const publish = async () => {
-    if (dirty && !(await save())) return;
-    setPublishing(true);
-    try {
-      await landingPageService.publish(lp.id);
-      toast.success('Landing Page publicada!', { description: lp.public_url });
-      refresh();
-    } catch (err) {
-      toast.error(errorMessage(err));
-    } finally {
-      setPublishing(false);
-    }
   };
 
   const regenerate = async () => {
@@ -258,11 +222,6 @@ export function LandingPageEditorPage() {
           <Button variant="secondary" onClick={() => setRegenOpen(true)} loading={generating} icon={<Sparkles className="size-4" />}>Regenerar</Button>
           <a href={landingPageService.exportUrl(lp.id)}><Button variant="ghost" icon={<Download className="size-4" />} aria-label="Exportar HTML" title="Exportar HTML" /></a>
           <Button variant="ghost" onClick={() => setDeleteOpen(true)} icon={<Trash2 className="size-4" />} aria-label="Excluir" title="Excluir" />
-          {lp.status === 'inativa' ? (
-            <Button variant="brand" onClick={publish} loading={publishing} icon={<Rocket className="size-4" />}>Publicar</Button>
-          ) : (
-            <Button variant="secondary" onClick={() => actions.toggleStatus(lp.id, lp.status)} loading={actions.busyId === lp.id}>Desativar</Button>
-          )}
         </div>}
       </div>
 
@@ -329,7 +288,6 @@ export function LandingPageEditorPage() {
               }}
               mode={mode}
               sectionOrder={device === 'mobile' && theme.mobileOrder?.length ? theme.mobileOrder : content.section_order}
-              onGalleryOrder={reorderGallery}
               onReorder={(keys) => {
                 // Celular tem ordem própria; no computador muda a ordem normal das seções
                 if (device === 'mobile') setTheme((t) => (t ? { ...t, mobileOrder: keys } : t));

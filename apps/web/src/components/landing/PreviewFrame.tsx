@@ -5,7 +5,6 @@ import {
   attachColorPick,
   attachSectionDrag,
   attachSpacingDrag,
-  attachGalleryDrag,
   attachTextEdit,
   currentMode,
   elementColorsCss,
@@ -182,7 +181,6 @@ export function PreviewFrame({
   onText,
   sectionSpacing,
   onSpacing,
-  onGalleryOrder,
 }: {
   src: string;
   /** HTML do rascunho (mudanças ainda não salvas); ausente = página salva em `src` */
@@ -204,8 +202,6 @@ export function PreviewFrame({
   sectionSpacing?: SectionSpacing;
   /** Espaço de uma seção arrastado na prévia (null = volta ao padrão) */
   onSpacing?: (key: string, pct: number | null) => void;
-  /** Fotos da galeria reordenadas na prévia (endereços na nova ordem) */
-  onGalleryOrder?: (urls: string[]) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -232,8 +228,6 @@ export function PreviewFrame({
   onSpacingRef.current = onSpacing;
   const spacingRef = useRef(sectionSpacing);
   spacingRef.current = sectionSpacing;
-  const onGalleryOrderRef = useRef(onGalleryOrder);
-  onGalleryOrderRef.current = onGalleryOrder;
   const onColorsRef = useRef(onElementColors);
   onColorsRef.current = onElementColors;
 
@@ -281,7 +275,6 @@ export function PreviewFrame({
     setupEditorDocument(d);
     setPreviewMode(d, modeRef.current);
     if (onFocusRef.current) attachFocusDrag(d, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), uiScale);
-    if (onGalleryOrderRef.current) attachGalleryDrag(d, (urls) => onGalleryOrderRef.current?.(urls), uiScale);
     setColorsCss(d, elementColorsCss(colorsRef.current));
     loadElementFonts(d, colorsRef.current);
     setSpacingCss(d, sectionSpacingCss(spacingRef.current));
