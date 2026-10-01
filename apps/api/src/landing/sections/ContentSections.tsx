@@ -174,12 +174,11 @@ const QUOTE_LIMIT = 250;
 
 function QuoteText({ ctx, id, text }: { ctx: RenderContext; id: string; text: string }) {
   const { attrs, text: full } = cad(ctx, `testimonial.${id}.text`, text);
-  // No editor o texto fica inteiro para poder ser editado
-  if (ctx.editable || full.length <= QUOTE_LIMIT) return <p {...attrs}>{full}</p>;
+  if (full.length <= QUOTE_LIMIT) return <p {...attrs}>{full}</p>;
   const cut = full.slice(0, QUOTE_LIMIT);
   const space = cut.lastIndexOf(' ');
   const short = (space > QUOTE_LIMIT * 0.75 ? cut.slice(0, space) : cut).replace(/[\s,.;:!?-]+$/, '');
-  return (
+  const more = (
     <details className="quote-more">
       <summary>
         <p>
@@ -188,6 +187,15 @@ function QuoteText({ ctx, id, text }: { ctx: RenderContext; id: string; text: st
       </summary>
       <p>{full}</p>
     </details>
+  );
+  // No editor: o resumo com "Ler mais" aparece como na página; no modo Textos, o texto inteiro para editar
+  return ctx.editable ? (
+    <>
+      <p {...attrs} data-lp-ui="quote-edit">{full}</p>
+      {more}
+    </>
+  ) : (
+    more
   );
 }
 

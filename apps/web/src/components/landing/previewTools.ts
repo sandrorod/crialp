@@ -168,6 +168,7 @@ function refreshSpacingLabels(doc: Document) {
 /** Estilo dos controles do editor dentro da prévia (não existe na página publicada). */
 const EDITOR_CSS = `
 html:not(.lp-mode-fotos) [data-lp-ui="zoom"]{display:none!important}
+html:not(.lp-mode-textos) [data-lp-ui="quote-edit"],html.lp-mode-textos .quote-more{display:none!important}
 html:not(.lp-mode-secoes) [data-lp-ui="section"]{display:none!important}
 html:not(.lp-mode-espacos) [data-lp-ui="spacing"]{display:none!important}
 html.lp-mode-espacos [data-section]{outline:1px dashed rgba(37,99,235,.5);outline-offset:-1px}
