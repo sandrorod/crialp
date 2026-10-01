@@ -12,8 +12,8 @@ export function landingCss(theme: ResolvedTheme): string {
 /* Títulos 10% menores em todos os modelos: no computador (acima) e no celular */
 @media(max-width:767px){:root{--title-scale:.9}}
 *,*::before,*::after{box-sizing:border-box}
-/* Links do menu (#secao) param abaixo da barra fixa do topo (72px) com uma folga, sem cortar o título */
-html{scroll-behavior:smooth;scroll-padding-top:88px;-webkit-text-size-adjust:100%}
+/* Links do menu (#secao) param abaixo da barra fixa do topo com uma folga, sem cortar o título (--header-h vem do script) */
+html{scroll-behavior:smooth;scroll-padding-top:calc(var(--header-h,76px) + 24px);-webkit-text-size-adjust:100%}
 body{margin:0;overflow-x:hidden;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 img{max-width:100%;display:block}
 a{color:inherit}
@@ -333,4 +333,4 @@ p{margin:0;text-wrap:pretty}
 `.replace(/\n\s*/g, '');
 }
 
-export const REVEAL_SCRIPT = `document.documentElement.classList.add('js');addEventListener('DOMContentLoaded',function(){var e=document.querySelectorAll('.reveal');if(!('IntersectionObserver'in window)){e.forEach(function(n){n.classList.add('in')});return}var o=new IntersectionObserver(function(t){t.forEach(function(n){if(n.isIntersecting){n.target.classList.add('in');o.unobserve(n.target)}})},{rootMargin:'0px 0px -8% 0px'});e.forEach(function(n){o.observe(n)})});`;
+export const REVEAL_SCRIPT = `document.documentElement.classList.add('js');addEventListener('DOMContentLoaded',function(){var h=document.querySelector('.site-header');function m(){if(h)document.documentElement.style.setProperty('--header-h',h.offsetHeight+'px')}m();addEventListener('resize',m);document.querySelectorAll('.menu-panel a').forEach(function(a){a.addEventListener('click',function(){var d=a.closest('details');if(d)d.open=false})});var e=document.querySelectorAll('.reveal');if(!('IntersectionObserver'in window)){e.forEach(function(n){n.classList.add('in')});return}var o=new IntersectionObserver(function(t){t.forEach(function(n){if(n.isIntersecting){n.target.classList.add('in');o.unobserve(n.target)}})},{rootMargin:'0px 0px -8% 0px'});e.forEach(function(n){o.observe(n)})});`;
