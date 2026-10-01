@@ -167,7 +167,7 @@ function refreshSpacingLabels(doc: Document) {
 
 /** Estilo dos controles do editor dentro da prévia (não existe na página publicada). */
 const EDITOR_CSS = `
-html:not(.lp-mode-fotos) [data-lp-ui="zoom"]{display:none!important}
+html:not(.lp-mode-fotos) [data-lp-ui="zoom"],html:not(.lp-mode-fotos) [data-lp-ui="gallery"]{display:none!important}
 html:not(.lp-mode-secoes) [data-lp-ui="section"]{display:none!important}
 html:not(.lp-mode-espacos) [data-lp-ui="spacing"]{display:none!important}
 html.lp-mode-espacos [data-section]{outline:1px dashed rgba(37,99,235,.5);outline-offset:-1px}
@@ -200,6 +200,73 @@ export function setPreviewMode(doc: Document, mode: PreviewMode) {
 
 export const currentMode = (doc: Document): PreviewMode =>
   (['textos', 'secoes', 'espacos', 'cores'] as const).find((m) => doc.documentElement.classList.contains(`lp-mode-${m}`)) ?? 'fotos';
+
+// ─── Ordenar fotos da galeria ───────────────────────────────────────
+/**
+ * Modo "Fotos": cada foto da galeria ganha uma alça "⠿". Arrastar pela alça muda a posição
+ * da foto na hora; ao soltar, `onReorder` recebe os endereços na nova ordem.
+ * (Arrastar a foto em si continua ajustando o enquadramento.)
+ */
+export function attachGalleryDrag(doc: Document, onReorder: (urls: string[]) => void, uiScale = 1) {
+  const grid = doc.querySelector<HTMLElement>('.gallery');
+  const win = doc.defaultView;
+  if (!grid || !win || grid.dataset.lpGallery) return;
+  grid.dataset.lpGallery = '1';
+  const px = (n: number) => `${Math.round(n * uiScale)}px`;
+  const figures = () => Array.from(grid.querySelectorAll<HTMLElement>(':scope > figure'));
+  const urlOf = (f: HTMLElement) => f.querySelector<HTMLImageElement>('img[data-lp-img]')?.dataset.lpImg ?? '';
+
+  for (const fig of figures()) {
+    if (win.getComputedStyle(fig).position === 'static') fig.style.position = 'relative';
+    const grip = doc.createElement('button');
+    grip.type = 'button';
+    grip.dataset.lpUi = 'gallery';
+    grip.textContent = '⠿ Mover';
+    grip.title = 'Arraste para mudar a posição da foto na galeria';
+    grip.setAttribute('aria-label', grip.title);
+    grip.setAttribute(
+      'style',
+      `position:absolute;left:${px(8)};top:${px(8)};z-index:46;height:${px(30)};padding:0 ${px(10)};border:0;border-radius:${px(8)};background:rgba(17,24,39,.88);color:#fff;font:600 ${px(12)}/1 system-ui,sans-serif;cursor:grab;touch-action:none;box-shadow:0 6px 18px rgba(0,0,0,.3)`,
+    );
+    fig.appendChild(grip);
+
+    grip.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      // Não deixa começar o ajuste de enquadramento da foto
+      e.preventDefault();
+      e.stopPropagation();
+      grip.setPointerCapture(e.pointerId);
+      grip.style.cursor = 'grabbing';
+      const before = figures().map(urlOf).join('|');
+      fig.style.opacity = '.5';
+      fig.style.outline = `${px(3)} solid #2563eb`;
+      fig.style.pointerEvents = 'none';
+
+      const onMove = (ev: PointerEvent) => {
+        const over = (doc.elementFromPoint(ev.clientX, ev.clientY) as Element | null)?.closest?.<HTMLElement>('.gallery > figure');
+        if (!over || over === fig || over.parentElement !== grid) return;
+        const list = figures();
+        // Passou de uma foto para outra: entra antes ou depois dela, conforme o sentido
+        if (list.indexOf(fig) < list.indexOf(over)) over.after(fig);
+        else over.before(fig);
+      };
+      const end = () => {
+        grip.removeEventListener('pointermove', onMove);
+        grip.removeEventListener('pointerup', end);
+        grip.removeEventListener('pointercancel', end);
+        grip.style.cursor = 'grab';
+        fig.style.opacity = '';
+        fig.style.outline = '';
+        fig.style.pointerEvents = '';
+        const urls = figures().map(urlOf);
+        if (urls.join('|') !== before) onReorder(urls.filter(Boolean));
+      };
+      grip.addEventListener('pointermove', onMove);
+      grip.addEventListener('pointerup', end);
+      grip.addEventListener('pointercancel', end);
+    });
+  }
+}
 
 // ─── Arrastar seções ────────────────────────────────────────────────
 /** Topo, contato e CTA final têm posição fixa na página. */

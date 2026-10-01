@@ -29,7 +29,7 @@ const TABS: { key: Tab; label: string }[] = [
 
 const MODES: { key: PreviewMode; label: string; icon: typeof Monitor; hint: string }[] = [
   { key: 'textos', label: 'Textos', icon: PenLine, hint: 'Clique em qualquer texto contornado para editar ali mesmo (A− / A+ mudam o tamanho). Enter ou clicar fora confirma; Esc desfaz.' },
-  { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste qualquer foto (topo, "Sobre" e galeria) para ajustar o enquadramento; use − / + para o zoom.' },
+  { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste qualquer foto (topo, "Sobre" e galeria) para ajustar o enquadramento; use − / + para o zoom. Na galeria, arraste pela alça "⠿ Mover" para mudar a ordem.' },
   { key: 'secoes', label: 'Seções', icon: Rows3, hint: 'Arraste as seções pelo botão ⠿ (ou use ↑ ↓) para mudar a ordem.' },
   { key: 'espacos', label: 'Espaços', icon: MoveVertical, hint: 'Arraste a alça azul "↕ Espaço" na borda de baixo de cada seção: para cima diminui a margem interna, para baixo aumenta. Duplo clique volta ao padrão.' },
   { key: 'cores', label: 'Cores', icon: Palette, hint: 'Clique em qualquer elemento (título, texto, botão, fundo…) para escolher a cor da fonte, do fundo e o tamanho.' },
@@ -164,6 +164,27 @@ export function LandingPageEditorPage() {
     }
   };
 
+  /**
+   * Fotos da galeria arrastadas na prévia: as novas posições ocupam os mesmos lugares que as fotos
+   * da galeria tinham na ordem geral, então topo e "sobre" continuam com as mesmas fotos.
+   */
+  const reorderGallery = (urls: string[]) => {
+    setTheme((t) => {
+      if (!t || !company) return t;
+      const saved = t.imageOrder ?? [];
+      const rank = (url: string, index: number) => (saved.includes(url) ? saved.indexOf(url) : saved.length + index);
+      const order = company.images
+        .filter((i) => i.usage_allowed && i.type !== 'logo')
+        .map((img, index) => ({ url: img.url, r: rank(img.url, index) }))
+        .sort((a, b) => a.r - b.r)
+        .map((x) => x.url);
+      const moved = new Set(urls);
+      const queue = [...urls];
+      return { ...t, imageOrder: order.map((u) => (moved.has(u) ? queue.shift()! : u)) };
+    });
+    setDirty(true);
+  };
+
   const removePhotos = async (urls: string[]) => {
     await companyService.removeImages(lp.company_id, urls);
     await reloadCompany();
@@ -296,6 +317,7 @@ export function LandingPageEditorPage() {
               }}
               mode={mode}
               sectionOrder={device === 'mobile' && theme.mobileOrder?.length ? theme.mobileOrder : content.section_order}
+              onGalleryOrder={reorderGallery}
               onReorder={(keys) => {
                 // Celular tem ordem própria; no computador muda a ordem normal das seções
                 if (device === 'mobile') setTheme((t) => (t ? { ...t, mobileOrder: keys } : t));
