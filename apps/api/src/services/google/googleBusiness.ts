@@ -24,7 +24,9 @@ export function isGoogleBusinessUrl(url: URL) {
 /** Segue o link curto até o endereço do Google (sem sair dos domínios do Google). */
 async function resolveShortLink(url: URL): Promise<URL> {
   let current = url;
-  for (let i = 0; i < 6 && SHORT_HOSTS.test(current.hostname); i++) {
+  if (!SHORT_HOSTS.test(current.hostname)) return current;
+  // share.google passa por google.com/share.google?q=… antes de chegar à busca com o nome da empresa
+  for (let i = 0; i < 6; i++) {
     const res = await fetch(current, { redirect: 'manual', signal: AbortSignal.timeout(10_000), headers: { 'User-Agent': 'Mozilla/5.0' } }).catch(() => null);
     const location = res?.headers.get('location');
     if (!location) break;
@@ -71,7 +73,7 @@ export async function scrapeGoogleBusiness(input: URL, scraper: ScraperService):
     throw new AppError(422, 'Não identifiquei a empresa neste link do Google. No Google Maps, abra o perfil da empresa e use "Compartilhar" → "Copiar link".', 'GOOGLE_LINK');
   }
   const info = await aiService.describeGooglePlace(query, latLng);
-  if (!info) throw new AppError(422, `Não encontrei "${query}" no Google Maps. Confira o link ou use o site da empresa.`, 'GOOGLE_NOT_FOUND');
+  if (!info) throw new AppError(422, `Não consegui ler os dados de "${query}" no Google Maps (empresas que atendem no local do cliente, sem endereço público, às vezes não aparecem). Use o site da empresa ou preencha os dados manualmente.`, 'GOOGLE_NOT_FOUND');
 
   const text = info.text.replace(/\*\*/g, '').replace(/^\s*[*•-]\s*/gm, '');
   const phones = new Set<string>();
