@@ -13,6 +13,9 @@ export interface AuthUser {
   role: string;
   name: string;
   email: string;
+  /** Conta de cliente: a única Landing Page (e a empresa dela) que pode editar */
+  landingPageId: string | null;
+  companyId: string | null;
 }
 
 declare module 'express-serve-static-core' {
@@ -41,11 +44,15 @@ async function loadUser(req: Request): Promise<AuthUser | null> {
   if (!token) return null;
   try {
     const payload = jwt.verify(token, env.jwtSecret) as { sub: string };
-    const user = await one<{ id: string; organization_id: string; role: string; name: string; email: string }>(
-      'select id, organization_id, role, name, email from users where id = $1',
+    const user = await one<{ id: string; organization_id: string; role: string; name: string; email: string; landing_page_id: string | null; company_id: string | null }>(
+      `select u.id, u.organization_id, u.role, u.name, u.email, u.landing_page_id, lp.company_id
+         from users u left join landing_pages lp on lp.id = u.landing_page_id
+        where u.id = $1`,
       [payload.sub],
     );
-    return user ? { id: user.id, organizationId: user.organization_id, role: user.role, name: user.name, email: user.email } : null;
+    return user
+      ? { id: user.id, organizationId: user.organization_id, role: user.role, name: user.name, email: user.email, landingPageId: user.landing_page_id, companyId: user.company_id }
+      : null;
   } catch {
     return null;
   }
@@ -97,4 +104,28 @@ export function requireRole(...roles: string[]) {
 export function blockSellers(req: Request, _res: Response, next: NextFunction) {
   if (req.user?.role === 'seller') return next(new AppError(403, 'Você não tem permissão para acessar esta área.', 'FORBIDDEN'));
   next();
+}
+
+/**
+ * Contas de cliente só editam o próprio site: abrem e salvam a sua Landing Page, enviam fotos e
+ * leem a empresa dela. Publicar, excluir, trocar endereço/domínio e regenerar ficam com a equipe.
+ */
+export function restrictClients(req: Request, _res: Response, next: NextFunction) {
+  const u = req.user;
+  if (u?.role !== 'client') return next();
+  const lp = u.landingPageId;
+  const co = u.companyId;
+  const allowed: [string, RegExp][] = lp && co
+    ? [
+        ['GET', /^\/landing-pages\/(labels|templates|presets|icons)$/],
+        ['GET', new RegExp(`^/landing-pages/${lp}(/preview|/export)?$`)],
+        ['POST', new RegExp(`^/landing-pages/${lp}/(preview|versions/\\d+/restore)$`)],
+        ['PUT', new RegExp(`^/landing-pages/${lp}/content$`)],
+        ['GET', new RegExp(`^/companies/${co}(/sources)?$`)],
+        ['POST', new RegExp(`^/companies/${co}/images(/remove)?$`)],
+        ['POST', /^\/uploads$/],
+      ]
+    : [];
+  if (allowed.some(([method, re]) => req.method === method && re.test(req.path))) return next();
+  next(new AppError(403, 'Você não tem permissão para acessar esta área.', 'FORBIDDEN'));
 }

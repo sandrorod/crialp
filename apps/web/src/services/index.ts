@@ -2,6 +2,7 @@ import { api } from '@/lib/api';
 import type {
   AIKeyInfo,
   AnalysisResult,
+  ClientAccess,
   Company,
   CompanyDraft,
   CompanyImage,
@@ -84,6 +85,12 @@ export const landingPageService = {
   /** HTML da prévia com conteúdo e tema ainda não salvos. */
   previewDraft: (id: string, body: { content: LandingContent; theme: ThemeSettings }) => api.post<{ html: string }>(`/landing-pages/${id}/preview`, body),
   exportUrl: (id: string) => `/api/landing-pages/${id}/export`,
+  /** Ícones dos elementos: { nome: svg } */
+  icons: () => api.get<Record<string, string>>('/landing-pages/icons'),
+  clientAccess: (id: string) => api.get<{ client: ClientAccess | null }>(`/landing-pages/${id}/client-access`),
+  saveClientAccess: (id: string, body: { name?: string; email: string; password?: string }) =>
+    api.put<{ client: ClientAccess | null }>(`/landing-pages/${id}/client-access`, body),
+  removeClientAccess: (id: string) => api.del(`/landing-pages/${id}/client-access`),
 };
 
 export const miscService = {

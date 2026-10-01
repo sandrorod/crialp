@@ -14,6 +14,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrador',
   editor: 'Editor',
   seller: 'Vendedor',
+  client: 'Cliente',
 };
 
 const ROLE_HINTS: Record<'admin' | 'seller', string> = {

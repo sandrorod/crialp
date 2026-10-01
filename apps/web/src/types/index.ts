@@ -1,12 +1,23 @@
 export type LpStatus = 'ativa' | 'inativa';
 
-export type UserRole = 'owner' | 'admin' | 'editor' | 'seller';
+export type UserRole = 'owner' | 'admin' | 'editor' | 'seller' | 'client';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   role: UserRole;
+  /** Conta de cliente: a Landing Page que ela edita */
+  landing_page_id?: string | null;
+}
+
+/** Login do cliente para editar só a própria Landing Page. */
+export interface ClientAccess {
+  id: string;
+  name: string;
+  email: string;
+  last_login_at: string | null;
+  created_at: string;
 }
 
 export interface SubUser extends User {
@@ -187,7 +198,23 @@ export interface CustomSection {
   title: string;
   paragraphs: string[];
   items: string[];
+  /** Elementos livres (ausente em páginas antigas) */
+  blocks?: SectionBlock[];
+  align?: 'left' | 'center';
 }
+
+export type BlockWidth = 'full' | 'half' | 'third';
+
+/** Elemento de uma seção personalizada. */
+export type SectionBlock = { id: string; width: BlockWidth } & (
+  | { type: 'heading'; text: string }
+  | { type: 'text'; text: string }
+  | { type: 'image'; url: string; alt: string; caption: string | null }
+  | { type: 'icon'; icon: string; title: string; text: string | null }
+  | { type: 'button'; label: string; url: string }
+  | { type: 'divider' }
+);
+export type BlockType = SectionBlock['type'];
 export type SectionOrderKey = SectionKey | `custom:${string}`;
 
 /** Conteúdo completo coletado do site. */

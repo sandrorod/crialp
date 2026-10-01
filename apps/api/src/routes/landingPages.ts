@@ -1,11 +1,14 @@
 import dns from 'node:dns/promises';
+import bcrypt from 'bcryptjs';
 import { Router } from 'express';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import { AppError, notFound } from '../lib/errors.js';
 import { isValidSlug } from '../lib/slug.js';
 import { parseBody, safeUrl, uuidParam } from '../lib/validation.js';
-import { authUser } from '../middleware/auth.js';
+import { one, query } from '../db/pool.js';
+import { authUser, MANAGER_ROLES, requireRole } from '../middleware/auth.js';
+import { iconSvg, PICKABLE_ICONS } from '../landing/icons.js';
 import { getCompanyFull } from '../repositories/companies.js';
 import * as repo from '../repositories/landingPages.js';
 import { LandingContentEditSchema, type LandingContent } from '../services/ai/schemas.js';
@@ -55,6 +58,11 @@ landingPagesRouter.get('/presets', (_req, res) => {
       heroDefault: p.heroDefault,
     })),
   );
+});
+
+/** Ícones para os elementos das seções personalizadas: { nome: svg } */
+landingPagesRouter.get('/icons', (_req, res) => {
+  res.json(Object.fromEntries(PICKABLE_ICONS.map((name) => [name, iconSvg(name, 22)])));
 });
 
 landingPagesRouter.get('/:id', async (req, res) => {
@@ -277,4 +285,55 @@ landingPagesRouter.delete('/:id', async (req, res) => {
   const lp = await loadOr404(user.organizationId, req.params.id);
   await repo.deleteLandingPage(user.organizationId, lp.id);
   res.json({ ok: true });
+});
+
+// ─── Acesso do cliente (login que só edita esta Landing Page) ──────
+const CLIENT_COLUMNS = 'id, name, email, last_login_at, created_at';
+
+async function findClient(lpId: string) {
+  return one<{ id: string; name: string; email: string; last_login_at: string | null; created_at: string }>(
+    `select ${CLIENT_COLUMNS} from users where landing_page_id = $1 and role = 'client' order by created_at limit 1`,
+    [lpId],
+  );
+}
+
+landingPagesRouter.get('/:id/client-access', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const user = authUser(req);
+  const lp = await loadOr404(user.organizationId, String(req.params.id));
+  res.json({ client: await findClient(lp.id) });
+});
+
+const ClientAccessSchema = z.object({
+  name: z.string().trim().max(120).optional(),
+  email: z.string().trim().toLowerCase().email('E-mail inválido.').max(200),
+  // Obrigatória ao criar; ao editar, vazia mantém a senha atual
+  password: z.string().min(8, 'A senha deve ter pelo menos 8 caracteres.').max(200).optional(),
+});
+
+landingPagesRouter.put('/:id/client-access', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const user = authUser(req);
+  const lp = await loadOr404(user.organizationId, String(req.params.id));
+  const body = parseBody(ClientAccessSchema, req.body);
+  const current = await findClient(lp.id);
+  const taken = await one<{ id: string }>('select id from users where lower(email) = $1', [body.email]);
+  if (taken && taken.id !== current?.id) throw new AppError(409, 'Já existe uma conta com este e-mail.', 'CONFLICT');
+  const hash = body.password ? await bcrypt.hash(body.password, 12) : null;
+  const name = body.name || lp.title;
+  if (!current) {
+    if (!hash) throw new AppError(400, 'Defina uma senha para o cliente.');
+    await query(
+      `insert into users (organization_id, name, email, password_hash, role, landing_page_id) values ($1, $2, $3, $4, 'client', $5)`,
+      [user.organizationId, name, body.email, hash, lp.id],
+    );
+  } else {
+    await query('update users set name = $2, email = $3, password_hash = coalesce($4, password_hash) where id = $1', [current.id, name, body.email, hash]);
+  }
+  res.json({ client: await findClient(lp.id) });
+});
+
+landingPagesRouter.delete('/:id/client-access', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const user = authUser(req);
+  const lp = await loadOr404(user.organizationId, String(req.params.id));
+  await query(`delete from users where landing_page_id = $1 and role = 'client'`, [lp.id]);
+  res.json({ client: null });
 });

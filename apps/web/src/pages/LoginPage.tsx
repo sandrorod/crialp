@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router';
 import { ArrowRight } from 'lucide-react';
 import { Button, Field, Input } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
+import { homeFor } from '@/components/layout/AdminLayout';
 import { errorMessage } from '@/lib/api';
 
 export function LoginPage() {
@@ -14,15 +15,15 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to={homeFor(user)} replace />;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      await login(email, password);
-      navigate((location.state as { from?: string } | null)?.from ?? '/', { replace: true });
+      const u = await login(email, password);
+      navigate((location.state as { from?: string } | null)?.from ?? homeFor(u), { replace: true });
     } catch (err) {
       setError(errorMessage(err));
     } finally {

@@ -61,7 +61,7 @@ export function resolveSections(ctx: RenderContext): SectionOrderKey[] {
   const isAvailable = (k: SectionOrderKey) => {
     if (k.startsWith('custom:')) {
       const s = customs.get(k.slice(7));
-      return !!s && !!(s.title || s.paragraphs.length || s.items.length);
+      return !!s && !!(s.title || s.paragraphs.length || s.items.length || s.blocks?.length);
     }
     return available[k as SectionKey];
   };

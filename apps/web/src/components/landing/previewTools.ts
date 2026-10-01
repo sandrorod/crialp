@@ -914,7 +914,7 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
 }
 
 /** Campos que podem ficar vazios (somem da página); os demais recusam texto vazio. */
-const OPTIONAL_FIELDS = new Set(['eyebrow', 'subtitle', 'secondary_cta', 'benefit']);
+const OPTIONAL_FIELDS = new Set(['eyebrow', 'subtitle', 'secondary_cta', 'benefit', 'caption']);
 
 /**
  * Aplica no conteúdo um texto editado na prévia. `path` vem do data-lp-text:
@@ -964,7 +964,9 @@ export function applyTextEdit(content: LandingContent, path: string, raw: string
     return next;
   }
   if (!target || typeof target !== 'object' || !(last in target)) return null;
-  if (!value && !OPTIONAL_FIELDS.has(last)) return null;
+  // Descrição do elemento "ícone" é opcional (nos elementos de texto, "text" é obrigatório)
+  const optional = OPTIONAL_FIELDS.has(last) || (last === 'text' && (target as { type?: string }).type === 'icon');
+  if (!value && !optional) return null;
   (target as Record<string, unknown>)[last] = value || null;
   return next;
 }

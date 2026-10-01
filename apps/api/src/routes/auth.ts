@@ -21,8 +21,8 @@ const LoginSchema = z.object({ email: z.string().trim().toLowerCase().email('E-m
 
 authRouter.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = parseBody(LoginSchema, req.body);
-  const user = await one<{ id: string; password_hash: string; name: string; email: string; role: string }>(
-    'select id, password_hash, name, email, role from users where lower(email) = $1',
+  const user = await one<{ id: string; password_hash: string; name: string; email: string; role: string; landing_page_id: string | null }>(
+    'select id, password_hash, name, email, role, landing_page_id from users where lower(email) = $1',
     [email],
   );
   // Compara mesmo quando o usuário não existe (tempo constante contra enumeração)
@@ -30,7 +30,7 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
   if (!user || !ok) throw new AppError(401, 'E-mail ou senha incorretos.', 'INVALID_CREDENTIALS');
   await query('update users set last_login_at = now() where id = $1', [user.id]);
   issueSession(res, user.id);
-  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, landing_page_id: user.landing_page_id } });
 });
 
 authRouter.post('/logout', (_req, res) => {
@@ -40,7 +40,7 @@ authRouter.post('/logout', (_req, res) => {
 
 authRouter.get('/me', requireAuth, (req, res) => {
   const u = authUser(req);
-  res.json({ user: { id: u.id, name: u.name, email: u.email, role: u.role } });
+  res.json({ user: { id: u.id, name: u.name, email: u.email, role: u.role, landing_page_id: u.landingPageId } });
 });
 
 const PasswordSchema = z.object({

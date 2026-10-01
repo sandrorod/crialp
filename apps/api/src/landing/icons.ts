@@ -51,3 +51,6 @@ export function iconSvg(name: string, size = 22, strokeWidth = 1.75): string {
   const body = PATHS[name] ?? PATHS.check;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 }
+
+/** Ícones oferecidos no editor (sem os de interface: seta, mais, menu). */
+export const PICKABLE_ICONS = Object.keys(PATHS).filter((k) => !['arrow', 'plus', 'menu'].includes(k));

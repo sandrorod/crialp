@@ -160,6 +160,29 @@ export const LandingContentSchema = z.object({
   final_cta: z.object({ title: z.string(), subtitle: z.string().nullable(), cta: z.string() }),
   section_order: z.array(z.enum(SECTION_KEYS)),
 });
+/** Elemento livre de uma seção personalizada (título, texto, foto, ícone, botão, divisória). */
+const blockBase = {
+  id: z.string().regex(/^[a-z0-9-]{1,40}$/),
+  // Largura no computador; no celular todos ocupam a linha inteira
+  width: z.enum(['full', 'half', 'third']).default('full'),
+};
+export const SectionBlockSchema = z.discriminatedUnion('type', [
+  z.object({ ...blockBase, type: z.literal('heading'), text: z.string().max(300) }),
+  z.object({ ...blockBase, type: z.literal('text'), text: z.string().max(8000) }),
+  z.object({
+    ...blockBase,
+    type: z.literal('image'),
+    url: z.string().max(2048),
+    alt: z.string().max(300).default(''),
+    caption: z.string().max(300).nullable().default(null),
+  }),
+  z.object({ ...blockBase, type: z.literal('icon'), icon: z.string().max(40), title: z.string().max(200), text: z.string().max(2000).nullable().default(null) }),
+  // Link vazio = contato principal da página (WhatsApp, telefone ou e-mail)
+  z.object({ ...blockBase, type: z.literal('button'), label: z.string().max(120), url: z.string().max(2048).default('') }),
+  z.object({ ...blockBase, type: z.literal('divider') }),
+]);
+export type SectionBlock = z.infer<typeof SectionBlockSchema>;
+
 /** Seção criada pelo administrador (qualquer conteúdo do site ou texto próprio). */
 export const CustomSectionSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]{1,40}$/),
@@ -167,6 +190,8 @@ export const CustomSectionSchema = z.object({
   title: z.string().max(300),
   paragraphs: z.array(z.string().max(8000)).max(40).default([]),
   items: z.array(z.string().max(600)).max(60).default([]),
+  blocks: z.array(SectionBlockSchema).max(60).default([]),
+  align: z.enum(['left', 'center']).default('left'),
 });
 export type CustomSection = z.infer<typeof CustomSectionSchema>;
 

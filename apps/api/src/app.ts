@@ -3,7 +3,7 @@ import path from 'node:path';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import { env } from './config/env.js';
-import { blockSellers, MANAGER_ROLES, requireAuth, requireRole, requireSameOriginWrite } from './middleware/auth.js';
+import { blockSellers, MANAGER_ROLES, requireAuth, requireRole, requireSameOriginWrite, restrictClients } from './middleware/auth.js';
 import { errorHandler } from './middleware/errors.js';
 import { ADMIN_CSP, securityHeaders } from './middleware/security.js';
 import { analyzeRouter } from './routes/analyze.js';
@@ -39,6 +39,7 @@ export function createApp() {
   api.get('/health', (_req, res) => res.json({ ok: true, version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null }));
   api.use('/auth', authRouter);
   api.use(requireAuth);
+  api.use(restrictClients); // cliente: só o próprio site
   api.use('/sales', salesRouter); // único acesso do vendedor
   api.use(blockSellers);
   api.use('/users', requireRole(...MANAGER_ROLES), usersRouter);

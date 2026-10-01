@@ -4,6 +4,7 @@ import { Button, Field, Input, ListEditor, Select, Textarea } from '@/components
 import { useAsync } from '@/hooks/useAsync';
 import { cn } from '@/lib/utils';
 import { companyService, landingPageService } from '@/services';
+import { BlocksEditor, NewSectionButton, newId } from './SectionBlocks';
 import type { Company, CustomSection, LandingContent, SectionKey, SectionOrderKey } from '@/types';
 
 const SECTION_LABELS: Record<SectionKey, string> = {
@@ -103,7 +104,8 @@ function SitePicker({ companyId, onPick, onClose }: { companyId: string; onPick:
   );
 }
 
-function CustomSectionEditor({ section, onChange, companyId }: { section: CustomSection; onChange: (s: CustomSection) => void; companyId?: string }) {
+function CustomSectionEditor({ section, onChange, company }: { section: CustomSection; onChange: (s: CustomSection) => void; company?: Company | null }) {
+  const companyId = company?.id;
   const [picker, setPicker] = useState<null | 'paragraphs' | 'items'>(null);
   return (
     <>
@@ -111,9 +113,23 @@ function CustomSectionEditor({ section, onChange, companyId }: { section: Custom
         <Input placeholder="Sobretítulo (opcional)" value={section.eyebrow ?? ''} onChange={(e) => onChange({ ...section, eyebrow: e.target.value || null })} />
         <Input placeholder="Título da seção" value={section.title} onChange={(e) => onChange({ ...section, title: e.target.value })} className="font-medium" />
       </div>
-      <Field label="Texto" hint="Separe os parágrafos com uma linha em branco.">
+      <div className="flex items-center gap-2 text-xs text-zinc-600">
+        Alinhamento:
+        {(['left', 'center'] as const).map((a) => (
+          <button
+            key={a}
+            type="button"
+            onClick={() => onChange({ ...section, align: a })}
+            className={cn('rounded-md px-2 py-1', (section.align ?? 'left') === a ? 'bg-ink text-white' : 'bg-white ring-1 ring-zinc-200 hover:ring-zinc-300')}
+          >
+            {a === 'left' ? 'À esquerda' : 'Centralizado'}
+          </button>
+        ))}
+      </div>
+      <BlocksEditor blocks={section.blocks ?? []} onChange={(blocks) => onChange({ ...section, blocks })} company={company} />
+      <Field label="Texto corrido (opcional)" hint="Separe os parágrafos com uma linha em branco.">
         <Textarea
-          className="min-h-[120px]"
+          className="min-h-[80px]"
           value={section.paragraphs.join('\n\n')}
           onChange={(e) => onChange({ ...section, paragraphs: e.target.value.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean) })}
         />
@@ -233,12 +249,12 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
   const toggle = (k: SectionOrderKey) =>
     set('section_order', order.includes(k) ? order.filter((x) => x !== k) : [...order.filter((x) => !REQUIRED.includes(x as SectionKey)), k, ...REQUIRED.filter((r) => order.includes(r))]);
 
-  const addCustom = () => {
-    const id = Math.random().toString(36).slice(2, 8);
+  const addCustom = (section: Omit<CustomSection, 'id'>) => {
+    const id = newId();
     const next = order.filter(() => true);
     const at = next.indexOf('contact');
     next.splice(at >= 0 ? at : next.length, 0, `custom:${id}`);
-    onChange({ ...content, custom_sections: [...customs, { id, eyebrow: null, title: 'Nova seção', paragraphs: [], items: [] }], section_order: next });
+    onChange({ ...content, custom_sections: [...customs, { id, ...section }], section_order: next });
   };
   const updateCustom = (s: CustomSection) => set('custom_sections', customs.map((c) => (c.id === s.id ? s : c)));
   const removeCustom = (id: string) =>
@@ -277,6 +293,24 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
             );
           })}
         </ul>
+      </Group>
+
+      <Group
+        title={`Seções personalizadas (${customs.length})`}
+        actions={<NewSectionButton onCreate={addCustom} />}
+      >
+        <p className="text-xs text-zinc-500">
+          Crie seções com títulos, textos, fotos, ícones e botões, com informações do site que não entraram automaticamente (unidades, convênios, história…) ou conteúdo próprio. A nova seção entra antes do contato; mude a posição em "Seções e ordem".
+        </p>
+        {customs.map((c) => (
+          <div key={c.id} className="space-y-2 rounded-md border border-zinc-100 bg-zinc-50/50 p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">{c.title || 'Seção personalizada'}</span>
+              <button type="button" className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title="Excluir seção" onClick={() => removeCustom(c.id)}><Trash2 className="size-4" /></button>
+            </div>
+            <CustomSectionEditor section={c} onChange={updateCustom} company={company} />
+          </div>
+        ))}
       </Group>
 
       <Group title="Hero (topo da página)">
@@ -453,24 +487,6 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
         <Txt label="Título" area value={content.final_cta.title} onChange={(v) => set('final_cta', { ...content.final_cta, title: v })} />
         <Txt label="Subtítulo" value={content.final_cta.subtitle} onChange={(v) => set('final_cta', { ...content.final_cta, subtitle: v || null })} />
         <Txt label="Texto do botão" value={content.final_cta.cta} onChange={(v) => set('final_cta', { ...content.final_cta, cta: v })} />
-      </Group>
-
-      <Group
-        title={`Seções personalizadas (${customs.length})`}
-        actions={<Button type="button" variant="secondary" size="sm" icon={<Plus className="size-3.5" />} onClick={addCustom}>Nova seção</Button>}
-      >
-        <p className="text-xs text-zinc-500">
-          Crie seções com qualquer informação do site que não entrou automaticamente (unidades, convênios, história, políticas…) ou com textos próprios.
-        </p>
-        {customs.map((c) => (
-          <div key={c.id} className="space-y-2 rounded-md border border-zinc-100 bg-zinc-50/50 p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">{c.title || 'Seção personalizada'}</span>
-              <button type="button" className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title="Excluir seção" onClick={() => removeCustom(c.id)}><Trash2 className="size-4" /></button>
-            </div>
-            <CustomSectionEditor section={c} onChange={updateCustom} companyId={company?.id} />
-          </div>
-        ))}
       </Group>
 
       <Group title="Rótulos, menu e botões" empty>

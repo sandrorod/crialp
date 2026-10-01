@@ -5,7 +5,7 @@ import type { User } from '@/types';
 interface AuthState {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
 }
 
@@ -29,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const r = await authService.login(email, password);
     setUser(r.user);
+    return r.user;
   }, []);
 
   const logout = useCallback(async () => {

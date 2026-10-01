@@ -19,7 +19,7 @@ const COLUMNS = 'id, name, email, role, last_login_at, created_at';
 
 usersRouter.get('/', async (req, res) => {
   const user = authUser(req);
-  const { rows } = await query(`select ${COLUMNS} from users where organization_id = $1 order by created_at`, [user.organizationId]);
+  const { rows } = await query(`select ${COLUMNS} from users where organization_id = $1 and role <> 'client' order by created_at`, [user.organizationId]);
   res.json(rows);
 });
 
@@ -76,7 +76,7 @@ usersRouter.delete('/:id', async (req, res) => {
 });
 
 async function findTarget(orgId: string, id: string) {
-  const target = await one<{ id: string; role: string; email: string }>('select id, role, email from users where id = $1 and organization_id = $2', [id, orgId]);
+  const target = await one<{ id: string; role: string; email: string }>("select id, role, email from users where id = $1 and organization_id = $2 and role <> 'client'", [id, orgId]);
   if (!target) throw notFound('Usuário não encontrado.');
   return target;
 }

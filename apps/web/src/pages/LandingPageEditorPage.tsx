@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Building2, Copy, Download, ExternalLink, Image as ImageIcon, Monitor, MoveVertical, Palette, PenLine, RefreshCw, Rocket, Rows3, Save, Smartphone, Sparkles, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ClientAccessTab } from '@/components/landing/ClientAccessTab';
 import { ContentTab } from '@/components/landing/ContentTab';
 import { PreviewFrame } from '@/components/landing/PreviewFrame';
 import { applyTextEdit, type PreviewMode } from '@/components/landing/previewTools';
@@ -9,6 +10,7 @@ import { DesignTab, PhotosTab, TemplateTab, PublishTab, SeoTab, VersionsTab, typ
 import { ProgressSteps } from '@/components/ProgressSteps';
 import { Button, Card, ConfirmDialog, ErrorBlock, LoadingBlock, StatusToggle } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
+import { useAuth } from '@/hooks/useAuth';
 import { useJob } from '@/hooks/useJob';
 import { useLandingPageActions } from '@/hooks/useLandingPageActions';
 import { errorMessage } from '@/lib/api';
@@ -16,7 +18,7 @@ import { cn, formatDate } from '@/lib/utils';
 import { analysisService, companyService, landingPageService } from '@/services';
 import type { LandingContent, SectionOrderKey, ThemeSettings } from '@/types';
 
-type Tab = 'modelo' | 'textos' | 'fotos' | 'visual' | 'seo' | 'publicacao' | 'versoes';
+type Tab = 'modelo' | 'textos' | 'fotos' | 'visual' | 'seo' | 'publicacao' | 'cliente' | 'versoes';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'modelo', label: 'Modelo' },
   { key: 'textos', label: 'Textos' },
@@ -24,8 +26,11 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'visual', label: 'Cores e estilo' },
   { key: 'seo', label: 'SEO' },
   { key: 'publicacao', label: 'Publicação' },
+  { key: 'cliente', label: 'Acesso do cliente' },
   { key: 'versoes', label: 'Versões' },
 ];
+// Abas que só a equipe vê (o cliente não publica nem cria logins)
+const STAFF_TABS: Tab[] = ['publicacao', 'cliente'];
 
 const MODES: { key: PreviewMode; label: string; icon: typeof Monitor; hint: string }[] = [
   { key: 'textos', label: 'Textos', icon: PenLine, hint: 'Clique em qualquer texto contornado para editar ali mesmo (A− / A+ mudam o tamanho). Enter ou clicar fora confirma; Esc desfaz.' },
@@ -45,15 +50,20 @@ function mergeSectionOrder(order: SectionOrderKey[], keys: string[]): SectionOrd
  * Partes do tema que mudam a estrutura/cores renderizadas no servidor. Enquadramento, cores de
  * elementos, margens e ordem no celular são aplicados direto na prévia e não entram aqui.
  */
-function renderedThemeKey(t: ThemeSettings | null | undefined) {
+function renderedThemeKey(t: ThemeSettings | null | undefined, c: LandingContent | null | undefined) {
   if (!t) return '';
   const { preset, primary, accent, heroVariant, sections, images, template, imageOrder } = t;
-  return JSON.stringify({ preset, primary, accent, heroVariant, sections, images, template, imageOrder });
+  // Seções personalizadas (elementos, fotos, botões) também só aparecem renderizadas no servidor
+  return JSON.stringify({ preset, primary, accent, heroVariant, sections, images, template, imageOrder, custom: c?.custom_sections ?? [] });
 }
 
 export function LandingPageEditorPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  // Conta de cliente: edita o conteúdo, mas não publica, exclui, regenera nem mexe no cadastro
+  const isClient = user?.role === 'client';
+  const canManageAccess = user?.role === 'owner' || user?.role === 'admin';
   const { data: lp, error, loading, reload } = useAsync(() => landingPageService.get(id), [id]);
   const { data: company, reload: reloadCompany } = useAsync(async () => (lp ? companyService.get(lp.company_id) : null), [lp?.company_id]);
   const [tab, setTab] = useState<Tab>('textos');
@@ -89,8 +99,8 @@ export function LandingPageEditorPage() {
     setDraftHtml(null);
   }, [lp]);
 
-  const draftKey = renderedThemeKey(theme);
-  const savedKey = renderedThemeKey(lp?.theme);
+  const draftKey = renderedThemeKey(theme, content);
+  const savedKey = renderedThemeKey(lp?.theme, lp?.content);
   useEffect(() => {
     if (!lp || !content || !theme) return;
     // Sem mudança de tema desde o último salvamento, a página salva já é a prévia certa
@@ -222,16 +232,18 @@ export function LandingPageEditorPage() {
 
   return (
     <div>
-      <Link to="/landing-pages" className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-ink">
-        <ArrowLeft className="size-4" /> Landing Pages
-      </Link>
+      {isClient ? null : (
+        <Link to="/landing-pages" className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-ink">
+          <ArrowLeft className="size-4" /> Landing Pages
+        </Link>
+      )}
 
       {/* Cabeçalho */}
       <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="truncate text-2xl font-semibold tracking-tight">{lp.company?.name ?? lp.title}</h1>
-            <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />
+            {isClient ? null : <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />}
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-500">
             <a href={lp.public_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
@@ -241,7 +253,7 @@ export function LandingPageEditorPage() {
             <span>v{lp.current_version} · atualizada {formatDate(lp.updated_at, true)}</span>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        {isClient ? null : <div className="flex flex-wrap gap-2">
           <Link to={`/empresas/${lp.company_id}`}><Button variant="secondary" icon={<Building2 className="size-4" />}>Editar empresa</Button></Link>
           <Button variant="secondary" onClick={() => setRegenOpen(true)} loading={generating} icon={<Sparkles className="size-4" />}>Regenerar</Button>
           <a href={landingPageService.exportUrl(lp.id)}><Button variant="ghost" icon={<Download className="size-4" />} aria-label="Exportar HTML" title="Exportar HTML" /></a>
@@ -251,7 +263,7 @@ export function LandingPageEditorPage() {
           ) : (
             <Button variant="secondary" onClick={() => actions.toggleStatus(lp.id, lp.status)} loading={actions.busyId === lp.id}>Desativar</Button>
           )}
-        </div>
+        </div>}
       </div>
 
       {generating ? (
@@ -358,7 +370,7 @@ export function LandingPageEditorPage() {
         {/* Painel de edição */}
         <div className="min-w-0">
           <div className="mb-3 flex gap-1 overflow-x-auto rounded-lg bg-zinc-100 p-1">
-            {TABS.map((t) => (
+            {TABS.filter((t) => !STAFF_TABS.includes(t.key) || (t.key === 'cliente' ? canManageAccess : !isClient)).map((t) => (
               <button key={t.key} onClick={() => setTab(t.key)} className={cn('whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition', tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink')}>
                 {t.label}
               </button>
@@ -371,6 +383,7 @@ export function LandingPageEditorPage() {
             {tab === 'visual' ? <Card className="p-5"><DesignTab theme={theme} onChange={change(setTheme)} content={content} /></Card> : null}
             {tab === 'seo' ? <Card className="p-5"><SeoTab seo={seo} onChange={change(setSeo)} slug={lp.slug} /></Card> : null}
             {tab === 'publicacao' ? <Card className="p-5"><PublishTab lp={lp} onUpdated={refresh} /></Card> : null}
+            {tab === 'cliente' && canManageAccess ? <Card className="p-5"><ClientAccessTab lpId={lp.id} /></Card> : null}
             {tab === 'versoes' ? <VersionsTab lp={lp} onRestored={refresh} /> : null}
           </div>
           {['modelo', 'textos', 'fotos', 'visual', 'seo'].includes(tab) ? (
