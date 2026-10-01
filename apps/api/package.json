@@ -28,6 +28,7 @@
     "zod": "^4.1.0"
   },
   "devDependencies": {
+    "@lp/web": "*",
     "@types/cookie-parser": "^1.4.7",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.7",
