@@ -29,7 +29,7 @@ const TABS: { key: Tab; label: string }[] = [
 
 const MODES: { key: PreviewMode; label: string; icon: typeof Monitor; hint: string }[] = [
   { key: 'textos', label: 'Textos', icon: PenLine, hint: 'Clique em qualquer texto contornado para editar ali mesmo (A− / A+ mudam o tamanho). Enter ou clicar fora confirma; Esc desfaz.' },
-  { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste qualquer foto (topo, "Sobre" e galeria) para ajustar o enquadramento; use − / + para o zoom. Na galeria, arraste pela alça "⠿ Mover" para mudar a ordem.' },
+  { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste qualquer foto (topo, "Sobre" e galeria) para ajustar o enquadramento; use − / + para o zoom.' },
   { key: 'secoes', label: 'Seções', icon: Rows3, hint: 'Arraste as seções pelo botão ⠿ (ou use ↑ ↓) para mudar a ordem.' },
   { key: 'espacos', label: 'Espaços', icon: MoveVertical, hint: 'Arraste a alça azul "↕ Espaço" na borda de baixo de cada seção: para cima diminui a margem interna, para baixo aumenta. Duplo clique volta ao padrão.' },
   { key: 'cores', label: 'Cores', icon: Palette, hint: 'Clique em qualquer elemento (título, texto, botão, fundo…) para escolher a cor da fonte, do fundo e o tamanho.' },

@@ -167,7 +167,7 @@ function refreshSpacingLabels(doc: Document) {
 
 /** Estilo dos controles do editor dentro da prévia (não existe na página publicada). */
 const EDITOR_CSS = `
-html:not(.lp-mode-fotos) [data-lp-ui="zoom"],html:not(.lp-mode-fotos) [data-lp-ui="gallery"]{display:none!important}
+html:not(.lp-mode-fotos) [data-lp-ui="zoom"]{display:none!important}
 html:not(.lp-mode-secoes) [data-lp-ui="section"]{display:none!important}
 html:not(.lp-mode-espacos) [data-lp-ui="spacing"]{display:none!important}
 html.lp-mode-espacos [data-section]{outline:1px dashed rgba(37,99,235,.5);outline-offset:-1px}
@@ -203,7 +203,7 @@ export const currentMode = (doc: Document): PreviewMode =>
 
 // ─── Ordenar fotos da galeria ───────────────────────────────────────
 /**
- * Modo "Fotos": cada foto da galeria ganha uma alça "⠿". Arrastar pela alça muda a posição
+ * Cada foto da galeria ganha uma alça "⠿" (em qualquer modo do editor). Arrastar pela alça muda a posição
  * da foto na hora; ao soltar, `onReorder` recebe os endereços na nova ordem.
  * (Arrastar a foto em si continua ajustando o enquadramento.)
  */
