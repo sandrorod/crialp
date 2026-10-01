@@ -58,3 +58,11 @@ authRouter.post('/password', requireAuth, async (req, res) => {
   await query('update users set password_hash = $2 where id = $1', [u.id, await bcrypt.hash(body.new_password, 12)]);
   res.json({ ok: true });
 });
+
+/** O próprio usuário troca o nome de exibição (o e-mail de login não muda por aqui). */
+authRouter.patch('/me', requireAuth, async (req, res) => {
+  const u = authUser(req);
+  const { name } = parseBody(z.object({ name: z.string().trim().min(1, 'Informe o nome.').max(120) }), req.body);
+  await query('update users set name = $2 where id = $1', [u.id, name]);
+  res.json({ user: { id: u.id, name, email: u.email, role: u.role, landing_page_id: u.landingPageId } });
+});

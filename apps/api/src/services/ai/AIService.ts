@@ -105,6 +105,13 @@ export class AIService {
     await gemini.testKey(key);
   }
 
+  /** Dados do Perfil da Empresa no Google (usa as chaves do Gemini, qualquer que seja o provedor principal). */
+  async describeGooglePlace(query: string, latLng?: { latitude: number; longitude: number }) {
+    const { GeminiProvider } = await import('./GeminiProvider.js');
+    const gemini = this.provider instanceof GeminiProvider ? this.provider : new GeminiProvider(undefined, 'gemini-2.5-flash');
+    return gemini.describeGooglePlace(query, latLng);
+  }
+
   get model() {
     return this.provider.model;
   }

@@ -363,13 +363,13 @@ function absolutize(href: string | undefined, base: URL): URL | null {
   }
 }
 
-function socialNetworkOf(url: URL): SocialNetwork | null {
+export function socialNetworkOf(url: URL): SocialNetwork | null {
   const host = url.hostname.toLowerCase();
   for (const [network, re] of SOCIAL_PATTERNS) if (re.test(host)) return network;
   return null;
 }
 
-function normalizeSocialUrl(url: URL) {
+export function normalizeSocialUrl(url: URL) {
   const clean = new URL(url.toString());
   clean.search = '';
   clean.hash = '';
@@ -385,9 +385,9 @@ function whatsappFromUrl(url: URL): string | null {
   return null;
 }
 
-const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
-const PHONE_RE = /(?:\+?55[\s.-]?)?\(?\b[1-9]\d\)?[\s.-]?9?\d{4}[\s.-]?\d{4}\b/g;
-const ZIP_RE = /\b\d{5}-?\d{3}\b/g;
+export const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
+export const PHONE_RE = /(?:\+?55[\s.-]?)?\(?\b[1-9]\d\)?[\s.-]?9?\d{4}[\s.-]?\d{4}\b/g;
+export const ZIP_RE = /\b\d{5}-?\d{3}\b/g;
 
 function extractJsonLd($: cheerio.CheerioAPI): unknown[] {
   const out: unknown[] = [];

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Building2, Loader2, Copy, Download, ExternalLink, Image as ImageIcon, Monitor, MoveVertical, Palette, PenLine, RefreshCw, Rows3, Save, Smartphone, Sparkles, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { ClientAccessTab } from '@/components/landing/ClientAccessTab';
+import { ClientAccessTab, OwnAccessTab } from '@/components/landing/ClientAccessTab';
 import { ContentTab } from '@/components/landing/ContentTab';
 import { PreviewFrame } from '@/components/landing/PreviewFrame';
 import { applyTextEdit, type PreviewMode } from '@/components/landing/previewTools';
@@ -345,7 +345,7 @@ export function LandingPageEditorPage() {
         {/* Painel de edição */}
         <div className="min-w-0">
           <div className="mb-3 flex gap-1 overflow-x-auto rounded-lg bg-zinc-100 p-1">
-            {TABS.filter((t) => !STAFF_TABS.includes(t.key) || (t.key === 'cliente' ? canManageAccess : !isClient)).map((t) => (
+            {TABS.filter((t) => !STAFF_TABS.includes(t.key) || (t.key === 'cliente' ? canManageAccess || isClient : !isClient)).map((t) => (
               <button key={t.key} onClick={() => setTab(t.key)} className={cn('whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition', tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink')}>
                 {t.label}
               </button>
@@ -359,6 +359,7 @@ export function LandingPageEditorPage() {
             {tab === 'seo' ? <Card className="p-5"><SeoTab seo={seo} onChange={change(setSeo)} slug={lp.slug} /></Card> : null}
             {tab === 'publicacao' ? <Card className="p-5"><PublishTab lp={lp} onUpdated={refresh} /></Card> : null}
             {tab === 'cliente' && canManageAccess ? <Card className="p-5"><ClientAccessTab lpId={lp.id} /></Card> : null}
+            {tab === 'cliente' && isClient ? <Card className="p-5"><OwnAccessTab /></Card> : null}
             {tab === 'versoes' ? <VersionsTab lp={lp} onRestored={refresh} /> : null}
           </div>
           {['modelo', 'textos', 'fotos', 'visual', 'seo'].includes(tab) ? (

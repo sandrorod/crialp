@@ -34,6 +34,14 @@ function isKeyError(err: unknown) {
   return err.status === 401 || err.status === 403 || err.status === 429 || /api key not valid|API_KEY_INVALID|permission|quota|exhausted/i.test(err.message ?? '');
 }
 
+/** Dados do Google Maps lidos pela consulta do Gemini. */
+export interface GooglePlaceInfo {
+  /** Texto "Campo: valor" com os dados do perfil */
+  text: string;
+  mapsUri: string;
+  title: string;
+}
+
 export class GeminiProvider implements AIProvider {
   readonly name = 'gemini';
   private readonly clients = new Map<string, GoogleGenAI>();
@@ -156,6 +164,53 @@ export class GeminiProvider implements AIProvider {
       }
     }
     throw new AIProviderError('A IA retornou um formato inválido.', true);
+  }
+
+  /**
+   * Dados do Perfil da Empresa no Google (Google Maps) via Gemini com consulta ao Maps.
+   * Só devolve o que o Maps traz; sem local encontrado no Maps, devolve null.
+   */
+  async describeGooglePlace(query: string, latLng?: { latitude: number; longitude: number }): Promise<GooglePlaceInfo | null> {
+    const keys = await aiKeyStore.rotation('gemini', this.envKey);
+    if (!keys.length) throw new AIProviderError('Nenhuma chave do Gemini configurada.', false, 'Nenhuma chave do Gemini cadastrada. Adicione uma em Configurações.');
+    const prompt =
+      `Consulte o Google Maps e encontre o estabelecimento: "${query}".\n` +
+      'Responda em português, uma informação por linha, no formato "Campo: valor", usando SOMENTE dados do Google Maps desse local ' +
+      '(nunca complete com suposições; campo sem dado no Maps não aparece):\n' +
+      'Nome, Categoria, Endereço completo, Telefone, Site, Horário de funcionamento (um dia por linha), Nota e número de avaliações, ' +
+      'Descrição do local (texto do próprio perfil), Serviços/comodidades listados no perfil.\n' +
+      'Se não encontrar o local no Google Maps, responda apenas: NAO_ENCONTRADO';
+    let lastError: unknown;
+    // Consulta ao Maps funciona nos modelos 2.5: começa por ele e depois tenta os configurados
+    const models = [...new Set(['gemini-2.5-flash', this.model, ...this.fallbackModels])];
+    for (const key of keys) {
+      const client = this.clientFor(key.key);
+      for (const model of models) {
+        try {
+          const response = await client.models.generateContent({
+            model,
+            contents: prompt,
+            config: {
+              tools: [{ googleMaps: {} }],
+              ...(latLng ? { toolConfig: { retrievalConfig: { latLng } } } : {}),
+            },
+          });
+          await aiKeyStore.recordUse(key.id);
+          const text = (response.text ?? '').trim();
+          const chunk = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.find((c) => c.maps?.uri);
+          if (!chunk?.maps || !text || /NAO_ENCONTRADO/.test(text)) return null;
+          return { text, mapsUri: chunk.maps.uri!, title: chunk.maps.title?.replace(/\s*-\s*Google Maps$/i, '') ?? query };
+        } catch (err) {
+          lastError = err;
+          const missing = err instanceof ApiError && (err.status === 404 || err.status === 400 || /not (found|supported|enabled)/i.test(err.message ?? ''));
+          if (missing || isOverloaded(err)) continue; // tenta o próximo modelo
+          if (!isKeyError(err)) throw this.mapError(err);
+          await aiKeyStore.recordError(key.id, err instanceof Error ? err.message : String(err));
+          break; // próxima chave
+        }
+      }
+    }
+    throw this.mapError(lastError);
   }
 
   /** Tenta o modelo principal e, se continuar sobrecarregado, os modelos reserva. */

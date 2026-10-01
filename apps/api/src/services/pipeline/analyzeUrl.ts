@@ -4,6 +4,7 @@ import { aiService, AIProviderError } from '../ai/index.js';
 import type { ExtractedCompany } from '../ai/schemas.js';
 import type { JobHandle } from '../jobs/JobService.js';
 import { buildAnalysisDocument, ScraperService } from '../scraper/ScraperService.js';
+import { isGoogleBusinessUrl, scrapeGoogleBusiness } from '../google/googleBusiness.js';
 import { assembleImages } from './images.js';
 import { SourceVerifier } from './verify.js';
 import { toSourcePayload } from '../../repositories/sources.js';
@@ -24,7 +25,9 @@ export async function analyzeUrl(job: JobHandle, url: URL, opts: { allowImages?:
   if (!(await aiService.isConfigured())) throw new AppError(503, Messages.aiNotConfigured);
 
   await job.step(ANALYZE_STEPS.access);
-  const scrape = await scraper.scrape(url);
+  // Link do Google (Maps / Perfil da Empresa): dados do perfil, mais o site próprio se o perfil tiver um
+  const google = isGoogleBusinessUrl(url) ? await scrapeGoogleBusiness(url, scraper) : null;
+  const scrape = google ? google.scrape : await scraper.scrape(url);
 
   await job.step(ANALYZE_STEPS.content);
   const totalText = scrape.pages.reduce((n, p) => n + p.text.length, 0);
@@ -105,7 +108,7 @@ export async function analyzeUrl(job: JobHandle, url: URL, opts: { allowImages?:
     description: extracted.description,
     segment: extracted.segment,
     reference_url: url.toString(),
-    website: new URL(scrape.finalUrl).origin,
+    website: google ? google.website : new URL(scrape.finalUrl).origin,
     opening_hours: extracted.opening_hours,
     ...contacts,
     ...socials,

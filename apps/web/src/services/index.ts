@@ -34,6 +34,7 @@ export const authService = {
   login: (email: string, password: string) => api.post<{ user: User }>('/auth/login', { email, password }),
   logout: () => api.post('/auth/logout'),
   changePassword: (current_password: string, new_password: string) => api.post('/auth/password', { current_password, new_password }),
+  updateName: (name: string) => api.patch<{ user: User }>('/auth/me', { name }),
 };
 
 export const analysisService = {

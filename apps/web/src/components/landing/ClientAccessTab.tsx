@@ -3,9 +3,10 @@ import { KeyRound, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, ConfirmDialog, ErrorBlock, Field, Input, LoadingBlock } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
+import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
-import { landingPageService } from '@/services';
+import { authService, landingPageService } from '@/services';
 
 /** Login do cliente: entra no painel e só vê e edita esta Landing Page. */
 export function ClientAccessTab({ lpId }: { lpId: string }) {
@@ -94,6 +95,71 @@ export function ClientAccessTab({ lpId }: { lpId: string }) {
         onConfirm={remove}
         onClose={() => setRemoveOpen(false)}
       />
+    </div>
+  );
+}
+
+/** Versão do próprio cliente: muda o nome e a senha; o e-mail de login é fixo. */
+export function OwnAccessTab() {
+  const { user, setUser } = useAuth();
+  const [name, setName] = useState(user?.name ?? '');
+  const [savingName, setSavingName] = useState(false);
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
+  if (!user) return null;
+
+  const saveName = async (e: FormEvent) => {
+    e.preventDefault();
+    setSavingName(true);
+    try {
+      const r = await authService.updateName(name);
+      setUser({ ...user, ...r.user });
+      toast.success('Nome atualizado.');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const savePassword = async (e: FormEvent) => {
+    e.preventDefault();
+    setSavingPassword(true);
+    try {
+      await authService.changePassword(current, next);
+      toast.success('Senha alterada.');
+      setCurrent('');
+      setNext('');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <form onSubmit={saveName} className="space-y-3">
+        <h4 className="text-sm font-semibold">Seus dados</h4>
+        <Field label="E-mail de login" hint="O e-mail não pode ser alterado. Para trocar, fale com o administrador.">
+          <Input value={user.email} disabled className="bg-zinc-50 text-zinc-500" />
+        </Field>
+        <Field label="Nome">
+          <Input value={name} onChange={(e) => setName(e.target.value)} required maxLength={120} />
+        </Field>
+        <Button type="submit" loading={savingName} disabled={!name.trim() || name.trim() === user.name}>Salvar nome</Button>
+      </form>
+      <form onSubmit={savePassword} className="space-y-3 border-t border-zinc-100 pt-5">
+        <h4 className="text-sm font-semibold">Alterar senha</h4>
+        <Field label="Senha atual">
+          <Input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} required autoComplete="current-password" />
+        </Field>
+        <Field label="Nova senha" hint="Mínimo de 8 caracteres.">
+          <Input type="password" value={next} onChange={(e) => setNext(e.target.value)} required minLength={8} autoComplete="new-password" />
+        </Field>
+        <Button type="submit" loading={savingPassword} icon={<KeyRound className="size-4" />}>Alterar senha</Button>
+      </form>
     </div>
   );
 }
