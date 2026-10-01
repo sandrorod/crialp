@@ -13,7 +13,7 @@ export const newId = () => Math.random().toString(36).slice(2, 8);
 const BLOCK_TYPES: { type: BlockType; label: string; icon: typeof Type }[] = [
   { type: 'heading', label: 'Título', icon: Heading },
   { type: 'text', label: 'Texto', icon: Type },
-  { type: 'image', label: 'Foto', icon: ImageIcon },
+  { type: 'image', label: 'Imagem', icon: ImageIcon },
   { type: 'icon', label: 'Ícone', icon: Shapes },
   { type: 'button', label: 'Botão', icon: MousePointerClick },
   { type: 'divider', label: 'Divisória', icon: Minus },
@@ -44,8 +44,8 @@ export const SECTION_TEMPLATES: { key: string; label: string; description: strin
   { key: 'blank', label: 'Em branco', description: 'Só o título; adicione os elementos que quiser.', build: () => ({ eyebrow: null, title: 'Nova seção', paragraphs: [], items: [], blocks: [], align: 'left' }) },
   {
     key: 'text-image',
-    label: 'Texto e foto',
-    description: 'Texto de um lado, foto do outro.',
+    label: 'Texto e imagem',
+    description: 'Texto de um lado, imagem do outro.',
     build: () => ({ eyebrow: null, title: 'Nova seção', paragraphs: [], items: [], blocks: [newBlock('text', 'half'), newBlock('image', 'half')], align: 'left' }),
   },
   {
@@ -56,9 +56,15 @@ export const SECTION_TEMPLATES: { key: string; label: string; description: strin
   },
   {
     key: 'photos',
-    label: 'Fotos',
-    description: 'Três fotos lado a lado.',
+    label: 'Galeria de imagens',
+    description: 'Três imagens lado a lado (adicione mais se quiser).',
     build: () => ({ eyebrow: null, title: 'Nova seção', paragraphs: [], items: [], blocks: [newBlock('image', 'third'), newBlock('image', 'third'), newBlock('image', 'third')], align: 'left' }),
+  },
+  {
+    key: 'image',
+    label: 'Imagem grande',
+    description: 'Uma imagem ocupando a largura toda, com legenda opcional.',
+    build: () => ({ eyebrow: null, title: 'Nova seção', paragraphs: [], items: [], blocks: [newBlock('image')], align: 'center' }),
   },
   {
     key: 'cta',
@@ -162,14 +168,14 @@ function ImageField({ value, onChange, company }: { value: string; onChange: (ur
       {value ? (
         <div className="relative w-40">
           <img src={value} alt="" referrerPolicy="no-referrer" className="h-24 w-40 rounded-md object-cover ring-1 ring-zinc-200" />
-          <button type="button" onClick={() => onChange('')} className="absolute right-1 top-1 rounded bg-white/90 p-0.5 text-zinc-600 hover:text-red-600" aria-label="Tirar foto"><X className="size-3.5" /></button>
+          <button type="button" onClick={() => onChange('')} className="absolute right-1 top-1 rounded bg-white/90 p-0.5 text-zinc-600 hover:text-red-600" aria-label="Tirar imagem"><X className="size-3.5" /></button>
         </div>
       ) : null}
       <div className="flex flex-wrap gap-2">
         <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(e) => void upload(e.target.files?.[0])} />
-        <Button type="button" variant="secondary" size="sm" loading={uploading} icon={<Upload className="size-3.5" />} onClick={() => fileRef.current?.click()}>Enviar foto</Button>
+        <Button type="button" variant="secondary" size="sm" loading={uploading} icon={<Upload className="size-3.5" />} onClick={() => fileRef.current?.click()}>Enviar imagem</Button>
         {photos.length ? (
-          <Button type="button" variant="secondary" size="sm" icon={<ImageIcon className="size-3.5" />} onClick={() => setPicking((p) => !p)}>Fotos da empresa</Button>
+          <Button type="button" variant="secondary" size="sm" icon={<ImageIcon className="size-3.5" />} onClick={() => setPicking((p) => !p)}>Imagens da empresa</Button>
         ) : null}
       </div>
       {picking ? (
@@ -205,7 +211,7 @@ function BlockFields({ block: b, onChange, company }: { block: SectionBlock; onC
           <ImageField value={b.url} onChange={(url) => onChange({ ...b, url })} company={company} />
           <div className="grid gap-2 sm:grid-cols-2">
             <Input value={b.caption ?? ''} onChange={(e) => onChange({ ...b, caption: e.target.value || null })} placeholder="Legenda (opcional)" />
-            <Input value={b.alt} onChange={(e) => onChange({ ...b, alt: e.target.value })} placeholder="Descrição da foto (acessibilidade)" />
+            <Input value={b.alt} onChange={(e) => onChange({ ...b, alt: e.target.value })} placeholder="Descrição da imagem (acessibilidade)" />
           </div>
         </div>
       );

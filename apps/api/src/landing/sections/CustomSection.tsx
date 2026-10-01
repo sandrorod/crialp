@@ -55,7 +55,7 @@ function BlockView({ ctx, block: b, path }: { ctx: RenderContext; block: Section
       return <p {...ed(ctx, `${path}.text`)}>{b.text}</p>;
     case 'image': {
       const src = safeHref(b.url);
-      if (!src) return <div className="blk-img-empty">Escolha uma foto no painel</div>;
+      if (!src) return <div className="blk-img-empty">Escolha uma imagem no painel</div>;
       return (
         <figure>
           <img referrerPolicy="no-referrer" src={src} alt={b.alt || ctx.displayName} loading="lazy" decoding="async" />
