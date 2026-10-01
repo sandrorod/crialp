@@ -169,11 +169,13 @@ p{margin:0;text-wrap:pretty}
 /* FAQ */
 .faq{max-width:860px;margin:0 auto;border-top:1px solid var(--border)}
 .faq details{border-bottom:1px solid var(--border)}
-.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:24px;align-items:center;padding:26px 0;font-weight:600;font-size:clamp(1.05rem,1rem + .3vw,1.2rem)}
+.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:24px;align-items:center;padding:13px 0;font-weight:600;font-size:clamp(1.05rem,1rem + .3vw,1.2rem)}
 .faq summary::-webkit-details-marker{display:none}
 .faq summary .ico{transition:transform .25s ease;color:var(--primary-ink)}
 .faq details[open] summary .ico{transform:rotate(45deg)}
-.faq details p{padding:0 48px 26px 0;color:var(--muted)}
+/* Dúvidas: pergunta → resposta 10px (−60%); entre perguntas 13px + 13px (−50%) */
+.faq details[open] summary{padding-bottom:10px}
+.faq details p{padding:0 48px 13px 0;color:var(--muted)}
 
 /* Contato */
 .contact{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(36px,5vw,72px)}
