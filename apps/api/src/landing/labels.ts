@@ -30,6 +30,7 @@ export const DEFAULT_LABELS = {
   fact_location: 'Onde estamos',
   fact_hours: 'Atendimento',
   fact_audience: 'Para quem',
+  testimonial_more: 'Ler mais',
   footer_note: '',
   skip_link: 'Pular para o conteúdo',
 } as const;

@@ -156,6 +156,11 @@ p{margin:0;text-wrap:pretty}
 .quote::before{content:"\\201C";font-family:var(--font-heading);font-size:64px;line-height:.6;color:var(--primary-ink);height:28px}
 .quote p{font-size:17px;flex:1}
 .quote footer{margin-top:22px;font-weight:600;font-size:15px}
+.quote-more{flex:1}
+.quote-more summary{list-style:none;cursor:pointer}
+.quote-more summary::-webkit-details-marker{display:none}
+.quote-more[open] summary{display:none}
+.quote-more-link{font-weight:600;color:var(--primary-ink);text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
 
 /* FAQ */
 .faq{max-width:860px;margin:0 auto;border-top:1px solid var(--border)}

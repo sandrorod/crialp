@@ -55,6 +55,7 @@ const LABEL_FIELDS: { key: string; label: string }[] = [
   { key: 'fact_location', label: 'Ficha — Localização' },
   { key: 'fact_hours', label: 'Ficha — Atendimento' },
   { key: 'fact_audience', label: 'Ficha — Público' },
+  { key: 'testimonial_more', label: 'Depoimentos — "Ler mais"' },
   { key: 'footer_note', label: 'Rodapé — texto (vazio = endereço)' },
   { key: 'skip_link', label: 'Acessibilidade — link "pular para o conteúdo"' },
 ];

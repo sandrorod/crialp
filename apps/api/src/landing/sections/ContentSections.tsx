@@ -169,6 +169,28 @@ export function GallerySection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
   );
 }
 
+/** Depoimentos longos mostram os primeiros 250 caracteres e "Ler mais" (sem JavaScript: <details>). */
+const QUOTE_LIMIT = 250;
+
+function QuoteText({ ctx, id, text }: { ctx: RenderContext; id: string; text: string }) {
+  const { attrs, text: full } = cad(ctx, `testimonial.${id}.text`, text);
+  // No editor o texto fica inteiro para poder ser editado
+  if (ctx.editable || full.length <= QUOTE_LIMIT) return <p {...attrs}>{full}</p>;
+  const cut = full.slice(0, QUOTE_LIMIT);
+  const space = cut.lastIndexOf(' ');
+  const short = (space > QUOTE_LIMIT * 0.75 ? cut.slice(0, space) : cut).replace(/[\s,.;:!?-]+$/, '');
+  return (
+    <details className="quote-more">
+      <summary>
+        <p>
+          {short}… <span className="quote-more-link">{ctx.labels.testimonial_more}</span>
+        </p>
+      </summary>
+      <p>{full}</p>
+    </details>
+  );
+}
+
 export function TestimonialsSection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {
   // Os textos vêm exclusivamente do cadastro (depoimentos reais), nunca da IA.
   const items = ctx.company.testimonials;
@@ -180,7 +202,7 @@ export function TestimonialsSection({ ctx, alt }: { ctx: RenderContext; alt: boo
         <div className="quotes">
           {items.slice(0, 6).map((t) => (
             <blockquote key={t.id} className="quote reveal">
-              <p {...cad(ctx, `testimonial.${t.id}.text`, t.text).attrs}>{cad(ctx, `testimonial.${t.id}.text`, t.text).text}</p>
+              <QuoteText ctx={ctx} id={t.id} text={t.text} />
               {t.author ? <footer {...cad(ctx, `testimonial.${t.id}.author`, t.author).attrs}>{cad(ctx, `testimonial.${t.id}.author`, t.author).text}</footer> : null}
             </blockquote>
           ))}
