@@ -47,7 +47,7 @@ function normalizeFocus(input: unknown): Record<string, ImageFocus> {
   return out;
 }
 
-export const TEMPLATE_KEYS = ['classico', 'moderno', 'minimalista', 'elegante', 'impacto'] as const;
+export const TEMPLATE_KEYS = ['classico', 'moderno', 'minimalista', 'elegante', 'impacto', 'revista', 'blocos', 'noturno', 'capa', 'organico'] as const;
 export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
 
 interface Template {
@@ -91,6 +91,36 @@ export const TEMPLATES: Record<TemplateKey, Template> = {
     description: 'Topo ocupando a tela, títulos enormes, fotos com bloco de cor, serviços numerados e galeria com foto em destaque.',
     hero: { withPhoto: 'split', withoutPhoto: 'centered' },
     services: (n) => (n === 1 ? 'list' : 'grid'),
+  },
+  revista: {
+    label: 'Revista',
+    description: 'Editorial: fios pretos separando as seções, letra capitular no "Sobre", serviços em colunas e galeria em mosaico com as fotos inteiras.',
+    hero: { withPhoto: 'split', withoutPhoto: 'split' },
+    services: (n) => (n <= 3 ? 'list' : 'grid'),
+  },
+  blocos: {
+    label: 'Blocos',
+    description: 'Cada seção num painel arredondado, cartões de tamanhos variados (o primeiro em destaque) e galeria em grade irregular.',
+    hero: { withPhoto: 'split', withoutPhoto: 'split' },
+    services: () => 'grid',
+  },
+  noturno: {
+    label: 'Noturno',
+    description: 'Fundo escuro em toda a página, brilho na cor da marca, cartões translúcidos e fotos da galeria que ganham cor ao passar o mouse.',
+    hero: { withPhoto: 'split', withoutPhoto: 'centered' },
+    services: () => 'grid',
+  },
+  capa: {
+    label: 'Capa',
+    description: 'Foto do topo ocupando a largura toda com o texto por cima, serviços com ícone ao lado, galeria e depoimentos em carrossel.',
+    hero: { withPhoto: 'split', withoutPhoto: 'centered' },
+    services: () => 'grid',
+  },
+  organico: {
+    label: 'Orgânico',
+    description: 'Formas suaves: foto do topo em formato orgânico, fotos em arco, títulos centralizados e seções em faixas arredondadas.',
+    hero: { withPhoto: 'split', withoutPhoto: 'centered' },
+    services: () => 'grid',
   },
 };
 

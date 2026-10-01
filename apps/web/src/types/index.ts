@@ -297,7 +297,7 @@ export interface ImageFocus {
   z?: number;
 }
 
-export type TemplateKey = 'classico' | 'moderno' | 'minimalista' | 'elegante' | 'impacto';
+export type TemplateKey = 'classico' | 'moderno' | 'minimalista' | 'elegante' | 'impacto' | 'revista' | 'blocos' | 'noturno' | 'capa' | 'organico';
 
 export interface TemplateInfo {
   key: TemplateKey;

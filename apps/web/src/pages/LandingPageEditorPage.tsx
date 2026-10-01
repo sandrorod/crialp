@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Building2, Copy, Download, ExternalLink, Image as ImageIcon, Monitor, MoveVertical, Palette, PenLine, RefreshCw, Rows3, Save, Smartphone, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, Building2, Loader2, Copy, Download, ExternalLink, Image as ImageIcon, Monitor, MoveVertical, Palette, PenLine, RefreshCw, Rows3, Save, Smartphone, Sparkles, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ClientAccessTab } from '@/components/landing/ClientAccessTab';
 import { ContentTab } from '@/components/landing/ContentTab';
@@ -76,6 +76,8 @@ export function LandingPageEditorPage() {
   const [dirty, setDirty] = useState(false);
   // Prévia do rascunho: modelo, cores, topo e fotos aparecem na hora, antes de salvar
   const [draftHtml, setDraftHtml] = useState<string | null>(null);
+  // Prévia sendo refeita no servidor (troca de modelo, cores, seções…): mostra o carregamento
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [regenOpen, setRegenOpen] = useState(false);
   const [keepTheme, setKeepTheme] = useState(true);
@@ -103,13 +105,18 @@ export function LandingPageEditorPage() {
   useEffect(() => {
     if (!lp || !content || !theme) return;
     // Sem mudança de tema desde o último salvamento, a página salva já é a prévia certa
-    if (draftKey === savedKey && draftHtml === null) return;
+    if (draftKey === savedKey && draftHtml === null) {
+      setPreviewLoading(false);
+      return;
+    }
     let cancelled = false;
+    setPreviewLoading(true);
     const t = setTimeout(() => {
       landingPageService
         .previewDraft(lp.id, { content, theme })
         .then((r) => !cancelled && setDraftHtml(r.html))
-        .catch((err) => !cancelled && toast.error(`Prévia: ${errorMessage(err)}`));
+        .catch((err) => !cancelled && toast.error(`Prévia: ${errorMessage(err)}`))
+        .finally(() => !cancelled && setPreviewLoading(false));
     }, 350);
     return () => {
       cancelled = true;
@@ -275,6 +282,15 @@ export function LandingPageEditorPage() {
               {mode !== 'fotos' ? ` ${mode === 'textos' ? 'O tamanho vale' : 'Vale'} só para o layout de ${device === 'mobile' ? 'celular' : 'computador'}.` : ''}
             </p>
             {dirty ? <p className="mb-2 text-center text-xs text-amber-700">Há alterações não salvas. Clique em Salvar para publicá-las nesta versão.</p> : null}
+            <div className="relative">
+            {previewLoading ? (
+              <div className="absolute inset-0 z-10 grid place-items-center rounded-lg bg-white/60 backdrop-blur-[2px]" role="status" aria-live="polite">
+                <div className="flex flex-col items-center gap-3 rounded-xl bg-white px-6 py-5 shadow-lg ring-1 ring-black/5">
+                  <Loader2 className="size-9 animate-spin text-brand-600" />
+                  <span className="text-sm font-medium text-zinc-700">Carregando…</span>
+                </div>
+              </div>
+            ) : null}
             <PreviewFrame
               key={`${frameKey}-${device}`}
               src={landingPageService.previewUrl(lp.id)}
@@ -322,6 +338,7 @@ export function LandingPageEditorPage() {
                 setDirty(true);
               }}
             />
+            </div>
           </div>
         </Card>
 

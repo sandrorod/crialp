@@ -289,18 +289,56 @@ function TemplateThumb({ template }: { template: TemplateKey }) {
         <div className="h-10 w-8 bg-zinc-400 shadow-[4px_4px_0_#a1a1aa]" />
       </div>
     ),
+    revista: (
+      <div className="flex items-end gap-2 border-b-2 border-zinc-800 p-2">
+        <div className="h-11 w-8 bg-zinc-300" />
+        <div className="flex-1 space-y-1">{bar('100%', 'h-2.5 rounded-none bg-zinc-800')}{bar('80%', 'rounded-none bg-zinc-800')}{bar('50%', 'rounded-none')}</div>
+      </div>
+    ),
+    blocos: (
+      <div className="p-1.5">
+        <div className="flex gap-2 rounded-lg bg-zinc-200 p-1.5">
+          <div className="flex-1 space-y-1 pt-1">{bar('85%', 'bg-zinc-500')}{bar('55%')}</div>
+          <div className="h-8 w-8 rounded-md bg-zinc-400" />
+        </div>
+      </div>
+    ),
+    noturno: (
+      <div className="relative flex gap-2 overflow-hidden bg-zinc-950 p-2.5">
+        <div className="absolute -left-3 -top-4 size-14 rounded-full bg-indigo-500/40 blur-md" />
+        <div className="relative flex-1 space-y-1 pt-1">{bar('90%', 'bg-white')}{bar('55%', 'bg-zinc-600')}</div>
+        <div className="relative h-9 w-8 rounded bg-zinc-700 ring-1 ring-indigo-400/50" />
+      </div>
+    ),
+    capa: (
+      <div className="relative h-[52px] bg-zinc-400">
+        <div className="absolute bottom-1.5 left-1.5 w-1/2 space-y-1 rounded bg-white p-1.5 shadow">{bar('90%', 'bg-zinc-500')}{bar('60%')}</div>
+      </div>
+    ),
+    organico: (
+      <div className="relative flex gap-2 overflow-hidden p-2">
+        <div className="absolute -right-4 -top-5 size-14 rounded-full bg-zinc-200" />
+        <div className="relative flex-1 space-y-1 pt-1">{bar('85%', 'bg-zinc-500')}{bar('55%')}</div>
+        <div className="relative size-10 bg-zinc-300 [border-radius:58%_42%_46%_54%/52%_44%_56%_48%]" />
+      </div>
+    ),
   }[template];
   const body = {
     classico: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded border border-zinc-300 bg-white" />)}</div>,
     moderno: <><div className="mx-auto mb-1">{bar('40px', 'mx-auto bg-zinc-500')}</div><div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="grid h-5 place-items-center rounded-lg bg-white shadow"><span className="size-1.5 rounded-full bg-zinc-400" /></div>)}</div></>,
     minimalista: <div className="space-y-1.5">{[0, 1, 2].map((i) => <div key={i} className="flex gap-1 border-b border-zinc-200 pb-1">{bar('8px', 'bg-zinc-400')}{bar('55%')}</div>)}</div>,
     elegante: <><div className="mb-1">{bar('40px', 'mx-auto bg-zinc-500')}</div><div className="space-y-1">{[0, 1].map((i) => <div key={i} className="flex gap-1 border-b border-zinc-200 pb-1">{bar('8px', 'bg-zinc-400')}{bar('60%')}</div>)}</div></>,
+    revista: <div className="grid grid-cols-3 gap-1.5">{[0, 1, 2].map((i) => <div key={i} className="space-y-1 border-t-2 border-zinc-800 pt-1">{bar('80%', 'rounded-none bg-zinc-500')}{bar('60%', 'rounded-none')}</div>)}</div>,
+    blocos: <div className="grid grid-cols-3 gap-1"><div className="col-span-2 h-5 rounded-md bg-zinc-700" /><div className="h-5 rounded-md bg-white" /><div className="h-5 rounded-md bg-white" /><div className="col-span-2 h-5 rounded-md bg-white" /></div>,
+    noturno: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="grid h-5 place-items-center rounded border border-white/10 bg-white/5"><span className="size-1.5 rounded-full bg-indigo-300" /></div>)}</div>,
+    capa: <div className="flex gap-1 overflow-hidden">{[0, 1, 2, 3].map((i) => <div key={i} className="h-7 w-7 flex-none rounded bg-zinc-300" />)}</div>,
+    organico: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-7 bg-zinc-300 [border-radius:999px_999px_6px_6px]" />)}</div>,
     impacto: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="relative h-5 rounded border-t-2 border-zinc-800 bg-white shadow-sm"><span className="absolute right-0.5 top-0.5 text-[6px] font-bold leading-none text-zinc-300">0{i + 1}</span></div>)}</div>,
   }[template];
   return (
     <div className="overflow-hidden rounded-md border border-zinc-200 bg-zinc-50" aria-hidden>
       {hero}
-      <div className={cn('p-2', template === 'minimalista' ? 'bg-white' : 'bg-zinc-100')}>{body}</div>
+      <div className={cn('p-2', template === 'noturno' ? 'bg-zinc-900' : template === 'minimalista' || template === 'revista' ? 'bg-white' : 'bg-zinc-100')}>{body}</div>
     </div>
   );
 }
