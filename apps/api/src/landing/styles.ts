@@ -53,8 +53,8 @@ p{margin:0;text-wrap:pretty}
 .eyebrow{display:inline-flex;align-items:center;gap:10px;font:600 13px/1.2 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--primary-ink);margin-bottom:18px}
 .eyebrow::before{content:"";width:22px;height:1.5px;background:currentColor;opacity:.7}
 /* Margem interna superior/inferior das seções: 15% menor em todos os modelos */
-/* Seções (todas menos o topo): margem interna de cima e de baixo com 40% da original, no computador e no celular */
-.section{padding:calc(var(--section-y) * var(--section-y-scale) * .4) 0}
+/* Seções (todas menos o topo): margem interna de cima e de baixo com 50% da original, no computador e no celular */
+.section{padding:calc(var(--section-y) * var(--section-y-scale) * .5) 0}
 .section-alt{background:var(--surface)}
 .section-head{max-width:720px;margin-bottom:clamp(40px,6vw,64px)}
 .section-head.center{margin-left:auto;margin-right:auto;text-align:center}
