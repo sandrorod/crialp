@@ -12,7 +12,8 @@ export function landingCss(theme: ResolvedTheme): string {
 /* Títulos 10% menores em todos os modelos: no computador (acima) e no celular */
 @media(max-width:767px){:root{--title-scale:.9}}
 *,*::before,*::after{box-sizing:border-box}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+/* Links do menu (#secao) param abaixo da barra fixa do topo (72px) com uma folga, sem cortar o título */
+html{scroll-behavior:smooth;scroll-padding-top:88px;-webkit-text-size-adjust:100%}
 body{margin:0;overflow-x:hidden;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 img{max-width:100%;display:block}
 a{color:inherit}
