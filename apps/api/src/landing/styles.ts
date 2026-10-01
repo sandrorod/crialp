@@ -12,8 +12,9 @@ export function landingCss(theme: ResolvedTheme): string {
 /* Títulos 10% menores em todos os modelos: no computador (acima) e no celular */
 @media(max-width:767px){:root{--title-scale:.9}}
 *,*::before,*::after{box-sizing:border-box}
-/* Links do menu (#secao) param abaixo da barra fixa do topo com uma folga, sem cortar o título (--header-h vem do script) */
-html{scroll-behavior:smooth;scroll-padding-top:calc(var(--header-h,76px) + 24px);-webkit-text-size-adjust:100%}
+/* Links do menu (#secao): a seção começa logo abaixo da barra fixa do topo (--header-h vem do script);
+   o espaço acima do título é a própria margem interna da seção */
+html{scroll-behavior:smooth;scroll-padding-top:var(--header-h,76px);-webkit-text-size-adjust:100%}
 body{margin:0;overflow-x:hidden;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 img{max-width:100%;display:block}
 a{color:inherit}
