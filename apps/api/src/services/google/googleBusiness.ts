@@ -55,6 +55,17 @@ function parseGoogleUrl(url: URL): { query: string | null; latLng?: { latitude: 
  */
 export async function scrapeGoogleBusiness(input: URL, scraper: ScraperService): Promise<{ scrape: ScrapeResult; website: string | null }> {
   const url = await resolveShortLink(input);
+  // Busca do Google com vários resultados (ex.: "manutenção predial"): não diz qual empresa é. O link
+  // de uma empresa (botão Compartilhar do painel dela) traz "kgmid"/"ludocid" junto com o nome.
+  const isSearch = /^\/search\b/.test(url.pathname);
+  const singleBusiness = url.searchParams.has('kgmid') || url.searchParams.has('ludocid');
+  if (isSearch && (!singleBusiness || /^(local|lcl)$/.test(url.searchParams.get('udm') ?? url.searchParams.get('tbm') ?? ''))) {
+    throw new AppError(
+      422,
+      'Este é o link de uma lista de resultados do Google, não de uma empresa. Clique na empresa desejada, use o botão "Compartilhar" do painel dela e cole o link copiado (share.google/… ou maps.app.goo.gl/…).',
+      'GOOGLE_SEARCH_LIST',
+    );
+  }
   const { query, latLng } = parseGoogleUrl(url);
   if (!query) {
     throw new AppError(422, 'Não identifiquei a empresa neste link do Google. No Google Maps, abra o perfil da empresa e use "Compartilhar" → "Copiar link".', 'GOOGLE_LINK');
