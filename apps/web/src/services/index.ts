@@ -51,7 +51,8 @@ export const analysisService = {
 export type { AnalysisResult };
 
 export const searchService = {
-  companies: (q: string, type: 'sites' | 'locais') => api.get<{ items: FoundCompany[]; source: 'maps' | 'web' }>(`/company-search${qs({ q, type })}`),
+  companies: (q: string, type: 'sites' | 'locais', near?: { lat: number; lng: number } | null) =>
+    api.get<{ items: FoundCompany[]; source: 'maps' | 'web' }>(`/company-search${qs({ q, type, lat: near?.lat.toFixed(4), lng: near?.lng.toFixed(4) })}`),
 };
 
 export const companyService = {

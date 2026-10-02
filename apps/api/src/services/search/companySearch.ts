@@ -44,8 +44,9 @@ function formatPhone(raw: string | null | undefined): string | null {
 }
 
 /** "Local Business Data" (fichas do Google Maps com telefone e endereço), se a chave assinar essa API. */
-async function searchMaps(query: string): Promise<FoundCompany[] | null> {
-  const r = await rapid('local-business-data.p.rapidapi.com', `/search?query=${encodeURIComponent(query)}&limit=20&region=br&language=pt`);
+async function searchMaps(query: string, latLng?: { latitude: number; longitude: number }): Promise<FoundCompany[] | null> {
+  const near = latLng ? `&lat=${latLng.latitude}&lng=${latLng.longitude}` : '';
+  const r = await rapid('local-business-data.p.rapidapi.com', `/search?query=${encodeURIComponent(query)}&limit=20&region=br&language=pt${near}`);
   if (notSubscribed(r)) return null;
   if (r.status !== 200 || !Array.isArray(r.body?.data)) throw new AppError(502, 'A pesquisa de empresas falhou. Tente novamente.');
   return r.body.data.map(
@@ -124,10 +125,10 @@ export async function searchCompanySites(query: string): Promise<FoundCompany[]>
  * Locais do Google Maps: "Local Business Data" do RapidAPI se a chave assinar essa API (lista completa);
  * senão, a consulta ao Google Maps pelo Gemini (poucos locais por pesquisa, só os confirmados pelo Maps).
  */
-export async function searchCompanyPlaces(query: string): Promise<FoundCompany[]> {
-  const maps = env.rapidApiKey ? await searchMaps(query).catch(() => null) : null;
+export async function searchCompanyPlaces(query: string, latLng?: { latitude: number; longitude: number }): Promise<FoundCompany[]> {
+  const maps = env.rapidApiKey ? await searchMaps(query, latLng).catch(() => null) : null;
   if (maps) return maps.filter((c) => c.name);
-  const places = await aiService.searchGooglePlaces(query).catch((err) => {
+  const places = await aiService.searchGooglePlaces(query, latLng).catch((err) => {
     // Cota do Gemini, chave inválida etc.: mensagem clara em vez de "erro interno"
     if (err instanceof AIProviderError) throw new AppError(err.retryable ? 503 : 502, err.userMessage ?? 'Não foi possível consultar o Google Maps. Tente novamente.');
     throw err;

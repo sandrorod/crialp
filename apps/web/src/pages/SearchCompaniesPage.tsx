@@ -28,6 +28,20 @@ function store(next: Saved) {
   }
 }
 
+type Near = { lat: number; lng: number } | null;
+
+/** Localização do navegador (como o Google faz): null se negada, indisponível ou demorar. */
+function getNear(): Promise<Near> {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => resolve(null),
+      { timeout: 8000, maximumAge: 60 * 60 * 1000 },
+    );
+  });
+}
+
 function ResultCard({ c, onGenerate }: { c: FoundCompany; onGenerate: () => void }) {
   return (
     <Card className="flex flex-col p-4">
@@ -82,11 +96,13 @@ export function SearchCompaniesPage() {
   const [locais, setLocais] = useState<Block>({ ...empty, items: saved?.locais ?? null });
   const [sites, setSites] = useState<Block>({ ...empty, items: saved?.sites ?? null });
   const [allowImages, setAllowImages] = useState(true);
+  // undefined = ainda não pedida; null = sem localização
+  const [near, setNear] = useState<Near | undefined>(undefined);
 
-  const run = async (term: string, kind: Kind, set: (b: Block) => void, current: { locais: FoundCompany[] | null; sites: FoundCompany[] | null }) => {
+  const run = async (term: string, kind: Kind, set: (b: Block) => void, current: { locais: FoundCompany[] | null; sites: FoundCompany[] | null }, loc?: Near) => {
     set({ items: null, loading: true, error: null });
     try {
-      const r = await searchService.companies(term, kind);
+      const r = await searchService.companies(term, kind, kind === 'locais' ? loc : null);
       set({ items: r.items, loading: false, error: null });
       current[kind] = r.items;
       store({ q: term, ...current });
@@ -95,15 +111,18 @@ export function SearchCompaniesPage() {
     }
   };
 
-  const search = (e?: FormEvent) => {
+  const search = async (e?: FormEvent) => {
     e?.preventDefault();
     const term = q.trim();
     if (term.length < 2) return;
     setLastQ(term);
     // Locais (Google Maps) demoram mais: os sites aparecem antes
     const current = { locais: null, sites: null };
-    void run(term, 'locais', setLocais, current);
     void run(term, 'sites', setSites, current);
+    setLocais({ items: null, loading: true, error: null });
+    const loc = near === undefined ? await getNear() : near;
+    setNear(loc);
+    void run(term, 'locais', setLocais, current, loc);
   };
 
   const generate = (c: FoundCompany) => {
@@ -132,7 +151,7 @@ export function SearchCompaniesPage() {
           {kind === 'locais' ? 'Buscando locais no Google Maps… pode levar até 1 minuto.' : 'Buscando sites…'}
         </Card>
       ) : b.error ? (
-        <ErrorBlock message={b.error} onRetry={() => void run(lastQ, kind, kind === 'locais' ? setLocais : setSites, { locais: locais.items, sites: sites.items })} />
+        <ErrorBlock message={b.error} onRetry={() => void run(lastQ, kind, kind === 'locais' ? setLocais : setSites, { locais: locais.items, sites: sites.items }, near)} />
       ) : b.items && !b.items.length ? (
         <Card className="p-5 text-sm text-zinc-500">Nada encontrado. Tente outras palavras, incluindo a cidade.</Card>
       ) : b.items ? (
@@ -164,7 +183,14 @@ export function SearchCompaniesPage() {
       </Card>
 
       {locais.items || locais.loading || locais.error
-        ? section('Locais no Google Maps', 'Empresas do Google Maps com telefone, endereço e nota. "Gerar LP" lê o perfil do Google e, se houver, o site.', locais, 'locais')
+        ? section(
+            'Locais no Google Maps',
+            `Empresas do Google Maps com telefone, endereço e nota. "Gerar LP" lê o perfil do Google e, se houver, o site.${
+              near === null ? ' Sem acesso à sua localização: inclua a cidade na pesquisa (ex.: "manutenção predial em Campinas").' : near ? ' Sem cidade na pesquisa, os locais são buscados perto de você.' : ''
+            }`,
+            locais,
+            'locais',
+          )
         : null}
       {sites.items || sites.loading || sites.error
         ? section('Sites', 'Sites encontrados na busca do Google. O telefone aparece quando está no resumo; a análise ao gerar a LP busca todos os contatos.', sites, 'sites')

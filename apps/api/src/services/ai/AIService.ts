@@ -113,10 +113,10 @@ export class AIService {
   }
 
   /** Locais do Google Maps para uma pesquisa (usa as chaves do Gemini). */
-  async searchGooglePlaces(query: string) {
+  async searchGooglePlaces(query: string, latLng?: { latitude: number; longitude: number }) {
     const { GeminiProvider } = await import('./GeminiProvider.js');
     const gemini = this.provider instanceof GeminiProvider ? this.provider : new GeminiProvider(undefined, 'gemini-2.5-flash');
-    return gemini.searchGooglePlaces(query);
+    return gemini.searchGooglePlaces(query, latLng);
   }
 
   get model() {

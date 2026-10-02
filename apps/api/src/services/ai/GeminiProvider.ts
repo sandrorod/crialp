@@ -229,7 +229,7 @@ export class GeminiProvider implements AIProvider {
    * Locais do Google Maps para uma pesquisa (ex.: "manutenção predial em Rio Preto"). Só entram os locais
    * que o Maps confirmou na resposta (cada um tem link do Maps); dados ausentes ficam null.
    */
-  async searchGooglePlaces(query: string): Promise<GooglePlaceListing[]> {
+  async searchGooglePlaces(query: string, latLng?: { latitude: number; longitude: number }): Promise<GooglePlaceListing[]> {
     const keys = await aiKeyStore.rotation('gemini', this.envKey);
     if (!keys.length) throw new AIProviderError('Nenhuma chave do Gemini configurada.', false, 'Nenhuma chave do Gemini cadastrada. Adicione uma em Configurações.');
     const prompt =
@@ -241,7 +241,12 @@ export class GeminiProvider implements AIProvider {
       const client = this.clientFor(key.key);
       for (const model of [...new Set(['gemini-2.5-flash', this.model, ...this.fallbackModels])]) {
         try {
-          const response = await client.models.generateContent({ model, contents: prompt, config: { tools: [{ googleMaps: {} }] } });
+          // Localização de quem pesquisa (como no Google): sem cidade na pesquisa, o Maps busca perto dela
+          const response = await client.models.generateContent({
+            model,
+            contents: prompt,
+            config: { tools: [{ googleMaps: {} }], ...(latLng ? { toolConfig: { retrievalConfig: { latLng } } } : {}) },
+          });
           await aiKeyStore.recordUse(key.id);
           const chunks = (response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [])
             .map((c) => c.maps)
@@ -251,8 +256,15 @@ export class GeminiProvider implements AIProvider {
           const dash = (v: string | undefined) => (v && v.trim() !== '-' ? v.trim() : null);
           const out: GooglePlaceListing[] = [];
           for (const line of (response.text ?? '').split('\n')) {
-            const cols = line.replace(/^\s*[*•-]\s*/, '').split('|').map((c) => c.trim());
-            if (cols.length < 4 || !cols[0]) continue;
+            // Aceita "Nome | Tel | …", tabela Markdown ("| Nome | Tel |"), marcadores e numeração
+            const cols = line
+              .trim()
+              .replace(/^[*•-]\s+|^\d+[.)]\s+/, '')
+              .replace(/^\|/, '')
+              .replace(/\|$/, '')
+              .split('|')
+              .map((c) => c.trim());
+            if (cols.length < 4 || !cols[0] || /^:?-{2,}/.test(cols[0]) || /^nome$/i.test(cols[0])) continue;
             const name = cols[0].replace(/\*\*/g, '');
             // Só locais confirmados pelo Maps (o nome bate com um local citado na resposta)
             const chunk = chunks.find((c) => key2(c.title) === key2(name)) ?? chunks.find((c) => key2(c.title).includes(key2(name)) || key2(name).includes(key2(c.title)));
@@ -269,6 +281,15 @@ export class GeminiProvider implements AIProvider {
               mapsUri: chunk.uri,
               placeId: chunk.placeId,
             });
+          }
+          // Resposta fora do formato: ainda mostra os locais confirmados pelo Maps (só com o nome)
+          if (!out.length && chunks.length) {
+            console.warn('[maps] resposta fora do formato esperado:', (response.text ?? '').slice(0, 300));
+            for (const c of chunks) {
+              if (!out.some((o) => o.mapsUri === c.uri)) {
+                out.push({ name: c.title, phone: null, address: null, website: null, rating: null, reviews: null, mapsUri: c.uri, placeId: c.placeId });
+              }
+            }
           }
           return out;
         } catch (err) {
