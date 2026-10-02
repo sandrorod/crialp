@@ -105,20 +105,23 @@ const searchLimiter = rateLimit({
 /** GET /api/company-search?q=…&type=sites|locais — empresas encontradas no Google, marcando as já cadastradas. */
 analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
   const user = authUser(req);
-  const { q, type, lat, lng } = z
+  const { q, type, lat, lng, page } = z
     .object({
       q: z.string().trim().min(2, 'Digite o que deseja pesquisar.').max(200),
       type: z.enum(['sites', 'locais']).default('sites'),
       // Localização do navegador (opcional): locais perto de quem pesquisa, como no Google
       lat: z.coerce.number().min(-90).max(90).optional(),
       lng: z.coerce.number().min(-180).max(180).optional(),
+      // "Buscar mais locais": anéis cada vez mais largos ao redor do mesmo centro
+      page: z.coerce.number().int().min(0).max(3).default(0),
     })
     .parse(req.query);
   const latLng = lat != null && lng != null ? { latitude: lat, longitude: lng } : undefined;
-  const items = type === 'locais' ? await searchCompanyPlaces(q, latLng) : await searchCompanySites(q);
+  const places = type === 'locais' ? await searchCompanyPlaces(q, latLng, page) : null;
+  const items = places ? places.items : await searchCompanySites(q);
   const source = type === 'locais' ? 'maps' : 'web';
   const marked = await Promise.all(
     items.map(async (c) => ({ ...c, existing: await findDuplicateCompany(user.organizationId, { url: c.url, website: c.website, name: c.name }) })),
   );
-  res.json({ items: marked, source });
+  res.json({ items: marked, source, center: places?.center ?? null, has_more: places?.hasMore ?? false });
 });

@@ -121,19 +121,37 @@ export async function searchCompanySites(query: string): Promise<FoundCompany[]>
   return searchWeb(query);
 }
 
+type LatLng = { latitude: number; longitude: number };
+
+/** Coordenadas de um endereço (OpenStreetMap), para centrar a busca quando o navegador não enviou a localização. */
+async function geocode(address: string): Promise<LatLng | null> {
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=${encodeURIComponent(address)}`, {
+    headers: { 'User-Agent': 'crialp/1.0 (gerador de landing pages)', 'Accept-Language': 'pt-BR' },
+    signal: AbortSignal.timeout(10_000),
+  }).catch(() => null);
+  const data = (await res?.json().catch(() => null)) as { lat: string; lon: string }[] | null;
+  const hit = data?.[0];
+  return hit ? { latitude: Number(hit.lat), longitude: Number(hit.lon) } : null;
+}
+
 /**
- * Locais do Google Maps: "Local Business Data" do RapidAPI se a chave assinar essa API (lista completa);
- * senão, a consulta ao Google Maps pelo Gemini (poucos locais por pesquisa, só os confirmados pelo Maps).
+ * Pontos consultados numa página da busca: a página 0 é o centro mais 6 pontos a ~3 km; cada página
+ * seguinte é um anel mais largo (+3 km), com mais pontos. Cada consulta ao Maps traz os locais mais próximos do ponto.
  */
-export async function searchCompanyPlaces(query: string, latLng?: { latitude: number; longitude: number }): Promise<FoundCompany[]> {
-  const maps = env.rapidApiKey ? await searchMaps(query, latLng).catch(() => null) : null;
-  if (maps) return maps.filter((c) => c.name);
-  const places = await aiService.searchGooglePlaces(query, latLng).catch((err) => {
-    // Cota do Gemini, chave inválida etc.: mensagem clara em vez de "erro interno"
-    if (err instanceof AIProviderError) throw new AppError(err.retryable ? 503 : 502, err.userMessage ?? 'Não foi possível consultar o Google Maps. Tente novamente.');
-    throw err;
+function searchPoints(center: LatLng, page: number): LatLng[] {
+  const radiusKm = 3 * (page + 1);
+  const count = Math.min(6 * (page + 1), 12);
+  const ring = Array.from({ length: count }, (_, i) => {
+    const angle = (2 * Math.PI * i) / count + (page % 2 ? Math.PI / count : 0);
+    const dLat = (radiusKm / 111) * Math.cos(angle);
+    const dLng = (radiusKm / (111 * Math.cos((center.latitude * Math.PI) / 180))) * Math.sin(angle);
+    return { latitude: +(center.latitude + dLat).toFixed(5), longitude: +(center.longitude + dLng).toFixed(5) };
   });
-  return places.map((p) => ({
+  return page === 0 ? [center, ...ring] : ring;
+}
+
+function toFound(p: Awaited<ReturnType<typeof aiService.searchGooglePlaces>>[number]): FoundCompany {
+  return {
     name: p.name,
     phone: formatPhone(p.phone),
     website: p.website && /^https?:\/\//i.test(p.website) ? p.website : p.website ? `https://${p.website}` : null,
@@ -146,5 +164,74 @@ export async function searchCompanyPlaces(query: string, latLng?: { latitude: nu
       (p.placeId ? `&query_place_id=${encodeURIComponent(p.placeId)}` : ''),
     description: null,
     source: 'maps',
-  }));
+  };
+}
+
+const mapError = (err: unknown) => {
+  // Cota do Gemini, chave inválida etc.: mensagem clara em vez de "erro interno"
+  if (err instanceof AIProviderError) return new AppError(err.retryable ? 503 : 502, err.userMessage ?? 'Não foi possível consultar o Google Maps. Tente novamente.');
+  return err;
+};
+
+/** Executa as tarefas com no máximo `limit` ao mesmo tempo (o Gemini limita pedidos por minuto). */
+async function pool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = new Array(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (next < items.length) {
+        const i = next++;
+        results[i] = await fn(items[i]).then(
+          (value) => ({ status: 'fulfilled', value }) as const,
+          (reason) => ({ status: 'rejected', reason }) as const,
+        );
+      }
+    }),
+  );
+  return results;
+}
+
+/**
+ * Locais do Google Maps: "Local Business Data" do RapidAPI se a chave assinar essa API; senão, consultas ao
+ * Google Maps pelo Gemini em vários pontos ao redor do centro (só locais confirmados pelo Maps), sem repetir.
+ * `center` volta na resposta para as próximas páginas ("Buscar mais locais").
+ */
+export async function searchCompanyPlaces(
+  query: string,
+  latLng?: LatLng,
+  page = 0,
+): Promise<{ items: FoundCompany[]; center: LatLng | null; hasMore: boolean }> {
+  if (page === 0) {
+    const maps = env.rapidApiKey ? await searchMaps(query, latLng).catch(() => null) : null;
+    if (maps) return { items: maps.filter((c) => c.name), center: latLng ?? null, hasMore: false };
+  }
+
+  const found: FoundCompany[] = [];
+  const seen = new Set<string>();
+  const add = (list: Awaited<ReturnType<typeof aiService.searchGooglePlaces>>) => {
+    for (const p of list) {
+      const key = p.placeId ?? p.mapsUri;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      found.push(toFound(p));
+    }
+  };
+
+  // Sem localização do navegador: uma consulta pela pesquisa e o centro vem do endereço do primeiro local
+  let center = latLng ?? null;
+  if (!center) {
+    const first = await aiService.searchGooglePlaces(query).catch((err) => {
+      throw mapError(err);
+    });
+    add(first);
+    const address = first.find((p) => p.address)?.address;
+    center = address ? await geocode(address) : null;
+    if (!center) return { items: found, center: null, hasMore: false };
+  }
+
+  const results = await pool(searchPoints(center, page), 3, (point) => aiService.searchGooglePlaces(query, point));
+  for (const r of results) if (r.status === 'fulfilled') add(r.value);
+  const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+  if (!found.length && failures.length) throw mapError(failures[0].reason);
+  return { items: found, center, hasMore: page < 3 };
 }

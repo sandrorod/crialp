@@ -6,13 +6,10 @@ import { errorMessage } from '@/lib/api';
 import { searchService } from '@/services';
 import type { FoundCompany } from '@/types';
 
-type Kind = 'locais' | 'sites';
-type Block = { items: FoundCompany[] | null; loading: boolean; error: string | null };
-const empty: Block = { items: null, loading: false, error: null };
 
 // A última pesquisa continua na tela ao voltar de outra página
 const STORE_KEY = 'lp:company-search';
-type Saved = { q: string; locais: FoundCompany[] | null; sites: FoundCompany[] | null };
+type Saved = { q: string; items: FoundCompany[]; center: { lat: number; lng: number } | null; page: number; hasMore: boolean };
 function loadSaved(): Saved | null {
   try {
     return JSON.parse(sessionStorage.getItem(STORE_KEY) ?? 'null');
@@ -92,22 +89,35 @@ export function SearchCompaniesPage() {
   const navigate = useNavigate();
   const saved = loadSaved();
   const [q, setQ] = useState(saved?.q ?? '');
+  const [items, setItems] = useState<FoundCompany[] | null>(saved?.items ?? null);
+  const [center, setCenter] = useState<Near>(saved?.center ?? null);
+  const [page, setPage] = useState(saved?.page ?? 0);
+  const [hasMore, setHasMore] = useState(saved?.hasMore ?? false);
   const [lastQ, setLastQ] = useState(saved?.q ?? '');
-  const [locais, setLocais] = useState<Block>({ ...empty, items: saved?.locais ?? null });
-  const [sites, setSites] = useState<Block>({ ...empty, items: saved?.sites ?? null });
+  const [loading, setLoading] = useState<'new' | 'more' | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [allowImages, setAllowImages] = useState(true);
   // undefined = ainda não pedida; null = sem localização
   const [near, setNear] = useState<Near | undefined>(undefined);
 
-  const run = async (term: string, kind: Kind, set: (b: Block) => void, current: { locais: FoundCompany[] | null; sites: FoundCompany[] | null }, loc?: Near) => {
-    set({ items: null, loading: true, error: null });
+  const fetchPage = async (term: string, at: Near, p: number, prev: FoundCompany[]) => {
+    setLoading(p === 0 ? 'new' : 'more');
+    setError(null);
     try {
-      const r = await searchService.companies(term, kind, kind === 'locais' ? loc : null);
-      set({ items: r.items, loading: false, error: null });
-      current[kind] = r.items;
-      store({ q: term, ...current });
+      const r = await searchService.places(term, at, p);
+      // Sem repetir locais já mostrados
+      const known = new Set(prev.map((c) => c.url));
+      const merged = [...prev, ...r.items.filter((c) => !known.has(c.url))];
+      const nextCenter = r.center ? { lat: r.center.latitude, lng: r.center.longitude } : at;
+      setItems(merged);
+      setCenter(nextCenter);
+      setPage(p);
+      setHasMore(r.has_more);
+      store({ q: term, items: merged, center: nextCenter, page: p, hasMore: r.has_more });
     } catch (err) {
-      set({ items: null, loading: false, error: errorMessage(err) });
+      setError(errorMessage(err));
+    } finally {
+      setLoading(null);
     }
   };
 
@@ -116,62 +126,42 @@ export function SearchCompaniesPage() {
     const term = q.trim();
     if (term.length < 2) return;
     setLastQ(term);
-    // Locais (Google Maps) demoram mais: os sites aparecem antes
-    const current = { locais: null, sites: null };
-    void run(term, 'sites', setSites, current);
-    setLocais({ items: null, loading: true, error: null });
+    setItems(null);
+    setLoading('new');
     const loc = near === undefined ? await getNear() : near;
     setNear(loc);
-    void run(term, 'locais', setLocais, current, loc);
+    await fetchPage(term, loc, 0, []);
   };
 
+  const more = () => void fetchPage(lastQ, center, page + 1, items ?? []);
+
   const generate = (c: FoundCompany) => {
-    // Local do Maps: a análise usa os dados já trazidos pela pesquisa (sem consultar o Maps de novo)
-    if (c.source === 'maps') {
-      try {
-        sessionStorage.setItem(`lp:place:${c.url}`, JSON.stringify({ name: c.name, phone: c.phone, address: c.address, website: c.website, rating: c.rating, reviews: c.reviews }));
-      } catch {
-        /* sem armazenamento: a análise consulta o Maps pelo link */
-      }
+    // A análise usa os dados já trazidos pela pesquisa (sem consultar o Maps de novo)
+    try {
+      sessionStorage.setItem(`lp:place:${c.url}`, JSON.stringify({ name: c.name, phone: c.phone, address: c.address, website: c.website, rating: c.rating, reviews: c.reviews }));
+    } catch {
+      /* sem armazenamento: a análise consulta o Maps pelo link */
     }
     navigate(`/nova?url=${encodeURIComponent(c.url!)}&fotos=${allowImages ? 1 : 0}`);
   };
-  const busy = locais.loading || sites.loading;
 
-  const section = (title: string, hint: string, b: Block, kind: Kind) => (
-    <section className="mb-8">
-      <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        {b.items ? <span className="text-xs text-zinc-500">{b.items.length} resultado(s)</span> : null}
-      </div>
-      <p className="mb-3 text-xs text-zinc-500">{hint}</p>
-      {b.loading ? (
-        <Card className="flex items-center gap-3 p-5 text-sm text-zinc-600">
-          <Loader2 className="size-5 animate-spin text-brand-600" />
-          {kind === 'locais' ? 'Buscando locais no Google Maps… pode levar até 1 minuto.' : 'Buscando sites…'}
-        </Card>
-      ) : b.error ? (
-        <ErrorBlock message={b.error} onRetry={() => void run(lastQ, kind, kind === 'locais' ? setLocais : setSites, { locais: locais.items, sites: sites.items }, near)} />
-      ) : b.items && !b.items.length ? (
-        <Card className="p-5 text-sm text-zinc-500">Nada encontrado. Tente outras palavras, incluindo a cidade.</Card>
-      ) : b.items ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {b.items.map((c, i) => <ResultCard key={`${c.url}-${i}`} c={c} onGenerate={() => generate(c)} />)}
-        </div>
-      ) : null}
-    </section>
+  const waiting = (
+    <Card className="flex items-center gap-3 p-5 text-sm text-zinc-600">
+      <Loader2 className="size-5 flex-none animate-spin text-brand-600" />
+      Buscando locais no Google Maps em vários pontos da região… pode levar até 2 minutos.
+    </Card>
   );
 
   return (
     <>
-      <PageHeader title="Buscar empresas" description="Pesquise no Google por segmento e cidade (ex.: “manutenção predial em São José do Rio Preto”) e gere a Landing Page de qualquer resultado." />
+      <PageHeader title="Buscar empresas" description="Pesquise locais no Google Maps por segmento (ex.: “manutenção predial”) e gere a Landing Page de qualquer resultado." />
       <Card className="mb-6 p-4 sm:p-5">
         <form onSubmit={search} className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
-            <Input className="h-11 pl-10" placeholder="Segmento e cidade…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+            <Input className="h-11 pl-10" placeholder="Segmento (e cidade, se quiser)…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
           </div>
-          <Button type="submit" size="lg" loading={busy} icon={<Search className="size-4" />}>Pesquisar</Button>
+          <Button type="submit" size="lg" loading={loading === 'new'} disabled={!!loading} icon={<Search className="size-4" />}>Pesquisar</Button>
         </form>
         <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm text-zinc-700">
           <input type="checkbox" className="mt-0.5 size-4 accent-zinc-900" checked={allowImages} onChange={(e) => setAllowImages(e.target.checked)} />
@@ -180,21 +170,33 @@ export function SearchCompaniesPage() {
             <span className="block text-xs text-zinc-500">Declaro ter autorização da empresa para usar as imagens. Dá para remover fotos na revisão.</span>
           </span>
         </label>
+        <p className="mt-3 text-xs text-zinc-500">
+          {near === null
+            ? 'Sem acesso à sua localização: inclua a cidade na pesquisa (ex.: "manutenção predial em Campinas").'
+            : 'Sem cidade na pesquisa, os locais são buscados perto de você (o navegador pede permissão de localização).'}
+        </p>
       </Card>
 
-      {locais.items || locais.loading || locais.error
-        ? section(
-            'Locais no Google Maps',
-            `Empresas do Google Maps com telefone, endereço e nota. "Gerar LP" lê o perfil do Google e, se houver, o site.${
-              near === null ? ' Sem acesso à sua localização: inclua a cidade na pesquisa (ex.: "manutenção predial em Campinas").' : near ? ' Sem cidade na pesquisa, os locais são buscados perto de você.' : ''
-            }`,
-            locais,
-            'locais',
-          )
-        : null}
-      {sites.items || sites.loading || sites.error
-        ? section('Sites', 'Sites encontrados na busca do Google. O telefone aparece quando está no resumo; a análise ao gerar a LP busca todos os contatos.', sites, 'sites')
-        : null}
+      {items ? (
+        <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
+          <h2 className="text-lg font-semibold">Locais no Google Maps</h2>
+          <span className="text-xs text-zinc-500">{items.length} local(is) para “{lastQ}”</span>
+        </div>
+      ) : null}
+      {loading === 'new' ? waiting : null}
+      {items && !items.length && !loading ? <Card className="p-5 text-sm text-zinc-500">Nenhum local encontrado. Tente outras palavras ou inclua a cidade.</Card> : null}
+      {items?.length ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {items.map((c, i) => <ResultCard key={`${c.url}-${i}`} c={c} onGenerate={() => generate(c)} />)}
+        </div>
+      ) : null}
+      {error ? <div className="mt-4"><ErrorBlock message={error} onRetry={() => (items?.length ? more() : void search())} /></div> : null}
+      {loading === 'more' ? <div className="mt-4">{waiting}</div> : null}
+      {items?.length && hasMore && !loading && !error ? (
+        <div className="mt-5 flex justify-center">
+          <Button variant="secondary" onClick={more} icon={<MapPin className="size-4" />}>Buscar mais locais (área maior)</Button>
+        </div>
+      ) : null}
     </>
   );
 }

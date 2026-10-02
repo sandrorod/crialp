@@ -51,8 +51,11 @@ export const analysisService = {
 export type { AnalysisResult };
 
 export const searchService = {
-  companies: (q: string, type: 'sites' | 'locais', near?: { lat: number; lng: number } | null) =>
-    api.get<{ items: FoundCompany[]; source: 'maps' | 'web' }>(`/company-search${qs({ q, type, lat: near?.lat.toFixed(4), lng: near?.lng.toFixed(4) })}`),
+  /** Locais do Google Maps; `page` > 0 busca em anéis mais largos ao redor do mesmo centro */
+  places: (q: string, near: { lat: number; lng: number } | null, page = 0) =>
+    api.get<{ items: FoundCompany[]; center: { latitude: number; longitude: number } | null; has_more: boolean }>(
+      `/company-search${qs({ q, type: 'locais', lat: near?.lat.toFixed(5), lng: near?.lng.toFixed(5), page: String(page) })}`,
+    ),
 };
 
 export const companyService = {
