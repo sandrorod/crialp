@@ -4,12 +4,13 @@ import { toast } from 'sonner';
 import { Button, CardSection, ConfirmDialog, ErrorBlock, Field, Input, LoadingBlock, StatusToggle } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
-import { formatDate } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import { miscService, type KeyProvider } from '@/services';
 import type { AIKeyInfo } from '@/types';
 
-const PROVIDERS: Record<KeyProvider, { title: string; description: string; envVar: string; label: string; hint: string; placeholder: string }> = {
+const PROVIDERS: Record<KeyProvider, { name: string; title: string; description: string; envVar: string; label: string; hint: string; placeholder: string }> = {
   gemini: {
+    name: 'Chave do Gemini',
     title: 'Chaves do Gemini',
     description: 'Cada uso da IA passa para a próxima chave ativa (rodízio). Se uma chave estiver sem cota ou inválida, a próxima é usada automaticamente.',
     envVar: 'GEMINI_API_KEY',
@@ -18,6 +19,7 @@ const PROVIDERS: Record<KeyProvider, { title: string; description: string; envVa
     placeholder: 'AIza…',
   },
   rapidapi: {
+    name: 'Chave do RapidAPI',
     title: 'Chaves do RapidAPI',
     description: 'Usadas em "Buscar empresas". Cada pesquisa passa para a próxima chave ativa (rodízio); sem cota, inválida ou sem assinatura da API, a próxima é usada.',
     envVar: 'RAPIDAPI_KEY',
@@ -35,6 +37,8 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
   const [label, setLabel] = useState('');
   const [adding, setAdding] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Chave recém-adicionada fica destacada na lista
+  const [newId, setNewId] = useState<string | null>(null);
   // id "env" = chave da variável de ambiente (sai do rodízio; a variável fica no servidor)
   const [toDelete, setToDelete] = useState<Pick<AIKeyInfo, 'id' | 'label' | 'last4'> | null>(null);
 
@@ -42,8 +46,9 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
     e.preventDefault();
     setAdding(true);
     try {
-      await miscService.addApiKey(provider, key.trim(), label.trim());
-      toast.success('Chave validada e adicionada ao rodízio.');
+      const created = await miscService.addApiKey(provider, key.trim(), label.trim());
+      setNewId(created.id);
+      toast.success(`Chave •••• ${created.last4} validada e adicionada à lista "${cfg.title}".`);
       setKey('');
       setLabel('');
       reload();
@@ -115,14 +120,15 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
               </li>
             ) : null}
             {data.keys.map((k) => (
-              <li key={k.id} className="flex items-center gap-3 px-3 py-2.5 text-sm">
+              <li key={k.id} className={cn('flex items-center gap-3 px-3 py-2.5 text-sm', k.id === newId && 'bg-emerald-50')}>
                 <KeyRound className="size-4 flex-none text-zinc-400" />
                 <div className="min-w-0 flex-1">
                   <div className="font-medium">
-                    {k.label || 'Chave'} <span className="font-mono text-zinc-500">•••• {k.last4}</span>
+                    {k.label || cfg.name} <span className="font-mono text-zinc-500">•••• {k.last4}</span>
+                    {k.id === newId ? <span className="ml-2 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">Nova</span> : null}
                   </div>
                   <div className="text-xs text-zinc-500">
-                    {k.uses} {k.uses === 1 ? 'uso' : 'usos'} · {k.last_used_at ? `último uso ${formatDate(k.last_used_at, true)}` : 'ainda não usada'}
+                    Cadastrada em {formatDate(k.created_at, true)} · {k.uses} {k.uses === 1 ? 'uso' : 'usos'} · {k.last_used_at ? `último uso ${formatDate(k.last_used_at, true)}` : 'ainda não usada'}
                   </div>
                   {k.last_error ? (
                     <div className="mt-0.5 line-clamp-2 break-words text-xs text-red-600 [overflow-wrap:anywhere]" title={k.last_error}>
