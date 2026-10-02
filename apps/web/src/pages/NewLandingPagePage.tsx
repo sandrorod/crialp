@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { AlertTriangle, ArrowRight, Check, CircleSlash, FileSearch, Globe, PencilLine, RotateCcw, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { CompanyForm, emptyDraft } from '@/components/company/CompanyForm';
 import { ProgressSteps } from '@/components/ProgressSteps';
+import { StopJobButton } from '@/components/StopJobButton';
 import { Button, Card, Input } from '@/components/ui';
 import { useJob } from '@/hooks/useJob';
 import { errorMessage } from '@/lib/api';
@@ -25,9 +26,11 @@ function looksLikeUrl(v: string) {
 
 export function NewLandingPagePage() {
   const navigate = useNavigate();
+  // Vindo de "Buscar empresas": ?url=…&fotos=1 já inicia a análise
+  const [params] = useSearchParams();
   const [stage, setStage] = useState<Stage>('url');
-  const [url, setUrl] = useState('');
-  const [allowImages, setAllowImages] = useState(true);
+  const [url, setUrl] = useState(params.get('url') ?? '');
+  const [allowImages, setAllowImages] = useState(params.get('fotos') !== '0');
   const [urlError, setUrlError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [analyzeJobId, setAnalyzeJobId] = useState<string | null>(null);
@@ -59,6 +62,11 @@ export function NewLandingPagePage() {
       navigate(`/landing-pages/${j.result.landingPageId}`);
     }
   }, [generate.job, navigate]);
+
+  useEffect(() => {
+    if (params.get('url')) void startAnalysis();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const startAnalysis = async (e?: FormEvent) => {
     e?.preventDefault();
@@ -193,9 +201,10 @@ export function NewLandingPagePage() {
         <Card className="mt-6 p-5 sm:p-6">
           <ProgressSteps current={Math.max(j?.step ?? 1, 1)} range={[1, 6]} failed={failed} />
           {!failed ? (
-            <p className="mt-5 rounded-lg bg-zinc-50 px-3 py-2.5 text-xs leading-relaxed text-zinc-500">
-              A leitura e interpretação pela IA costuma levar de 30 segundos a 2 minutos. Você pode acompanhar por aqui.
-            </p>
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2.5">
+              <p className="text-xs leading-relaxed text-zinc-500">A leitura e interpretação pela IA costuma levar de 30 segundos a 2 minutos. Você pode acompanhar por aqui.</p>
+              {j?.status !== 'done' ? <StopJobButton jobId={analyzeJobId} /> : null}
+            </div>
           ) : (
             <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4">
               <p className="flex items-start gap-2 text-sm font-medium text-red-700">
@@ -226,6 +235,11 @@ export function NewLandingPagePage() {
         <p className="mt-1 text-sm text-zinc-500">{draft.trade_name || draft.name}</p>
         <Card className="mt-6 p-5 sm:p-6">
           <ProgressSteps current={Math.max(j?.step ?? 7, 7)} range={[1, 9]} failed={failed} done={j?.status === 'done'} />
+          {!failed && j?.status !== 'done' ? (
+            <div className="mt-5 flex justify-end">
+              <StopJobButton jobId={generateJobId} />
+            </div>
+          ) : null}
           {failed ? (
             <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4">
               <p className="text-sm font-medium text-red-700">{j?.error ?? generate.networkError}</p>

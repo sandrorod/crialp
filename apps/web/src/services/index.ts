@@ -9,6 +9,7 @@ import type {
   CompanySources,
   CompanyListItem,
   DashboardStats,
+  FoundCompany,
   Job,
   LandingContent,
   LandingPage,
@@ -42,8 +43,14 @@ export const analysisService = {
   generate: (companyId: string, opts: { landingPageId?: string; keepTheme?: boolean } = {}) =>
     api.post<{ jobId: string }>('/generate-landing-page', { companyId, ...opts }),
   job: <T>(id: string) => api.get<Job<T>>(`/jobs/${id}`),
+  /** Interrompe a análise ou a geração em andamento */
+  cancelJob: (id: string) => api.post(`/jobs/${id}/cancel`),
 };
 export type { AnalysisResult };
+
+export const searchService = {
+  companies: (q: string) => api.get<{ items: FoundCompany[]; source: 'maps' | 'web' }>(`/company-search${qs({ q })}`),
+};
 
 export const companyService = {
   list: (f: { search?: string; segment?: string; city?: string; status?: string }) =>

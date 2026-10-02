@@ -14,6 +14,7 @@ import { NewLandingPagePage } from '@/pages/NewLandingPagePage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { SalesPage } from '@/pages/SalesPage';
 import { UsersPage } from '@/pages/UsersPage';
+import { SearchCompaniesPage } from '@/pages/SearchCompaniesPage';
 import './index.css';
 
 const router = createBrowserRouter(
@@ -28,6 +29,7 @@ const router = createBrowserRouter(
         { path: '/landing-pages', element: <LandingPagesPage /> },
         { path: '/landing-pages/:id', element: <LandingPageEditorPage /> },
         { path: '/nova', element: <NewLandingPagePage /> },
+        { path: '/buscar', element: <SearchCompaniesPage /> },
         { path: '/configuracoes', element: <SettingsPage /> },
         { path: '/vendas', element: <SalesPage /> },
         { path: '/subusuarios', element: <UsersPage /> },

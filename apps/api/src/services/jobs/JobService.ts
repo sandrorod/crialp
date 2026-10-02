@@ -18,6 +18,11 @@ export interface JobRow {
   updated_at: string;
 }
 
+export const CANCELED_MESSAGE = 'Processamento interrompido pelo usuário.';
+
+/** O processamento foi interrompido pelo usuário: a tarefa para na próxima etapa, sem salvar nada. */
+class JobCanceled extends Error {}
+
 export interface JobHandle {
   id: string;
   step(n: number): Promise<void>;
@@ -44,23 +49,35 @@ export class JobService {
   run(id: string, fn: (job: JobHandle) => Promise<unknown>) {
     const handle: JobHandle = {
       id,
+      // Cada etapa confere se o usuário interrompeu; se sim, a tarefa para aqui
       step: async (n) => {
-        await query(`update jobs set step = $2, status = 'running' where id = $1`, [id, n]);
+        const res = await query(`update jobs set step = $2, status = 'running' where id = $1 and status <> 'error'`, [id, n]);
+        if (!res.rowCount) throw new JobCanceled();
       },
     };
     const task = (async () => {
       try {
-        await query(`update jobs set status = 'running' where id = $1`, [id]);
+        await query(`update jobs set status = 'running' where id = $1 and status <> 'error'`, [id]);
         const result = await fn(handle);
-        await query(`update jobs set status = 'done', result = $2 where id = $1`, [id, JSON.stringify(result ?? null)]);
+        await query(`update jobs set status = 'done', result = $2 where id = $1 and status <> 'error'`, [id, JSON.stringify(result ?? null)]);
       } catch (err) {
+        if (err instanceof JobCanceled) return;
         const message = err instanceof AppError ? err.message : Messages.aiFailed;
         if (!(err instanceof AppError)) console.error(`[job ${id}]`, err);
-        await query(`update jobs set status = 'error', error = $2 where id = $1`, [id, message]).catch(() => {});
+        await query(`update jobs set status = 'error', error = $2 where id = $1 and status <> 'error'`, [id, message]).catch(() => {});
       }
     })();
     // No Vercel a função continua viva até a tarefa terminar, mesmo após a resposta
     if (env.isVercel) waitUntil(task);
+  }
+
+  /** Interrompe um processamento em andamento (a tarefa para na próxima etapa, sem salvar). */
+  async cancel(orgId: string, id: string) {
+    const res = await query(
+      `update jobs set status = 'error', error = $3 where id = $1 and organization_id = $2 and status in ('queued','running')`,
+      [id, orgId, CANCELED_MESSAGE],
+    );
+    return (res.rowCount ?? 0) > 0;
   }
 
   /** Tarefas paradas há mais de 10 min (instância encerrada) viram erro. Seguro em várias instâncias. */

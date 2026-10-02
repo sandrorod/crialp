@@ -93,5 +93,7 @@ export const env = {
     driver: process.env.STORAGE_DRIVER ?? (process.env.BLOB_READ_WRITE_TOKEN ? 'vercel-blob' : 'local'),
     uploadDir: path.resolve(process.env.UPLOAD_DIR ?? './uploads'),
   },
+  /** Chave do RapidAPI usada na pesquisa de empresas (área "Buscar empresas") */
+  rapidApiKey: process.env.RAPIDAPI_KEY || undefined,
   webDistDir: path.resolve(process.env.WEB_DIST_DIR ?? '../../dist/admin'),
 };

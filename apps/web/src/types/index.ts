@@ -382,3 +382,17 @@ export interface AIKeyInfo {
   last_error_at: string | null;
   created_at: string;
 }
+
+/** Empresa encontrada em "Buscar empresas". */
+export interface FoundCompany {
+  name: string;
+  phone: string | null;
+  website: string | null;
+  address: string | null;
+  rating: number | null;
+  reviews: number | null;
+  url: string | null;
+  description: string | null;
+  source: 'maps' | 'web';
+  existing: { id: string; name: string; reason: 'link' | 'nome' } | null;
+}

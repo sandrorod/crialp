@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { CompanyForm, toDraft } from '@/components/company/CompanyForm';
 import { SourcesPanel } from '@/components/company/SourcesPanel';
 import { ProgressSteps } from '@/components/ProgressSteps';
+import { StopJobButton } from '@/components/StopJobButton';
 import { Button, Card, ConfirmDialog, ErrorBlock, LoadingBlock, PageHeader, StatusBadge } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { useJob } from '@/hooks/useJob';
@@ -153,6 +154,9 @@ export function CompanyEditPage() {
       {generating ? (
         <Card className="mb-4 p-5">
           <ProgressSteps current={Math.max(job?.step ?? 7, 7)} range={[7, 9]} />
+          <div className="mt-4 flex justify-end">
+            <StopJobButton jobId={jobId} />
+          </div>
         </Card>
       ) : null}
 

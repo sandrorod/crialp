@@ -10,6 +10,7 @@ import { jobService } from '../services/jobs/JobService.js';
 import { analyzeUrl } from '../services/pipeline/analyzeUrl.js';
 import { generateLanding } from '../services/pipeline/generateLanding.js';
 import { findDuplicateCompany, getCompanyFull } from '../repositories/companies.js';
+import { searchCompanies } from '../services/search/companySearch.js';
 
 export const analyzeRouter = Router();
 
@@ -68,4 +69,32 @@ analyzeRouter.get('/jobs/:id', async (req, res) => {
   if (!job) throw notFound();
   const { raw: _raw, ...result } = (job.result ?? {}) as Record<string, unknown>;
   res.json({ id: job.id, type: job.type, status: job.status, step: job.step, error: job.error, result: job.result ? result : null });
+});
+
+/** Botão "Interromper": para a análise ou a geração em andamento. */
+analyzeRouter.post('/jobs/:id/cancel', async (req, res) => {
+  const user = authUser(req);
+  const id = uuidParam.parse(req.params.id);
+  if (!(await jobService.get(user.organizationId, id))) throw notFound();
+  await jobService.cancel(user.organizationId, id);
+  res.json({ ok: true });
+});
+
+const searchLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 120,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Limite de pesquisas por hora atingido. Tente mais tarde.' },
+});
+
+/** GET /api/company-search?q=… — empresas encontradas no Google, marcando as já cadastradas. */
+analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
+  const user = authUser(req);
+  const { q } = z.object({ q: z.string().trim().min(2, 'Digite o que deseja pesquisar.').max(200) }).parse(req.query);
+  const { items, source } = await searchCompanies(q);
+  const marked = await Promise.all(
+    items.map(async (c) => ({ ...c, existing: await findDuplicateCompany(user.organizationId, { url: c.url, website: c.website, name: c.name }) })),
+  );
+  res.json({ items: marked, source });
 });

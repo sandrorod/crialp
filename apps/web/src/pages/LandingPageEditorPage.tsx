@@ -8,6 +8,7 @@ import { PreviewFrame } from '@/components/landing/PreviewFrame';
 import { applyTextEdit, type PreviewMode } from '@/components/landing/previewTools';
 import { DesignTab, PhotosTab, TemplateTab, PublishTab, SeoTab, VersionsTab, type NewPhoto, type SeoState } from '@/components/landing/SettingsTabs';
 import { ProgressSteps } from '@/components/ProgressSteps';
+import { StopJobButton } from '@/components/StopJobButton';
 import { Button, Card, ConfirmDialog, ErrorBlock, LoadingBlock, StatusToggle } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
@@ -235,6 +236,9 @@ export function LandingPageEditorPage() {
       {generating ? (
         <Card className="mb-5 p-5">
           <ProgressSteps current={Math.max(job?.step ?? 7, 7)} range={[7, 9]} />
+          <div className="mt-4 flex justify-end">
+            <StopJobButton jobId={jobId} />
+          </div>
         </Card>
       ) : null}
 
