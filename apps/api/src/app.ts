@@ -37,6 +37,14 @@ export function createApp() {
   api.use(requireSameOriginWrite);
   // Versão publicada (commit) para conferir se um deploy já está no ar
   api.get('/health', (_req, res) => res.json({ ok: true, version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null }));
+  // TEMPORÁRIO (diagnóstico): escreve no log do servidor as chaves gravadas, sem o valor da chave
+  api.get('/health/keys-diag', async (_req, res) => {
+    const { query } = await import('./db/pool.js');
+    const { rows } = await query(`select provider, label, last4, active, created_at from ai_api_keys order by created_at`);
+    const { rows: removed } = await query(`select key from lp_settings where key like '%env_key_removed'`);
+    console.log('[diag-chaves]', JSON.stringify({ rows, removed: removed.map((r) => r.key) }));
+    res.json({ ok: true });
+  });
   api.use('/auth', authRouter);
   api.use(requireAuth);
   api.use(restrictClients); // cliente: só o próprio site
