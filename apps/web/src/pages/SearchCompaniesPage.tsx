@@ -30,18 +30,6 @@ function store(next: Saved) {
 
 type Near = { lat: number; lng: number } | null;
 
-/** Localização do navegador (como o Google faz): null se negada, indisponível ou demorar. */
-function getNear(): Promise<Near> {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) return resolve(null);
-    navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
-      () => resolve(null),
-      { timeout: 8000, maximumAge: 60 * 60 * 1000 },
-    );
-  });
-}
-
 function ResultCard({ c, onGenerate }: { c: FoundCompany; onGenerate: () => void }) {
   return (
     <Card className="flex flex-col p-4">
@@ -119,8 +107,6 @@ export function SearchCompaniesPage() {
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [allowImages, setAllowImages] = useState(true);
-  // undefined = ainda não pedida; null = sem localização
-  const [near, setNear] = useState<Near | undefined>(undefined);
   // Pesquisa salva no histórico que está na tela
   const [searchId, setSearchId] = useState<string | null>(saved?.searchId ?? null);
   const history = useAsync(() => searchService.history(), []);
@@ -196,10 +182,8 @@ export function SearchCompaniesPage() {
     if (term.length < 2) return;
     setLastQ(term);
     setItems(null);
-    setLoading('new');
-    const loc = near === undefined ? await getNear() : near;
-    setNear(loc);
-    await fetchPage(term, loc, 0, [], null);
+    // Busca no Brasil todo (sem a localização de quem pesquisa); com cidade na pesquisa, naquela cidade
+    await fetchPage(term, null, 0, [], null);
   };
 
   const more = () => void fetchPage(lastQ, center, page + 1, items ?? [], searchId);
@@ -217,7 +201,7 @@ export function SearchCompaniesPage() {
   const waiting = (
     <Card className="flex items-center gap-3 p-5 text-sm text-zinc-600">
       <Loader2 className="size-5 flex-none animate-spin text-brand-600" />
-      Buscando locais no Google Maps em vários pontos da região… pode levar até 2 minutos.
+      Buscando locais no Google Maps… pode levar até 2 minutos.
     </Card>
   );
 
@@ -240,9 +224,7 @@ export function SearchCompaniesPage() {
           </span>
         </label>
         <p className="mt-3 text-xs text-zinc-500">
-          {near === null
-            ? 'Sem acesso à sua localização: inclua a cidade na pesquisa (ex.: "manutenção predial em Campinas").'
-            : 'Sem cidade na pesquisa, os locais são buscados perto de você (o navegador pede permissão de localização).'}
+          Sem cidade, a pesquisa cobre o Brasil todo, começando pelas maiores cidades; "Buscar mais locais" segue para as próximas. Para uma cidade específica, inclua-a (ex.: "manutenção predial em Campinas").
         </p>
       </Card>
 
@@ -270,7 +252,7 @@ export function SearchCompaniesPage() {
       {loading === 'more' ? <div className="mt-4">{waiting}</div> : null}
       {items?.length && hasMore && !loading && !error ? (
         <div className="mt-5 flex justify-center">
-          <Button variant="secondary" onClick={more} icon={<MapPin className="size-4" />}>Buscar mais locais (área maior)</Button>
+          <Button variant="secondary" onClick={more} icon={<MapPin className="size-4" />}>Buscar mais locais</Button>
         </div>
       ) : null}
       </div>

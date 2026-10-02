@@ -84,8 +84,8 @@ function formatPhone(raw: string | null | undefined): string | null {
 }
 
 /** "Local Business Data" (fichas do Google Maps com telefone e endereço), se a chave assinar essa API. */
-async function searchMaps(query: string, latLng?: { latitude: number; longitude: number }): Promise<FoundCompany[] | null> {
-  const near = latLng ? `&lat=${latLng.latitude}&lng=${latLng.longitude}` : '';
+async function searchMaps(query: string): Promise<FoundCompany[] | null> {
+  const near = '';
   const r = await rapid('local-business-data.p.rapidapi.com', `/search?query=${encodeURIComponent(query)}&limit=20&region=br&language=pt${near}`);
   if (notSubscribed(r)) return null;
   if (r.status !== 200 || !Array.isArray(r.body?.data)) throw new AppError(502, 'A pesquisa de empresas falhou. Tente novamente.');
@@ -244,6 +244,34 @@ async function pool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>
   return results;
 }
 
+/** Maiores cidades do Brasil (todas as capitais incluídas), em ordem de população: busca no país todo. */
+const BRAZIL_CITIES: [string, number, number][] = [
+  ['São Paulo - SP', -23.55, -46.63], ['Rio de Janeiro - RJ', -22.91, -43.17], ['Brasília - DF', -15.79, -47.88],
+  ['Salvador - BA', -12.97, -38.5], ['Fortaleza - CE', -3.73, -38.52], ['Belo Horizonte - MG', -19.92, -43.94],
+  ['Manaus - AM', -3.12, -60.02], ['Curitiba - PR', -25.43, -49.27], ['Recife - PE', -8.05, -34.88],
+  ['Goiânia - GO', -16.69, -49.26], ['Porto Alegre - RS', -30.03, -51.23], ['Belém - PA', -1.46, -48.49],
+  ['Guarulhos - SP', -23.45, -46.53], ['Campinas - SP', -22.91, -47.06], ['São Luís - MA', -2.53, -44.3],
+  ['Maceió - AL', -9.67, -35.74], ['Campo Grande - MS', -20.47, -54.62], ['Natal - RN', -5.79, -35.21],
+  ['Teresina - PI', -5.09, -42.8], ['João Pessoa - PB', -7.12, -34.86], ['Ribeirão Preto - SP', -21.18, -47.81],
+  ['Uberlândia - MG', -18.92, -48.28], ['Sorocaba - SP', -23.5, -47.46], ['Cuiabá - MT', -15.6, -56.1],
+  ['Aracaju - SE', -10.91, -37.07], ['Joinville - SC', -26.3, -48.85], ['Londrina - PR', -23.31, -51.16],
+  ['Juiz de Fora - MG', -21.76, -43.35], ['Florianópolis - SC', -27.59, -48.55], ['Santos - SP', -23.96, -46.33],
+  ['São José dos Campos - SP', -23.18, -45.88], ['Vitória - ES', -20.32, -40.34], ['Porto Velho - RO', -8.76, -63.9],
+  ['Feira de Santana - BA', -12.27, -38.97], ['São José do Rio Preto - SP', -20.81, -49.38], ['Maringá - PR', -23.42, -51.94],
+  ['Caxias do Sul - RS', -29.17, -51.18], ['Campina Grande - PB', -7.23, -35.88], ['Macapá - AP', 0.03, -51.07],
+  ['Boa Vista - RR', 2.82, -60.67], ['Rio Branco - AC', -9.97, -67.81], ['Palmas - TO', -10.18, -48.33],
+];
+const CITIES_PER_PAGE = 7;
+export const MAX_SEARCH_PAGE = Math.ceil(BRAZIL_CITIES.length / CITIES_PER_PAGE) - 1;
+
+const UFS = 'AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO';
+/** A pesquisa já diz o lugar? ("… em Campinas", "… Campinas SP", "… São Paulo") */
+export function mentionsPlace(query: string) {
+  const q = norm(query);
+  if (/\sem\s+\S/.test(q) || new RegExp(`(^|[\\s,-])(${UFS})$`, 'i').test(query.trim())) return true;
+  return BRAZIL_CITIES.some(([city]) => ` ${q.replace(/[^a-z0-9]+/g, ' ')} `.includes(` ${norm(city.split(' - ')[0]).replace(/[^a-z0-9]+/g, ' ')} `));
+}
+
 /**
  * Locais do Google Maps: "Local Business Data" do RapidAPI se a chave assinar essa API; senão, consultas ao
  * Google Maps pelo Gemini em vários pontos ao redor do centro (só locais confirmados pelo Maps), sem repetir.
@@ -251,14 +279,10 @@ async function pool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>
  */
 export async function searchCompanyPlaces(
   query: string,
-  latLng?: LatLng,
+  _latLng?: LatLng,
   page = 0,
+  savedCenter?: LatLng | null,
 ): Promise<{ items: FoundCompany[]; center: LatLng | null; hasMore: boolean; warning: string | null }> {
-  if (page === 0) {
-    const maps = (await aiKeyStore.hasAny('rapidapi', env.rapidApiKey)) ? await searchMaps(query, latLng).catch(() => null) : null;
-    if (maps) return { items: maps.filter((c) => c.name), center: latLng ?? null, hasMore: false, warning: null };
-  }
-
   const found: FoundCompany[] = [];
   const seen = new Set<string>();
   const add = (list: Awaited<ReturnType<typeof aiService.searchGooglePlaces>>) => {
@@ -269,28 +293,47 @@ export async function searchCompanyPlaces(
       found.push(toFound(p));
     }
   };
+  const located = mentionsPlace(query);
 
-  // Sem localização do navegador: uma consulta pela pesquisa e o centro vem do endereço do primeiro local
-  let center = latLng ?? null;
-  if (!center) {
-    const first = await aiService.searchGooglePlaces(query).catch((err) => {
-      throw mapError(err);
-    });
-    add(first);
-    const address = first.find((p) => p.address)?.address;
-    center = address ? await geocode(address) : null;
-    if (!center) return { items: found, center: null, hasMore: false, warning: null };
+  if (page === 0) {
+    // Lista completa do RapidAPI, se a chave assinar a "Local Business Data" (região: Brasil)
+    const maps = (await aiKeyStore.hasAny('rapidapi', env.rapidApiKey)) ? await searchMaps(query).catch(() => null) : null;
+    if (maps) return { items: maps.filter((c) => c.name), center: null, hasMore: false, warning: null };
   }
 
-  const results = await pool(searchPoints(center, page), 3, (point) => aiService.searchGooglePlaces(query, point));
+  // Com cidade na pesquisa: a cidade e arredores (anéis cada vez maiores em "Buscar mais locais")
+  // Sem cidade: o Brasil todo, percorrendo as maiores cidades (7 por página)
+  let tasks: { prompt: string; at?: LatLng }[];
+  let center: LatLng | null = savedCenter ?? null;
+  if (located) {
+    if (!center) {
+      const first = await aiService.searchGooglePlaces(query).catch((err) => {
+        throw mapError(err);
+      });
+      add(first);
+      const address = first.find((p) => p.address)?.address;
+      center = address ? await geocode(address) : null;
+      if (!center) return { items: found, center: null, hasMore: false, warning: null };
+    }
+    tasks = searchPoints(center, Math.min(page, 3)).map((at) => ({ prompt: query, at }));
+  } else {
+    tasks = BRAZIL_CITIES.slice(page * CITIES_PER_PAGE, (page + 1) * CITIES_PER_PAGE).map(([city, lat, lng]) => ({
+      prompt: `${query} em ${city}`,
+      at: { latitude: lat, longitude: lng },
+    }));
+  }
+
+  const results = await pool(tasks, 3, (t) => aiService.searchGooglePlaces(t.prompt, t.at));
   for (const r of results) if (r.status === 'fulfilled') add(r.value);
   const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
   if (!found.length && failures.length) throw mapError(failures[0].reason);
-  // Pontos que falharam (quase sempre cota do Gemini): o usuário precisa saber que a lista ficou incompleta
+  // Consultas que falharam (quase sempre cota do Gemini): o usuário precisa saber que a lista ficou incompleta
   const quota = failures.some((f) => f.reason instanceof AIProviderError && /cota|quota|limite/i.test(`${f.reason.userMessage ?? ''} ${f.reason.message}`));
+  const what = located ? 'pontos da região' : 'cidades';
   const warning = failures.length
-    ? `Só ${results.length - failures.length} de ${results.length} pontos da região foram consultados${quota ? ': a cota diária de consultas ao Google Maps (Gemini 2.5 Flash, 20 por dia por conta no plano gratuito) acabou' : ''}. ` +
+    ? `Só ${results.length - failures.length} de ${results.length} ${what} foram consultados${quota ? ': a cota diária de consultas ao Google Maps (Gemini 2.5 Flash, 20 por dia por conta no plano gratuito) acabou' : ''}. ` +
       'Para mais locais: cadastre chaves do Gemini de outras contas do Google em Configurações, ative o faturamento no Google AI Studio ou assine a "Local Business Data" no RapidAPI.'
     : null;
-  return { items: found, center, hasMore: page < 3 && !quota, warning };
+  const hasMore = !quota && (located ? page < 3 : page < MAX_SEARCH_PAGE);
+  return { items: found, center, hasMore, warning };
 }

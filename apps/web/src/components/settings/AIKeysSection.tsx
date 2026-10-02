@@ -3,7 +3,7 @@ import { AlertTriangle, KeyRound, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, CardSection, ConfirmDialog, ErrorBlock, Field, Input, LoadingBlock, StatusToggle } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
-import { errorMessage } from '@/lib/api';
+import { ApiError, errorMessage } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
 import { miscService, type KeyProvider } from '@/services';
 import type { AIKeyInfo } from '@/types';
@@ -48,15 +48,27 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
     try {
       const created = await miscService.addApiKey(provider, key.trim(), label.trim());
       setNewId(created.id);
+      showKey(created.id);
       toast.success(`Chave •••• ${created.last4} validada e adicionada à lista "${cfg.title}".`);
       setKey('');
       setLabel('');
-      reload();
     } catch (err) {
       toast.error(errorMessage(err));
+      // Chave já cadastrada: mostra onde ela está
+      if (err instanceof ApiError && err.code === 'KEY_EXISTS' && err.details?.provider === provider) {
+        setNewId(String(err.details.id));
+        showKey(String(err.details.id));
+      }
     } finally {
       setAdding(false);
     }
+  };
+
+  /** Rola a tela até a chave na lista (depois de recarregar) para ela ficar visível. */
+  const showKey = (id: string) => {
+    void reload().then(() =>
+      requestAnimationFrame(() => document.getElementById(`key-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })),
+    );
   };
 
   const toggle = async (k: AIKeyInfo) => {
@@ -120,12 +132,12 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
               </li>
             ) : null}
             {data.keys.map((k) => (
-              <li key={k.id} className={cn('flex items-center gap-3 px-3 py-2.5 text-sm', k.id === newId && 'bg-emerald-50')}>
+              <li key={k.id} id={`key-${k.id}`} className={cn('flex items-center gap-3 px-3 py-2.5 text-sm', k.id === newId && 'bg-emerald-50')}>
                 <KeyRound className="size-4 flex-none text-zinc-400" />
                 <div className="min-w-0 flex-1">
                   <div className="font-medium">
                     {k.label || cfg.name} <span className="font-mono text-zinc-500">•••• {k.last4}</span>
-                    {k.id === newId ? <span className="ml-2 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">Nova</span> : null}
+                    {k.id === newId ? <span className="ml-2 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">Esta chave</span> : null}
                   </div>
                   <div className="text-xs text-zinc-500">
                     Cadastrada em {formatDate(k.created_at, true)} · {k.uses} {k.uses === 1 ? 'uso' : 'usos'} · {k.last_used_at ? `último uso ${formatDate(k.last_used_at, true)}` : 'ainda não usada'}

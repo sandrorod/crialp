@@ -4,7 +4,7 @@ import { AppError } from '../lib/errors.js';
 
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
   if (err instanceof AppError) {
-    return res.status(err.status).json({ error: err.message, code: err.code });
+    return res.status(err.status).json({ error: err.message, code: err.code, ...(err.details ? { details: err.details } : {}) });
   }
   if (err instanceof ZodError) {
     return res.status(400).json({ error: err.issues[0]?.message ?? 'Dados inválidos.', code: 'VALIDATION' });

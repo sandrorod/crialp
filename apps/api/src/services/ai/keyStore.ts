@@ -109,7 +109,7 @@ export const aiKeyStore = {
 
   /** Onde esta chave já está cadastrada (provedor, nome e final), se estiver. */
   async findByKey(key: string) {
-    return one<{ provider: string; label: string | null; last4: string }>('select provider, label, last4 from ai_api_keys where key_hash = $1', [hashKey(key)]);
+    return one<{ id: string; provider: string; label: string | null; last4: string }>('select id, provider, label, last4 from ai_api_keys where key_hash = $1', [hashKey(key)]);
   },
 
   async add(input: { key: string; label?: string | null; userId?: string }, provider = 'gemini'): Promise<AIKeyInfo> {

@@ -114,13 +114,15 @@ analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
       lat: z.coerce.number().min(-90).max(90).optional(),
       lng: z.coerce.number().min(-180).max(180).optional(),
       // "Buscar mais locais": anéis cada vez mais largos ao redor do mesmo centro
-      page: z.coerce.number().int().min(0).max(3).default(0),
+      page: z.coerce.number().int().min(0).max(10).default(0),
       // Pesquisa salva que recebe os locais de "Buscar mais locais"
       search_id: z.string().uuid().optional(),
     })
     .parse(req.query);
   const latLng = lat != null && lng != null ? { latitude: lat, longitude: lng } : undefined;
-  const places = type === 'locais' ? await searchCompanyPlaces(q, latLng, page) : null;
+  // "Buscar mais locais" de pesquisa com cidade continua ao redor do mesmo centro
+  const saved = search_id && page > 0 ? await getSearch(user.organizationId, search_id) : null;
+  const places = type === 'locais' ? await searchCompanyPlaces(q, latLng, page, saved?.center ?? latLng ?? null) : null;
   const items = places ? places.items : await searchCompanySites(q);
   const source = type === 'locais' ? 'maps' : 'web';
   const registered = await matchRegisteredCompanies(user.organizationId, items);

@@ -4,6 +4,8 @@ export class AppError extends Error {
     public readonly status: number,
     message: string,
     public readonly code = 'APP_ERROR',
+    /** Dados extras para a interface (ex.: id do registro que já existe) */
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
   }

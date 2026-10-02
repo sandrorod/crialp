@@ -76,7 +76,8 @@ miscRouter.post('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async
     throw new AppError(
       409,
       registered.provider === provider ? `Esta chave já está na lista como ${which}.` : `Esta chave já está cadastrada em "${names[registered.provider] ?? registered.provider}" como ${which}.`,
-      'CONFLICT',
+      'KEY_EXISTS',
+      { id: registered.id, provider: registered.provider },
     );
   }
   // Mesma chave da variável do servidor: passa a ser gerenciada pelo painel (entra na lista com o nome
