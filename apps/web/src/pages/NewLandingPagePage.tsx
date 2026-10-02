@@ -9,7 +9,7 @@ import { Button, Card, Input } from '@/components/ui';
 import { useJob } from '@/hooks/useJob';
 import { errorMessage } from '@/lib/api';
 import { analysisService, companyService } from '@/services';
-import type { AnalysisMeta, AnalysisResult, CompanyDraft } from '@/types';
+import type { AnalysisMeta, AnalysisResult, CompanyDraft, PlaceListing } from '@/types';
 
 type Stage = 'url' | 'analyzing' | 'review' | 'generating';
 
@@ -77,7 +77,13 @@ export function NewLandingPagePage() {
     setUrlError(null);
     setStarting(true);
     try {
-      const { jobId } = await analysisService.analyzeUrl(url.trim(), allowImages);
+      let place: PlaceListing | undefined;
+      try {
+        place = JSON.parse(sessionStorage.getItem(`lp:place:${url.trim()}`) ?? 'null') ?? undefined;
+      } catch {
+        place = undefined;
+      }
+      const { jobId } = await analysisService.analyzeUrl(url.trim(), allowImages, place);
       setAnalyzeJobId(jobId);
       setStage('analyzing');
     } catch (err) {

@@ -396,3 +396,13 @@ export interface FoundCompany {
   source: 'maps' | 'web';
   existing: { id: string; name: string; reason: 'link' | 'nome' } | null;
 }
+
+/** Dados do Google Maps de um local escolhido na pesquisa, enviados à análise. */
+export interface PlaceListing {
+  name: string;
+  phone: string | null;
+  address: string | null;
+  website: string | null;
+  rating: number | null;
+  reviews: number | null;
+}

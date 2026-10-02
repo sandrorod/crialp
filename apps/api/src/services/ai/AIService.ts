@@ -112,6 +112,13 @@ export class AIService {
     return gemini.describeGooglePlace(query, latLng);
   }
 
+  /** Locais do Google Maps para uma pesquisa (usa as chaves do Gemini). */
+  async searchGooglePlaces(query: string) {
+    const { GeminiProvider } = await import('./GeminiProvider.js');
+    const gemini = this.provider instanceof GeminiProvider ? this.provider : new GeminiProvider(undefined, 'gemini-2.5-flash');
+    return gemini.searchGooglePlaces(query);
+  }
+
   get model() {
     return this.provider.model;
   }

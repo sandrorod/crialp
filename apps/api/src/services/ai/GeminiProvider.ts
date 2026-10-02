@@ -42,6 +42,18 @@ export interface GooglePlaceInfo {
   title: string;
 }
 
+/** Local do Google Maps listado numa pesquisa. */
+export interface GooglePlaceListing {
+  name: string;
+  phone: string | null;
+  address: string | null;
+  website: string | null;
+  rating: number | null;
+  reviews: number | null;
+  mapsUri: string;
+  placeId: string | null;
+}
+
 export class GeminiProvider implements AIProvider {
   readonly name = 'gemini';
   private readonly clients = new Map<string, GoogleGenAI>();
@@ -207,6 +219,65 @@ export class GeminiProvider implements AIProvider {
           if (!isKeyError(err)) throw this.mapError(err);
           await aiKeyStore.recordError(key.id, err instanceof Error ? err.message : String(err));
           break; // próxima chave
+        }
+      }
+    }
+    throw this.mapError(lastError);
+  }
+
+  /**
+   * Locais do Google Maps para uma pesquisa (ex.: "manutenção predial em Rio Preto"). Só entram os locais
+   * que o Maps confirmou na resposta (cada um tem link do Maps); dados ausentes ficam null.
+   */
+  async searchGooglePlaces(query: string): Promise<GooglePlaceListing[]> {
+    const keys = await aiKeyStore.rotation('gemini', this.envKey);
+    if (!keys.length) throw new AIProviderError('Nenhuma chave do Gemini configurada.', false, 'Nenhuma chave do Gemini cadastrada. Adicione uma em Configurações.');
+    const prompt =
+      `Use o Google Maps para listar até 10 estabelecimentos para a pesquisa: "${query}".\n` +
+      'Para cada um, uma linha no formato: Nome | Telefone | Endereço | Site | Nota | Avaliações\n' +
+      'Use "-" quando o Maps não tiver o dado. Não invente nada. Sem texto extra.';
+    let lastError: unknown;
+    for (const key of keys) {
+      const client = this.clientFor(key.key);
+      for (const model of [...new Set(['gemini-2.5-flash', this.model, ...this.fallbackModels])]) {
+        try {
+          const response = await client.models.generateContent({ model, contents: prompt, config: { tools: [{ googleMaps: {} }] } });
+          await aiKeyStore.recordUse(key.id);
+          const chunks = (response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [])
+            .map((c) => c.maps)
+            .filter((m): m is NonNullable<typeof m> => !!m?.uri && !!m.title)
+            .map((m) => ({ uri: m.uri!, placeId: m.placeId ?? null, title: m.title!.replace(/\s*-\s*Google Maps$/i, '') }));
+          const key2 = (v: string) => v.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+          const dash = (v: string | undefined) => (v && v.trim() !== '-' ? v.trim() : null);
+          const out: GooglePlaceListing[] = [];
+          for (const line of (response.text ?? '').split('\n')) {
+            const cols = line.replace(/^\s*[*•-]\s*/, '').split('|').map((c) => c.trim());
+            if (cols.length < 4 || !cols[0]) continue;
+            const name = cols[0].replace(/\*\*/g, '');
+            // Só locais confirmados pelo Maps (o nome bate com um local citado na resposta)
+            const chunk = chunks.find((c) => key2(c.title) === key2(name)) ?? chunks.find((c) => key2(c.title).includes(key2(name)) || key2(name).includes(key2(c.title)));
+            if (!chunk || out.some((o) => o.mapsUri === chunk.uri)) continue;
+            const rating = Number(dash(cols[4])?.replace(',', '.'));
+            const reviews = Number(dash(cols[5])?.replace(/\D/g, ''));
+            out.push({
+              name: chunk.title,
+              phone: dash(cols[1]),
+              address: dash(cols[2]),
+              website: dash(cols[3]),
+              rating: Number.isFinite(rating) && rating > 0 ? rating : null,
+              reviews: Number.isFinite(reviews) && reviews > 0 ? reviews : null,
+              mapsUri: chunk.uri,
+              placeId: chunk.placeId,
+            });
+          }
+          return out;
+        } catch (err) {
+          lastError = err;
+          const missing = err instanceof ApiError && (err.status === 404 || err.status === 400 || /not (found|supported|enabled)/i.test(err.message ?? ''));
+          if (missing || isOverloaded(err)) continue;
+          if (!isKeyError(err)) throw this.mapError(err);
+          await aiKeyStore.recordError(key.id, err instanceof Error ? err.message : String(err));
+          break;
         }
       }
     }

@@ -1,4 +1,5 @@
 import { env } from '../../config/env.js';
+import { aiService, AIProviderError } from '../ai/index.js';
 import { AppError } from '../../lib/errors.js';
 import { toBrazilE164Digits } from '../../lib/phone.js';
 import { PHONE_RE } from '../scraper/ScraperService.js';
@@ -114,8 +115,35 @@ async function searchWeb(query: string): Promise<FoundCompany[]> {
   return out;
 }
 
-export async function searchCompanies(query: string): Promise<{ items: FoundCompany[]; source: 'maps' | 'web' }> {
-  const maps = await searchMaps(query);
-  if (maps) return { items: maps.filter((c) => c.name), source: 'maps' };
-  return { items: await searchWeb(query), source: 'web' };
+/** Sites encontrados na busca do Google. */
+export async function searchCompanySites(query: string): Promise<FoundCompany[]> {
+  return searchWeb(query);
+}
+
+/**
+ * Locais do Google Maps: "Local Business Data" do RapidAPI se a chave assinar essa API (lista completa);
+ * senão, a consulta ao Google Maps pelo Gemini (poucos locais por pesquisa, só os confirmados pelo Maps).
+ */
+export async function searchCompanyPlaces(query: string): Promise<FoundCompany[]> {
+  const maps = env.rapidApiKey ? await searchMaps(query).catch(() => null) : null;
+  if (maps) return maps.filter((c) => c.name);
+  const places = await aiService.searchGooglePlaces(query).catch((err) => {
+    // Cota do Gemini, chave inválida etc.: mensagem clara em vez de "erro interno"
+    if (err instanceof AIProviderError) throw new AppError(err.retryable ? 503 : 502, err.userMessage ?? 'Não foi possível consultar o Google Maps. Tente novamente.');
+    throw err;
+  });
+  return places.map((p) => ({
+    name: p.name,
+    phone: formatPhone(p.phone),
+    website: p.website && /^https?:\/\//i.test(p.website) ? p.website : p.website ? `https://${p.website}` : null,
+    address: p.address,
+    rating: p.rating,
+    reviews: p.reviews,
+    // Gerar LP: link do Maps com nome e endereço (a análise lê o perfil e, se houver, o site também)
+    url:
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([p.name, p.address].filter(Boolean).join(', '))}` +
+      (p.placeId ? `&query_place_id=${encodeURIComponent(p.placeId)}` : ''),
+    description: null,
+    source: 'maps',
+  }));
 }

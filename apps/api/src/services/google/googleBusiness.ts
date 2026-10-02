@@ -1,6 +1,6 @@
 import { AppError } from '../../lib/errors.js';
 import { toBrazilE164Digits } from '../../lib/phone.js';
-import { aiService } from '../ai/index.js';
+import { aiService, AIProviderError } from '../ai/index.js';
 import {
   EMAIL_RE,
   normalizeSocialUrl,
@@ -72,9 +72,36 @@ export async function scrapeGoogleBusiness(input: URL, scraper: ScraperService):
   if (!query) {
     throw new AppError(422, 'Não identifiquei a empresa neste link do Google. No Google Maps, abra o perfil da empresa e use "Compartilhar" → "Copiar link".', 'GOOGLE_LINK');
   }
-  const info = await aiService.describeGooglePlace(query, latLng);
+  const info = await aiService.describeGooglePlace(query, latLng).catch((err) => {
+    if (err instanceof AIProviderError) throw new AppError(err.retryable ? 503 : 502, err.userMessage ?? 'Não foi possível consultar o Google Maps. Tente novamente.');
+    throw err;
+  });
   if (!info) throw new AppError(422, `Não consegui ler os dados de "${query}" no Google Maps (empresas que atendem no local do cliente, sem endereço público, às vezes não aparecem). Use o site da empresa ou preencha os dados manualmente.`, 'GOOGLE_NOT_FOUND');
+  return fromPlaceInfo(input, info, scraper);
+}
 
+/** Local escolhido em "Buscar empresas": os dados do Maps já vieram na pesquisa, sem consultar de novo. */
+export interface PlaceListing {
+  name: string;
+  phone?: string | null;
+  address?: string | null;
+  website?: string | null;
+  rating?: number | null;
+  reviews?: number | null;
+}
+
+export function scrapeGooglePlaceListing(input: URL, place: PlaceListing, scraper: ScraperService) {
+  const lines = [
+    `Nome: ${place.name}`,
+    place.address && `Endereço completo: ${place.address}`,
+    place.phone && `Telefone: ${place.phone}`,
+    place.website && `Site: ${place.website}`,
+    place.rating != null && `Nota: ${place.rating}${place.reviews != null ? ` (${place.reviews} avaliações no Google)` : ''}`,
+  ].filter(Boolean);
+  return fromPlaceInfo(input, { text: lines.join('\n'), mapsUri: input.toString(), title: place.name }, scraper);
+}
+
+async function fromPlaceInfo(input: URL, info: { text: string; mapsUri: string; title: string }, scraper: ScraperService): Promise<{ scrape: ScrapeResult; website: string | null }> {
   const text = info.text.replace(/\*\*/g, '').replace(/^\s*[*•-]\s*/gm, '');
   const phones = new Set<string>();
   for (const m of text.match(PHONE_RE) ?? []) {

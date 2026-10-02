@@ -4,7 +4,7 @@ import { aiService, AIProviderError } from '../ai/index.js';
 import type { ExtractedCompany } from '../ai/schemas.js';
 import type { JobHandle } from '../jobs/JobService.js';
 import { buildAnalysisDocument, ScraperService } from '../scraper/ScraperService.js';
-import { isGoogleBusinessUrl, scrapeGoogleBusiness } from '../google/googleBusiness.js';
+import { isGoogleBusinessUrl, scrapeGoogleBusiness, scrapeGooglePlaceListing, type PlaceListing } from '../google/googleBusiness.js';
 import { assembleImages } from './images.js';
 import { SourceVerifier } from './verify.js';
 import { toSourcePayload } from '../../repositories/sources.js';
@@ -21,12 +21,17 @@ export const ANALYZE_STEPS = {
 
 const scraper = new ScraperService();
 
-export async function analyzeUrl(job: JobHandle, url: URL, opts: { allowImages?: boolean } = {}) {
+export async function analyzeUrl(job: JobHandle, url: URL, opts: { allowImages?: boolean; place?: PlaceListing } = {}) {
   if (!(await aiService.isConfigured())) throw new AppError(503, Messages.aiNotConfigured);
 
   await job.step(ANALYZE_STEPS.access);
   // Link do Google (Maps / Perfil da Empresa): dados do perfil, mais o site próprio se o perfil tiver um
-  const google = isGoogleBusinessUrl(url) ? await scrapeGoogleBusiness(url, scraper) : null;
+  // Local vindo de "Buscar empresas": os dados do Maps já vieram na pesquisa
+  const google = opts.place
+    ? await scrapeGooglePlaceListing(url, opts.place, scraper)
+    : isGoogleBusinessUrl(url)
+      ? await scrapeGoogleBusiness(url, scraper)
+      : null;
   const scrape = google ? google.scrape : await scraper.scrape(url);
 
   await job.step(ANALYZE_STEPS.content);

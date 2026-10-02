@@ -10,6 +10,7 @@ import type {
   CompanyListItem,
   DashboardStats,
   FoundCompany,
+  PlaceListing,
   Job,
   LandingContent,
   LandingPage,
@@ -39,7 +40,8 @@ export const authService = {
 };
 
 export const analysisService = {
-  analyzeUrl: (url: string, allowImages = false) => api.post<{ jobId: string }>('/analyze-url', { url, allowImages }),
+  /** `place`: local do Google Maps escolhido em "Buscar empresas" (dados já obtidos na pesquisa) */
+  analyzeUrl: (url: string, allowImages = false, place?: PlaceListing) => api.post<{ jobId: string }>('/analyze-url', { url, allowImages, place }),
   generate: (companyId: string, opts: { landingPageId?: string; keepTheme?: boolean } = {}) =>
     api.post<{ jobId: string }>('/generate-landing-page', { companyId, ...opts }),
   job: <T>(id: string) => api.get<Job<T>>(`/jobs/${id}`),
@@ -49,7 +51,7 @@ export const analysisService = {
 export type { AnalysisResult };
 
 export const searchService = {
-  companies: (q: string) => api.get<{ items: FoundCompany[]; source: 'maps' | 'web' }>(`/company-search${qs({ q })}`),
+  companies: (q: string, type: 'sites' | 'locais') => api.get<{ items: FoundCompany[]; source: 'maps' | 'web' }>(`/company-search${qs({ q, type })}`),
 };
 
 export const companyService = {

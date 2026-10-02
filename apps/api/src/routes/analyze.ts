@@ -10,7 +10,7 @@ import { jobService } from '../services/jobs/JobService.js';
 import { analyzeUrl } from '../services/pipeline/analyzeUrl.js';
 import { generateLanding } from '../services/pipeline/generateLanding.js';
 import { findDuplicateCompany, getCompanyFull } from '../repositories/companies.js';
-import { searchCompanies } from '../services/search/companySearch.js';
+import { searchCompanyPlaces, searchCompanySites } from '../services/search/companySearch.js';
 
 export const analyzeRouter = Router();
 
@@ -29,8 +29,22 @@ const aiLimiter = rateLimit({
  */
 analyzeRouter.post('/analyze-url', aiLimiter, async (req, res) => {
   const user = authUser(req);
-  const { url, allowImages } = parseBody(
-    z.object({ url: z.string({ error: Messages.invalidUrl }), allowImages: z.boolean().optional() }),
+  const { url, allowImages, place } = parseBody(
+    z.object({
+      url: z.string({ error: Messages.invalidUrl }),
+      allowImages: z.boolean().optional(),
+      // Local do Google Maps escolhido em "Buscar empresas" (dados já obtidos na pesquisa)
+      place: z
+        .object({
+          name: z.string().trim().min(1).max(300),
+          phone: z.string().max(40).nullish(),
+          address: z.string().max(500).nullish(),
+          website: z.string().max(2048).nullish(),
+          rating: z.number().min(0).max(5).nullish(),
+          reviews: z.number().int().min(0).nullish(),
+        })
+        .optional(),
+    }),
     req.body,
   );
   const parsed = normalizeInputUrl(url);
@@ -39,7 +53,7 @@ analyzeRouter.post('/analyze-url', aiLimiter, async (req, res) => {
   if (dup) throw new AppError(409, `Esta empresa já foi cadastrada: "${dup.name}" (mesmo link).`, 'DUPLICATE_COMPANY');
   if (!(await aiService.isConfigured())) throw new AppError(503, Messages.aiNotConfigured);
   const jobId = await jobService.create(user.organizationId, 'analyze_url', { url: parsed.toString() });
-  jobService.run(jobId, (job) => analyzeUrl(job, parsed, { allowImages }));
+  jobService.run(jobId, (job) => analyzeUrl(job, parsed, { allowImages, place }));
   res.status(202).json({ jobId });
 });
 
@@ -88,11 +102,14 @@ const searchLimiter = rateLimit({
   message: { error: 'Limite de pesquisas por hora atingido. Tente mais tarde.' },
 });
 
-/** GET /api/company-search?q=… — empresas encontradas no Google, marcando as já cadastradas. */
+/** GET /api/company-search?q=…&type=sites|locais — empresas encontradas no Google, marcando as já cadastradas. */
 analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
   const user = authUser(req);
-  const { q } = z.object({ q: z.string().trim().min(2, 'Digite o que deseja pesquisar.').max(200) }).parse(req.query);
-  const { items, source } = await searchCompanies(q);
+  const { q, type } = z
+    .object({ q: z.string().trim().min(2, 'Digite o que deseja pesquisar.').max(200), type: z.enum(['sites', 'locais']).default('sites') })
+    .parse(req.query);
+  const items = type === 'locais' ? await searchCompanyPlaces(q) : await searchCompanySites(q);
+  const source = type === 'locais' ? 'maps' : 'web';
   const marked = await Promise.all(
     items.map(async (c) => ({ ...c, existing: await findDuplicateCompany(user.organizationId, { url: c.url, website: c.website, name: c.name }) })),
   );
