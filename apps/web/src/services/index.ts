@@ -53,7 +53,7 @@ export type { AnalysisResult };
 export const searchService = {
   /** Locais do Google Maps; `page` > 0 busca em anéis mais largos ao redor do mesmo centro */
   places: (q: string, near: { lat: number; lng: number } | null, page = 0) =>
-    api.get<{ items: FoundCompany[]; center: { latitude: number; longitude: number } | null; has_more: boolean }>(
+    api.get<{ items: FoundCompany[]; center: { latitude: number; longitude: number } | null; has_more: boolean; warning: string | null }>(
       `/company-search${qs({ q, type: 'locais', lat: near?.lat.toFixed(5), lng: near?.lng.toFixed(5), page: String(page) })}`,
     ),
 };

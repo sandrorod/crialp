@@ -253,10 +253,10 @@ export async function searchCompanyPlaces(
   query: string,
   latLng?: LatLng,
   page = 0,
-): Promise<{ items: FoundCompany[]; center: LatLng | null; hasMore: boolean }> {
+): Promise<{ items: FoundCompany[]; center: LatLng | null; hasMore: boolean; warning: string | null }> {
   if (page === 0) {
     const maps = (await aiKeyStore.hasAny('rapidapi', env.rapidApiKey)) ? await searchMaps(query, latLng).catch(() => null) : null;
-    if (maps) return { items: maps.filter((c) => c.name), center: latLng ?? null, hasMore: false };
+    if (maps) return { items: maps.filter((c) => c.name), center: latLng ?? null, hasMore: false, warning: null };
   }
 
   const found: FoundCompany[] = [];
@@ -279,12 +279,18 @@ export async function searchCompanyPlaces(
     add(first);
     const address = first.find((p) => p.address)?.address;
     center = address ? await geocode(address) : null;
-    if (!center) return { items: found, center: null, hasMore: false };
+    if (!center) return { items: found, center: null, hasMore: false, warning: null };
   }
 
   const results = await pool(searchPoints(center, page), 3, (point) => aiService.searchGooglePlaces(query, point));
   for (const r of results) if (r.status === 'fulfilled') add(r.value);
   const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
   if (!found.length && failures.length) throw mapError(failures[0].reason);
-  return { items: found, center, hasMore: page < 3 };
+  // Pontos que falharam (quase sempre cota do Gemini): o usuário precisa saber que a lista ficou incompleta
+  const quota = failures.some((f) => f.reason instanceof AIProviderError && /cota|quota|limite/i.test(`${f.reason.userMessage ?? ''} ${f.reason.message}`));
+  const warning = failures.length
+    ? `Só ${results.length - failures.length} de ${results.length} pontos da região foram consultados${quota ? ': a cota diária de consultas ao Google Maps (Gemini 2.5 Flash, 20 por dia por conta no plano gratuito) acabou' : ''}. ` +
+      'Para mais locais: cadastre chaves do Gemini de outras contas do Google em Configurações, ative o faturamento no Google AI Studio ou assine a "Local Business Data" no RapidAPI.'
+    : null;
+  return { items: found, center, hasMore: page < 3 && !quota, warning };
 }

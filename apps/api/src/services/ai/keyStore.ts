@@ -107,9 +107,9 @@ export const aiKeyStore = {
     return !!(await one('select 1 from ai_api_keys where key_hash = $1', [hashKey(key)]));
   },
 
-  /** Em qual cadastro (Gemini ou RapidAPI) esta chave já está, se estiver. */
-  async providerOf(key: string): Promise<string | null> {
-    return (await one<{ provider: string }>('select provider from ai_api_keys where key_hash = $1', [hashKey(key)]))?.provider ?? null;
+  /** Onde esta chave já está cadastrada (provedor, nome e final), se estiver. */
+  async findByKey(key: string) {
+    return one<{ provider: string; label: string | null; last4: string }>('select provider, label, last4 from ai_api_keys where key_hash = $1', [hashKey(key)]);
   },
 
   async add(input: { key: string; label?: string | null; userId?: string }, provider = 'gemini'): Promise<AIKeyInfo> {

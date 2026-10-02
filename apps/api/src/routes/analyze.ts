@@ -122,5 +122,5 @@ analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
   const source = type === 'locais' ? 'maps' : 'web';
   const registered = await matchRegisteredCompanies(user.organizationId, items);
   const marked = items.map((c, i) => ({ ...c, existing: registered[i] }));
-  res.json({ items: marked, source, center: places?.center ?? null, has_more: places?.hasMore ?? false });
+  res.json({ items: marked, source, center: places?.center ?? null, has_more: places?.hasMore ?? false, warning: places?.warning ?? null });
 });

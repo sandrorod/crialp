@@ -70,15 +70,18 @@ miscRouter.post('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async
   const body = parseBody(KeySchema, req.body);
   // Mensagem diz onde a chave já está (a chave do servidor aparece na lista como "Chave do servidor")
   const names: Record<string, string> = { gemini: 'Chaves do Gemini', rapidapi: 'Chaves do RapidAPI' };
-  const registeredIn = await aiKeyStore.providerOf(body.key);
-  if (registeredIn) {
-    throw new AppError(409, registeredIn === provider ? 'Esta chave já está na lista.' : `Esta chave já está cadastrada em "${names[registeredIn] ?? registeredIn}".`, 'CONFLICT');
+  const registered = await aiKeyStore.findByKey(body.key);
+  if (registered) {
+    const which = `"${registered.label || 'Chave'} (•••• ${registered.last4})"`;
+    throw new AppError(
+      409,
+      registered.provider === provider ? `Esta chave já está na lista como ${which}.` : `Esta chave já está cadastrada em "${names[registered.provider] ?? registered.provider}" como ${which}.`,
+      'CONFLICT',
+    );
   }
-  for (const p of KEY_PROVIDERS) {
-    if (body.key.trim() === (await aiKeyStore.activeEnvKey(envKeyOf(p), p))) {
-      throw new AppError(409, `Esta chave já está no rodízio como "Chave do servidor" em "${names[p]}" (variável ${p === 'gemini' ? 'GEMINI_API_KEY' : 'RAPIDAPI_KEY'}).`, 'CONFLICT');
-    }
-  }
+  // Mesma chave da variável do servidor: passa a ser gerenciada pelo painel (entra na lista com o nome
+  // escolhido e sai do lugar de "Chave do servidor", sem ficar duas vezes no rodízio)
+  const sameAsEnv = body.key.trim() === (await aiKeyStore.activeEnvKey(envKeyOf(provider), provider));
   // Só salva chaves que funcionam
   if (provider === 'gemini') {
     try {
@@ -90,7 +93,9 @@ miscRouter.post('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async
   } else {
     await testRapidApiKey(body.key);
   }
-  res.status(201).json(await aiKeyStore.add({ key: body.key, label: body.label, userId: user.id }, provider));
+  const created = await aiKeyStore.add({ key: body.key, label: body.label, userId: user.id }, provider);
+  if (sameAsEnv) await aiKeyStore.removeEnvKey(envKeyOf(provider)!, provider);
+  res.status(201).json(created);
 });
 
 miscRouter.patch('/settings/keys/:provider/:id', requireRole(...MANAGER_ROLES), async (req, res) => {

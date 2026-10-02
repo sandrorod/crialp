@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Building2, ExternalLink, Globe, Loader2, MapPin, Phone, Search, Sparkles, Star } from 'lucide-react';
+import { AlertTriangle, Building2, ExternalLink, Globe, Loader2, MapPin, Phone, Search, Sparkles, Star } from 'lucide-react';
 import { Button, Card, ErrorBlock, Input, PageHeader } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
 import { searchService } from '@/services';
@@ -103,6 +103,7 @@ export function SearchCompaniesPage() {
   const [lastQ, setLastQ] = useState(saved?.q ?? '');
   const [loading, setLoading] = useState<'new' | 'more' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [allowImages, setAllowImages] = useState(true);
   // undefined = ainda não pedida; null = sem localização
   const [near, setNear] = useState<Near | undefined>(undefined);
@@ -120,6 +121,7 @@ export function SearchCompaniesPage() {
       setCenter(nextCenter);
       setPage(p);
       setHasMore(r.has_more);
+      setWarning(r.warning);
       store({ q: term, items: merged, center: nextCenter, page: p, hasMore: r.has_more });
     } catch (err) {
       setError(errorMessage(err));
@@ -196,6 +198,11 @@ export function SearchCompaniesPage() {
         <div className="grid gap-3 md:grid-cols-2">
           {items.map((c, i) => <ResultCard key={`${c.url}-${i}`} c={c} onGenerate={() => generate(c)} />)}
         </div>
+      ) : null}
+      {warning && !loading ? (
+        <p className="mt-4 flex gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-xs text-amber-800 [overflow-wrap:anywhere]">
+          <AlertTriangle className="size-4 flex-none" /> {warning}
+        </p>
       ) : null}
       {error ? <div className="mt-4"><ErrorBlock message={error} onRetry={() => (items?.length ? more() : void search())} /></div> : null}
       {loading === 'more' ? <div className="mt-4">{waiting}</div> : null}
