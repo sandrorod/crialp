@@ -11,6 +11,7 @@ import type {
   DashboardStats,
   FoundCompany,
   PlaceListing,
+  SavedSearchItem,
   Job,
   LandingContent,
   LandingPage,
@@ -52,10 +53,15 @@ export type { AnalysisResult };
 
 export const searchService = {
   /** Locais do Google Maps; `page` > 0 busca em anéis mais largos ao redor do mesmo centro */
-  places: (q: string, near: { lat: number; lng: number } | null, page = 0) =>
-    api.get<{ items: FoundCompany[]; center: { latitude: number; longitude: number } | null; has_more: boolean; warning: string | null }>(
-      `/company-search${qs({ q, type: 'locais', lat: near?.lat.toFixed(5), lng: near?.lng.toFixed(5), page: String(page) })}`,
+  places: (q: string, near: { lat: number; lng: number } | null, page = 0, searchId?: string | null) =>
+    api.get<{ items: FoundCompany[]; center: { latitude: number; longitude: number } | null; has_more: boolean; warning: string | null; search_id: string | null }>(
+      `/company-search${qs({ q, type: 'locais', lat: near?.lat.toFixed(5), lng: near?.lng.toFixed(5), page: String(page), search_id: searchId ?? undefined })}`,
     ),
+  /** Histórico de pesquisas salvas */
+  history: () => api.get<{ items: SavedSearchItem[] }>('/company-searches'),
+  saved: (id: string) =>
+    api.get<{ id: string; query: string; center: { latitude: number; longitude: number } | null; page: number; has_more: boolean; results: FoundCompany[]; updated_at: string }>(`/company-searches/${id}`),
+  removeSaved: (id: string) => api.del(`/company-searches/${id}`),
 };
 
 export const companyService = {

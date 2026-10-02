@@ -396,7 +396,8 @@ export interface FoundCompany {
   /** Página do local no Google Maps */
   google_url: string | null;
   source: 'maps' | 'web';
-  existing: { id: string; name: string } | null;
+  /** Empresa já cadastrada (e a LP dela, se já foi gerada) */
+  existing: { id: string; name: string; landing_page: { id: string; slug: string; status: LpStatus } | null } | null;
 }
 
 /** Dados do Google Maps de um local escolhido na pesquisa, enviados à análise. */
@@ -407,4 +408,14 @@ export interface PlaceListing {
   website: string | null;
   rating: number | null;
   reviews: number | null;
+}
+
+/** Pesquisa salva no histórico de "Buscar empresas". */
+export interface SavedSearchItem {
+  id: string;
+  query: string;
+  count: number;
+  created_at: string;
+  updated_at: string;
+  author: string | null;
 }

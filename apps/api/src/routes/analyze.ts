@@ -10,7 +10,8 @@ import { jobService } from '../services/jobs/JobService.js';
 import { analyzeUrl } from '../services/pipeline/analyzeUrl.js';
 import { generateLanding } from '../services/pipeline/generateLanding.js';
 import { findDuplicateCompany, getCompanyFull, matchRegisteredCompanies } from '../repositories/companies.js';
-import { searchCompanyPlaces, searchCompanySites } from '../services/search/companySearch.js';
+import { searchCompanyPlaces, searchCompanySites, type FoundCompany } from '../services/search/companySearch.js';
+import { appendSearch, createSearch, deleteSearch, getSearch, listSearches } from '../repositories/companySearches.js';
 
 export const analyzeRouter = Router();
 
@@ -105,7 +106,7 @@ const searchLimiter = rateLimit({
 /** GET /api/company-search?q=…&type=sites|locais — empresas encontradas no Google, marcando as já cadastradas. */
 analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
   const user = authUser(req);
-  const { q, type, lat, lng, page } = z
+  const { q, type, lat, lng, page, search_id } = z
     .object({
       q: z.string().trim().min(2, 'Digite o que deseja pesquisar.').max(200),
       type: z.enum(['sites', 'locais']).default('sites'),
@@ -114,6 +115,8 @@ analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
       lng: z.coerce.number().min(-180).max(180).optional(),
       // "Buscar mais locais": anéis cada vez mais largos ao redor do mesmo centro
       page: z.coerce.number().int().min(0).max(3).default(0),
+      // Pesquisa salva que recebe os locais de "Buscar mais locais"
+      search_id: z.string().uuid().optional(),
     })
     .parse(req.query);
   const latLng = lat != null && lng != null ? { latitude: lat, longitude: lng } : undefined;
@@ -122,5 +125,34 @@ analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
   const source = type === 'locais' ? 'maps' : 'web';
   const registered = await matchRegisteredCompanies(user.organizationId, items);
   const marked = items.map((c, i) => ({ ...c, existing: registered[i] }));
-  res.json({ items: marked, source, center: places?.center ?? null, has_more: places?.hasMore ?? false, warning: places?.warning ?? null });
+  // Grava a pesquisa no histórico (só os locais; a marcação de cadastrada/LP é recalculada ao abrir)
+  let savedId: string | null = null;
+  if (places && items.length) {
+    const data = { center: places.center, page, hasMore: places.hasMore, results: items };
+    if (search_id && page > 0) savedId = (await appendSearch(user.organizationId, search_id, data)) != null ? search_id : null;
+    if (!savedId) savedId = await createSearch(user.organizationId, user.id, { query: q, ...data });
+  }
+  res.json({ items: marked, source, center: places?.center ?? null, has_more: places?.hasMore ?? false, warning: places?.warning ?? null, search_id: savedId });
+});
+
+/** Histórico de pesquisas de "Buscar empresas". */
+analyzeRouter.get('/company-searches', async (req, res) => {
+  const user = authUser(req);
+  res.json({ items: await listSearches(user.organizationId) });
+});
+
+/** Resultados salvos de uma pesquisa, com a marcação atual de empresa cadastrada / LP gerada. */
+analyzeRouter.get('/company-searches/:id', async (req, res) => {
+  const user = authUser(req);
+  const search = await getSearch(user.organizationId, uuidParam.parse(req.params.id));
+  if (!search) throw notFound('Pesquisa não encontrada.');
+  const items = search.results as FoundCompany[];
+  const registered = await matchRegisteredCompanies(user.organizationId, items);
+  res.json({ ...search, results: items.map((c, i) => ({ ...c, existing: registered[i] })) });
+});
+
+analyzeRouter.delete('/company-searches/:id', async (req, res) => {
+  const user = authUser(req);
+  if (!(await deleteSearch(user.organizationId, uuidParam.parse(req.params.id)))) throw notFound('Pesquisa não encontrada.');
+  res.json({ ok: true });
 });

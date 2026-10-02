@@ -1,15 +1,18 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { AlertTriangle, Building2, ExternalLink, Globe, Loader2, MapPin, Phone, Search, Sparkles, Star } from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle2, ExternalLink, Globe, History, Loader2, MapPin, PanelsTopLeft, Phone, Search, Sparkles, Star, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button, Card, ErrorBlock, Input, PageHeader } from '@/components/ui';
+import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
+import { cn, formatDate } from '@/lib/utils';
 import { searchService } from '@/services';
-import type { FoundCompany } from '@/types';
+import type { FoundCompany, SavedSearchItem } from '@/types';
 
 
 // A última pesquisa continua na tela ao voltar de outra página
 const STORE_KEY = 'lp:company-search';
-type Saved = { q: string; items: FoundCompany[]; center: { lat: number; lng: number } | null; page: number; hasMore: boolean };
+type Saved = { q: string; items: FoundCompany[]; center: { lat: number; lng: number } | null; page: number; hasMore: boolean; searchId?: string | null };
 function loadSaved(): Saved | null {
   try {
     return JSON.parse(sessionStorage.getItem(STORE_KEY) ?? 'null');
@@ -73,20 +76,31 @@ function ResultCard({ c, onGenerate }: { c: FoundCompany; onGenerate: () => void
         ) : null}
       </ul>
       {c.description ? <p className="mt-2 line-clamp-2 text-xs text-zinc-500">{c.description}</p> : null}
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
-        {c.existing ? (
-          <Link to={`/empresas/${c.existing.id}`} className="text-xs text-amber-700 hover:underline">
-            Já cadastrada: {c.existing.name}
+      {c.existing?.landing_page ? (
+        <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-800">
+          <CheckCircle2 className="size-3.5 flex-none" /> LP já gerada ({c.existing.landing_page.status === 'ativa' ? 'publicada' : 'inativa'})
+        </p>
+      ) : c.existing ? (
+        <p className="mt-3 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">Empresa já cadastrada, ainda sem LP.</p>
+      ) : null}
+      <div className="mt-auto flex flex-wrap items-center justify-end gap-2 pt-4">
+        {c.google_url ? (
+          <a href={c.google_url} target="_blank" rel="noreferrer">
+            <Button size="sm" variant="secondary" icon={<ExternalLink className="size-3.5" />}>Ver no Google</Button>
+          </a>
+        ) : null}
+        {/* Evita gerar de novo: com LP, abre a LP; empresa cadastrada sem LP, abre a empresa (lá tem "Gerar") */}
+        {c.existing?.landing_page ? (
+          <Link to={`/landing-pages/${c.existing.landing_page.id}`}>
+            <Button size="sm" variant="brand" icon={<PanelsTopLeft className="size-3.5" />}>Abrir LP</Button>
           </Link>
-        ) : <span />}
-        <div className="flex gap-2">
-          {c.google_url ? (
-            <a href={c.google_url} target="_blank" rel="noreferrer">
-              <Button size="sm" variant="secondary" icon={<ExternalLink className="size-3.5" />}>Ver no Google</Button>
-            </a>
-          ) : null}
+        ) : c.existing ? (
+          <Link to={`/empresas/${c.existing.id}`}>
+            <Button size="sm" variant="brand" icon={<Building2 className="size-3.5" />}>Abrir empresa</Button>
+          </Link>
+        ) : (
           <Button size="sm" variant="brand" disabled={!c.url} onClick={onGenerate} icon={<Sparkles className="size-3.5" />}>Gerar LP</Button>
-        </div>
+        )}
       </div>
     </Card>
   );
@@ -107,12 +121,56 @@ export function SearchCompaniesPage() {
   const [allowImages, setAllowImages] = useState(true);
   // undefined = ainda não pedida; null = sem localização
   const [near, setNear] = useState<Near | undefined>(undefined);
+  // Pesquisa salva no histórico que está na tela
+  const [searchId, setSearchId] = useState<string | null>(saved?.searchId ?? null);
+  const history = useAsync(() => searchService.history(), []);
+  const [opening, setOpening] = useState<string | null>(null);
 
-  const fetchPage = async (term: string, at: Near, p: number, prev: FoundCompany[]) => {
+  /** Abre uma pesquisa do histórico: resultados salvos, com a marcação atual de cadastrada / LP gerada. */
+  const openSaved = async (id: string, quiet = false) => {
+    setOpening(id);
+    setError(null);
+    try {
+      const r = await searchService.saved(id);
+      const c = r.center ? { lat: r.center.latitude, lng: r.center.longitude } : null;
+      setQ(r.query);
+      setLastQ(r.query);
+      setItems(r.results);
+      setCenter(c);
+      setPage(r.page);
+      setHasMore(r.has_more);
+      setWarning(null);
+      setSearchId(r.id);
+      store({ q: r.query, items: r.results, center: c, page: r.page, hasMore: r.has_more, searchId: r.id });
+    } catch (err) {
+      if (!quiet) toast.error(errorMessage(err));
+    } finally {
+      setOpening(null);
+    }
+  };
+
+  // Ao voltar para a tela (ex.: depois de gerar uma LP), recarrega a pesquisa para atualizar "LP já gerada"
+  useEffect(() => {
+    if (saved?.searchId) void openSaved(saved.searchId, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const removeSaved = async (h: SavedSearchItem) => {
+    if (!window.confirm(`Apagar a pesquisa "${h.query}" do histórico?`)) return;
+    try {
+      await searchService.removeSaved(h.id);
+      if (h.id === searchId) setSearchId(null);
+      void history.reload();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  };
+
+  const fetchPage = async (term: string, at: Near, p: number, prev: FoundCompany[], sid: string | null) => {
     setLoading(p === 0 ? 'new' : 'more');
     setError(null);
     try {
-      const r = await searchService.places(term, at, p);
+      const r = await searchService.places(term, at, p, sid);
       // Sem repetir locais já mostrados
       const known = new Set(prev.map((c) => c.url));
       const merged = [...prev, ...r.items.filter((c) => !known.has(c.url))];
@@ -122,7 +180,9 @@ export function SearchCompaniesPage() {
       setPage(p);
       setHasMore(r.has_more);
       setWarning(r.warning);
-      store({ q: term, items: merged, center: nextCenter, page: p, hasMore: r.has_more });
+      setSearchId(r.search_id);
+      store({ q: term, items: merged, center: nextCenter, page: p, hasMore: r.has_more, searchId: r.search_id });
+      void history.reload();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -139,10 +199,10 @@ export function SearchCompaniesPage() {
     setLoading('new');
     const loc = near === undefined ? await getNear() : near;
     setNear(loc);
-    await fetchPage(term, loc, 0, []);
+    await fetchPage(term, loc, 0, [], null);
   };
 
-  const more = () => void fetchPage(lastQ, center, page + 1, items ?? []);
+  const more = () => void fetchPage(lastQ, center, page + 1, items ?? [], searchId);
 
   const generate = (c: FoundCompany) => {
     // A análise usa os dados já trazidos pela pesquisa (sem consultar o Maps de novo)
@@ -186,6 +246,8 @@ export function SearchCompaniesPage() {
         </p>
       </Card>
 
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="min-w-0">
       {items ? (
         <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
           <h2 className="text-lg font-semibold">Locais no Google Maps</h2>
@@ -211,6 +273,39 @@ export function SearchCompaniesPage() {
           <Button variant="secondary" onClick={more} icon={<MapPin className="size-4" />}>Buscar mais locais (área maior)</Button>
         </div>
       ) : null}
+      </div>
+
+      {/* Histórico de pesquisas: clicar mostra os resultados salvos, sem nova consulta */}
+      <aside className="lg:order-none order-first">
+        <Card className="p-4">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><History className="size-4" /> Pesquisas anteriores</h2>
+          {history.loading && !history.data ? (
+            <p className="text-xs text-zinc-500">Carregando…</p>
+          ) : !history.data?.items.length ? (
+            <p className="text-xs text-zinc-500">As pesquisas feitas ficam salvas aqui.</p>
+          ) : (
+            <ul className="max-h-[60vh] space-y-1 overflow-y-auto">
+              {history.data.items.map((h) => (
+                <li key={h.id} className={cn('group flex items-center gap-1 rounded-lg', h.id === searchId ? 'bg-zinc-100' : 'hover:bg-zinc-50')}>
+                  <button type="button" onClick={() => void openSaved(h.id)} className="min-w-0 flex-1 px-2.5 py-2 text-left">
+                    <span className="flex items-center gap-1.5 truncate text-sm font-medium">
+                      {opening === h.id ? <Loader2 className="size-3.5 flex-none animate-spin" /> : null}
+                      {h.query}
+                    </span>
+                    <span className="block text-[11px] text-zinc-500">
+                      {h.count} local(is) · {formatDate(h.updated_at, true)}{h.author ? ` · ${h.author}` : ''}
+                    </span>
+                  </button>
+                  <button type="button" onClick={() => void removeSaved(h)} className="mr-1 rounded p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600 lg:opacity-0 lg:group-hover:opacity-100" aria-label="Apagar pesquisa" title="Apagar do histórico">
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </aside>
+      </div>
     </>
   );
 }

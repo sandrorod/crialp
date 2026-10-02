@@ -306,16 +306,23 @@ export async function findDuplicateCompany(
 export async function matchRegisteredCompanies(
   orgId: string,
   items: { url: string | null; website: string | null; name: string; phone: string | null }[],
-): Promise<({ id: string; name: string } | null)[]> {
-  const { rows } = await query<{ id: string; name: string; trade_name: string | null; reference_url: string | null; website: string | null; phones: string | null }>(
-    `select id, name, trade_name, reference_url, website, concat_ws(' ', phone, mobile, whatsapp) as phones
-       from companies where organization_id = $1`,
+): Promise<({ id: string; name: string; landing_page: { id: string; slug: string; status: string } | null } | null)[]> {
+  const { rows } = await query<{
+    id: string; name: string; trade_name: string | null; reference_url: string | null; website: string | null; phones: string | null;
+    lp_id: string | null; lp_slug: string | null; lp_status: string | null;
+  }>(
+    `select c.id, c.name, c.trade_name, c.reference_url, c.website, concat_ws(' ', c.phone, c.mobile, c.whatsapp) as phones,
+            lp.id as lp_id, lp.slug as lp_slug, lp.status as lp_status
+       from companies c
+       left join lateral (select id, slug, status from landing_pages where company_id = c.id order by created_at desc limit 1) lp on true
+      where c.organization_id = $1`,
     [orgId],
   );
   const digits = (v: string | null) => (v ?? '').replace(/\D/g, '');
   const companies = rows.map((c) => ({
     id: c.id,
     name: c.trade_name || c.name,
+    landing_page: c.lp_id ? { id: c.lp_id, slug: c.lp_slug!, status: c.lp_status! } : null,
     ref: companyUrlKey(c.reference_url),
     site: companyUrlKey(c.website),
     names: [c.name, c.trade_name].map(companyNameKey).filter(Boolean),
@@ -332,6 +339,6 @@ export async function matchRegisteredCompanies(
         (site && !site.includes('/') && (c.site === site || c.ref === site)) ||
         (name && c.names.includes(name) && phone.length === 8 && c.phones.includes(phone)),
     );
-    return hit ? { id: hit.id, name: hit.name } : null;
+    return hit ? { id: hit.id, name: hit.name, landing_page: hit.landing_page } : null;
   });
 }
