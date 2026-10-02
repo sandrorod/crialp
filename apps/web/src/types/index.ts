@@ -393,8 +393,10 @@ export interface FoundCompany {
   reviews: number | null;
   url: string | null;
   description: string | null;
+  /** Página do local no Google Maps */
+  google_url: string | null;
   source: 'maps' | 'web';
-  existing: { id: string; name: string; reason: 'link' | 'nome' } | null;
+  existing: { id: string; name: string } | null;
 }
 
 /** Dados do Google Maps de um local escolhido na pesquisa, enviados à análise. */

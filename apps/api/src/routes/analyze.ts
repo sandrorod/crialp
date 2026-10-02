@@ -9,7 +9,7 @@ import { aiService } from '../services/ai/index.js';
 import { jobService } from '../services/jobs/JobService.js';
 import { analyzeUrl } from '../services/pipeline/analyzeUrl.js';
 import { generateLanding } from '../services/pipeline/generateLanding.js';
-import { findDuplicateCompany, getCompanyFull } from '../repositories/companies.js';
+import { findDuplicateCompany, getCompanyFull, matchRegisteredCompanies } from '../repositories/companies.js';
 import { searchCompanyPlaces, searchCompanySites } from '../services/search/companySearch.js';
 
 export const analyzeRouter = Router();
@@ -120,8 +120,7 @@ analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
   const places = type === 'locais' ? await searchCompanyPlaces(q, latLng, page) : null;
   const items = places ? places.items : await searchCompanySites(q);
   const source = type === 'locais' ? 'maps' : 'web';
-  const marked = await Promise.all(
-    items.map(async (c) => ({ ...c, existing: await findDuplicateCompany(user.organizationId, { url: c.url, website: c.website, name: c.name }) })),
-  );
+  const registered = await matchRegisteredCompanies(user.organizationId, items);
+  const marked = items.map((c, i) => ({ ...c, existing: registered[i] }));
   res.json({ items: marked, source, center: places?.center ?? null, has_more: places?.hasMore ?? false });
 });

@@ -16,6 +16,8 @@ export interface FoundCompany {
   /** Link usado no "Gerar LP": o site ou, sem site, o perfil no Google Maps */
   url: string | null;
   description: string | null;
+  /** Página do local no Google Maps (botão "Ver no Google") */
+  google_url: string | null;
   source: 'maps' | 'web';
 }
 
@@ -97,6 +99,7 @@ async function searchMaps(query: string, latLng?: { latitude: number; longitude:
       reviews: typeof b.review_count === 'number' ? b.review_count : null,
       url: b.website || b.place_link || null,
       description: b.type || null,
+      google_url: b.place_link || null,
       source: 'maps',
     }),
   );
@@ -158,6 +161,7 @@ async function searchWeb(query: string): Promise<FoundCompany[]> {
       reviews: null,
       url: url.toString(),
       description: description || null,
+      google_url: null,
       source: 'web',
     });
   }
@@ -211,6 +215,7 @@ function toFound(p: Awaited<ReturnType<typeof aiService.searchGooglePlaces>>[num
       `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([p.name, p.address].filter(Boolean).join(', '))}` +
       (p.placeId ? `&query_place_id=${encodeURIComponent(p.placeId)}` : ''),
     description: null,
+    google_url: p.mapsUri,
     source: 'maps',
   };
 }

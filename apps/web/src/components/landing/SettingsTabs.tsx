@@ -622,7 +622,6 @@ export function PhotosTab({
         <p className="text-xs text-amber-700">O topo está no estilo "Centralizado", que não exibe foto. Para mostrar a foto do topo, escolha "Dividido" ou "Imagem cheia" em "Cores e estilo".</p>
       ) : null}
       {galleryCount === 1 ? <p className="text-xs text-amber-700">A galeria só aparece com pelo menos 2 fotos.</p> : null}
-      {galleryCount > 9 ? <p className="text-xs text-amber-700">A galeria mostra até 9 fotos: as {galleryCount - 9} últimas da lista ficam de fora.</p> : null}
 
       <AddPhotos onAdd={addPhotos} />
 

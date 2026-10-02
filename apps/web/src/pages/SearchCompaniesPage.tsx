@@ -76,10 +76,17 @@ function ResultCard({ c, onGenerate }: { c: FoundCompany; onGenerate: () => void
       <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
         {c.existing ? (
           <Link to={`/empresas/${c.existing.id}`} className="text-xs text-amber-700 hover:underline">
-            Já cadastrada{c.existing.reason === 'nome' ? ' (mesmo nome)' : ''}: {c.existing.name}
+            Já cadastrada: {c.existing.name}
           </Link>
         ) : <span />}
-        <Button size="sm" variant="brand" disabled={!c.url} onClick={onGenerate} icon={<Sparkles className="size-3.5" />}>Gerar LP</Button>
+        <div className="flex gap-2">
+          {c.google_url ? (
+            <a href={c.google_url} target="_blank" rel="noreferrer">
+              <Button size="sm" variant="secondary" icon={<ExternalLink className="size-3.5" />}>Ver no Google</Button>
+            </a>
+          ) : null}
+          <Button size="sm" variant="brand" disabled={!c.url} onClick={onGenerate} icon={<Sparkles className="size-3.5" />}>Gerar LP</Button>
+        </div>
       </div>
     </Card>
   );

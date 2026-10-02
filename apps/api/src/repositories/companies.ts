@@ -242,7 +242,13 @@ export function companyUrlKey(raw: string | null | undefined): string | null {
   try {
     const u = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw.trim()) ? raw.trim() : `https://${raw.trim()}`);
     const path = decodeURIComponent(u.pathname).replace(/\/+$/, '').toLowerCase();
-    return `${u.hostname.toLowerCase().replace(/^www\./, '')}${path}`;
+    const host = u.hostname.toLowerCase().replace(/^www\./, '');
+    // Links do Google (Maps/busca): a empresa está nos parâmetros (código do local, cid, nome), não no caminho
+    if (/(^|\.)google\.[a-z.]+$/.test(host) || /^(maps\.app\.goo\.gl|share\.google|g\.page|g\.co)$/.test(host)) {
+      const id = ['query_place_id', 'place_id', 'cid', 'kgmid', 'ludocid', 'query', 'q'].map((k) => u.searchParams.get(k)).find(Boolean);
+      return `${host}${path}${id ? `?${id.toLowerCase()}` : ''}`;
+    }
+    return `${host}${path}`;
   } catch {
     return null;
   }
@@ -291,4 +297,41 @@ export async function findDuplicateCompany(
     }
   }
   return null;
+}
+
+/**
+ * Marca resultados de "Buscar empresas" já cadastrados: mesmo link do Google/site, ou mesmo nome E mesmo
+ * telefone (nome igual sozinho não basta: empresas diferentes podem ter o mesmo nome).
+ */
+export async function matchRegisteredCompanies(
+  orgId: string,
+  items: { url: string | null; website: string | null; name: string; phone: string | null }[],
+): Promise<({ id: string; name: string } | null)[]> {
+  const { rows } = await query<{ id: string; name: string; trade_name: string | null; reference_url: string | null; website: string | null; phones: string | null }>(
+    `select id, name, trade_name, reference_url, website, concat_ws(' ', phone, mobile, whatsapp) as phones
+       from companies where organization_id = $1`,
+    [orgId],
+  );
+  const digits = (v: string | null) => (v ?? '').replace(/\D/g, '');
+  const companies = rows.map((c) => ({
+    id: c.id,
+    name: c.trade_name || c.name,
+    ref: companyUrlKey(c.reference_url),
+    site: companyUrlKey(c.website),
+    names: [c.name, c.trade_name].map(companyNameKey).filter(Boolean),
+    phones: (c.phones ?? '').split(/\s+/).map(digits).filter((d) => d.length >= 8).map((d) => d.slice(-8)),
+  }));
+  return items.map((it) => {
+    const url = companyUrlKey(it.url);
+    const site = companyUrlKey(it.website);
+    const name = companyNameKey(it.name);
+    const phone = digits(it.phone).slice(-8);
+    const hit = companies.find(
+      (c) =>
+        (url && (c.ref === url || c.site === url)) ||
+        (site && !site.includes('/') && (c.site === site || c.ref === site)) ||
+        (name && c.names.includes(name) && phone.length === 8 && c.phones.includes(phone)),
+    );
+    return hit ? { id: hit.id, name: hit.name } : null;
+  });
 }
