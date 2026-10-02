@@ -5,12 +5,32 @@ import { Button, CardSection, ConfirmDialog, ErrorBlock, Field, Input, LoadingBl
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
-import { miscService } from '@/services';
+import { miscService, type KeyProvider } from '@/services';
 import type { AIKeyInfo } from '@/types';
 
-/** Chaves do Gemini com rodízio: cada uso da IA passa para a próxima chave. */
-export function AIKeysSection() {
-  const { data, error, loading, reload } = useAsync(() => miscService.aiKeys(), []);
+const PROVIDERS: Record<KeyProvider, { title: string; description: string; envVar: string; label: string; hint: string; placeholder: string }> = {
+  gemini: {
+    title: 'Chaves do Gemini',
+    description: 'Cada uso da IA passa para a próxima chave ativa (rodízio). Se uma chave estiver sem cota ou inválida, a próxima é usada automaticamente.',
+    envVar: 'GEMINI_API_KEY',
+    label: 'Nova chave do Gemini',
+    hint: 'Crie em aistudio.google.com/apikey. A chave é testada antes de salvar.',
+    placeholder: 'AIza…',
+  },
+  rapidapi: {
+    title: 'Chaves do RapidAPI',
+    description: 'Usadas em "Buscar empresas". Cada pesquisa passa para a próxima chave ativa (rodízio); sem cota, inválida ou sem assinatura da API, a próxima é usada.',
+    envVar: 'RAPIDAPI_KEY',
+    label: 'Nova chave do RapidAPI',
+    hint: 'Em rapidapi.com → seu app → "Authorization" (X-RapidAPI-Key). A chave é testada antes de salvar.',
+    placeholder: '1a2b3c…msh…',
+  },
+};
+
+/** Chaves de API com rodízio: cada uso passa para a próxima chave. */
+export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider }) {
+  const cfg = PROVIDERS[provider];
+  const { data, error, loading, reload } = useAsync(() => miscService.apiKeys(provider), [provider]);
   const [key, setKey] = useState('');
   const [label, setLabel] = useState('');
   const [adding, setAdding] = useState(false);
@@ -22,7 +42,7 @@ export function AIKeysSection() {
     e.preventDefault();
     setAdding(true);
     try {
-      await miscService.addAiKey(key.trim(), label.trim());
+      await miscService.addApiKey(provider, key.trim(), label.trim());
       toast.success('Chave validada e adicionada ao rodízio.');
       setKey('');
       setLabel('');
@@ -37,7 +57,7 @@ export function AIKeysSection() {
   const toggle = async (k: AIKeyInfo) => {
     setBusyId(k.id);
     try {
-      await miscService.updateAiKey(k.id, { active: !k.active });
+      await miscService.updateApiKey(provider, k.id, { active: !k.active });
       reload();
     } catch (err) {
       toast.error(errorMessage(err));
@@ -50,8 +70,8 @@ export function AIKeysSection() {
     if (!toDelete) return;
     setBusyId(toDelete.id);
     try {
-      if (toDelete.id === 'env') await miscService.removeEnvAiKey();
-      else await miscService.removeAiKey(toDelete.id);
+      if (toDelete.id === 'env') await miscService.removeEnvApiKey(provider);
+      else await miscService.removeApiKey(provider, toDelete.id);
       toast.success('Chave removida.');
       setToDelete(null);
       reload();
@@ -66,8 +86,8 @@ export function AIKeysSection() {
 
   return (
     <CardSection
-      title="Chaves do Gemini"
-      description="Cada uso da IA passa para a próxima chave ativa (rodízio). Se uma chave estiver sem cota ou inválida, a próxima é usada automaticamente."
+      title={cfg.title}
+      description={cfg.description}
     >
       {error ? (
         <ErrorBlock message={error} onRetry={reload} />
@@ -87,7 +107,7 @@ export function AIKeysSection() {
                 <KeyRound className="size-4 flex-none text-zinc-400" />
                 <div className="min-w-0 flex-1">
                   <div className="font-medium">Chave do servidor <span className="font-mono text-zinc-500">•••• {data.env_key.last4}</span></div>
-                  <div className="text-xs text-zinc-500">Variável de ambiente GEMINI_API_KEY · no rodízio</div>
+                  <div className="text-xs text-zinc-500">Variável de ambiente {cfg.envVar} · no rodízio</div>
                 </div>
                 <button onClick={() => setToDelete({ id: 'env', label: 'Chave do servidor', last4: data.env_key!.last4 })} title="Remover chave" aria-label="Remover chave do servidor" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
                   <Trash2 className="size-4" />
@@ -123,8 +143,8 @@ export function AIKeysSection() {
           </p>
 
           <form onSubmit={add} className="grid gap-3 sm:grid-cols-[1fr_180px_auto] sm:items-end">
-            <Field label="Nova chave do Gemini" hint="Crie em aistudio.google.com/apikey. A chave é testada antes de salvar.">
-              <Input value={key} onChange={(e) => setKey(e.target.value)} required minLength={20} autoComplete="off" spellCheck={false} className="font-mono" placeholder="AIza…" />
+            <Field label={cfg.label} hint={cfg.hint}>
+              <Input value={key} onChange={(e) => setKey(e.target.value)} required minLength={20} autoComplete="off" spellCheck={false} className="font-mono" placeholder={cfg.placeholder} />
             </Field>
             <Field label="Nome (opcional)">
               <Input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={60} placeholder="Ex.: Conta 2" />
@@ -143,7 +163,7 @@ export function AIKeysSection() {
           <>
             A chave <strong>{toDelete?.label || 'sem nome'} (•••• {toDelete?.last4})</strong>{' '}
             {toDelete?.id === 'env'
-              ? 'sai do rodízio. Ela continua na variável GEMINI_API_KEY do servidor, mas deixa de ser usada.'
+              ? `sai do rodízio. Ela continua na variável ${cfg.envVar} do servidor, mas deixa de ser usada.`
               : 'sai do rodízio e é apagada do sistema.'}
           </>
         }

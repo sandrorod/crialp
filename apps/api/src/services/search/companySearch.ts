@@ -1,5 +1,6 @@
 import { env } from '../../config/env.js';
 import { aiService, AIProviderError } from '../ai/index.js';
+import { aiKeyStore } from '../ai/keyStore.js';
 import { AppError } from '../../lib/errors.js';
 import { toBrazilE164Digits } from '../../lib/phone.js';
 import { PHONE_RE } from '../scraper/ScraperService.js';
@@ -24,17 +25,54 @@ const TIMEOUT_MS = 30_000;
 const IGNORED_HOSTS =
   /(^|\.)(google\.[a-z.]+|youtube\.com|wikipedia\.org|gov\.br|jus\.br|leg\.br|serasaexperian\.com\.br|cnpj\.[a-z.]+|econodata\.com\.br|casadosdados\.com\.br|solutudo\.com\.br|reclameaqui\.com\.br|linkedin\.com|tiktok\.com|x\.com|twitter\.com|pinterest\.[a-z.]+|olx\.com\.br|mercadolivre\.com\.br|glassdoor\.com\.br|indeed\.com|infojobs\.com\.br|apontador\.com\.br|guiamais\.com\.br|telelistas\.net)$/i;
 
+const notSubscribed = (r: { status: number; body: any }) => /not subscribed/i.test(r.body?.message ?? '');
+
+/** Resposta do RapidAPI que indica problema da chave (inválida, sem cota): vale tentar a próxima. */
+const keyProblem = (r: { status: number; body: any }) =>
+  r.status === 401 || r.status === 429 || (r.status === 403 && !/not subscribed/i.test(r.body?.message ?? '')) || /invalid api key|quota|exceeded|rate limit/i.test(r.body?.message ?? '');
+
+/**
+ * Chamada ao RapidAPI com rodízio de chaves (as cadastradas em Configurações + RAPIDAPI_KEY):
+ * cada chamada começa pela próxima chave; chave inválida ou sem cota passa para a seguinte.
+ */
 async function rapid(host: string, path: string): Promise<{ status: number; body: any }> {
-  if (!env.rapidApiKey) throw new AppError(503, 'Pesquisa indisponível: configure a variável RAPIDAPI_KEY no servidor.');
-  const res = await fetch(`https://${host}${path}`, {
-    headers: { 'x-rapidapi-key': env.rapidApiKey, 'x-rapidapi-host': host },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  }).catch(() => null);
-  if (!res) throw new AppError(504, 'A pesquisa demorou demais para responder. Tente novamente.');
-  return { status: res.status, body: await res.json().catch(() => null) };
+  const keys = await aiKeyStore.rotation('rapidapi', env.rapidApiKey);
+  if (!keys.length) throw new AppError(503, 'Pesquisa indisponível: cadastre uma chave do RapidAPI em Configurações.');
+  let last: { status: number; body: any } | null = null;
+  for (const key of keys) {
+    const res = await fetch(`https://${host}${path}`, {
+      headers: { 'x-rapidapi-key': key.key, 'x-rapidapi-host': host },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    }).catch(() => null);
+    if (!res) throw new AppError(504, 'A pesquisa demorou demais para responder. Tente novamente.');
+    const r = { status: res.status, body: await res.json().catch(() => null) };
+    // Esta chave não assina esta API: outra chave do rodízio pode assinar
+    if (notSubscribed(r)) {
+      last ??= r;
+      continue;
+    }
+    if (!keyProblem(r)) {
+      await aiKeyStore.recordUse(key.id);
+      return r;
+    }
+    last = r;
+    await aiKeyStore.recordError(key.id, `${r.status}: ${r.body?.message ?? 'erro'}`);
+  }
+  if (last && notSubscribed(last)) return last;
+  throw new AppError(503, `Todas as chaves do RapidAPI falharam (${last?.body?.message ?? last?.status}). Verifique as chaves em Configurações.`);
 }
 
-const notSubscribed = (r: { status: number; body: any }) => r.status === 403 || /not subscribed/i.test(r.body?.message ?? '');
+/** Valida uma chave do RapidAPI antes de cadastrá-la (aceita chave válida mesmo sem assinatura numa API específica). */
+export async function testRapidApiKey(key: string) {
+  const res = await fetch('https://google-search74.p.rapidapi.com/?query=teste&limit=1', {
+    headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': 'google-search74.p.rapidapi.com' },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  }).catch(() => null);
+  if (!res) throw new AppError(504, 'O RapidAPI não respondeu. Tente novamente.');
+  const body = (await res.json().catch(() => null)) as { message?: string } | null;
+  if (res.status === 401 || /invalid api key/i.test(body?.message ?? '')) throw new AppError(400, 'Chave recusada pelo RapidAPI: chave inválida.');
+}
+
 
 function formatPhone(raw: string | null | undefined): string | null {
   const d = toBrazilE164Digits(raw);
@@ -75,6 +113,16 @@ function nameFromTitle(title: string, host: string): string {
   const score = (p: string) => norm(p).split(/[^a-z0-9]+/).filter((w) => w.length > 1 && label.includes(w)).reduce((n, w) => n + w.length, 0);
   return parts.reduce((best, p) => (score(p) > score(best) ? p : best), parts[parts.length - 1]);
 }
+
+/** Resultados da busca web do Google (título, link, resumo), ou [] se a pesquisa não estiver disponível. */
+export async function webResults(query: string, limit = 10): Promise<{ url: string; title: string; description: string }[]> {
+  if (!(await aiKeyStore.hasAny('rapidapi', env.rapidApiKey))) return [];
+  const r = await rapid('google-search74.p.rapidapi.com', `/?query=${encodeURIComponent(query)}&limit=${limit}&related_keywords=false`).catch(() => null);
+  if (!r || r.status !== 200 || !Array.isArray(r.body?.results)) return [];
+  return r.body.results.filter((x: any) => typeof x?.url === 'string');
+}
+
+export const isIgnoredHost = (host: string) => IGNORED_HOSTS.test(host);
 
 /** Busca web do Google ("Google Search 74"): sites encontrados, um por domínio. */
 async function searchWeb(query: string): Promise<FoundCompany[]> {
@@ -124,7 +172,7 @@ export async function searchCompanySites(query: string): Promise<FoundCompany[]>
 type LatLng = { latitude: number; longitude: number };
 
 /** Coordenadas de um endereço (OpenStreetMap), para centrar a busca quando o navegador não enviou a localização. */
-async function geocode(address: string): Promise<LatLng | null> {
+export async function geocode(address: string): Promise<LatLng | null> {
   const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=${encodeURIComponent(address)}`, {
     headers: { 'User-Agent': 'crialp/1.0 (gerador de landing pages)', 'Accept-Language': 'pt-BR' },
     signal: AbortSignal.timeout(10_000),
@@ -202,7 +250,7 @@ export async function searchCompanyPlaces(
   page = 0,
 ): Promise<{ items: FoundCompany[]; center: LatLng | null; hasMore: boolean }> {
   if (page === 0) {
-    const maps = env.rapidApiKey ? await searchMaps(query, latLng).catch(() => null) : null;
+    const maps = (await aiKeyStore.hasAny('rapidapi', env.rapidApiKey)) ? await searchMaps(query, latLng).catch(() => null) : null;
     if (maps) return { items: maps.filter((c) => c.name), center: latLng ?? null, hasMore: false };
   }
 

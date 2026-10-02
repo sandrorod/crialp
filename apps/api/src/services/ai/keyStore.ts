@@ -53,21 +53,25 @@ function decrypt(payload: string): string | null {
 const hashKey = (key: string) => crypto.createHash('sha256').update(key.trim()).digest('hex');
 
 /** Chave da variável de ambiente removida pelo painel (vale só para aquela chave: trocar a variável a traz de volta). */
-const ENV_KEY_REMOVED = 'gemini_env_key_removed';
+const envKeyRemoved = (provider: string) => `${provider}_env_key_removed`;
+
+/** Provedores com chaves cadastradas pelo painel. */
+export const KEY_PROVIDERS = ['gemini', 'rapidapi'] as const;
+export type KeyProvider = (typeof KEY_PROVIDERS)[number];
 
 export const aiKeyStore = {
   /** A chave da variável de ambiente, se não foi removida pelo painel. */
-  async activeEnvKey(envKey?: string): Promise<string | undefined> {
+  async activeEnvKey(envKey?: string, provider: string = 'gemini'): Promise<string | undefined> {
     if (!envKey) return undefined;
-    const row = await one<{ value: string }>('select value from lp_settings where key = $1', [ENV_KEY_REMOVED]);
+    const row = await one<{ value: string }>('select value from lp_settings where key = $1', [envKeyRemoved(provider)]);
     return row?.value === hashKey(envKey) ? undefined : envKey;
   },
 
-  async removeEnvKey(envKey: string) {
+  async removeEnvKey(envKey: string, provider: string = 'gemini') {
     await query(
       `insert into lp_settings (key, value) values ($1, $2)
        on conflict (key) do update set value = excluded.value, updated_at = now()`,
-      [ENV_KEY_REMOVED, hashKey(envKey)],
+      [envKeyRemoved(provider), hashKey(envKey)],
     );
   },
 
@@ -110,7 +114,7 @@ export const aiKeyStore = {
 
   /** Há alguma chave utilizável (ambiente ou banco ativa)? */
   async hasAny(provider = 'gemini', envKey?: string) {
-    if (await this.activeEnvKey(envKey)) return true;
+    if (await this.activeEnvKey(envKey, provider)) return true;
     return !!(await one('select 1 from ai_api_keys where provider = $1 and active limit 1', [provider]));
   },
 
@@ -124,7 +128,7 @@ export const aiKeyStore = {
       [provider],
     );
     const keys: AIKey[] = [];
-    envKey = await this.activeEnvKey(envKey);
+    envKey = await this.activeEnvKey(envKey, provider);
     if (envKey) keys.push({ id: null, key: envKey, label: 'variável de ambiente' });
     for (const r of rows) {
       const key = decrypt(r.key_encrypted);

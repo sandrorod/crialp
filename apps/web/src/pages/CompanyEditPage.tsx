@@ -12,7 +12,7 @@ import { useJob } from '@/hooks/useJob';
 import { errorMessage } from '@/lib/api';
 import { analysisService, companyService } from '@/services';
 import type { AnalysisMeta, CompanyDraft } from '@/types';
-import { formatDate } from '@/lib/utils';
+import { formatDate, shortUrl } from '@/lib/utils';
 
 /** O que a coleta encontrou (e não encontrou) no site de referência. */
 function SourceCard({ meta }: { meta: AnalysisMeta }) {
@@ -29,7 +29,7 @@ function SourceCard({ meta }: { meta: AnalysisMeta }) {
           <div className="mb-1.5 text-xs font-medium text-zinc-500">Páginas lidas</div>
           <ul className="space-y-1 text-xs">
             {meta.pages.map((p) => (
-              <li key={p} className="truncate"><a href={p} target="_blank" rel="noreferrer" className="text-brand-600 hover:underline">{p}</a></li>
+              <li key={p} className="truncate"><a href={p} target="_blank" rel="noreferrer" title={p} className="text-brand-600 hover:underline">{shortUrl(p)}</a></li>
             ))}
           </ul>
         </div>

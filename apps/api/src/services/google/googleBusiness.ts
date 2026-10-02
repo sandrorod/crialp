@@ -1,5 +1,6 @@
 import { AppError } from '../../lib/errors.js';
-import { toBrazilE164Digits } from '../../lib/phone.js';
+import { digitsOnly, toBrazilE164Digits } from '../../lib/phone.js';
+import { geocode, isIgnoredHost, webResults } from '../search/companySearch.js';
 import { aiService, AIProviderError } from '../ai/index.js';
 import {
   EMAIL_RE,
@@ -90,7 +91,7 @@ export interface PlaceListing {
   reviews?: number | null;
 }
 
-export function scrapeGooglePlaceListing(input: URL, place: PlaceListing, scraper: ScraperService) {
+export async function scrapeGooglePlaceListing(input: URL, place: PlaceListing, scraper: ScraperService) {
   const lines = [
     `Nome: ${place.name}`,
     place.address && `Endereço completo: ${place.address}`,
@@ -98,7 +99,63 @@ export function scrapeGooglePlaceListing(input: URL, place: PlaceListing, scrape
     place.website && `Site: ${place.website}`,
     place.rating != null && `Nota: ${place.rating}${place.reviews != null ? ` (${place.reviews} avaliações no Google)` : ''}`,
   ].filter(Boolean);
-  return fromPlaceInfo(input, { text: lines.join('\n'), mapsUri: input.toString(), title: place.name }, scraper);
+  // Perfil completo no Maps (horário, descrição, serviços), localizado pelo endereço; sem ele, segue com os dados da lista
+  const near = place.address ? await geocode(place.address) : null;
+  const full = await aiService
+    .describeGooglePlace([place.name, place.address].filter(Boolean).join(', '), near ?? undefined)
+    .catch((err) => {
+      console.warn('[google] perfil completo indisponível:', err instanceof Error ? err.message : err);
+      return null;
+    });
+  const text = full ? `${full.text}\n${lines.join('\n')}` : lines.join('\n');
+  return fromPlaceInfo(input, { text, mapsUri: input.toString(), title: place.name }, scraper);
+}
+
+const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+/** Cidade e rua de um endereço do Google ("Rua X, 123 - Bairro, Cidade - UF, CEP, Brazil"). */
+function addressParts(address: string | null) {
+  if (!address) return { city: null, street: null };
+  const city = /,\s*([^,]+?)\s*-\s*[A-Z]{2}\b/.exec(address)?.[1] ?? null;
+  const street = address.split(/[,-]/)[0]?.trim() || null;
+  return { city, street: street && street.length >= 6 ? street : null };
+}
+
+/**
+ * Perfil do Google sem site: procura o site da empresa na busca do Google e só o aceita se o telefone
+ * ou a rua do perfil aparecerem nele (para não misturar com outra empresa de nome parecido).
+ */
+async function discoverSite(name: string, address: string | null, phones: string[], scraper: ScraperService): Promise<ScrapeResult | null> {
+  const { city, street } = addressParts(address);
+  const results = await webResults([`"${name}"`, city].filter(Boolean).join(' '), 10);
+  const hosts = new Set<string>();
+  const candidates = results
+    .map((r) => {
+      try {
+        return new URL(r.url);
+      } catch {
+        return null;
+      }
+    })
+    .filter((u): u is URL => {
+      if (!u) return false;
+      const host = u.hostname.toLowerCase().replace(/^www\./, '');
+      if (isIgnoredHost(host) || socialNetworkOf(u) || isGoogleBusinessUrl(u) || hosts.has(host)) return false;
+      hosts.add(host);
+      return true;
+    })
+    .slice(0, 3);
+  if (!candidates.length) return null;
+  const local = phones.map((d) => d.slice(-8));
+  const scraped = await Promise.allSettled(candidates.map((u) => scraper.scrape(new URL(u.origin))));
+  for (const r of scraped) {
+    if (r.status !== 'fulfilled') continue;
+    const digits = digitsOnly(r.value.corpus);
+    const samePhone = local.some((d) => digits.includes(d));
+    const sameStreet = !!street && norm(r.value.corpus).includes(norm(street));
+    if (samePhone || sameStreet) return r.value;
+  }
+  return null;
 }
 
 async function fromPlaceInfo(input: URL, info: { text: string; mapsUri: string; title: string }, scraper: ScraperService): Promise<{ scrape: ScrapeResult; website: string | null }> {
@@ -135,28 +192,34 @@ async function fromPlaceInfo(input: URL, info: { text: string; mapsUri: string; 
   };
 
   let website: string | null = null;
+  let fromSite: ScrapeResult | null = null;
   if (site && !network && !isGoogleBusinessUrl(site)) {
-    try {
-      const fromSite = await scraper.scrape(site);
-      website = new URL(fromSite.finalUrl).origin;
-      scrape = {
-        ...fromSite,
-        requestedUrl: input.toString(),
-        pages: [googlePage, ...fromSite.pages],
-        found: {
-          phones: [...new Set([...phones, ...fromSite.found.phones])],
-          whatsapps: fromSite.found.whatsapps,
-          emails: [...new Set([...emails, ...fromSite.found.emails])],
-          socials: [...socials, ...fromSite.found.socials],
-          zipCodes: [...new Set([...zipCodes, ...fromSite.found.zipCodes])],
-        },
-        corpus: `${text}\n${fromSite.corpus}`,
-      };
-    } catch (err) {
+    website = site.origin;
+    fromSite = await scraper.scrape(site).catch((err) => {
       // Site fora do ar: segue só com o perfil do Google
       console.warn('[google] site do perfil não pôde ser lido:', err instanceof Error ? err.message : err);
-      website = site.origin;
-    }
+      return null;
+    });
+  } else {
+    // Sem site no perfil: procura o site da empresa (fotos e mais informações), confirmado pelo telefone/endereço
+    const address = /^\s*Endereço(?: completo)?:\s*(.+)$/im.exec(text)?.[1] ?? null;
+    fromSite = await discoverSite(info.title, address, [...phones], scraper).catch(() => null);
+  }
+  if (fromSite) {
+    website = new URL(fromSite.finalUrl).origin;
+    scrape = {
+      ...fromSite,
+      requestedUrl: input.toString(),
+      pages: [googlePage, ...fromSite.pages],
+      found: {
+        phones: [...new Set([...phones, ...fromSite.found.phones])],
+        whatsapps: fromSite.found.whatsapps,
+        emails: [...new Set([...emails, ...fromSite.found.emails])],
+        socials: [...socials, ...fromSite.found.socials],
+        zipCodes: [...new Set([...zipCodes, ...fromSite.found.zipCodes])],
+      },
+      corpus: `${text}\n${fromSite.corpus}`,
+    };
   }
   return { scrape, website };
 }

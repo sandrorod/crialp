@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Button, Card, Input } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
-import { cn, copyToClipboard, formatDate } from '@/lib/utils';
+import { cn, copyToClipboard, formatDate, shortUrl } from '@/lib/utils';
 import { companyService } from '@/services';
 import type { CompanyDraft, CompanySources } from '@/types';
 
@@ -91,7 +91,7 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
         <div>
           <h3 className="flex items-center gap-2 text-[15px] font-semibold"><Globe className="size-4 text-zinc-500" /> Conteúdo completo do site</h3>
           <p className="mt-0.5 text-sm text-zinc-500">
-            {hasContent ? `Tudo o que foi lido em ${d.final_url ?? 'site'} · ${formatDate(d.fetched_at ?? pages[0]?.fetched_at, true)}` : 'Texto integral, contatos, redes e imagens encontrados no site de referência.'}
+            {hasContent ? `Tudo o que foi lido em ${d.final_url ? shortUrl(d.final_url) : 'site'} · ${formatDate(d.fetched_at ?? pages[0]?.fetched_at, true)}` : 'Texto integral, contatos, redes e imagens encontrados no site de referência.'}
           </p>
         </div>
         <Button variant="secondary" size="sm" loading={refreshing} icon={<RefreshCw className="size-4" />} onClick={refresh}>
@@ -105,7 +105,7 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
         <div className="p-5 text-sm text-red-600">{error} <button className="underline" onClick={reload}>Tentar novamente</button></div>
       ) : !hasContent ? (
         <div className="p-5 text-sm text-zinc-500">
-          Esta empresa ainda não tem o conteúdo do site guardado. Clique em <strong>Ler o site agora</strong> para buscar tudo o que está em {draft.reference_url || draft.website || 'site de referência'}.
+          Esta empresa ainda não tem o conteúdo do site guardado. Clique em <strong>Ler o site agora</strong> para buscar tudo o que está em {shortUrl(draft.reference_url || draft.website) || 'site de referência'}.
         </div>
       ) : (
         <div className="p-5">
@@ -133,7 +133,7 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
                       className={cn('max-w-[260px] truncate rounded-full px-3 py-1 text-xs ring-1 transition', i === page ? 'bg-ink text-white ring-ink' : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50', matches && !m && 'opacity-40')}
                       title={p.url}
                     >
-                      {new URL(p.url).pathname === '/' ? 'Página inicial' : decodeURIComponent(new URL(p.url).pathname).replace(/^\/|\/$/g, '')}
+                      {/(^|\.)google\.[a-z.]+$/i.test(new URL(p.url).hostname) ? 'Perfil no Google' : new URL(p.url).pathname === '/' ? 'Página inicial' : decodeURIComponent(new URL(p.url).pathname).replace(/^\/|\/$/g, '')}
                       {m ? ` · ${m.count}` : ''}
                     </button>
                   );
@@ -143,8 +143,8 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
                 <div className="rounded-lg border border-zinc-200">
                   <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-4 py-2.5">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">{current.title || current.url}</div>
-                      <a href={current.url} target="_blank" rel="noreferrer" className="truncate text-xs text-brand-600 hover:underline">{current.url}</a>
+                      <div className="truncate text-sm font-medium">{current.title || shortUrl(current.url)}</div>
+                      <a href={current.url} target="_blank" rel="noreferrer" title={current.url} className="block truncate text-xs text-brand-600 hover:underline">{shortUrl(current.url, 70)}</a>
                     </div>
                     <Button variant="ghost" size="sm" icon={<Copy className="size-3.5" />} onClick={async () => (await copyToClipboard(current.content)) && toast.success('Texto da página copiado.')}>
                       Copiar tudo

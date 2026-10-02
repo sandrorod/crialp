@@ -67,7 +67,8 @@ export function SettingsPage() {
           </p>
         </CardSection>
 
-        {canManageKeys ? <AIKeysSection /> : null}
+        {canManageKeys ? <AIKeysSection provider="gemini" /> : null}
+        {canManageKeys ? <AIKeysSection provider="rapidapi" /> : null}
 
         <CardSection title="Alterar senha" description={data ? `${data.user.name} · ${data.user.email}` : undefined}>
           <form onSubmit={changePassword} className="grid gap-4 sm:grid-cols-2">

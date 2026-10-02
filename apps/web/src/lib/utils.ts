@@ -32,3 +32,20 @@ export function emptyToNull<T extends Record<string, unknown>>(obj: T): T {
   for (const [k, v] of Object.entries(obj)) out[k] = typeof v === 'string' && !v.trim() ? null : v;
   return out as T;
 }
+
+/** Link curto para exibição: sem protocolo/www e, se longo, com "…" no meio (o link completo fica no href/title). */
+export function shortUrl(url: string | null | undefined, max = 48): string {
+  if (!url) return '';
+  let text = url.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '');
+  try {
+    const u = new URL(url);
+    // Links do Google Maps ficam enormes: mostra só o que identifica
+    if (/(^|\.)google\.[a-z.]+$/i.test(u.hostname) && u.pathname.startsWith('/maps')) return 'Google Maps' + (u.searchParams.get('query') ? ` · ${decodeURIComponent(u.searchParams.get('query')!).split(',')[0]}` : '');
+    text = decodeURIComponent(text);
+  } catch {
+    /* mantém o texto como veio */
+  }
+  if (text.length <= max) return text;
+  const head = Math.ceil((max - 1) * 0.65);
+  return `${text.slice(0, head)}…${text.slice(-(max - 1 - head))}`;
+}

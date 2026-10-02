@@ -8,6 +8,7 @@ import { StopJobButton } from '@/components/StopJobButton';
 import { Button, Card, Input } from '@/components/ui';
 import { useJob } from '@/hooks/useJob';
 import { errorMessage } from '@/lib/api';
+import { shortUrl } from '@/lib/utils';
 import { analysisService, companyService } from '@/services';
 import type { AnalysisMeta, AnalysisResult, CompanyDraft, PlaceListing } from '@/types';
 
@@ -203,7 +204,7 @@ export function NewLandingPagePage() {
     return (
       <div className="mx-auto max-w-xl pt-4 lg:pt-10">
         <h1 className="text-2xl font-semibold tracking-tight">Analisando empresa</h1>
-        <p className="mt-1 truncate text-sm text-zinc-500">{url}</p>
+        <p className="mt-1 truncate text-sm text-zinc-500" title={url}>{shortUrl(url, 70)}</p>
         <Card className="mt-6 p-5 sm:p-6">
           <ProgressSteps current={Math.max(j?.step ?? 1, 1)} range={[1, 6]} failed={failed} />
           {!failed ? (
@@ -307,7 +308,7 @@ export function NewLandingPagePage() {
             <div className="mb-3 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wider text-zinc-500"><FileSearch className="size-4" /> Fonte</div>
             <p className="text-sm text-zinc-600">{meta.pages.length} página(s) lida(s)</p>
             <ul className="mt-2 max-h-28 space-y-1 overflow-auto text-xs text-zinc-500">
-              {meta.pages.map((p) => <li key={p} className="truncate">{p}</li>)}
+              {meta.pages.map((p) => <li key={p} className="truncate" title={p}>{shortUrl(p, 60)}</li>)}
             </ul>
             {meta.missing_info.length ? (
               <div className="mt-4">
