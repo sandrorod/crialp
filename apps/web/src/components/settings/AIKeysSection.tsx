@@ -125,7 +125,7 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
                     {k.uses} {k.uses === 1 ? 'uso' : 'usos'} · {k.last_used_at ? `último uso ${formatDate(k.last_used_at, true)}` : 'ainda não usada'}
                   </div>
                   {k.last_error ? (
-                    <div className="mt-0.5 truncate text-xs text-red-600" title={k.last_error}>
+                    <div className="mt-0.5 line-clamp-2 break-words text-xs text-red-600 [overflow-wrap:anywhere]" title={k.last_error}>
                       Último erro ({formatDate(k.last_error_at, true)}): {k.last_error}
                     </div>
                   ) : null}

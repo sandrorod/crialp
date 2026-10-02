@@ -68,8 +68,16 @@ miscRouter.post('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async
   const user = authUser(req);
   const provider = ProviderParam.parse(req.params.provider);
   const body = parseBody(KeySchema, req.body);
-  if ((await aiKeyStore.exists(body.key)) || body.key === (await aiKeyStore.activeEnvKey(envKeyOf(provider), provider))) {
-    throw new AppError(409, 'Esta chave já está cadastrada.', 'CONFLICT');
+  // Mensagem diz onde a chave já está (a chave do servidor aparece na lista como "Chave do servidor")
+  const names: Record<string, string> = { gemini: 'Chaves do Gemini', rapidapi: 'Chaves do RapidAPI' };
+  const registeredIn = await aiKeyStore.providerOf(body.key);
+  if (registeredIn) {
+    throw new AppError(409, registeredIn === provider ? 'Esta chave já está na lista.' : `Esta chave já está cadastrada em "${names[registeredIn] ?? registeredIn}".`, 'CONFLICT');
+  }
+  for (const p of KEY_PROVIDERS) {
+    if (body.key.trim() === (await aiKeyStore.activeEnvKey(envKeyOf(p), p))) {
+      throw new AppError(409, `Esta chave já está no rodízio como "Chave do servidor" em "${names[p]}" (variável ${p === 'gemini' ? 'GEMINI_API_KEY' : 'RAPIDAPI_KEY'}).`, 'CONFLICT');
+    }
   }
   // Só salva chaves que funcionam
   if (provider === 'gemini') {

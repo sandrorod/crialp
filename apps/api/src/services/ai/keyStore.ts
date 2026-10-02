@@ -50,6 +50,24 @@ function decrypt(payload: string): string | null {
   }
 }
 
+/**
+ * Erro curto e legível para o painel: as APIs devolvem JSON enorme ({"error":{"code":429,"message":"You exceeded…"}}).
+ * Fica o código e a primeira frase da mensagem.
+ */
+export function shortError(raw: string): string {
+  let text = raw;
+  try {
+    const parsed = JSON.parse(raw.slice(raw.indexOf('{')));
+    const e = parsed?.error ?? parsed;
+    text = [e?.code ?? e?.status, e?.message].filter(Boolean).join(': ') || raw;
+  } catch {
+    /* não é JSON */
+  }
+  if (/quota|exhausted|rate limit|429/i.test(text)) return 'Cota esgotada (limite de uso atingido). Tente mais tarde ou use outra chave.';
+  text = text.replace(/\s+/g, ' ').trim();
+  return text.length > 160 ? `${text.slice(0, 157)}…` : text;
+}
+
 const hashKey = (key: string) => crypto.createHash('sha256').update(key.trim()).digest('hex');
 
 /** Chave da variável de ambiente removida pelo painel (vale só para aquela chave: trocar a variável a traz de volta). */
@@ -81,11 +99,17 @@ export const aiKeyStore = {
          from ai_api_keys where provider = $1 order by created_at`,
       [provider],
     );
-    return rows;
+    // Erros gravados antes do resumo também aparecem curtos
+    return rows.map((r) => ({ ...r, last_error: r.last_error ? shortError(r.last_error) : null }));
   },
 
   async exists(key: string) {
     return !!(await one('select 1 from ai_api_keys where key_hash = $1', [hashKey(key)]));
+  },
+
+  /** Em qual cadastro (Gemini ou RapidAPI) esta chave já está, se estiver. */
+  async providerOf(key: string): Promise<string | null> {
+    return (await one<{ provider: string }>('select provider from ai_api_keys where key_hash = $1', [hashKey(key)]))?.provider ?? null;
   },
 
   async add(input: { key: string; label?: string | null; userId?: string }, provider = 'gemini'): Promise<AIKeyInfo> {
@@ -153,7 +177,7 @@ export const aiKeyStore = {
 
   async recordError(id: string | null, message: string) {
     if (!id) return;
-    await query('update ai_api_keys set last_error = $2, last_error_at = now() where id = $1', [id, message.slice(0, 500)]).catch(() => {});
+    await query('update ai_api_keys set last_error = $2, last_error_at = now() where id = $1', [id, shortError(message)]).catch(() => {});
   },
 
   async clearError(id: string | null) {

@@ -35,7 +35,7 @@ export function SettingsPage() {
     <>
       <PageHeader title="Configurações" description="Ambiente, integrações e conta." />
       {error ? <ErrorBlock message={error} onRetry={reload} /> : null}
-      <div className="grid max-w-3xl gap-4">
+      <div className="grid max-w-3xl grid-cols-[minmax(0,1fr)] gap-4">
         <CardSection title="Sistema">
           {loading || !data ? (
             <LoadingBlock rows={3} />
