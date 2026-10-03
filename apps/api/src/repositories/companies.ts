@@ -190,6 +190,8 @@ export interface CompanyFilters {
   segment?: string;
   city?: string;
   status?: 'ativa' | 'inativa' | 'sem_lp';
+  /** Só as empresas cuja Landing Page está com este vendedor */
+  sellerId?: string;
 }
 
 export async function listCompanies(orgId: string, f: CompanyFilters) {
@@ -206,6 +208,10 @@ export async function listCompanies(orgId: string, f: CompanyFilters) {
   if (f.city) {
     params.push(f.city.toLowerCase());
     where.push(`lower(c.city) = $${params.length}`);
+  }
+  if (f.sellerId) {
+    params.push(f.sellerId);
+    where.push(`lp.seller_id = $${params.length}`);
   }
   if (f.status === 'sem_lp') where.push('lp.id is null');
   else if (f.status) {

@@ -265,10 +265,10 @@ export function LandingPageEditorPage() {
           </div>
           <div className="bg-zinc-100 p-3 sm:p-4">
             <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
-              {/* No celular os modos quebram em linhas: todos ficam visíveis, sem precisar rolar */}
-              <div className="flex max-w-full flex-wrap justify-center rounded-lg bg-white p-0.5 shadow-sm ring-1 ring-black/5">
+              {/* No celular os modos rolam para o lado numa linha só */}
+              <div className="flex max-w-full overflow-x-auto overscroll-x-contain rounded-lg bg-white p-0.5 shadow-sm ring-1 ring-black/5">
                 {MODES.map((m) => (
-                  <button key={m.key} onClick={() => setMode(m.key)} className={cn('inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium', mode === m.key ? 'bg-ink text-white' : 'text-zinc-600 hover:text-ink')}>
+                  <button key={m.key} onClick={() => setMode(m.key)} className={cn('inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium', mode === m.key ? 'bg-ink text-white' : 'text-zinc-600 hover:text-ink')}>
                     <m.icon className="size-3.5" /> {m.label}
                   </button>
                 ))}
@@ -358,9 +358,9 @@ export function LandingPageEditorPage() {
 
         {/* Painel de edição */}
         <div className="min-w-0">
-          <div className="mb-3 flex flex-wrap gap-1 rounded-lg bg-zinc-100 p-1 xl:flex-nowrap xl:overflow-x-auto">
+          <div className="mb-3 flex gap-1 overflow-x-auto overscroll-x-contain rounded-lg bg-zinc-100 p-1">
             {TABS.filter((t) => !STAFF_TABS.includes(t.key) || (t.key === 'cliente' ? canManageAccess || isClient : !isClient)).map((t) => (
-              <button key={t.key} onClick={() => setTab(t.key)} className={cn('whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition', tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink')}>
+              <button key={t.key} onClick={() => setTab(t.key)} className={cn('shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition', tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink')}>
                 {t.label}
               </button>
             ))}

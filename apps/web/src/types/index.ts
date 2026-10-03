@@ -36,7 +36,9 @@ export interface SalesCompany {
   email: string | null;
   created_at: string;
   slug: string | null;
+  landing_page_id: string | null;
   /** Vendedor responsável pela Landing Page da empresa */
+  seller_id: string | null;
   seller_name: string | null;
   notes_count: number;
   last_note_at: string | null;

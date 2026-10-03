@@ -1,6 +1,7 @@
 import { useDeferredValue, useState, type FormEvent } from 'react';
 import { Building2, ChevronDown, Eye, MessageSquarePlus, Search, Share2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { SellerCell, useSellers } from '@/components/SellerCell';
 import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBlock, Modal, PageHeader, Pagination, Select, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { usePagination } from '@/hooks/usePagination';
@@ -22,6 +23,9 @@ export function SalesPage() {
   // 10 por página; volta para a primeira ao mudar os filtros
   const pager = usePagination(data?.items, 10, [deferredSearch, segment, city].join('|'));
   const [prospecting, setProspecting] = useState<SalesCompany | null>(null);
+  const { sellers, canAssign } = useSellers();
+  const { user } = useAuth();
+  const isSeller = user?.role === 'seller';
   const filtered = !!(search || segment || city);
 
   const shareLink = async (slug: string) => {
@@ -31,7 +35,7 @@ export function SalesPage() {
 
   return (
     <>
-      <PageHeader title="Vendas" description="Empresas cadastradas e o histórico de prospecção de cada uma." />
+      <PageHeader title="Vendas" description={isSeller ? 'Seus clientes e o histórico de prospecção de cada um.' : 'Empresas cadastradas e o histórico de prospecção de cada uma.'} />
 
       <Card>
         <div className="grid gap-2 border-b border-zinc-100 p-4 sm:grid-cols-2 lg:grid-cols-[1fr_180px_180px]">
@@ -57,7 +61,7 @@ export function SalesPage() {
           <EmptyState
             icon={<Building2 className="size-5" />}
             title={filtered ? 'Nenhuma empresa encontrada' : 'Nenhuma empresa cadastrada'}
-            description={filtered ? 'Ajuste a busca ou os filtros.' : 'As empresas cadastradas pelo administrador aparecem aqui.'}
+            description={filtered ? 'Ajuste a busca ou os filtros.' : isSeller ? 'Os clientes atribuídos a você aparecem aqui.' : 'As empresas cadastradas pelo administrador aparecem aqui.'}
           />
         ) : (
           <>
@@ -81,7 +85,9 @@ export function SalesPage() {
                     <td className="px-3 py-3.5 text-zinc-600">{c.segment ?? '—'}</td>
                     <td className="px-3 py-3.5 text-zinc-600">{c.city ? `${c.city}${c.state ? ` – ${c.state}` : ''}` : '—'}</td>
                     <td className="px-3 py-3.5 text-zinc-600">{c.whatsapp || c.phone || c.email || '—'}</td>
-                    <td className={c.seller_name ? 'px-3 py-3.5 text-zinc-600' : 'px-3 py-3.5 text-zinc-400'}>{c.seller_name ?? '—'}</td>
+                    <td className="px-3 py-3.5">
+                      <SellerCell landingPageId={c.landing_page_id} sellerId={c.seller_id} sellerName={c.seller_name} sellers={sellers} canAssign={canAssign} onChanged={reload} />
+                    </td>
                     <td className="px-3 py-3.5 text-zinc-500">
                       {c.last_note_at ? `${formatDate(c.last_note_at)} · ${c.notes_count} ${c.notes_count === 1 ? 'lançamento' : 'lançamentos'}` : '—'}
                     </td>
