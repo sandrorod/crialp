@@ -5,6 +5,7 @@ import { one, query } from '../db/pool.js';
 import { AppError, notFound } from '../lib/errors.js';
 import { parseBody, uuidParam } from '../lib/validation.js';
 import { authUser } from '../middleware/auth.js';
+import { distributeUnassignedPages } from '../repositories/landingPages.js';
 
 /** Subusuários: administradores criam e gerenciam contas de Administrador e Vendedor. */
 export const usersRouter = Router();
@@ -33,6 +34,8 @@ usersRouter.post('/', async (req, res) => {
     `insert into users (organization_id, name, email, password_hash, role) values ($1, $2, $3, $4, $5) returning ${COLUMNS}`,
     [user.organizationId, body.name, body.email, await bcrypt.hash(body.password, 12), body.role],
   );
+  // Páginas que estavam sem vendedor passam a ter um responsável
+  if (body.role === 'seller') await distributeUnassignedPages(user.organizationId);
   res.status(201).json(created);
 });
 
@@ -62,6 +65,11 @@ usersRouter.patch('/:id', async (req, res) => {
      where id = $1 returning ${COLUMNS}`,
     [id, body.name ?? null, body.email ?? null, body.role ?? null, body.password ? await bcrypt.hash(body.password, 12) : null],
   );
+  // Deixou de ser vendedor: as páginas dele vão para os demais; virou vendedor: recebe as que estavam sem responsável
+  if (body.role && body.role !== target.role) {
+    if (target.role === 'seller') await query('update landing_pages set seller_id = null where seller_id = $1', [id]);
+    await distributeUnassignedPages(user.organizationId);
+  }
   res.json(updated);
 });
 
@@ -72,6 +80,8 @@ usersRouter.delete('/:id', async (req, res) => {
   if (target.id === user.id) throw new AppError(400, 'Você não pode excluir a sua própria conta.');
   if (target.role === 'owner') throw new AppError(403, 'A conta principal não pode ser excluída.', 'FORBIDDEN');
   await query('delete from users where id = $1', [id]);
+  // Páginas do vendedor excluído ficam sem responsável (on delete set null): redistribui
+  if (target.role === 'seller') await distributeUnassignedPages(user.organizationId);
   res.json({ ok: true });
 });
 

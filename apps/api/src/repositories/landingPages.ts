@@ -1,3 +1,4 @@
+import type pg from 'pg';
 import { one, query, transaction } from '../db/pool.js';
 import { uniqueSlug } from '../lib/slug.js';
 import type { LandingContent } from '../services/ai/schemas.js';
@@ -20,6 +21,7 @@ export interface LandingPageRow {
   og_image: string | null;
   current_version: number;
   custom_domain: string | null;
+  seller_id: string | null;
   domain_status: string;
   ssl_status: string;
   created_at: string;
@@ -45,11 +47,13 @@ export async function createLandingPage(opts: {
 }) {
   const slug = await uniqueSlug(opts.title);
   return transaction(async (db) => {
+    // Toda página nova vai para o vendedor com menos páginas
+    const [sellerId = null] = await pickSellers(db, opts.orgId, 1);
     const { rows } = await db.query<{ id: string }>(
-      `insert into landing_pages (organization_id, company_id, title, slug, status, content, theme, seo_title, seo_description, seo_keywords, og_image, current_version)
-       values ($1,$2,$3,$4,'inativa',$5,$6,$7,$8,$9,$10,1) returning id`,
+      `insert into landing_pages (organization_id, company_id, title, slug, status, content, theme, seo_title, seo_description, seo_keywords, og_image, current_version, seller_id)
+       values ($1,$2,$3,$4,'inativa',$5,$6,$7,$8,$9,$10,1,$11) returning id`,
       [opts.orgId, opts.companyId, opts.title, slug, JSON.stringify(opts.content), JSON.stringify(opts.theme),
-        opts.seo.seo_title, opts.seo.seo_description, opts.seo.seo_keywords, opts.seo.og_image ?? null],
+        opts.seo.seo_title, opts.seo.seo_description, opts.seo.seo_keywords, opts.seo.og_image ?? null, sellerId],
     );
     await db.query(
       `insert into landing_page_versions (landing_page_id, version, content, note, created_by) values ($1, 1, $2, $3, $4)`,
@@ -57,6 +61,57 @@ export async function createLandingPage(opts: {
     );
     return rows[0].id;
   });
+}
+
+// ─── Vendedor responsável ───────────────────────────────────────────
+/**
+ * Escolhe o vendedor de cada uma das próximas `count` páginas, sempre o que tem menos páginas
+ * (empate: o cadastrado há mais tempo). Trava a organização para que gerações simultâneas não
+ * caiam no mesmo vendedor. Sem vendedores, devolve lista vazia.
+ */
+async function pickSellers(db: pg.PoolClient, orgId: string, count: number) {
+  await db.query('select pg_advisory_xact_lock(727275, hashtext($1))', [orgId]);
+  const { rows } = await db.query<{ id: string; pages: number }>(
+    `select u.id, count(lp.id)::int as pages
+       from users u left join landing_pages lp on lp.seller_id = u.id
+      where u.organization_id = $1 and u.role = 'seller'
+      group by u.id, u.created_at
+      order by pages, u.created_at, u.id`,
+    [orgId],
+  );
+  const picks: string[] = [];
+  for (let i = 0; i < count && rows.length; i++) {
+    const least = rows.reduce((a, b) => (b.pages < a.pages ? b : a));
+    least.pages++;
+    picks.push(least.id);
+  }
+  return picks;
+}
+
+/** Atribui as páginas sem vendedor (sem vendedores antes, vendedor excluído…) distribuindo por igual. */
+export async function distributeUnassignedPages(orgId: string) {
+  return transaction(async (db) => {
+    const { rows } = await db.query<{ id: string }>(
+      'select id from landing_pages where organization_id = $1 and seller_id is null order by created_at, id',
+      [orgId],
+    );
+    const sellers = await pickSellers(db, orgId, rows.length);
+    for (const [i, sellerId] of sellers.entries()) {
+      await db.query('update landing_pages set seller_id = $2 where id = $1', [rows[i].id, sellerId]);
+    }
+    return sellers.length;
+  });
+}
+
+/** Troca manual do vendedor de uma página (só vendedores da mesma organização). */
+export async function setSeller(orgId: string, id: string, sellerId: string) {
+  return one<{ id: string }>(
+    `update landing_pages lp set seller_id = u.id
+       from users u
+      where lp.id = $1 and lp.organization_id = $2 and u.id = $3 and u.organization_id = $2 and u.role = 'seller'
+      returning lp.id`,
+    [id, orgId, sellerId],
+  );
 }
 
 /** Salva conteúdo/tema/SEO como nova versão (regeneração, edição manual ou restauração). */
@@ -128,8 +183,10 @@ export async function listLandingPages(orgId: string, f: { search?: string; stat
   }
   const { rows } = await query(
     `select lp.id, lp.title, lp.slug, lp.status, lp.custom_domain, lp.domain_status, lp.current_version,
-            lp.created_at, lp.updated_at, lp.published_at, c.id as company_id, c.name as company_name, c.segment
+            lp.created_at, lp.updated_at, lp.published_at, c.id as company_id, c.name as company_name, c.segment,
+            lp.seller_id, s.name as seller_name
        from landing_pages lp join companies c on c.id = lp.company_id
+       left join users s on s.id = lp.seller_id
       where ${where.join(' and ')}
       order by lp.updated_at desc limit 500`,
     params,

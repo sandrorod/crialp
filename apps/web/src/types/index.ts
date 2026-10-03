@@ -36,6 +36,8 @@ export interface SalesCompany {
   email: string | null;
   created_at: string;
   slug: string | null;
+  /** Vendedor responsável pela Landing Page da empresa */
+  seller_name: string | null;
   notes_count: number;
   last_note_at: string | null;
 }
@@ -143,6 +145,8 @@ export interface CompanyListItem {
   landing_page_id: string | null;
   slug: string | null;
   status: LpStatus | null;
+  seller_id: string | null;
+  seller_name: string | null;
 }
 
 export interface AnalysisMeta {
@@ -354,6 +358,8 @@ export interface LandingPageListItem {
   company_id: string;
   company_name: string;
   segment: string | null;
+  seller_id: string | null;
+  seller_name: string | null;
   public_url: string;
 }
 

@@ -42,6 +42,7 @@ salesRouter.get('/companies', async (req, res) => {
       email: c.email,
       created_at: c.created_at,
       slug: c.status === 'ativa' ? c.slug : null, // só páginas publicadas
+      seller_name: c.seller_name ?? null,
       notes_count: stats.get(c.id)?.count ?? 0,
       last_note_at: stats.get(c.id)?.last_at ?? null,
     })),

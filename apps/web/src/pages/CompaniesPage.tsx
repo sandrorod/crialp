@@ -2,6 +2,7 @@ import { useDeferredValue, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Building2, Eye, Pencil, PanelsTopLeft, Plus, Search, Share2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { SellerCell, useSellers } from '@/components/SellerCell';
 import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBlock, PageHeader, Pagination, Select, StatusBadge, StatusToggle } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { usePagination } from '@/hooks/usePagination';
@@ -25,6 +26,7 @@ export function CompaniesPage() {
   // 10 por página; volta para a primeira ao mudar os filtros
   const pager = usePagination(data?.items, 10, [deferredSearch, segment, city, status].join('|'));
   const actions = useLandingPageActions(reload);
+  const { sellers, canAssign } = useSellers();
   const [toDelete, setToDelete] = useState<CompanyListItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -98,13 +100,14 @@ export function CompaniesPage() {
         ) : (
           <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-sm">
+            <table className="w-full min-w-[980px] text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
                   <th className="px-5 py-3">Empresa</th>
                   <th className="px-3 py-3">Segmento</th>
                   <th className="px-3 py-3">Cidade</th>
                   <th className="px-3 py-3">Contato</th>
+                  <th className="px-3 py-3">Vendedor</th>
                   <th className="px-3 py-3">Status</th>
                   <th className="px-3 py-3">Data</th>
                   <th className="px-5 py-3 text-right">Ações</th>
@@ -119,6 +122,9 @@ export function CompaniesPage() {
                     <td className="px-3 py-3.5 text-zinc-600">{c.segment ?? '—'}</td>
                     <td className="px-3 py-3.5 text-zinc-600">{c.city ? `${c.city}${c.state ? ` – ${c.state}` : ''}` : '—'}</td>
                     <td className="px-3 py-3.5 text-zinc-600">{c.whatsapp || c.phone || c.email || '—'}</td>
+                    <td className="px-3 py-3.5">
+                      <SellerCell landingPageId={c.landing_page_id} sellerId={c.seller_id} sellerName={c.seller_name} sellers={sellers} canAssign={canAssign} onChanged={reload} />
+                    </td>
                     <td className="px-3 py-3.5">
                       {c.landing_page_id && c.status ? (
                         <StatusToggle status={c.status} loading={actions.busyId === c.landing_page_id} onToggle={() => actions.toggleStatus(c.landing_page_id!, c.status!)} />

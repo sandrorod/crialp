@@ -62,13 +62,14 @@ export function SalesPage() {
         ) : (
           <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[880px] text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
                   <th className="px-5 py-3">Empresa</th>
                   <th className="px-3 py-3">Segmento</th>
                   <th className="px-3 py-3">Cidade</th>
                   <th className="px-3 py-3">Contato</th>
+                  <th className="px-3 py-3">Vendedor</th>
                   <th className="px-3 py-3">Última prospecção</th>
                   <th className="px-5 py-3 text-right">Ações</th>
                 </tr>
@@ -80,6 +81,7 @@ export function SalesPage() {
                     <td className="px-3 py-3.5 text-zinc-600">{c.segment ?? '—'}</td>
                     <td className="px-3 py-3.5 text-zinc-600">{c.city ? `${c.city}${c.state ? ` – ${c.state}` : ''}` : '—'}</td>
                     <td className="px-3 py-3.5 text-zinc-600">{c.whatsapp || c.phone || c.email || '—'}</td>
+                    <td className={c.seller_name ? 'px-3 py-3.5 text-zinc-600' : 'px-3 py-3.5 text-zinc-400'}>{c.seller_name ?? '—'}</td>
                     <td className="px-3 py-3.5 text-zinc-500">
                       {c.last_note_at ? `${formatDate(c.last_note_at)} · ${c.notes_count} ${c.notes_count === 1 ? 'lançamento' : 'lançamentos'}` : '—'}
                     </td>

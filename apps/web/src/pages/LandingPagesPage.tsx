@@ -1,6 +1,7 @@
 import { useDeferredValue, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Eye, PanelsTopLeft, Pencil, Plus, Search, Share2, Trash2 } from 'lucide-react';
+import { SellerCell, useSellers } from '@/components/SellerCell';
 import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBlock, PageHeader, Pagination, Select, StatusToggle } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { usePagination } from '@/hooks/usePagination';
@@ -21,6 +22,7 @@ export function LandingPagesPage() {
   // 10 por página; volta para a primeira ao mudar os filtros
   const pager = usePagination(data?.items, 10, [deferred, status].join('|'));
   const actions = useLandingPageActions(reload);
+  const { sellers, canAssign } = useSellers();
   const [toDelete, setToDelete] = useState<LandingPageListItem | null>(null);
 
   return (
@@ -61,10 +63,11 @@ export function LandingPagesPage() {
         ) : (
           <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[880px] text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
                   <th className="px-5 py-3">Empresa</th>
+                  <th className="px-3 py-3">Vendedor</th>
                   <th className="px-3 py-3">Status</th>
                   <th className="px-3 py-3">Criação</th>
                   <th className="px-3 py-3">Última atualização</th>
@@ -77,6 +80,9 @@ export function LandingPagesPage() {
                     <td className="px-5 py-3.5">
                       <Link to={`/landing-pages/${lp.id}`} className="font-medium hover:underline">{lp.company_name}</Link>
                       <div className="text-xs text-zinc-500">{lp.segment ?? '—'} · v{lp.current_version}</div>
+                    </td>
+                    <td className="px-3 py-3.5">
+                      <SellerCell landingPageId={lp.id} sellerId={lp.seller_id} sellerName={lp.seller_name} sellers={sellers} canAssign={canAssign} onChanged={reload} />
                     </td>
                     <td className="px-3 py-3.5">
                       <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />

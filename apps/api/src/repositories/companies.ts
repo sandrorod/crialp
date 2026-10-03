@@ -214,11 +214,12 @@ export async function listCompanies(orgId: string, f: CompanyFilters) {
   }
   const { rows } = await query(
     `select c.id, c.name, c.segment, c.city, c.state, c.phone, c.whatsapp, c.email, c.created_at,
-            lp.id as landing_page_id, lp.slug, lp.status
+            lp.id as landing_page_id, lp.slug, lp.status, lp.seller_id, s.name as seller_name
        from companies c
        left join lateral (
-         select id, slug, status from landing_pages where company_id = c.id order by created_at limit 1
+         select id, slug, status, seller_id from landing_pages where company_id = c.id order by created_at limit 1
        ) lp on true
+       left join users s on s.id = lp.seller_id
       where ${where.join(' and ')}
       order by c.created_at desc
       limit 500`,

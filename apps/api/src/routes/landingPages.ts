@@ -215,6 +215,15 @@ landingPagesRouter.patch('/:id/status', async (req, res) => {
   res.json(serialize(updated!));
 });
 
+/** Troca manual do vendedor responsável (só administradores). */
+landingPagesRouter.patch('/:id/seller', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const user = authUser(req);
+  const lp = await loadOr404(user.organizationId, uuidParam.parse(req.params.id));
+  const { seller_id } = parseBody(z.object({ seller_id: uuidParam }), req.body);
+  if (!(await repo.setSeller(user.organizationId, lp.id, seller_id))) throw new AppError(400, 'Escolha um vendedor válido.');
+  res.json({ ok: true });
+});
+
 /** Publicar = ativar a página e gerar o snapshot final. */
 landingPagesRouter.post('/:id/publish', async (req, res) => {
   const user = authUser(req);
