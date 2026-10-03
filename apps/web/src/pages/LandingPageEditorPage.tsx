@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Building2, Loader2, Copy, Download, ExternalLink, Image as ImageIcon, Monitor, MoveVertical, Palette, PenLine, RefreshCw, Rows3, Save, Smartphone, Sparkles, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -54,8 +54,8 @@ function mergeSectionOrder(order: SectionOrderKey[], keys: string[]): SectionOrd
 function renderedThemeKey(t: ThemeSettings | null | undefined, c: LandingContent | null | undefined) {
   if (!t) return '';
   const { preset, primary, accent, heroVariant, sections, images, template, imageOrder } = t;
-  // Seções personalizadas (elementos, fotos, botões) também só aparecem renderizadas no servidor
-  return JSON.stringify({ preset, primary, accent, heroVariant, sections, images, template, imageOrder, custom: c?.custom_sections ?? [] });
+  // Todo o conteúdo (textos, seções desativadas, ordem, seções personalizadas) também é renderizado no servidor
+  return JSON.stringify({ preset, primary, accent, heroVariant, sections, images, template, imageOrder, content: c ?? null });
 }
 
 export function LandingPageEditorPage() {
@@ -79,6 +79,8 @@ export function LandingPageEditorPage() {
   const [draftHtml, setDraftHtml] = useState<string | null>(null);
   // Prévia sendo refeita no servidor (troca de modelo, cores, seções…): mostra o carregamento
   const [previewLoading, setPreviewLoading] = useState(false);
+  // Edição feita dentro da prévia (texto, arrastar seção): ela já aparece lá, sem refazer a prévia
+  const frameKeyShown = useRef<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [regenOpen, setRegenOpen] = useState(false);
   const [keepTheme, setKeepTheme] = useState(true);
@@ -105,6 +107,7 @@ export function LandingPageEditorPage() {
   const savedKey = renderedThemeKey(lp?.theme, lp?.content);
   useEffect(() => {
     if (!lp || !content || !theme) return;
+    if (frameKeyShown.current === draftKey && !previewLoading) return;
     // Sem mudança de tema desde o último salvamento, a página salva já é a prévia certa
     if (draftKey === savedKey && draftHtml === null) {
       setPreviewLoading(false);
@@ -311,7 +314,11 @@ export function LandingPageEditorPage() {
               onReorder={(keys) => {
                 // Celular tem ordem própria; no computador muda a ordem normal das seções
                 if (device === 'mobile') setTheme((t) => (t ? { ...t, mobileOrder: keys } : t));
-                else setContent((c) => (c ? { ...c, section_order: mergeSectionOrder(c.section_order, keys) } : c));
+                else {
+                  const next = { ...content, section_order: mergeSectionOrder(content.section_order, keys) };
+                  frameKeyShown.current = renderedThemeKey(theme, next);
+                  setContent(next);
+                }
                 setDirty(true);
               }}
               onText={(path, value) => {
@@ -320,6 +327,7 @@ export function LandingPageEditorPage() {
                   toast.error('Este texto não pode ficar vazio.');
                   return false;
                 }
+                frameKeyShown.current = renderedThemeKey(theme, next);
                 setContent(next);
                 setDirty(true);
                 return true;
