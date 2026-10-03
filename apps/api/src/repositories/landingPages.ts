@@ -47,7 +47,7 @@ export async function createLandingPage(opts: {
 }) {
   const slug = await uniqueSlug(opts.title);
   return transaction(async (db) => {
-    // Toda página nova vai para o vendedor com menos páginas
+    // Toda página nova vai para o próximo vendedor do rodízio
     const [sellerId = null] = await pickSellers(db, opts.orgId, 1);
     const { rows } = await db.query<{ id: string }>(
       `insert into landing_pages (organization_id, company_id, title, slug, status, content, theme, seo_title, seo_description, seo_keywords, og_image, current_version, seller_id)
@@ -65,30 +65,34 @@ export async function createLandingPage(opts: {
 
 // ─── Vendedor responsável ───────────────────────────────────────────
 /**
- * Escolhe o vendedor de cada uma das próximas `count` páginas, sempre o que tem menos páginas
- * (empate: o cadastrado há mais tempo). Trava a organização para que gerações simultâneas não
- * caiam no mesmo vendedor. Sem vendedores, devolve lista vazia.
+ * Rodízio de vendedores: vê o vendedor da última página gerada e entrega as próximas `count`
+ * páginas ao vendedor seguinte, na ordem de cadastro, voltando ao primeiro depois do último.
+ * Trava a organização para que gerações simultâneas não repitam o vendedor. Sem vendedores, lista vazia.
  */
 async function pickSellers(db: pg.PoolClient, orgId: string, count: number) {
   await db.query('select pg_advisory_xact_lock(727275, hashtext($1))', [orgId]);
-  const { rows } = await db.query<{ id: string; pages: number }>(
-    `select u.id, count(lp.id)::int as pages
-       from users u left join landing_pages lp on lp.seller_id = u.id
-      where u.organization_id = $1 and u.role = 'seller'
-      group by u.id, u.created_at
-      order by pages, u.created_at, u.id`,
+  const { rows: sellers } = await db.query<{ id: string }>(
+    `select id from users where organization_id = $1 and role = 'seller' order by created_at, id`,
     [orgId],
   );
+  if (!sellers.length) return [];
+  const last = await db.query<{ seller_id: string }>(
+    `select seller_id from landing_pages
+      where organization_id = $1 and seller_id is not null
+      order by created_at desc, id desc limit 1`,
+    [orgId],
+  );
+  // Vendedor da última página não existe mais (ou nenhuma página ainda): começa pelo primeiro
+  let i = sellers.findIndex((u) => u.id === last.rows[0]?.seller_id);
   const picks: string[] = [];
-  for (let i = 0; i < count && rows.length; i++) {
-    const least = rows.reduce((a, b) => (b.pages < a.pages ? b : a));
-    least.pages++;
-    picks.push(least.id);
+  for (let n = 0; n < count; n++) {
+    i = (i + 1) % sellers.length;
+    picks.push(sellers[i].id);
   }
   return picks;
 }
 
-/** Atribui as páginas sem vendedor (sem vendedores antes, vendedor excluído…) distribuindo por igual. */
+/** Atribui as páginas sem vendedor (sem vendedores antes, vendedor excluído…) seguindo o rodízio. */
 export async function distributeUnassignedPages(orgId: string) {
   return transaction(async (db) => {
     const { rows } = await db.query<{ id: string }>(
