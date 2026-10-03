@@ -86,7 +86,7 @@ export async function scrapeGoogleBusiness(input: URL, scraper: ScraperService):
     throw err;
   });
   if (!info) throw new AppError(422, `Não consegui ler os dados de "${query}" no Google Maps (empresas que atendem no local do cliente, sem endereço público, às vezes não aparecem). Use o site da empresa ou preencha os dados manualmente.`, 'GOOGLE_NOT_FOUND');
-  const r = await fromPlaceInfo(input, info, scraper, { businessId: placeIdOf(url) });
+  const r = await fromPlaceInfo(input, info, scraper, { businessId: placeIdOf(url), pages: [url.toString(), input.toString()] });
   return { ...r, googleUrls: [...new Set([input.toString(), url.toString(), info.mapsUri])] };
 }
 
@@ -126,6 +126,7 @@ export async function scrapeGooglePlaceListing(input: URL, place: PlaceListing, 
   const r = await fromPlaceInfo(input, { text, mapsUri: input.toString(), title: place.name }, scraper, {
     businessId: place.place_id ?? placeIdOf(input),
     known: place.photos ?? [],
+    pages: [full?.mapsUri, place.google_url, input.toString()].filter((u): u is string => !!u),
   });
   const googleUrls = [input.toString(), full?.mapsUri, place.google_url].filter((u): u is string => !!u);
   return { ...r, googleUrls: [...new Set(googleUrls)] };
@@ -178,6 +179,43 @@ async function discoverSite(name: string, address: string | null, phones: string
   return null;
 }
 
+const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36';
+
+/**
+ * Fotos do perfil lidas do próprio Google Maps, sem chave: a página do local indica o endereço da
+ * consulta "preview/place", que devolve os dados do perfil com as fotos (lh3.googleusercontent.com/gps-cs-s/…).
+ * Avatares de quem avaliou (/a/, /a-/) ficam de fora.
+ */
+async function mapsPagePhotos(pages: string[]): Promise<string[]> {
+  const get = (u: string) =>
+    fetch(u, { headers: { 'User-Agent': BROWSER_UA, 'Accept-Language': 'pt-BR,pt;q=0.9' }, signal: AbortSignal.timeout(12_000) })
+      .then((r) => (r.ok ? r.text() : ''))
+      .catch(() => '');
+  for (const page of pages) {
+    let target: URL;
+    try {
+      target = new URL(page);
+    } catch {
+      continue;
+    }
+    if (!isGoogleBusinessUrl(target)) continue;
+    // Links antigos da pesquisa traziam "places/ChIJ…", que o Maps não reconhece
+    const pid = target.searchParams.get('query_place_id');
+    if (pid?.startsWith('places/')) target.searchParams.set('query_place_id', pid.slice(7));
+    const html = await get(target.toString());
+    const preview = /\/maps\/preview\/place\?[^"'\s]+/.exec(html)?.[0];
+    if (!preview) continue;
+    // A resposta varia entre chamadas (às vezes vem sem as fotos das avaliações): junta algumas tentativas
+    const found = new Set<string>();
+    for (let attempt = 0; attempt < 4 && found.size < 8; attempt++) {
+      const data = await get(`https://www.google.com${preview.replace(/&amp;/g, '&')}`);
+      for (const u of data.match(/https:\/\/lh\d\.googleusercontent\.com\/(?:gps-cs-s|grass-cs|geougc-cs|p)\/[A-Za-z0-9_-]{20,}/g) ?? []) found.add(u);
+    }
+    if (found.size) return [...found].map((u) => `${u}=w1600-h1200-k-no`);
+  }
+  return [];
+}
+
 /**
  * Fotos do Perfil da Empresa no Google, medidas como as do site. Sem chave/assinatura do RapidAPI
  * ("Local Business Data"), usa só as que vieram na pesquisa.
@@ -185,17 +223,22 @@ async function discoverSite(name: string, address: string | null, phones: string
 async function googlePhotos(
   info: { mapsUri: string; title: string },
   address: string | null,
-  photos: { businessId?: string | null; known?: string[] },
+  photos: { businessId?: string | null; known?: string[]; pages?: string[] },
   scraper: ScraperService,
 ): Promise<{ images: ScrapedImage[]; note: string | null }> {
   let urls = photos.known ?? [];
   let note: string | null = null;
+  // Primeiro a página do local no Google Maps (sem custo); depois a "Local Business Data" do RapidAPI
   if (urls.length < 8) {
+    const fromMaps = await mapsPagePhotos([info.mapsUri, ...(photos.pages ?? [])]).catch(() => []);
+    urls = [...new Set([...urls, ...fromMaps])];
+  }
+  if (!urls.length) {
     const more = await googlePlacePhotos({ businessId: photos.businessId, query: [info.title, address].filter(Boolean).join(', ') }).catch((err) => {
       console.warn('[google] fotos do perfil indisponíveis:', err instanceof Error ? err.message : err);
       return null;
     });
-    if (more === null && !urls.length) note = 'Fotos do Perfil no Google: não foi possível buscá-las (assine a “Local Business Data” na chave do RapidAPI, em rapidapi.com).';
+    if (!more?.length && !urls.length) note = 'Fotos do Perfil no Google: nenhuma foto encontrada no perfil (ou o Google não respondeu). Adicione fotos na edição da página.';
     urls = [...new Set([...urls, ...(more ?? [])])];
   }
   if (!urls.length) return { images: [], note };
@@ -214,7 +257,7 @@ async function fromPlaceInfo(
   input: URL,
   info: { text: string; mapsUri: string; title: string },
   scraper: ScraperService,
-  photos: { businessId?: string | null; known?: string[] } = {},
+  photos: { businessId?: string | null; known?: string[]; pages?: string[] } = {},
 ): Promise<{ scrape: ScrapeResult; website: string | null; photoNote: string | null }> {
   const text = info.text.replace(/\*\*/g, '').replace(/^\s*[*•-]\s*/gm, '');
   const phones = new Set<string>();

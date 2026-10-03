@@ -310,7 +310,7 @@ export interface TemplateInfo {
   hero: { withPhoto: HeroVariant; withoutPhoto: HeroVariant };
 }
 
-export type ImagePlacement = 'hero' | 'about' | 'gallery' | 'hidden';
+export type ImagePlacement = 'hero' | 'about' | 'gallery' | 'hidden' | 'logo';
 
 export interface LandingPage {
   id: string;

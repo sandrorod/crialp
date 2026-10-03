@@ -379,6 +379,7 @@ const PLACEMENT_LABELS: Record<ImagePlacement, string> = {
   hero: 'Topo da página',
   about: 'Seção "Sobre"',
   gallery: 'Galeria',
+  logo: 'Logotipo',
   hidden: 'Não usar',
 };
 
@@ -390,6 +391,7 @@ function resolvePlacements(urls: string[], chosen: Record<string, ImagePlacement
   const out: Record<string, ImagePlacement> = {};
   for (const u of urls) {
     if (chosen[u] === 'hidden') out[u] = 'hidden';
+    else if (chosen[u] === 'logo') out[u] = 'logo';
     else if (u === hero) out[u] = 'hero';
     else if (u === about) out[u] = 'about';
     else if (chosen[u] === 'gallery' || !chosen[u]) out[u] = 'gallery';
@@ -483,11 +485,19 @@ export function PhotosTab({
   const [removing, setRemoving] = useState(false);
   if (!images) return <div className="skeleton h-40 rounded-lg" />;
   const photos = images.filter((i) => i.type !== 'logo');
-  const logo = images.find((i) => i.type === 'logo' && i.usage_allowed);
-  const logoBox = logo ? (
+  const logo =
+    images.find((i) => i.usage_allowed && theme.images?.[i.url] === 'logo') ?? images.find((i) => i.type === 'logo' && i.usage_allowed);
+  const logoBox = (
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 p-3">
-      <img src={logo.url} alt="Logotipo" referrerPolicy="no-referrer" className="h-12 w-24 flex-none rounded bg-zinc-50 object-contain" />
-      <Field label="Onde mostrar o logotipo" hint="No “Sobre”, se a seção não aparecer, o logo vai para o início do conteúdo.">
+      {logo ? (
+        <img src={logo.url} alt="Logotipo" referrerPolicy="no-referrer" className="h-12 w-24 flex-none rounded bg-zinc-50 object-contain" />
+      ) : (
+        <div className="grid h-12 w-24 flex-none place-items-center rounded bg-zinc-50 text-center text-[10px] leading-tight text-zinc-400">sem logotipo</div>
+      )}
+      <Field
+        label="Onde mostrar o logotipo"
+        hint={logo ? 'No “Sobre”, se a seção não aparecer, o logo vai para o início do conteúdo.' : 'Escolha “Logotipo” em uma das fotos abaixo (ou envie o arquivo do logo).'}
+      >
         <Select value={theme.logoPlacement ?? 'header'} onChange={(e) => onChange({ ...theme, logoPlacement: e.target.value as ThemeSettings['logoPlacement'] })}>
           <option value="header">Topo da página (cabeçalho)</option>
           <option value="hero">Corpo da página: início, acima do título</option>
@@ -495,7 +505,7 @@ export function PhotosTab({
         </Select>
       </Field>
     </div>
-  ) : null;
+  );
   const blocked = photos.filter((i) => !i.usage_allowed);
   // Mesma ordem da renderização: a escolhida no editor e, depois, a da empresa
   const saved = theme.imageOrder ?? [];
@@ -578,8 +588,8 @@ export function PhotosTab({
 
   const setPlacement = (url: string, value: ImagePlacement | '') => {
     const next = { ...chosen };
-    // Topo e "sobre" mostram uma foto só: a anterior volta para o automático
-    if (value === 'hero' || value === 'about') for (const u of Object.keys(next)) if (next[u] === value) delete next[u];
+    // Topo, "sobre" e logotipo usam uma foto só: a anterior volta para o automático
+    if (value === 'hero' || value === 'about' || value === 'logo') for (const u of Object.keys(next)) if (next[u] === value) delete next[u];
     if (value) next[url] = value;
     else delete next[url];
     onChange({ ...theme, images: next });
@@ -613,7 +623,8 @@ export function PhotosTab({
       setRemoving(false);
     }
   };
-  const outside = listed.slice(activeCount).map((i) => i.url);
+  // Foto usada como logotipo fica fora da galeria, mas está na página: não entra no "Apagar todas"
+  const outside = listed.slice(activeCount).map((i) => i.url).filter((u) => chosen[u] !== 'logo');
 
   if (!allowed.length) {
     return (
@@ -673,7 +684,7 @@ export function PhotosTab({
               <span className="cursor-grab text-zinc-400 hover:text-ink active:cursor-grabbing" title="Arraste para reordenar" aria-hidden>
                 <GripVertical className="size-4" />
               </span>
-              <PhotoThumb url={img.url} alt={img.alt_text ?? ''} dimmed={!isActive(img.url)} />
+              <PhotoThumb url={img.url} alt={img.alt_text ?? ''} dimmed={!isActive(img.url) && chosen[img.url] !== 'logo'} />
               <div className="min-w-0 flex-1">
                 <Select className="h-9 text-[13px]" value={chosen[img.url] ?? ''} onChange={(e) => setPlacement(img.url, e.target.value as ImagePlacement | '')}>
                   <option value="">Automático{chosen[img.url] ? '' : ` (${PLACEMENT_LABELS[resolved[img.url]]})`}</option>

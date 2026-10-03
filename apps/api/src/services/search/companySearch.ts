@@ -247,7 +247,8 @@ function toFound(p: Awaited<ReturnType<typeof aiService.searchGooglePlaces>>[num
     // Gerar LP: link do Maps com nome e endereço (a análise lê o perfil e, se houver, o site também)
     url:
       `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([p.name, p.address].filter(Boolean).join(', '))}` +
-      (p.placeId ? `&query_place_id=${encodeURIComponent(p.placeId)}` : ''),
+      // O Gemini devolve "places/ChIJ…": o Maps só reconhece o código sem o prefixo
+      (p.placeId ? `&query_place_id=${encodeURIComponent(p.placeId.replace(/^places\//, ''))}` : ''),
     description: null,
     google_url: p.mapsUri,
     source: 'maps',

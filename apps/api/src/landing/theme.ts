@@ -128,7 +128,8 @@ export const TEMPLATES: Record<TemplateKey, Template> = {
   },
 };
 
-export const IMAGE_PLACEMENTS = ['hero', 'about', 'gallery', 'hidden'] as const;
+// "logo": a foto escolhida vira o logotipo da página (no lugar do logotipo do cadastro)
+export const IMAGE_PLACEMENTS = ['hero', 'about', 'gallery', 'hidden', 'logo'] as const;
 export type ImagePlacement = (typeof IMAGE_PLACEMENTS)[number];
 
 function normalizeImagePlacements(input: unknown): Record<string, ImagePlacement> {

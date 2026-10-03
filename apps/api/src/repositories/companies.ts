@@ -246,7 +246,8 @@ export function companyUrlKey(raw: string | null | undefined): string | null {
     // Links do Google (Maps/busca): a empresa está nos parâmetros (código do local, cid, nome), não no caminho
     if (/(^|\.)google\.[a-z.]+$/.test(host) || /^(maps\.app\.goo\.gl|share\.google|g\.page|g\.co)$/.test(host)) {
       const id = ['query_place_id', 'place_id', 'cid', 'kgmid', 'ludocid', 'query', 'q'].map((k) => u.searchParams.get(k)).find(Boolean);
-      return `${host}${path}${id ? `?${id.toLowerCase()}` : ''}`;
+      // "places/ChIJ…" (Gemini) e "ChIJ…" são o mesmo local
+      return `${host}${path}${id ? `?${id.toLowerCase().replace(/^places\//, '')}` : ''}`;
     }
     // Links cujo identificador está nos parâmetros (WhatsApp "send?phone=", perfil do Facebook "profile.php?id=")
     const param = /(^|\.)whatsapp\.com$/.test(host) ? u.searchParams.get('phone')?.replace(/\D/g, '') : /(^|\.)facebook\.com$/.test(host) && path === '/profile.php' ? u.searchParams.get('id') : null;

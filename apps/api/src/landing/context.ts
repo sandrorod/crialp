@@ -76,6 +76,8 @@ export function absoluteAsset(url: string, origin: string) {
   return url.startsWith('/') ? `${origin}${url}` : url;
 }
 
+const MAX_GALLERY = 9;
+
 export function buildContext(opts: {
   company: CompanyFull;
   content: LandingContent;
@@ -89,7 +91,8 @@ export function buildContext(opts: {
 
   // Imagens só entram na página com permissão de uso confirmada pelo administrador.
   const allowed = company.images.filter((i) => i.usage_allowed && safeHref(i.url));
-  const logoImg = allowed.find((i) => i.type === 'logo');
+  // Foto escolhida como logotipo no editor tem prioridade sobre o logotipo do cadastro
+  const logoImg = allowed.find((i) => theme.images[i.url] === 'logo') ?? allowed.find((i) => i.type === 'logo');
   // Ordem escolhida no editor; fotos que não estão na lista seguem a ordem da empresa
   const rank = new Map(theme.imageOrder.map((u, i) => [u, i]));
   const photos = allowed
@@ -110,7 +113,8 @@ export function buildContext(opts: {
   const heroImage = visible.find((p) => place(p.url) === 'hero') ?? visible.find((p) => !place(p.url)) ?? null;
   const aboutImage =
     visible.find((p) => p !== heroImage && place(p.url) === 'about') ?? visible.find((p) => p !== heroImage && !place(p.url)) ?? null;
-  const gallery = visible.filter((p) => p !== heroImage && p !== aboutImage && (place(p.url) === 'gallery' || !place(p.url)));
+  // Galeria: até 9 fotos, como no editor (as demais aparecem lá em "Fora da página")
+  const gallery = visible.filter((p) => p !== heroImage && p !== aboutImage && (place(p.url) === 'gallery' || !place(p.url))).slice(0, MAX_GALLERY);
 
   const labels = resolveLabels((content as { labels?: unknown }).labels);
   const waMessage = labels.whatsapp_message.replaceAll('{empresa}', displayName);
