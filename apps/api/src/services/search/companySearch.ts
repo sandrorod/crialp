@@ -19,6 +19,10 @@ export interface FoundCompany {
   /** Página do local no Google Maps (botão "Ver no Google") */
   google_url: string | null;
   source: 'maps' | 'web';
+  /** Fotos do perfil no Google (quando a fonte as traz) */
+  photos?: string[];
+  /** Código do local no Google (place_id / google_id), para buscar mais fotos na análise */
+  place_id?: string | null;
 }
 
 const TIMEOUT_MS = 30_000;
@@ -101,8 +105,38 @@ async function searchMaps(query: string): Promise<FoundCompany[] | null> {
       description: b.type || null,
       google_url: b.place_link || null,
       source: 'maps',
+      photos: (b.photos_sample ?? []).map((x: any) => x?.photo_url).filter(Boolean).map(largePhoto),
+      place_id: b.business_id || b.google_id || b.place_id || null,
     }),
   );
+}
+
+/** Foto do Google no maior tamanho útil para a LP (as URLs trazem o tamanho no final: "=w408-h306-k-no"). */
+const largePhoto = (u: string) => u.replace(/=[swh]\d[^/]*$/, '') + '=w1600-h1200-k-no';
+
+/**
+ * Fotos do Perfil da Empresa no Google, pela "Local Business Data" do RapidAPI.
+ * Identifica o local pelo código (place_id / google_id) ou, sem ele, pelo nome + endereço.
+ * Devolve `null` quando não há como buscar (sem chave ou chave sem assinatura dessa API).
+ */
+export async function googlePlacePhotos(p: { businessId?: string | null; query?: string | null }): Promise<string[] | null> {
+  if (!(await aiKeyStore.hasAny('rapidapi', env.rapidApiKey))) return null;
+  const host = 'local-business-data.p.rapidapi.com';
+  let id = p.businessId ?? null;
+  let sample: string[] = [];
+  if (!id && p.query) {
+    const r = await rapid(host, `/search?query=${encodeURIComponent(p.query)}&limit=1&region=br&language=pt`);
+    if (notSubscribed(r)) return null;
+    const b = r.status === 200 ? r.body?.data?.[0] : null;
+    if (!b) return [];
+    id = b.business_id || b.google_id || b.place_id || null;
+    sample = (b.photos_sample ?? []).map((x: any) => x?.photo_url).filter(Boolean);
+  }
+  if (!id) return sample.map(largePhoto);
+  const r = await rapid(host, `/business-photos?business_id=${encodeURIComponent(id)}&limit=30&region=br`);
+  if (notSubscribed(r)) return sample.length ? sample.map(largePhoto) : null;
+  const urls: string[] = r.status === 200 && Array.isArray(r.body?.data) ? r.body.data.map((x: any) => x?.photo_url).filter(Boolean) : [];
+  return [...new Set([...urls, ...sample].map(largePhoto))];
 }
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -217,6 +251,7 @@ function toFound(p: Awaited<ReturnType<typeof aiService.searchGooglePlaces>>[num
     description: null,
     google_url: p.mapsUri,
     source: 'maps',
+    place_id: p.placeId ? p.placeId.replace(/^places\//, '') : null,
   };
 }
 

@@ -133,7 +133,7 @@ export async function analyzeUrl(job: JobHandle, url: URL, opts: { allowImages?:
     meta: {
       final_url: scrape.finalUrl,
       pages: scrape.pages.map((p) => p.url),
-      missing_info: extracted.missing_info,
+      missing_info: google?.photoNote ? [...extracted.missing_info, google.photoNote] : extracted.missing_info,
       removed: v.removed,
       analyzed_at: new Date().toISOString(),
     },

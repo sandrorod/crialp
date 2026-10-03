@@ -166,7 +166,7 @@ export function NewLandingPagePage() {
             </div>
             {urlError ? <p className="mt-3 flex items-center gap-2 text-sm text-red-600"><AlertTriangle className="size-4" /> {urlError}</p> : null}
             <p className="mt-3 text-xs text-zinc-500">
-              Empresa sem site? No Google Maps, abra o perfil da empresa, toque em <strong>Compartilhar</strong> → <strong>Copiar link</strong> e cole aqui. Os dados (endereço, telefone, horário, site) vêm do perfil no Google; fotos e depoimentos do Google não são copiados.
+              Empresa sem site? No Google Maps, abra o perfil da empresa, toque em <strong>Compartilhar</strong> → <strong>Copiar link</strong> e cole aqui. Os dados (endereço, telefone, horário, site) e as fotos vêm do perfil no Google (fotos exigem a “Local Business Data” assinada na chave do RapidAPI); depoimentos do Google não são copiados.
             </p>
             <label className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-lg bg-zinc-50 px-3 py-2.5 text-sm text-zinc-700">
               <input type="checkbox" className="mt-0.5 size-4 accent-zinc-900" checked={allowImages} onChange={(e) => setAllowImages(e.target.checked)} />

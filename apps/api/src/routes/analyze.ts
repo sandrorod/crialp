@@ -43,6 +43,8 @@ analyzeRouter.post('/analyze-url', aiLimiter, async (req, res) => {
           website: z.string().max(2048).nullish(),
           rating: z.number().min(0).max(5).nullish(),
           reviews: z.number().int().min(0).nullish(),
+          photos: z.array(z.string().url().max(2048)).max(40).nullish(),
+          place_id: z.string().max(200).nullish(),
         })
         .optional(),
     }),

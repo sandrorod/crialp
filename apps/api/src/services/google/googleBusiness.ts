@@ -1,6 +1,6 @@
 import { AppError } from '../../lib/errors.js';
 import { digitsOnly, toBrazilE164Digits } from '../../lib/phone.js';
-import { geocode, isIgnoredHost, webResults } from '../search/companySearch.js';
+import { geocode, googlePlacePhotos, isIgnoredHost, webResults } from '../search/companySearch.js';
 import { aiService, AIProviderError } from '../ai/index.js';
 import {
   EMAIL_RE,
@@ -8,6 +8,7 @@ import {
   PHONE_RE,
   socialNetworkOf,
   ZIP_RE,
+  type ScrapedImage,
   type ScrapeResult,
   type ScraperService,
 } from '../scraper/ScraperService.js';
@@ -51,12 +52,19 @@ function parseGoogleUrl(url: URL): { query: string | null; latLng?: { latitude: 
   };
 }
 
+/** Código do local no link do Google (place_id "ChIJ…" ou google_id "0x…:0x…"), quando o link o traz. */
+function placeIdOf(url: URL): string | null {
+  const q = url.searchParams.get('query_place_id') ?? url.searchParams.get('place_id') ?? /place_id:([\w-]+)/.exec(url.searchParams.get('q') ?? '')?.[1];
+  if (q) return q;
+  return /!1s(0x[0-9a-f]+:0x[0-9a-f]+)/i.exec(decodeURIComponent(url.toString()))?.[1] ?? null;
+}
+
 /**
  * Lê o Perfil da Empresa no Google e devolve no mesmo formato da leitura de um site, para seguir
  * pelo mesmo caminho (IA + verificação anti-invenção). Se o perfil tiver um site próprio, ele também
  * é lido e somado. `website` é o site da empresa (ou null).
  */
-export async function scrapeGoogleBusiness(input: URL, scraper: ScraperService): Promise<{ scrape: ScrapeResult; website: string | null }> {
+export async function scrapeGoogleBusiness(input: URL, scraper: ScraperService): Promise<{ scrape: ScrapeResult; website: string | null; photoNote: string | null }> {
   const url = await resolveShortLink(input);
   // Busca do Google com vários resultados (ex.: "manutenção predial"): não diz qual empresa é. O link
   // de uma empresa (botão Compartilhar do painel dela) traz "kgmid"/"ludocid" junto com o nome.
@@ -78,7 +86,7 @@ export async function scrapeGoogleBusiness(input: URL, scraper: ScraperService):
     throw err;
   });
   if (!info) throw new AppError(422, `Não consegui ler os dados de "${query}" no Google Maps (empresas que atendem no local do cliente, sem endereço público, às vezes não aparecem). Use o site da empresa ou preencha os dados manualmente.`, 'GOOGLE_NOT_FOUND');
-  return fromPlaceInfo(input, info, scraper);
+  return fromPlaceInfo(input, info, scraper, { businessId: placeIdOf(url) });
 }
 
 /** Local escolhido em "Buscar empresas": os dados do Maps já vieram na pesquisa, sem consultar de novo. */
@@ -89,6 +97,10 @@ export interface PlaceListing {
   website?: string | null;
   rating?: number | null;
   reviews?: number | null;
+  /** Fotos do perfil no Google que vieram na pesquisa */
+  photos?: string[] | null;
+  /** Código do local no Google, para buscar mais fotos */
+  place_id?: string | null;
 }
 
 export async function scrapeGooglePlaceListing(input: URL, place: PlaceListing, scraper: ScraperService) {
@@ -108,7 +120,10 @@ export async function scrapeGooglePlaceListing(input: URL, place: PlaceListing, 
       return null;
     });
   const text = full ? `${full.text}\n${lines.join('\n')}` : lines.join('\n');
-  return fromPlaceInfo(input, { text, mapsUri: input.toString(), title: place.name }, scraper);
+  return fromPlaceInfo(input, { text, mapsUri: input.toString(), title: place.name }, scraper, {
+    businessId: place.place_id ?? placeIdOf(input),
+    known: place.photos ?? [],
+  });
 }
 
 const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -158,7 +173,44 @@ async function discoverSite(name: string, address: string | null, phones: string
   return null;
 }
 
-async function fromPlaceInfo(input: URL, info: { text: string; mapsUri: string; title: string }, scraper: ScraperService): Promise<{ scrape: ScrapeResult; website: string | null }> {
+/**
+ * Fotos do Perfil da Empresa no Google, medidas como as do site. Sem chave/assinatura do RapidAPI
+ * ("Local Business Data"), usa só as que vieram na pesquisa.
+ */
+async function googlePhotos(
+  info: { mapsUri: string; title: string },
+  address: string | null,
+  photos: { businessId?: string | null; known?: string[] },
+  scraper: ScraperService,
+): Promise<{ images: ScrapedImage[]; note: string | null }> {
+  let urls = photos.known ?? [];
+  let note: string | null = null;
+  if (urls.length < 8) {
+    const more = await googlePlacePhotos({ businessId: photos.businessId, query: [info.title, address].filter(Boolean).join(', ') }).catch((err) => {
+      console.warn('[google] fotos do perfil indisponíveis:', err instanceof Error ? err.message : err);
+      return null;
+    });
+    if (more === null && !urls.length) note = 'Fotos do Perfil no Google: não foi possível buscá-las (assine a “Local Business Data” na chave do RapidAPI, em rapidapi.com).';
+    urls = [...new Set([...urls, ...(more ?? [])])];
+  }
+  if (!urls.length) return { images: [], note };
+  const candidates: ScrapedImage[] = urls.slice(0, 30).map((url, index) => ({
+    index,
+    url,
+    alt: `${info.title} — foto do Perfil no Google`,
+    context: 'foto do Perfil da Empresa no Google (Google Maps)',
+    logoHint: false,
+    page: info.mapsUri,
+  }));
+  return { images: await scraper.rankImages(candidates), note };
+}
+
+async function fromPlaceInfo(
+  input: URL,
+  info: { text: string; mapsUri: string; title: string },
+  scraper: ScraperService,
+  photos: { businessId?: string | null; known?: string[] } = {},
+): Promise<{ scrape: ScrapeResult; website: string | null; photoNote: string | null }> {
   const text = info.text.replace(/\*\*/g, '').replace(/^\s*[*•-]\s*/gm, '');
   const phones = new Set<string>();
   for (const m of text.match(PHONE_RE) ?? []) {
@@ -205,6 +257,9 @@ async function fromPlaceInfo(input: URL, info: { text: string; mapsUri: string; 
     const address = /^\s*Endereço(?: completo)?:\s*(.+)$/im.exec(text)?.[1] ?? null;
     fromSite = await discoverSite(info.title, address, [...phones], scraper).catch(() => null);
   }
+  // Fotos do perfil no Google (em paralelo não: o site já foi lido; a medição das fotos é rápida)
+  const placeAddress = /^\s*Endereço(?: completo)?:\s*(.+)$/im.exec(text)?.[1] ?? null;
+  const { images: placePhotos, note: photoNote } = await googlePhotos(info, placeAddress, photos, scraper);
   if (fromSite) {
     website = new URL(fromSite.finalUrl).origin;
     scrape = {
@@ -221,5 +276,9 @@ async function fromPlaceInfo(input: URL, info: { text: string; mapsUri: string; 
       corpus: `${text}\n${fromSite.corpus}`,
     };
   }
-  return { scrape, website };
+  if (placePhotos.length) {
+    // Fotos do site primeiro (logotipo incluso), depois as do Google; índices refeitos para a IA classificar
+    scrape = { ...scrape, images: [...scrape.images, ...placePhotos].map((img, index) => ({ ...img, index })) };
+  }
+  return { scrape, website, photoNote };
 }

@@ -203,7 +203,7 @@ export function SearchCompaniesPage() {
   const generate = (c: FoundCompany) => {
     // A análise usa os dados já trazidos pela pesquisa (sem consultar o Maps de novo)
     try {
-      sessionStorage.setItem(`lp:place:${c.url}`, JSON.stringify({ name: c.name, phone: c.phone, address: c.address, website: c.website, rating: c.rating, reviews: c.reviews }));
+      sessionStorage.setItem(`lp:place:${c.url}`, JSON.stringify({ name: c.name, phone: c.phone, address: c.address, website: c.website, rating: c.rating, reviews: c.reviews, photos: c.photos ?? null, place_id: c.place_id ?? null }));
     } catch {
       /* sem armazenamento: a análise consulta o Maps pelo link */
     }
