@@ -127,19 +127,27 @@ analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
   const source = type === 'locais' ? 'maps' : 'web';
   const registered = await matchRegisteredCompanies(user.organizationId, items);
   const marked = items.map((c, i) => ({ ...c, existing: registered[i] }));
-  // Grava a pesquisa no histórico (só os locais; a marcação de cadastrada/LP é recalculada ao abrir)
+  // Grava toda pesquisa no histórico, mesmo sem resultados (a marcação de cadastrada/LP é recalculada ao abrir)
   let savedId: string | null = null;
-  if (places && items.length) {
-    const data = { center: places.center, page, hasMore: places.hasMore, results: items };
+  let historyError: string | null = null;
+  try {
+    const data = { center: places?.center ?? null, page, hasMore: places?.hasMore ?? false, results: items };
     if (search_id && page > 0) savedId = (await appendSearch(user.organizationId, search_id, data)) != null ? search_id : null;
     if (!savedId) savedId = await createSearch(user.organizationId, user.id, { query: q, ...data });
+  } catch (err) {
+    // Falha no histórico não pode esconder os resultados, mas precisa aparecer
+    console.error('[company-search] falha ao gravar histórico', err);
+    historyError = 'A pesquisa não foi gravada no histórico (erro no banco de dados). Os resultados abaixo continuam válidos.';
   }
-  res.json({ items: marked, source, center: places?.center ?? null, has_more: places?.hasMore ?? false, warning: places?.warning ?? null, search_id: savedId });
+  const warning = [places?.warning, historyError].filter(Boolean).join(' ') || null;
+  res.json({ items: marked, source, center: places?.center ?? null, has_more: places?.hasMore ?? false, warning, search_id: savedId });
 });
 
 /** Histórico de pesquisas de "Buscar empresas". */
 analyzeRouter.get('/company-searches', async (req, res) => {
   const user = authUser(req);
+  // Lista muda a cada pesquisa: nunca reaproveitar resposta em cache
+  res.set('Cache-Control', 'no-store');
   res.json({ items: await listSearches(user.organizationId) });
 });
 

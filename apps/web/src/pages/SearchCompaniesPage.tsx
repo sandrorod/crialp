@@ -275,6 +275,11 @@ export function SearchCompaniesPage() {
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><History className="size-4" /> Pesquisas anteriores</h2>
           {history.loading && !history.data ? (
             <p className="text-xs text-zinc-500">Carregando…</p>
+          ) : history.error && !history.data ? (
+            <p className="text-xs text-red-600">
+              Não foi possível carregar o histórico: {history.error}{' '}
+              <button type="button" className="font-medium underline" onClick={() => void history.reload()}>Tentar de novo</button>
+            </p>
           ) : !history.data?.items.length ? (
             <p className="text-xs text-zinc-500">As pesquisas feitas ficam salvas aqui.</p>
           ) : (
