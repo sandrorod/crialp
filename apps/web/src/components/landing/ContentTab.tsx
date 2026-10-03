@@ -235,8 +235,18 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
     next.splice(at >= 0 ? at : next.length, 0, key);
     onChange({ ...content, [key]: value, section_order: next });
   };
+  const hidden = content.hidden_sections ?? [];
+  const isHidden = (k: SectionOrderKey) => hidden.includes(k);
   const removeSection = (key: 'about' | 'services' | 'differentials' | 'products' | 'gallery' | 'faq') =>
-    onChange({ ...content, [key]: null, section_order: order.filter((k) => k !== key) });
+    onChange({ ...content, [key]: null, section_order: order.filter((k) => k !== key), hidden_sections: hidden.filter((k) => k !== key) });
+  /** Desativa (sai do site, mas fica salva e no lugar) ou reativa a seção. */
+  const setHidden = (k: SectionOrderKey, off: boolean) =>
+    onChange({
+      ...content,
+      hidden_sections: off ? [...hidden.filter((x) => x !== k), k] : hidden.filter((x) => x !== k),
+      // Reativar uma seção que estava fora da ordem a coloca antes do contato
+      section_order: off || order.includes(k) ? order : [...order.filter((x) => !REQUIRED.includes(x as SectionKey)), k, ...REQUIRED.filter((r) => order.includes(r))],
+    });
 
   const move = (k: SectionOrderKey, dir: -1 | 1) => {
     const i = order.indexOf(k);
@@ -246,8 +256,7 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
     [next[i], next[j]] = [next[j], next[i]];
     set('section_order', next);
   };
-  const toggle = (k: SectionOrderKey) =>
-    set('section_order', order.includes(k) ? order.filter((x) => x !== k) : [...order.filter((x) => !REQUIRED.includes(x as SectionKey)), k, ...REQUIRED.filter((r) => order.includes(r))]);
+  const toggle = (k: SectionOrderKey) => setHidden(k, order.includes(k) && !isHidden(k));
 
   const addCustom = (section: Omit<CustomSection, 'id'>) => {
     const id = newId();
@@ -258,35 +267,52 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
   };
   const updateCustom = (s: CustomSection) => set('custom_sections', customs.map((c) => (c.id === s.id ? s : c)));
   const removeCustom = (id: string) =>
-    onChange({ ...content, custom_sections: customs.filter((c) => c.id !== id), section_order: order.filter((k) => k !== `custom:${id}`) });
+    onChange({ ...content, custom_sections: customs.filter((c) => c.id !== id), section_order: order.filter((k) => k !== `custom:${id}`), hidden_sections: hidden.filter((k) => k !== `custom:${id}`) });
 
   const createBtn = (onClick: () => void) => (
     <Button type="button" variant="secondary" size="sm" icon={<Plus className="size-3.5" />} onClick={onClick}>Criar seção</Button>
   );
+  const hideBtn = (k: SectionOrderKey) => {
+    const off = isHidden(k) || !order.includes(k);
+    return (
+      <button
+        type="button"
+        className={cn('flex items-center gap-1 rounded px-1.5 py-1 text-xs font-normal hover:bg-zinc-100', off ? 'text-amber-600' : 'text-zinc-400 hover:text-zinc-700')}
+        title={off ? 'Ativar seção (volta a aparecer no site)' : 'Desativar seção (some do site, mas fica salva)'}
+        onClick={() => setHidden(k, !off)}
+      >
+        {off ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+        {off ? 'Desativada' : null}
+      </button>
+    );
+  };
   const removeBtn = (key: Parameters<typeof removeSection>[0]) => (
-    <button type="button" className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title="Excluir seção" onClick={() => removeSection(key)}>
-      <Trash2 className="size-4" />
-    </button>
+    <>
+      {hideBtn(key)}
+      <button type="button" className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title="Excluir seção" onClick={() => removeSection(key)}>
+        <Trash2 className="size-4" />
+      </button>
+    </>
   );
   const labels = content.labels ?? {};
 
   return (
     <div className="space-y-3">
       <Group title="Seções e ordem">
-        <p className="text-xs text-zinc-500">Seções sem dados reais (ex.: depoimentos inexistentes ou galeria sem fotos liberadas) não aparecem, mesmo se ativadas.</p>
+        <p className="text-xs text-zinc-500">O olho desativa a seção: ela some do site, mas o conteúdo e a posição ficam salvos. Seções sem dados reais (ex.: depoimentos inexistentes ou galeria sem fotos liberadas) não aparecem, mesmo se ativadas.</p>
         <ul className="space-y-1">
           {[...order, ...allKeys.filter((k) => !order.includes(k))].map((k) => {
-            const on = order.includes(k);
+            const on = order.includes(k) && !isHidden(k);
             return (
               <li key={k} className={cn('flex items-center gap-2 rounded-md px-2 py-1.5', on ? 'bg-zinc-50' : 'opacity-60')}>
                 <span className="flex-1 truncate text-sm">{sectionName(k)}</span>
-                {on ? (
+                {order.includes(k) ? (
                   <>
                     <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-200" onClick={() => move(k, -1)} aria-label="Subir"><ArrowUp className="size-3.5" /></button>
                     <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-200" onClick={() => move(k, 1)} aria-label="Descer"><ArrowDown className="size-3.5" /></button>
                   </>
                 ) : null}
-                <button type="button" disabled={REQUIRED.includes(k as SectionKey)} className="rounded p-1 text-zinc-500 hover:bg-zinc-200 disabled:opacity-30" onClick={() => toggle(k)} aria-label={on ? 'Ocultar' : 'Mostrar'}>
+                <button type="button" disabled={REQUIRED.includes(k as SectionKey)} className="rounded p-1 text-zinc-500 hover:bg-zinc-200 disabled:opacity-30" onClick={() => toggle(k)} title={on ? 'Desativar seção' : 'Ativar seção'} aria-label={on ? 'Desativar seção' : 'Ativar seção'}>
                   {on ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
                 </button>
               </li>
@@ -306,7 +332,10 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
           <div key={c.id} className="space-y-2 rounded-md border border-zinc-100 bg-zinc-50/50 p-3">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">{c.title || 'Seção personalizada'}</span>
-              <button type="button" className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title="Excluir seção" onClick={() => removeCustom(c.id)}><Trash2 className="size-4" /></button>
+              <span className="flex items-center gap-1">
+                {hideBtn(`custom:${c.id}`)}
+                <button type="button" className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title="Excluir seção" onClick={() => removeCustom(c.id)}><Trash2 className="size-4" /></button>
+              </span>
             </div>
             <CustomSectionEditor section={c} onChange={updateCustom} company={company} />
           </div>
@@ -450,7 +479,7 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
         <Group title="Galeria (sem seção)" empty actions={createBtn(() => createSection('gallery', { title: 'Conheça nosso espaço', subtitle: null }))} />
       )}
 
-      <Group title="Depoimentos">
+      <Group title="Depoimentos" actions={hideBtn('testimonials')}>
         <p className="text-xs text-zinc-500">
           Os depoimentos são sempre os reais, cadastrados na empresa (Editar empresa → Depoimentos). A seção só aparece se houver algum.
         </p>

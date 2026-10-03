@@ -187,6 +187,8 @@ export interface LandingContent {
   section_order: SectionOrderKey[];
   labels?: Record<string, string>;
   custom_sections?: CustomSection[];
+  /** Seções desativadas: continuam salvas e na ordem, mas não aparecem no site */
+  hidden_sections?: SectionOrderKey[];
   /** Textos do cadastro trocados só nesta LP (nome, contatos, depoimentos...) */
   overrides?: Record<string, string>;
 }

@@ -202,6 +202,8 @@ export type LandingContent = Omit<z.infer<typeof LandingContentSchema>, 'section
   section_order: SectionOrderKey[];
   labels?: Record<string, string>;
   custom_sections?: CustomSection[];
+  /** Seções desativadas: continuam salvas e na ordem, mas não aparecem no site */
+  hidden_sections?: SectionOrderKey[];
   /** Textos do cadastro trocados só nesta LP (chave: "company.name", "contact.phone", "testimonial.<id>.text"...) */
   overrides?: Record<string, string>;
 };
@@ -214,6 +216,10 @@ export const LandingContentEditSchema = LandingContentSchema.extend({
   section_order: z
     .array(z.string().regex(/^(about|services|differentials|products|gallery|testimonials|faq|contact|final_cta|custom:[a-z0-9-]{1,40})$/))
     .max(60),
+  hidden_sections: z
+    .array(z.string().regex(/^(about|services|differentials|products|gallery|testimonials|faq|custom:[a-z0-9-]{1,40})$/))
+    .max(60)
+    .optional(),
 });
 
 // ─── Classificação apenas das imagens (busca de fotos em empresa já cadastrada) ──

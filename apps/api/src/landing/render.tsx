@@ -65,10 +65,12 @@ export function resolveSections(ctx: RenderContext): SectionOrderKey[] {
     }
     return available[k as SectionKey];
   };
-  const order = [...new Set(c.section_order)].filter(isAvailable);
-  // Seções obrigatórias sempre presentes; depoimentos reais nunca são descartados
+  // Seções desativadas pelo administrador não vão para o site (contato e CTA final não se desativam)
+  const hidden = new Set<SectionOrderKey>((c.hidden_sections ?? []).filter((k) => k !== 'contact' && k !== 'final_cta'));
+  const order = [...new Set(c.section_order)].filter((k) => !hidden.has(k) && isAvailable(k));
+  // Seções obrigatórias sempre presentes; depoimentos reais só saem se desativados
   for (const k of ['testimonials', 'contact', 'final_cta'] as SectionKey[]) {
-    if (available[k] && !order.includes(k)) order.push(k);
+    if (available[k] && !hidden.has(k) && !order.includes(k)) order.push(k);
   }
   // CTA final encerra a página; contato imediatamente antes
   const rest = order.filter((k) => k !== 'final_cta' && k !== 'contact');
