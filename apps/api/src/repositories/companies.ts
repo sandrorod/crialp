@@ -248,7 +248,9 @@ export function companyUrlKey(raw: string | null | undefined): string | null {
       const id = ['query_place_id', 'place_id', 'cid', 'kgmid', 'ludocid', 'query', 'q'].map((k) => u.searchParams.get(k)).find(Boolean);
       return `${host}${path}${id ? `?${id.toLowerCase()}` : ''}`;
     }
-    return `${host}${path}`;
+    // Links cujo identificador está nos parâmetros (WhatsApp "send?phone=", perfil do Facebook "profile.php?id=")
+    const param = /(^|\.)whatsapp\.com$/.test(host) ? u.searchParams.get('phone')?.replace(/\D/g, '') : /(^|\.)facebook\.com$/.test(host) && path === '/profile.php' ? u.searchParams.get('id') : null;
+    return `${host}${path}${param ? `?${param}` : ''}`;
   } catch {
     return null;
   }
@@ -283,7 +285,7 @@ export async function findDuplicateCompany(
   );
   const urlKeys = new Set([companyUrlKey(probe.url)].filter((k): k is string => !!k));
   // O site (origem) só conta quando é a página inicial: perfis diferentes na mesma plataforma têm a mesma origem
-  const homeKeys = new Set([probe.url, probe.website].map(companyUrlKey).filter((k): k is string => !!k && !k.includes('/')));
+  const homeKeys = new Set([probe.url, probe.website].map(companyUrlKey).filter((k): k is string => !!k && !k.includes('/') && !isPlatformKey(k)));
   const nameKeys = new Set([probe.name, probe.tradeName].map(companyNameKey).filter((k): k is string => !!k));
   for (const c of rows) {
     if (c.id === ignoreId) continue;
@@ -300,18 +302,44 @@ export async function findDuplicateCompany(
 }
 
 /**
- * Marca resultados de "Buscar empresas" já cadastrados: mesmo link do Google/site, ou mesmo nome E mesmo
- * telefone (nome igual sozinho não basta: empresas diferentes podem ter o mesmo nome).
+ * Domínio de plataforma (rede social, agregador de links, mensageiro, construtor de sites): a origem é a mesma para
+ * milhares de empresas, então só o link completo do perfil identifica alguém.
+ */
+const PLATFORM_HOST =
+  /(^|\.)(instagram\.com|facebook\.com|fb\.com|fb\.me|wa\.me|whatsapp\.com|linktr\.ee|linktree\.com|bio\.link|beacons\.ai|taplink\.cc|youtube\.com|tiktok\.com|linkedin\.com|x\.com|twitter\.com|google\.[a-z.]+|goo\.gl|g\.page|g\.co|share\.google|business\.site|wixsite\.com|wix\.com|blogspot\.com|wordpress\.com|negocio\.site|ifood\.com\.br|doctoralia\.com\.br|bit\.ly|canva\.site)$/;
+const isPlatformKey = (k: string | null) => !!k && PLATFORM_HOST.test(k.split(/[/?]/)[0]);
+/** Link que identifica uma única empresa: perfil/página específica, ou domínio próprio. */
+const isIdentifyingKey = (k: string | null): k is string =>
+  !!k &&
+  (!isPlatformKey(k) ||
+    // Google: só com o código do local (ou a ficha /maps/place/...); demais plataformas: com o perfil no caminho
+    (/(^|\.)(google\.[a-z.]+|goo\.gl|g\.co|share\.google)$/.test(k.split(/[/?]/)[0]) ? /\?.|\/maps\/place\/./.test(k) : /[/?][^/?]/.test(k) && !/^[^/?]+\/(send|profile\.php|pages|people|groups)$/.test(k)));
+/** Domínio da chave (sem caminho), só quando é domínio próprio da empresa. */
+const ownDomain = (k: string | null) => (k && !isPlatformKey(k) ? k.split(/[/?]/)[0] : null);
+
+export type RegisteredMatch = {
+  id: string;
+  name: string;
+  /** Como foi reconhecida: mesmo link, mesmo site + nome/telefone, ou mesmo nome + telefone */
+  reason: 'link' | 'site' | 'nome_telefone';
+  landing_page: { id: string; slug: string; status: string } | null;
+};
+
+/**
+ * Marca resultados de "Buscar empresas" já cadastrados. Só marca com evidência forte:
+ * - mesmo link do perfil/site (o que foi analisado ao gerar a LP), sem contar origens de plataforma;
+ * - mesmo domínio próprio E mesmo nome ou telefone (redes/franquias dividem o domínio);
+ * - mesmo nome E mesmo telefone (nome igual sozinho não basta).
  */
 export async function matchRegisteredCompanies(
   orgId: string,
-  items: { url: string | null; website: string | null; name: string; phone: string | null }[],
-): Promise<({ id: string; name: string; landing_page: { id: string; slug: string; status: string } | null } | null)[]> {
+  items: { url: string | null; website: string | null; google_url?: string | null; name: string; phone: string | null }[],
+): Promise<(RegisteredMatch | null)[]> {
   const { rows } = await query<{
     id: string; name: string; trade_name: string | null; reference_url: string | null; website: string | null; phones: string | null;
     lp_id: string | null; lp_slug: string | null; lp_status: string | null;
   }>(
-    `select c.id, c.name, c.trade_name, c.reference_url, c.website, concat_ws(' ', c.phone, c.mobile, c.whatsapp) as phones,
+    `select c.id, c.name, c.trade_name, c.reference_url, c.website, concat_ws('|', c.phone, c.mobile, c.whatsapp) as phones,
             lp.id as lp_id, lp.slug as lp_slug, lp.status as lp_status
        from companies c
        left join lateral (select id, slug, status from landing_pages where company_id = c.id order by created_at desc limit 1) lp on true
@@ -319,26 +347,36 @@ export async function matchRegisteredCompanies(
     [orgId],
   );
   const digits = (v: string | null) => (v ?? '').replace(/\D/g, '');
-  const companies = rows.map((c) => ({
-    id: c.id,
-    name: c.trade_name || c.name,
-    landing_page: c.lp_id ? { id: c.lp_id, slug: c.lp_slug!, status: c.lp_status! } : null,
-    ref: companyUrlKey(c.reference_url),
-    site: companyUrlKey(c.website),
-    names: [c.name, c.trade_name].map(companyNameKey).filter(Boolean),
-    phones: (c.phones ?? '').split(/\s+/).map(digits).filter((d) => d.length >= 8).map((d) => d.slice(-8)),
-  }));
+  const companies = rows.map((c) => {
+    const ref = companyUrlKey(c.reference_url);
+    const site = companyUrlKey(c.website);
+    return {
+      id: c.id,
+      name: c.trade_name || c.name,
+      landing_page: c.lp_id ? { id: c.lp_id, slug: c.lp_slug!, status: c.lp_status! } : null,
+      // O link analisado identifica a empresa; o site cadastrado costuma ser só a origem (pode ser de uma rede),
+      // então conta como link exato apenas quando é um perfil em plataforma (Instagram, WhatsApp...)
+      links: [ref, isPlatformKey(site) ? site : null].filter(isIdentifyingKey),
+      domains: [ref, site].map(ownDomain).filter((d): d is string => !!d),
+      names: [c.name, c.trade_name].map(companyNameKey).filter((k): k is string => !!k),
+      phones: (c.phones ?? '').split('|').map(digits).filter((d) => d.length >= 8).map((d) => d.slice(-8)),
+    };
+  });
+  // Nome parecido: igual, ou um contém o outro inteiro ("Clínica X" × "Clínica X - Unidade Centro")
+  const sameName = (a: string, b: string) => a === b || ` ${a} `.includes(` ${b} `) || ` ${b} `.includes(` ${a} `);
   return items.map((it) => {
-    const url = companyUrlKey(it.url);
-    const site = companyUrlKey(it.website);
+    const links = [it.url, it.website, it.google_url].map(companyUrlKey).filter(isIdentifyingKey);
+    const domains = [it.url, it.website].map((u) => ownDomain(companyUrlKey(u))).filter((d): d is string => !!d);
     const name = companyNameKey(it.name);
     const phone = digits(it.phone).slice(-8);
-    const hit = companies.find(
-      (c) =>
-        (url && (c.ref === url || c.site === url)) ||
-        (site && !site.includes('/') && (c.site === site || c.ref === site)) ||
-        (name && c.names.includes(name) && phone.length === 8 && c.phones.includes(phone)),
-    );
-    return hit ? { id: hit.id, name: hit.name, landing_page: hit.landing_page } : null;
+    const hasPhone = phone.length === 8;
+    const nameHit = (c: (typeof companies)[number]) => !!name && c.names.some((n) => sameName(n, name));
+    const phoneHit = (c: (typeof companies)[number]) => hasPhone && c.phones.includes(phone);
+    let reason: RegisteredMatch['reason'] | null = null;
+    const hit =
+      companies.find((c) => links.some((l) => c.links.includes(l)) && (reason = 'link')) ??
+      companies.find((c) => domains.some((d) => c.domains.includes(d)) && (nameHit(c) || phoneHit(c)) && (reason = 'site')) ??
+      companies.find((c) => nameHit(c) && phoneHit(c) && (reason = 'nome_telefone'));
+    return hit && reason ? { id: hit.id, name: hit.name, reason, landing_page: hit.landing_page } : null;
   });
 }

@@ -399,7 +399,7 @@ export interface FoundCompany {
   google_url: string | null;
   source: 'maps' | 'web';
   /** Empresa já cadastrada (e a LP dela, se já foi gerada) */
-  existing: { id: string; name: string; landing_page: { id: string; slug: string; status: LpStatus } | null } | null;
+  existing: { id: string; name: string; reason: 'link' | 'site' | 'nome_telefone'; landing_page: { id: string; slug: string; status: LpStatus } | null } | null;
 }
 
 /** Dados do Google Maps de um local escolhido na pesquisa, enviados à análise. */

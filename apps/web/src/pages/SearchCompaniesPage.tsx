@@ -30,9 +30,19 @@ function store(next: Saved) {
 
 type Near = { lat: number; lng: number } | null;
 
+const MATCH_REASON = { link: 'mesmo link', site: 'mesmo site e nome/telefone', nome_telefone: 'mesmo nome e telefone' } as const;
+
 function ResultCard({ c, onGenerate }: { c: FoundCompany; onGenerate: () => void }) {
+  const lp = c.existing?.landing_page;
   return (
-    <Card className="flex flex-col p-4">
+    <Card className={cn('relative flex flex-col p-4', lp ? 'border-2 border-emerald-500 bg-emerald-50/40' : c.existing ? 'border-2 border-amber-400' : '')}>
+      {/* Selo bem visível: já foi coletada / já tem LP, para não gerar de novo */}
+      {c.existing ? (
+        <span className={cn('absolute -top-2.5 right-3 flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm', lp ? 'bg-emerald-600' : 'bg-amber-500')}>
+          {lp ? <CheckCircle2 className="size-3.5" /> : <Building2 className="size-3.5" />}
+          {lp ? 'LP já gerada' : 'Já coletada'}
+        </span>
+      ) : null}
       <div className="flex items-start gap-3">
         <div className="grid size-9 flex-none place-items-center rounded-lg bg-zinc-100 text-zinc-500">
           {c.source === 'maps' ? <MapPin className="size-4" /> : <Building2 className="size-4" />}
@@ -64,12 +74,14 @@ function ResultCard({ c, onGenerate }: { c: FoundCompany; onGenerate: () => void
         ) : null}
       </ul>
       {c.description ? <p className="mt-2 line-clamp-2 text-xs text-zinc-500">{c.description}</p> : null}
-      {c.existing?.landing_page ? (
-        <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-800">
-          <CheckCircle2 className="size-3.5 flex-none" /> LP já gerada ({c.existing.landing_page.status === 'ativa' ? 'publicada' : 'inativa'})
-        </p>
-      ) : c.existing ? (
-        <p className="mt-3 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">Empresa já cadastrada, ainda sem LP.</p>
+      {c.existing ? (
+        <div className={cn('mt-3 rounded-lg px-2.5 py-1.5 text-xs', lp ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-50 text-amber-900')}>
+          <p className="flex items-center gap-1.5 font-semibold">
+            {lp ? <CheckCircle2 className="size-3.5 flex-none" /> : <Building2 className="size-3.5 flex-none" />}
+            {lp ? `LP já gerada (${lp.status === 'ativa' ? 'publicada' : 'inativa'})` : 'Dados já coletados, ainda sem LP'}
+          </p>
+          <p className="mt-0.5 opacity-80">Cadastrada como “{c.existing.name}” · {MATCH_REASON[c.existing.reason]}</p>
+        </div>
       ) : null}
       <div className="mt-auto flex flex-wrap items-center justify-end gap-2 pt-4">
         {c.google_url ? (
