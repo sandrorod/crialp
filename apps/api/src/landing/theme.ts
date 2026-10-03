@@ -25,7 +25,11 @@ export interface ThemeSettings {
   elementColors?: ElementColors;
   /** Margem interna (topo/base) das seções em % do padrão, por layout (celular / computador). */
   sectionSpacing?: SectionSpacing;
+  /** Onde o logotipo aparece: cabeçalho (padrão), início do conteúdo (acima do título) ou seção "Sobre". */
+  logoPlacement?: LogoPlacement;
 }
+
+export type LogoPlacement = 'header' | 'hero' | 'about';
 
 export interface ImageFocus {
   x: number;
@@ -277,6 +281,7 @@ export interface ResolvedTheme {
   mobileOrder: string[];
   elementColors: ElementColors;
   sectionSpacing: SectionSpacing;
+  logoPlacement: LogoPlacement;
   fontsHref: string;
   vars: Record<string, string>;
 }
@@ -301,6 +306,7 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
       : [],
     elementColors: normalizeElementColors(input?.elementColors),
     sectionSpacing: normalizeSectionSpacing(input?.sectionSpacing),
+    logoPlacement: input?.logoPlacement === 'hero' || input?.logoPlacement === 'about' ? input.logoPlacement : 'header',
   };
 }
 
@@ -335,6 +341,7 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
     mobileOrder: settings.mobileOrder ?? [],
     elementColors: settings.elementColors ?? { desktop: {}, mobile: {} },
     sectionSpacing: settings.sectionSpacing ?? {},
+    logoPlacement: settings.logoPlacement ?? 'header',
     fontsHref: `https://fonts.googleapis.com/css2?${families}&display=swap`,
     vars: {
       '--bg': c.bg,

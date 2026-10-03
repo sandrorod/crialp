@@ -483,6 +483,19 @@ export function PhotosTab({
   const [removing, setRemoving] = useState(false);
   if (!images) return <div className="skeleton h-40 rounded-lg" />;
   const photos = images.filter((i) => i.type !== 'logo');
+  const logo = images.find((i) => i.type === 'logo' && i.usage_allowed);
+  const logoBox = logo ? (
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 p-3">
+      <img src={logo.url} alt="Logotipo" referrerPolicy="no-referrer" className="h-12 w-24 flex-none rounded bg-zinc-50 object-contain" />
+      <Field label="Onde mostrar o logotipo" hint="No “Sobre”, se a seção não aparecer, o logo vai para o início do conteúdo.">
+        <Select value={theme.logoPlacement ?? 'header'} onChange={(e) => onChange({ ...theme, logoPlacement: e.target.value as ThemeSettings['logoPlacement'] })}>
+          <option value="header">Topo da página (cabeçalho)</option>
+          <option value="hero">Corpo da página: início, acima do título</option>
+          <option value="about">Corpo da página: seção “Sobre”</option>
+        </Select>
+      </Field>
+    </div>
+  ) : null;
   const blocked = photos.filter((i) => !i.usage_allowed);
   // Mesma ordem da renderização: a escolhida no editor e, depois, a da empresa
   const saved = theme.imageOrder ?? [];
@@ -605,6 +618,7 @@ export function PhotosTab({
   if (!allowed.length) {
     return (
       <div className="space-y-4">
+        {logoBox}
         <p className="text-sm text-zinc-500">
           Nenhuma foto liberada para uso. Adicione fotos abaixo ou libere as fotos coletadas em "Editar empresa".
         </p>
@@ -615,6 +629,7 @@ export function PhotosTab({
 
   return (
     <div className="space-y-4">
+      {logoBox}
       <p className="text-xs text-zinc-500">
         Escolha onde cada foto aparece e arraste pela alça para mudar a ordem. Em "Automático", as fotos preenchem o topo, a seção "Sobre" e a galeria, seguindo a ordem da lista.
       </p>

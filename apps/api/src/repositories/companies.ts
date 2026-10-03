@@ -321,7 +321,7 @@ export type RegisteredMatch = {
   id: string;
   name: string;
   /** Como foi reconhecida: mesmo link, mesmo site + nome/telefone, ou mesmo nome + telefone */
-  reason: 'link' | 'site' | 'nome_telefone';
+  reason: 'link' | 'site' | 'nome_telefone' | 'nome_cep';
   landing_page: { id: string; slug: string; status: string } | null;
 };
 
@@ -333,13 +333,24 @@ export type RegisteredMatch = {
  */
 export async function matchRegisteredCompanies(
   orgId: string,
-  items: { url: string | null; website: string | null; google_url?: string | null; name: string; phone: string | null }[],
+  items: { url: string | null; website: string | null; google_url?: string | null; name: string; phone: string | null; address?: string | null }[],
 ): Promise<(RegisteredMatch | null)[]> {
   const { rows } = await query<{
     id: string; name: string; trade_name: string | null; reference_url: string | null; website: string | null; phones: string | null;
+    zip_code: string | null; google_urls: string[] | null;
     lp_id: string | null; lp_slug: string | null; lp_status: string | null;
   }>(
-    `select c.id, c.name, c.trade_name, c.reference_url, c.website, concat_ws('|', c.phone, c.mobile, c.whatsapp) as phones,
+    `select c.id, c.name, c.trade_name, c.reference_url, c.website, concat_ws('|', c.phone, c.mobile, c.whatsapp) as phones, c.zip_code,
+            -- Links do perfil no Google usados na coleta (e, em cadastros antigos, as páginas lidas)
+            array(
+              select e.v from (
+                select jsonb_array_elements_text(case when jsonb_typeof(c.source_meta->'google_urls') = 'array' then c.source_meta->'google_urls' else '[]'::jsonb end) as v
+                union all
+                select jsonb_array_elements_text(case when jsonb_typeof(c.source_meta->'pages') = 'array' then c.source_meta->'pages' else '[]'::jsonb end)
+                union all
+                select c.source_meta->>'final_url'
+              ) e where e.v is not null
+            ) as google_urls,
             lp.id as lp_id, lp.slug as lp_slug, lp.status as lp_status
        from companies c
        left join lateral (select id, slug, status from landing_pages where company_id = c.id order by created_at desc limit 1) lp on true
@@ -356,7 +367,13 @@ export async function matchRegisteredCompanies(
       landing_page: c.lp_id ? { id: c.lp_id, slug: c.lp_slug!, status: c.lp_status! } : null,
       // O link analisado identifica a empresa; o site cadastrado costuma ser só a origem (pode ser de uma rede),
       // então conta como link exato apenas quando é um perfil em plataforma (Instagram, WhatsApp...)
-      links: [ref, isPlatformKey(site) ? site : null].filter(isIdentifyingKey),
+      links: [
+        ref,
+        isPlatformKey(site) ? site : null,
+        // Só os links do Google: as demais páginas lidas são do site (e o site sozinho não identifica)
+        ...(c.google_urls ?? []).map(companyUrlKey).filter((k) => isPlatformKey(k) && /(^|\.)(google\.[a-z.]+)$/.test(k!.split(/[/?]/)[0])),
+      ].filter(isIdentifyingKey),
+      zip: (c.zip_code ?? '').replace(/\D/g, '').length === 8 ? c.zip_code!.replace(/\D/g, '') : null,
       domains: [ref, site].map(ownDomain).filter((d): d is string => !!d),
       names: [c.name, c.trade_name].map(companyNameKey).filter((k): k is string => !!k),
       phones: (c.phones ?? '').split('|').map(digits).filter((d) => d.length >= 8).map((d) => d.slice(-8)),
@@ -370,13 +387,16 @@ export async function matchRegisteredCompanies(
     const name = companyNameKey(it.name);
     const phone = digits(it.phone).slice(-8);
     const hasPhone = phone.length === 8;
+    const zip = /\b(\d{5})-?(\d{3})\b/.exec(it.address ?? '');
     const nameHit = (c: (typeof companies)[number]) => !!name && c.names.some((n) => sameName(n, name));
     const phoneHit = (c: (typeof companies)[number]) => hasPhone && c.phones.includes(phone);
+    const zipHit = (c: (typeof companies)[number]) => !!zip && c.zip === zip[1] + zip[2];
     let reason: RegisteredMatch['reason'] | null = null;
     const hit =
       companies.find((c) => links.some((l) => c.links.includes(l)) && (reason = 'link')) ??
       companies.find((c) => domains.some((d) => c.domains.includes(d)) && (nameHit(c) || phoneHit(c)) && (reason = 'site')) ??
-      companies.find((c) => nameHit(c) && phoneHit(c) && (reason = 'nome_telefone'));
+      companies.find((c) => nameHit(c) && phoneHit(c) && (reason = 'nome_telefone')) ??
+      companies.find((c) => nameHit(c) && zipHit(c) && (reason = 'nome_cep'));
     return hit && reason ? { id: hit.id, name: hit.name, reason, landing_page: hit.landing_page } : null;
   });
 }

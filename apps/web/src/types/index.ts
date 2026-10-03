@@ -264,6 +264,8 @@ export interface ThemeSettings {
   elementColors?: ElementColors;
   /** Margem interna (topo/base) das seções em % do padrão (20–100), por layout. Ausente = 100%. */
   sectionSpacing?: SectionSpacing;
+  /** Onde o logotipo aparece: cabeçalho (padrão), início do conteúdo ou seção "Sobre" */
+  logoPlacement?: 'header' | 'hero' | 'about';
 }
 
 export interface SectionSpacing {
@@ -402,7 +404,7 @@ export interface FoundCompany {
   place_id?: string | null;
   source: 'maps' | 'web';
   /** Empresa já cadastrada (e a LP dela, se já foi gerada) */
-  existing: { id: string; name: string; reason: 'link' | 'site' | 'nome_telefone'; landing_page: { id: string; slug: string; status: LpStatus } | null } | null;
+  existing: { id: string; name: string; reason: 'link' | 'site' | 'nome_telefone' | 'nome_cep'; landing_page: { id: string; slug: string; status: LpStatus } | null } | null;
 }
 
 /** Dados do Google Maps de um local escolhido na pesquisa, enviados à análise. */
@@ -415,6 +417,7 @@ export interface PlaceListing {
   reviews: number | null;
   photos?: string[] | null;
   place_id?: string | null;
+  google_url?: string | null;
 }
 
 /** Pesquisa salva no histórico de "Buscar empresas". */

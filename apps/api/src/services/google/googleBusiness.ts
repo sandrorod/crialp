@@ -64,7 +64,7 @@ function placeIdOf(url: URL): string | null {
  * pelo mesmo caminho (IA + verificação anti-invenção). Se o perfil tiver um site próprio, ele também
  * é lido e somado. `website` é o site da empresa (ou null).
  */
-export async function scrapeGoogleBusiness(input: URL, scraper: ScraperService): Promise<{ scrape: ScrapeResult; website: string | null; photoNote: string | null }> {
+export async function scrapeGoogleBusiness(input: URL, scraper: ScraperService): Promise<{ scrape: ScrapeResult; website: string | null; photoNote: string | null; googleUrls: string[] }> {
   const url = await resolveShortLink(input);
   // Busca do Google com vários resultados (ex.: "manutenção predial"): não diz qual empresa é. O link
   // de uma empresa (botão Compartilhar do painel dela) traz "kgmid"/"ludocid" junto com o nome.
@@ -86,7 +86,8 @@ export async function scrapeGoogleBusiness(input: URL, scraper: ScraperService):
     throw err;
   });
   if (!info) throw new AppError(422, `Não consegui ler os dados de "${query}" no Google Maps (empresas que atendem no local do cliente, sem endereço público, às vezes não aparecem). Use o site da empresa ou preencha os dados manualmente.`, 'GOOGLE_NOT_FOUND');
-  return fromPlaceInfo(input, info, scraper, { businessId: placeIdOf(url) });
+  const r = await fromPlaceInfo(input, info, scraper, { businessId: placeIdOf(url) });
+  return { ...r, googleUrls: [...new Set([input.toString(), url.toString(), info.mapsUri])] };
 }
 
 /** Local escolhido em "Buscar empresas": os dados do Maps já vieram na pesquisa, sem consultar de novo. */
@@ -97,6 +98,8 @@ export interface PlaceListing {
   website?: string | null;
   rating?: number | null;
   reviews?: number | null;
+  /** Página do local no Google Maps (link da pesquisa) */
+  google_url?: string | null;
   /** Fotos do perfil no Google que vieram na pesquisa */
   photos?: string[] | null;
   /** Código do local no Google, para buscar mais fotos */
@@ -120,10 +123,12 @@ export async function scrapeGooglePlaceListing(input: URL, place: PlaceListing, 
       return null;
     });
   const text = full ? `${full.text}\n${lines.join('\n')}` : lines.join('\n');
-  return fromPlaceInfo(input, { text, mapsUri: input.toString(), title: place.name }, scraper, {
+  const r = await fromPlaceInfo(input, { text, mapsUri: input.toString(), title: place.name }, scraper, {
     businessId: place.place_id ?? placeIdOf(input),
     known: place.photos ?? [],
   });
+  const googleUrls = [input.toString(), full?.mapsUri, place.google_url].filter((u): u is string => !!u);
+  return { ...r, googleUrls: [...new Set(googleUrls)] };
 }
 
 const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();

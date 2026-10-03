@@ -53,9 +53,9 @@ function mergeSectionOrder(order: SectionOrderKey[], keys: string[]): SectionOrd
  */
 function renderedThemeKey(t: ThemeSettings | null | undefined, c: LandingContent | null | undefined) {
   if (!t) return '';
-  const { preset, primary, accent, heroVariant, sections, images, template, imageOrder } = t;
+  const { preset, primary, accent, heroVariant, sections, images, template, imageOrder, logoPlacement } = t;
   // Todo o conteúdo (textos, seções desativadas, ordem, seções personalizadas) também é renderizado no servidor
-  return JSON.stringify({ preset, primary, accent, heroVariant, sections, images, template, imageOrder, content: c ?? null });
+  return JSON.stringify({ preset, primary, accent, heroVariant, sections, images, template, imageOrder, logoPlacement, content: c ?? null });
 }
 
 export function LandingPageEditorPage() {

@@ -30,7 +30,7 @@ function store(next: Saved) {
 
 type Near = { lat: number; lng: number } | null;
 
-const MATCH_REASON = { link: 'mesmo link', site: 'mesmo site e nome/telefone', nome_telefone: 'mesmo nome e telefone' } as const;
+const MATCH_REASON = { link: 'mesmo link', site: 'mesmo site e nome/telefone', nome_telefone: 'mesmo nome e telefone', nome_cep: 'mesmo nome e CEP' } as const;
 
 function ResultCard({ c, onGenerate }: { c: FoundCompany; onGenerate: () => void }) {
   const lp = c.existing?.landing_page;
@@ -203,7 +203,7 @@ export function SearchCompaniesPage() {
   const generate = (c: FoundCompany) => {
     // A análise usa os dados já trazidos pela pesquisa (sem consultar o Maps de novo)
     try {
-      sessionStorage.setItem(`lp:place:${c.url}`, JSON.stringify({ name: c.name, phone: c.phone, address: c.address, website: c.website, rating: c.rating, reviews: c.reviews, photos: c.photos ?? null, place_id: c.place_id ?? null }));
+      sessionStorage.setItem(`lp:place:${c.url}`, JSON.stringify({ name: c.name, phone: c.phone, address: c.address, website: c.website, rating: c.rating, reviews: c.reviews, photos: c.photos ?? null, place_id: c.place_id ?? null, google_url: c.google_url }));
     } catch {
       /* sem armazenamento: a análise consulta o Maps pelo link */
     }

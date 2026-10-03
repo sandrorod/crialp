@@ -149,11 +149,15 @@ export function buildContext(opts: {
   const origin = new URL(pageUrl).origin;
   const ogImage = opts.seo.ogImage ?? heroImage?.url ?? logoImg?.url ?? null;
 
+  // Logotipo na seção "Sobre" que não vai aparecer (sem texto ou desativada): vai para o início do conteúdo
+  const aboutShown = !!content.about?.paragraphs.length && content.section_order.includes('about') && !(content.hidden_sections ?? []).includes('about');
+  const logoTheme = theme.logoPlacement === 'about' && !aboutShown ? { ...theme, logoPlacement: 'hero' as const } : theme;
+
   return {
     editable: !!opts.editable,
     company,
     content,
-    theme,
+    theme: logoTheme,
     labels,
     displayName,
     logo: logoImg ? { url: logoImg.url, alt: logoImg.alt_text || displayName } : null,

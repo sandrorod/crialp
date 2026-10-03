@@ -132,6 +132,8 @@ export async function analyzeUrl(job: JobHandle, url: URL, opts: { allowImages?:
     design_preset: extracted.design_preset,
     meta: {
       final_url: scrape.finalUrl,
+      // Links do perfil no Google (o mesmo local aparece na pesquisa por qualquer um deles)
+      google_urls: google?.googleUrls ?? [],
       pages: scrape.pages.map((p) => p.url),
       missing_info: google?.photoNote ? [...extracted.missing_info, google.photoNote] : extracted.missing_info,
       removed: v.removed,

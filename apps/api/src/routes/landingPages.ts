@@ -126,6 +126,8 @@ const ContentUpdateSchema = z.object({
     // Ponto de corte das fotos do topo/"sobre": { "<url>": { "x": 0-100, "y": 0-100 } }
     focus: z.record(z.string().max(2048), z.object({ x: z.number().min(0).max(100), y: z.number().min(0).max(100), z: z.number().min(1).max(3).optional() })).optional(),
     imageOrder: z.array(z.string().max(2048)).max(300).optional(),
+    // Onde o logotipo aparece: cabeçalho, início do conteúdo ou seção "Sobre"
+    logoPlacement: z.enum(['header', 'hero', 'about']).optional(),
     // Ordem das seções só no celular (vazia = igual ao computador)
     mobileOrder: z.array(z.string().max(60)).max(60).optional(),
     // Cores e estilo do texto de elementos clicados na prévia: { desktop: { "<seletor>": { text, bg, size, font, bold, italic, underline } }, mobile: {...} }

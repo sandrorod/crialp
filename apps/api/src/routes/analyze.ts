@@ -45,6 +45,7 @@ analyzeRouter.post('/analyze-url', aiLimiter, async (req, res) => {
           reviews: z.number().int().min(0).nullish(),
           photos: z.array(z.string().url().max(2048)).max(40).nullish(),
           place_id: z.string().max(200).nullish(),
+          google_url: z.string().max(2048).nullish(),
         })
         .optional(),
     }),

@@ -39,6 +39,8 @@ p{margin:0;text-wrap:pretty}
 .site-header .container{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:72px}
 .brand{display:flex;align-items:center;gap:12px;text-decoration:none;min-width:0}
 .brand img{max-height:44px;width:auto;max-width:180px;object-fit:contain}
+.body-logo{display:block;width:auto;height:auto;max-width:min(260px,70%);max-height:110px;object-fit:contain;margin:0 0 22px}
+.hero-centered .body-logo{margin-left:auto;margin-right:auto}
 .brand span{font-family:var(--font-heading);font-weight:var(--heading-weight);text-transform:var(--heading-case);letter-spacing:var(--heading-tracking);font-size:21px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nav{display:none;gap:30px;font-size:15px;font-weight:500}
 .nav a{text-decoration:none;color:var(--muted);transition:color .2s}.nav a:hover{color:var(--text)}

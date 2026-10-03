@@ -7,6 +7,9 @@ function Copy({ ctx }: { ctx: RenderContext }) {
   const { hero } = ctx.content;
   return (
     <>
+      {ctx.logo && ctx.theme.logoPlacement === 'hero' ? (
+        <img className="body-logo hero-logo reveal" referrerPolicy="no-referrer" src={ctx.logo.url} alt={ctx.logo.alt} />
+      ) : null}
       {hero.eyebrow || ctx.editable ? <div className="eyebrow reveal" {...edOptional(ctx, 'hero.eyebrow', 'Linha de apoio (opcional)')}>{hero.eyebrow}</div> : null}
       <h1 className="reveal" {...ed(ctx, 'hero.headline')}>{hero.headline}</h1>
       <p className="sub reveal" {...ed(ctx, 'hero.subheadline')}>{hero.subheadline}</p>

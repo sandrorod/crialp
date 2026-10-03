@@ -18,6 +18,9 @@ export function AboutSection({ ctx, alt }: { ctx: RenderContext; alt: boolean })
     <section id="sobre" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container about">
         <div className="about-text">
+          {ctx.logo && ctx.theme.logoPlacement === 'about' ? (
+            <img className="body-logo about-logo reveal" referrerPolicy="no-referrer" src={ctx.logo.url} alt={ctx.logo.alt} loading="lazy" />
+          ) : null}
           <SectionHead eyebrow={ctx.labels.eyebrow_about} title={about.title} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_about'), title: ed(ctx, 'about.title') }} />
           <div className="reveal">
             {about.paragraphs.map((p, i) => (
