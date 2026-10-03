@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { AlertTriangle, Building2, CheckCircle2, ExternalLink, Globe, History, Loader2, MapPin, PanelsTopLeft, Phone, Search, Sparkles, Star, Trash2 } from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle2, ChevronDown, ExternalLink, Globe, History, Loader2, MapPin, PanelsTopLeft, Phone, Search, Sparkles, Star, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card, ErrorBlock, Input, PageHeader } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
@@ -123,6 +123,8 @@ export function SearchCompaniesPage() {
   const [searchId, setSearchId] = useState<string | null>(saved?.searchId ?? null);
   const history = useAsync(() => searchService.history(), []);
   const [opening, setOpening] = useState<string | null>(null);
+  // No celular o histórico começa recolhido (no computador fica sempre aberto)
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   /** Abre uma pesquisa do histórico: resultados salvos, com a marcação atual de cadastrada / LP gerada. */
   const openSaved = async (id: string, quiet = false) => {
@@ -272,7 +274,14 @@ export function SearchCompaniesPage() {
       {/* Histórico de pesquisas: clicar mostra os resultados salvos, sem nova consulta */}
       <aside className="lg:order-none order-first">
         <Card className="p-4">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><History className="size-4" /> Pesquisas anteriores</h2>
+          <h2 className="text-sm font-semibold">
+            <button type="button" onClick={() => setHistoryOpen((o) => !o)} aria-expanded={historyOpen} className="flex w-full items-center gap-2 text-left lg:pointer-events-none">
+              <History className="size-4" /> Pesquisas anteriores
+              {history.data?.items.length ? <span className="text-xs font-normal text-zinc-500">({history.data.items.length})</span> : null}
+              <ChevronDown className={cn('ml-auto size-4 text-zinc-500 transition-transform lg:hidden', historyOpen && 'rotate-180')} />
+            </button>
+          </h2>
+          <div className={cn('mt-3', !historyOpen && 'hidden lg:block')}>
           {history.loading && !history.data ? (
             <p className="text-xs text-zinc-500">Carregando…</p>
           ) : history.error && !history.data ? (
@@ -286,7 +295,7 @@ export function SearchCompaniesPage() {
             <ul className="max-h-[60vh] space-y-1 overflow-y-auto">
               {history.data.items.map((h) => (
                 <li key={h.id} className={cn('group flex items-center gap-1 rounded-lg', h.id === searchId ? 'bg-zinc-100' : 'hover:bg-zinc-50')}>
-                  <button type="button" onClick={() => void openSaved(h.id)} className="min-w-0 flex-1 px-2.5 py-2 text-left">
+                  <button type="button" onClick={() => { setHistoryOpen(false); void openSaved(h.id); }} className="min-w-0 flex-1 px-2.5 py-2 text-left">
                     <span className="flex items-center gap-1.5 truncate text-sm font-medium">
                       {opening === h.id ? <Loader2 className="size-3.5 flex-none animate-spin" /> : null}
                       {h.query}
@@ -302,6 +311,7 @@ export function SearchCompaniesPage() {
               ))}
             </ul>
           )}
+          </div>
         </Card>
       </aside>
       </div>
