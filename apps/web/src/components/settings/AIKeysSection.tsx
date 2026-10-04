@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { AlertTriangle, KeyRound, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, CardSection, ConfirmDialog, ErrorBlock, Field, Input, LoadingBlock, StatusToggle } from '@/components/ui';
@@ -33,6 +33,12 @@ const PROVIDERS: Record<KeyProvider, { name: string; title: string; description:
 export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider }) {
   const cfg = PROVIDERS[provider];
   const { data, error, loading, reload } = useAsync(() => miscService.apiKeys(provider), [provider]);
+  // Chave movida de uma lista para a outra: as duas seções recarregam
+  useEffect(() => {
+    const h = () => void reload();
+    window.addEventListener('lp-keys-changed', h);
+    return () => window.removeEventListener('lp-keys-changed', h);
+  }, [reload]);
   const [key, setKey] = useState('');
   const [label, setLabel] = useState('');
   const [adding, setAdding] = useState(false);
@@ -49,7 +55,12 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
       const created = await miscService.addApiKey(provider, key.trim(), label.trim());
       setNewId(created.id);
       showKey(created.id);
-      toast.success(`Chave •••• ${created.last4} validada e adicionada à lista "${cfg.title}".`);
+      toast.success(
+        created.moved_from
+          ? `A chave •••• ${created.last4} estava em "${created.moved_from}" e foi movida para "${cfg.title}".`
+          : `Chave •••• ${created.last4} validada e adicionada à lista "${cfg.title}".`,
+      );
+      if (created.moved_from) window.dispatchEvent(new Event('lp-keys-changed'));
       setKey('');
       setLabel('');
     } catch (err) {

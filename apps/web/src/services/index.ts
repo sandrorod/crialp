@@ -124,7 +124,7 @@ export const miscService = {
   /** Chaves com rodízio por provedor (Gemini e RapidAPI) */
   apiKeys: (provider: KeyProvider) =>
     api.get<{ keys: AIKeyInfo[]; env_key: { last4: string } | null; provider_active: boolean }>(`/settings/keys/${provider}`),
-  addApiKey: (provider: KeyProvider, key: string, label?: string) => api.post<AIKeyInfo>(`/settings/keys/${provider}`, { key, label: label || null }),
+  addApiKey: (provider: KeyProvider, key: string, label?: string) => api.post<AIKeyInfo & { moved_from?: string }>(`/settings/keys/${provider}`, { key, label: label || null }),
   updateApiKey: (provider: KeyProvider, id: string, body: { active?: boolean; label?: string | null }) => api.patch(`/settings/keys/${provider}/${id}`, body),
   removeApiKey: (provider: KeyProvider, id: string) => api.del(`/settings/keys/${provider}/${id}`),
   /** Tira do rodízio a chave da variável de ambiente (GEMINI_API_KEY / RAPIDAPI_KEY) */

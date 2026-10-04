@@ -71,14 +71,9 @@ miscRouter.post('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async
   // Mensagem diz onde a chave já está (a chave do servidor aparece na lista como "Chave do servidor")
   const names: Record<string, string> = { gemini: 'Chaves do Gemini', rapidapi: 'Chaves do RapidAPI' };
   const registered = await aiKeyStore.findByKey(body.key);
-  if (registered) {
+  if (registered && registered.provider === provider) {
     const which = `"${registered.label || 'Chave'} (•••• ${registered.last4})"`;
-    throw new AppError(
-      409,
-      registered.provider === provider ? `Esta chave já está na lista como ${which}.` : `Esta chave já está cadastrada em "${names[registered.provider] ?? registered.provider}" como ${which}.`,
-      'KEY_EXISTS',
-      { id: registered.id, provider: registered.provider },
-    );
+    throw new AppError(409, `Esta chave já está na lista como ${which}.`, 'KEY_EXISTS', { id: registered.id, provider: registered.provider });
   }
   // Mesma chave da variável do servidor: passa a ser gerenciada pelo painel (entra na lista com o nome
   // escolhido e sai do lugar de "Chave do servidor", sem ficar duas vezes no rodízio)
@@ -93,6 +88,13 @@ miscRouter.post('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async
     }
   } else {
     await testRapidApiKey(body.key);
+  }
+  // Chave cadastrada na lista do outro provedor (ex.: chave do Gemini colada em "Chaves do RapidAPI"):
+  // já passou no teste deste provedor, então é movida para cá em vez de recusar
+  if (registered) {
+    const moved = await aiKeyStore.moveTo(registered.id, provider, body.label);
+    res.status(201).json({ ...moved, moved_from: names[registered.provider] ?? registered.provider });
+    return;
   }
   const created = await aiKeyStore.add({ key: body.key, label: body.label, userId: user.id }, provider);
   if (sameAsEnv) await aiKeyStore.removeEnvKey(envKeyOf(provider)!, provider);

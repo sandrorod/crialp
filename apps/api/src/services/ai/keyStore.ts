@@ -123,6 +123,17 @@ export const aiKeyStore = {
     return row!;
   },
 
+  /** Passa uma chave para a lista de outro provedor (zera erros; o nome novo, se informado, substitui o antigo). */
+  async moveTo(id: string, provider: string, label?: string | null): Promise<AIKeyInfo> {
+    const row = await one<AIKeyInfo>(
+      `update ai_api_keys set provider = $2, label = coalesce($3, label), active = true, last_error = null, last_error_at = null
+        where id = $1
+        returning id, label, last4, active, uses::int as uses, last_used_at, last_error, last_error_at, created_at`,
+      [id, provider, label?.trim() || null],
+    );
+    return row!;
+  },
+
   async update(id: string, patch: { active?: boolean; label?: string | null }) {
     const { rowCount } = await query(
       `update ai_api_keys set active = coalesce($2, active), label = case when $3::boolean then $4 else label end where id = $1`,
