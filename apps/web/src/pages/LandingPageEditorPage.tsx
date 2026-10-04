@@ -36,7 +36,7 @@ const STAFF_TABS: Tab[] = ['publicacao', 'cliente'];
 
 const MODES: { key: PreviewMode; label: string; icon: typeof Monitor; hint: string }[] = [
   { key: 'textos', label: 'Textos', icon: PenLine, hint: 'Clique em qualquer texto contornado para editar ali mesmo (A− / A+ mudam o tamanho). Enter ou clicar fora confirma; Esc desfaz. Clique num ícone para trocá-lo.' },
-  { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste qualquer foto (topo, "Sobre" e galeria) para ajustar o enquadramento; use − / + para o zoom.' },
+  { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste qualquer foto (topo, "Sobre" e galeria) para ajustar o enquadramento; use − / + para o zoom. Arraste as alças azuis das bordas para mudar a largura e a altura (duplo clique volta ao padrão).' },
   { key: 'secoes', label: 'Seções', icon: Rows3, hint: 'Arraste as seções pelo botão ⠿ (ou use ↑ ↓) para mudar a ordem.' },
   { key: 'espacos', label: 'Espaços', icon: MoveVertical, hint: 'Arraste a alça azul "↕ Espaço" na borda de baixo de cada seção: para cima diminui a margem interna, para baixo aumenta. Duplo clique volta ao padrão.' },
   { key: 'cores', label: 'Cores', icon: Palette, hint: 'Clique em qualquer elemento (título, texto, botão, fundo…) para escolher a cor da fonte, do fundo e o tamanho.' },
@@ -304,7 +304,7 @@ export function LandingPageEditorPage() {
             </div>
             <p className="mb-2 text-center text-xs text-zinc-500">
               {MODES.find((m) => m.key === mode)?.hint}
-              {mode !== 'fotos' ? ` ${mode === 'textos' ? 'O tamanho vale' : 'Vale'} só para o layout de ${device === 'mobile' ? 'celular' : 'computador'}.` : ''}
+              {` ${mode === 'textos' || mode === 'fotos' ? 'O tamanho vale' : 'Vale'} só para o layout de ${device === 'mobile' ? 'celular' : 'computador'}.`}
             </p>
             {dirty ? <p className="mb-2 text-center text-xs text-amber-700">Há alterações não salvas. Clique em Salvar para publicá-las nesta versão.</p> : null}
             <div className="relative">
@@ -361,6 +361,18 @@ export function LandingPageEditorPage() {
                   if (pct === null) delete map[key];
                   else map[key] = pct;
                   return { ...t, sectionSpacing: { ...sp, sections: { ...sp.sections, [device]: map } } };
+                });
+                setDirty(true);
+              }}
+              imageSize={theme.imageSize}
+              onImageSize={(url, box) => {
+                setTheme((t) => {
+                  if (!t) return t;
+                  const all = t.imageSize ?? {};
+                  const map = { ...(all[device] ?? {}) };
+                  if (box) map[url] = box;
+                  else delete map[url];
+                  return { ...t, imageSize: { ...all, [device]: map } };
                 });
                 setDirty(true);
               }}

@@ -5,6 +5,7 @@ import { CustomSectionView } from './sections/CustomSection.js';
 import { finalCtaVars, sectionVars } from './sectionColors.js';
 import { elementColorsCss, elementFontsHref, MOBILE_MAX } from './elementColors.js';
 import { sectionSpacingCss } from './spacing.js';
+import { imageSizesCss } from './imageSize.js';
 import type { CSSProperties, ReactNode } from 'react';
 
 /** Envolve a seção num contêiner que redefine as variáveis de cor (quando houver cores próprias). */
@@ -195,6 +196,7 @@ export function renderLandingPage(ctx: RenderContext): string {
         {/* O editor substitui este bloco ao vivo quando uma cor é escolhida na prévia */}
         <style id="lp-colors" dangerouslySetInnerHTML={{ __html: elementColorsCss(theme.elementColors) }} />
         <style id="lp-spacing" dangerouslySetInnerHTML={{ __html: sectionSpacingCss(theme.sectionSpacing) }} />
+        <style id="lp-image-size" dangerouslySetInnerHTML={{ __html: imageSizesCss(theme.imageSize) }} />
         <script dangerouslySetInnerHTML={{ __html: REVEAL_SCRIPT }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ctx) }} />
       </head>

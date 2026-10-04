@@ -1,4 +1,4 @@
-import type { ElementColor, ElementColors, LandingContent, SectionSpacing } from '@/types';
+import type { ElementColor, ElementColors, ImageBox, ImageSizes, LandingContent, SectionSpacing } from '@/types';
 
 /** Ferramentas ativas na prévia: enquadrar fotos, arrastar seções ou escolher cores. */
 export type PreviewMode = 'textos' | 'fotos' | 'secoes' | 'espacos' | 'cores';
@@ -85,6 +85,147 @@ export function sectionSpacingCss(s: SectionSpacing | undefined): string {
   return [desktop ? `@media(min-width:${MOBILE_MAX + 1}px){${desktop}}` : '', mobile ? `@media(max-width:${MOBILE_MAX}px){${mobile}}` : ''].join('');
 }
 
+// ─── Tamanho das fotos ──────────────────────────────────────────────
+const IMG_W_MIN = 20;
+const IMG_H_MIN = 80;
+const IMG_H_MAX = 1400;
+const cssString = (v: string) => v.replace(/[\\"]/g, (c) => `\\${c}`).replace(/[\n\r<>]/g, '');
+
+/** Mesmo CSS gerado na página publicada (apps/api/src/landing/imageSize.ts). */
+export function imageSizesCss(s: ImageSizes | undefined): string {
+  const rules = (map: Record<string, ImageBox> = {}) =>
+    Object.entries(map)
+      .map(([url, b]) => {
+        const decl = [
+          b.w !== undefined ? `width:${b.w}%!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important` : '',
+          b.h !== undefined ? `height:${b.h}px!important;aspect-ratio:auto!important;min-height:0!important;align-self:start` : '',
+        ].filter(Boolean).join(';');
+        return decl ? `:has(>img[data-lp-img="${cssString(url)}"]){${decl}}` : '';
+      })
+      .join('');
+  const desktop = rules(s?.desktop);
+  const mobile = rules(s?.mobile);
+  return [desktop ? `@media(min-width:${MOBILE_MAX + 1}px){${desktop}}` : '', mobile ? `@media(max-width:${MOBILE_MAX}px){${mobile}}` : ''].join('');
+}
+
+export function setImageSizeCss(doc: Document, css: string) {
+  let style = doc.getElementById('lp-image-size');
+  if (!style) {
+    style = doc.createElement('style');
+    style.id = 'lp-image-size';
+    doc.head.appendChild(style);
+  }
+  style.textContent = css;
+  // O tamanho aplicado durante o arrasto sai do estilo em linha: passa a valer o CSS do editor
+  doc.querySelectorAll<HTMLElement>('[data-lp-resized]').forEach((el) => {
+    ['width', 'max-width', 'height', 'aspect-ratio', 'min-height', 'margin-left', 'margin-right'].forEach((p) => el.style.removeProperty(p));
+    delete el.dataset.lpResized;
+  });
+}
+
+type Edge = 'left' | 'right' | 'top' | 'bottom';
+
+/**
+ * Modo "Fotos": alças nas quatro bordas das fotos (topo, "Sobre" e galeria). Laterais mudam a largura
+ * (a foto fica centralizada, então cresce para os dois lados); topo e base mudam a altura.
+ * Duplo clique numa alça volta aquela medida ao padrão do modelo. `onSize(url, null)` = tudo no padrão.
+ */
+export function attachImageResize(doc: Document, getSize: (url: string) => ImageBox | undefined, onSize: (url: string, box: ImageBox | null) => void, uiScale = 1) {
+  const px = (n: number) => `${Math.round(n * uiScale)}px`;
+  doc.querySelectorAll<HTMLImageElement>('img[data-lp-img]').forEach((img) => {
+    const url = img.dataset.lpImg;
+    const frame = img.parentElement;
+    if (!url || !frame || frame.dataset.lpResize) return;
+    frame.dataset.lpResize = '1';
+    if (doc.defaultView?.getComputedStyle(frame).position === 'static') frame.style.position = 'relative';
+
+    const label = doc.createElement('div');
+    label.dataset.lpUi = 'resize';
+    label.setAttribute('style', `position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:7;display:none;padding:${px(6)} ${px(10)};border-radius:999px;background:rgba(17,17,17,.8);color:#fff;font:600 ${px(13)}/1 system-ui,sans-serif;pointer-events:none;white-space:nowrap`);
+    frame.appendChild(label);
+
+    const make = (edge: Edge) => {
+      const h = doc.createElement('div');
+      h.dataset.lpUi = 'resize';
+      const horizontal = edge === 'left' || edge === 'right';
+      const long = px(54);
+      const thick = px(12);
+      const pos =
+        edge === 'left' ? `left:${px(4)};top:50%;margin-top:-${px(27)}` :
+        edge === 'right' ? `right:${px(4)};top:50%;margin-top:-${px(27)}` :
+        edge === 'top' ? `top:${px(4)};left:50%;margin-left:-${px(27)}` :
+        `bottom:${px(4)};left:50%;margin-left:-${px(27)}`;
+      h.setAttribute(
+        'style',
+        `position:absolute;${pos};z-index:6;width:${horizontal ? thick : long};height:${horizontal ? long : thick};border-radius:999px;background:#2563eb;border:${px(2)} solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);cursor:${horizontal ? 'ew-resize' : 'ns-resize'};touch-action:none`,
+      );
+      h.title = horizontal ? 'Arraste para mudar a largura (duplo clique: padrão)' : 'Arraste para mudar a altura (duplo clique: padrão)';
+
+      h.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const cur = { ...(getSize(url) ?? {}) };
+        if (horizontal) delete cur.w;
+        else delete cur.h;
+        onSize(url, cur.w === undefined && cur.h === undefined ? null : cur);
+      });
+
+      h.addEventListener('pointerdown', (e) => {
+        if (currentMode(doc) !== 'fotos' || e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const cur = getSize(url) ?? {};
+        const rect = frame.getBoundingClientRect();
+        // Largura total disponível (100%) a partir da largura atual e do % aplicado
+        const available = rect.width / ((cur.w ?? 100) / 100);
+        const sx = e.clientX;
+        const sy = e.clientY;
+        let next: ImageBox = { ...cur };
+        h.setPointerCapture(e.pointerId);
+        label.style.display = 'block';
+        const show = () => {
+          const w = next.w ?? 100;
+          label.textContent = horizontal ? `Largura ${Math.round(w)}%` : `Altura ${Math.round(next.h ?? rect.height)}px`;
+        };
+        show();
+        const move = (ev: PointerEvent) => {
+          frame.dataset.lpResized = '1';
+          if (horizontal) {
+            // Centralizada: a borda acompanha o ponteiro, então a largura muda o dobro do deslocamento
+            const dx = (ev.clientX - sx) * (edge === 'right' ? 2 : -2);
+            const w = Math.min(100, Math.max(IMG_W_MIN, ((rect.width + dx) / available) * 100));
+            next = { ...next, w: Math.round(w * 10) / 10 };
+            frame.style.setProperty('width', `${next.w}%`, 'important');
+            frame.style.setProperty('max-width', '100%', 'important');
+            frame.style.setProperty('margin-left', 'auto', 'important');
+            frame.style.setProperty('margin-right', 'auto', 'important');
+          } else {
+            const dy = (ev.clientY - sy) * (edge === 'bottom' ? 1 : -1);
+            next = { ...next, h: Math.round(Math.min(IMG_H_MAX, Math.max(IMG_H_MIN, rect.height + dy))) };
+            frame.style.setProperty('height', `${next.h}px`, 'important');
+            frame.style.setProperty('aspect-ratio', 'auto', 'important');
+            frame.style.setProperty('min-height', '0', 'important');
+          }
+          show();
+        };
+        const up = () => {
+          h.removeEventListener('pointermove', move);
+          h.removeEventListener('pointerup', up);
+          h.removeEventListener('pointercancel', up);
+          label.style.display = 'none';
+          if (next.w !== undefined && next.w >= 100) delete next.w;
+          if (next.w !== cur.w || next.h !== cur.h) onSize(url, next.w === undefined && next.h === undefined ? null : next);
+        };
+        h.addEventListener('pointermove', move);
+        h.addEventListener('pointerup', up);
+        h.addEventListener('pointercancel', up);
+      });
+      return h;
+    };
+    frame.append(make('left'), make('right'), make('top'), make('bottom'));
+  });
+}
+
 /**
  * Modo "Espaços": cada seção ganha uma alça na borda de baixo. Arrastar para cima diminui
  * (para baixo aumenta) a margem interna de cima e de baixo daquela seção; duplo clique volta ao padrão.
@@ -167,7 +308,9 @@ function refreshSpacingLabels(doc: Document) {
 
 /** Estilo dos controles do editor dentro da prévia (não existe na página publicada). */
 const EDITOR_CSS = `
-html:not(.lp-mode-fotos) [data-lp-ui="zoom"]{display:none!important}
+html:not(.lp-mode-fotos) [data-lp-ui="zoom"],html:not(.lp-mode-fotos) [data-lp-ui="resize"]{display:none!important}
+[data-lp-ui="resize"]{opacity:.85;transition:opacity .15s,transform .15s}
+[data-lp-ui="resize"]:hover{opacity:1}
 html:not(.lp-mode-textos) [data-lp-ui="quote-edit"],html.lp-mode-textos .quote-more{display:none!important}
 html:not(.lp-mode-secoes) [data-lp-ui="section"]{display:none!important}
 html:not(.lp-mode-espacos) [data-lp-ui="spacing"]{display:none!important}

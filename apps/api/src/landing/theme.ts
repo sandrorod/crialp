@@ -2,6 +2,7 @@ import { DESIGN_PRESETS, type DesignPreset } from '../services/ai/schemas.js';
 import { normalizeSectionColors, type SectionColors } from './sectionColors.js';
 import { normalizeElementColors, type ElementColors } from './elementColors.js';
 import { normalizeSectionSpacing, type SectionSpacing } from './spacing.js';
+import { normalizeImageSizes, type ImageSizes } from './imageSize.js';
 
 export interface ThemeSettings {
   preset: DesignPreset;
@@ -25,6 +26,8 @@ export interface ThemeSettings {
   elementColors?: ElementColors;
   /** Margem interna (topo/base) das seções em % do padrão, por layout (celular / computador). */
   sectionSpacing?: SectionSpacing;
+  /** Largura (%) e altura (px) das fotos arrastadas na prévia, por layout (celular / computador). */
+  imageSize?: ImageSizes;
   /** Onde o logotipo aparece: cabeçalho (padrão), início do conteúdo (acima do título) ou seção "Sobre". */
   logoPlacement?: LogoPlacement;
 }
@@ -385,6 +388,7 @@ export interface ResolvedTheme {
   mobileOrder: string[];
   elementColors: ElementColors;
   sectionSpacing: SectionSpacing;
+  imageSize: ImageSizes;
   logoPlacement: LogoPlacement;
   fontsHref: string;
   vars: Record<string, string>;
@@ -410,6 +414,7 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
       : [],
     elementColors: normalizeElementColors(input?.elementColors),
     sectionSpacing: normalizeSectionSpacing(input?.sectionSpacing),
+    imageSize: normalizeImageSizes(input?.imageSize),
     logoPlacement: input?.logoPlacement === 'hero' || input?.logoPlacement === 'about' ? input.logoPlacement : 'header',
   };
 }
@@ -463,6 +468,7 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
     mobileOrder: settings.mobileOrder ?? [],
     elementColors: settings.elementColors ?? { desktop: {}, mobile: {} },
     sectionSpacing: settings.sectionSpacing ?? {},
+    imageSize: settings.imageSize ?? {},
     logoPlacement: settings.logoPlacement ?? 'header',
     fontsHref: `https://fonts.googleapis.com/css2?${families}&display=swap`,
     vars: {

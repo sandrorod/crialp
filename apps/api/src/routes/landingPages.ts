@@ -101,6 +101,7 @@ landingPagesRouter.get('/:id/export', async (req, res) => {
 });
 
 // Cor, tamanho e estilo do texto de um elemento clicado na prévia
+const ImageBoxSchema = z.object({ w: z.number().min(0).max(100).optional(), h: z.number().min(0).max(5000).optional() });
 const ElementStyleSchema = z.object({
   text: z.string().max(9).nullish(),
   bg: z.string().max(9).nullish(),
@@ -151,6 +152,13 @@ const ContentUpdateSchema = z.object({
         sections: z
           .object({ desktop: z.record(z.string().max(60), z.number().min(0).max(150)).optional(), mobile: z.record(z.string().max(60), z.number().min(0).max(150)).optional() })
           .optional(),
+      })
+      .optional(),
+    // Tamanho das fotos arrastado na prévia: { desktop: { "<url>": { w: 20-100 (%), h: 80-1400 (px) } }, mobile: {...} }
+    imageSize: z
+      .object({
+        desktop: z.record(z.string().max(2048), ImageBoxSchema).optional(),
+        mobile: z.record(z.string().max(2048), ImageBoxSchema).optional(),
       })
       .optional(),
   }),

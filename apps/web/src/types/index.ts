@@ -270,8 +270,20 @@ export interface ThemeSettings {
   elementColors?: ElementColors;
   /** Margem interna (topo/base) das seções em % do padrão (20–100), por layout. Ausente = 100%. */
   sectionSpacing?: SectionSpacing;
+  /** Tamanho das fotos (topo, "Sobre" e galeria) por URL, por layout */
+  imageSize?: ImageSizes;
   /** Onde o logotipo aparece: cabeçalho (padrão), início do conteúdo ou seção "Sobre" */
   logoPlacement?: 'header' | 'hero' | 'about';
+}
+
+/** Tamanho de uma foto arrastado na prévia: largura em % do espaço disponível, altura em px. */
+export interface ImageBox {
+  w?: number;
+  h?: number;
+}
+export interface ImageSizes {
+  desktop?: Record<string, ImageBox>;
+  mobile?: Record<string, ImageBox>;
 }
 
 export interface SectionSpacing {

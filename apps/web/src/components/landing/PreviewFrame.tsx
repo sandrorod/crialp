@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import type { ElementColor, ElementColors, ImageFocus, SectionSpacing } from '@/types';
+import type { ElementColor, ElementColors, ImageBox, ImageFocus, ImageSizes, SectionSpacing } from '@/types';
 import { ElementColorPopup } from './ElementColorPopup';
 import { readIconStyle, type IconPageStyle } from './IconPicker';
 import {
   attachColorPick,
   attachIconPick,
+  attachImageResize,
+  imageSizesCss,
+  setImageSizeCss,
   attachSectionDrag,
   attachSpacingDrag,
   attachTextEdit,
@@ -184,6 +187,8 @@ export function PreviewFrame({
   onIcon,
   sectionSpacing,
   onSpacing,
+  imageSize,
+  onImageSize,
 }: {
   src: string;
   /** HTML do rascunho (mudanças ainda não salvas); ausente = página salva em `src` */
@@ -207,6 +212,10 @@ export function PreviewFrame({
   sectionSpacing?: SectionSpacing;
   /** Espaço de uma seção arrastado na prévia (null = volta ao padrão) */
   onSpacing?: (key: string, pct: number | null) => void;
+  /** Tamanho das fotos (inclusive não salvo), aplicado na hora */
+  imageSize?: ImageSizes;
+  /** Foto redimensionada na prévia (modo Fotos), no layout atual; null = volta ao padrão */
+  onImageSize?: (url: string, box: ImageBox | null) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -231,6 +240,10 @@ export function PreviewFrame({
   orderRef.current = sectionOrder;
   const colorsRef = useRef(elementColors);
   colorsRef.current = elementColors;
+  const imageSizeRef = useRef(imageSize);
+  imageSizeRef.current = imageSize;
+  const onImageSizeRef = useRef(onImageSize);
+  onImageSizeRef.current = onImageSize;
   const onSpacingRef = useRef(onSpacing);
   onSpacingRef.current = onSpacing;
   const spacingRef = useRef(sectionSpacing);
@@ -268,6 +281,11 @@ export function PreviewFrame({
     if (d?.head) setSpacingCss(d, sectionSpacingCss(sectionSpacing));
   }, [sectionSpacing]);
 
+  useEffect(() => {
+    const d = doc();
+    if (d?.head) setImageSizeCss(d, imageSizesCss(imageSize));
+  }, [imageSize]);
+
   const scale = device === 'desktop' && width ? Math.min(1, width / DESKTOP_WIDTH) : 1;
   const uiScale = device === 'desktop' && width ? Math.max(1, DESKTOP_WIDTH / width) : 1;
 
@@ -285,6 +303,10 @@ export function PreviewFrame({
     setColorsCss(d, elementColorsCss(colorsRef.current));
     loadElementFonts(d, colorsRef.current);
     setSpacingCss(d, sectionSpacingCss(spacingRef.current));
+    setImageSizeCss(d, imageSizesCss(imageSizeRef.current));
+    if (onImageSizeRef.current) {
+      attachImageResize(d, (url) => imageSizeRef.current?.[device]?.[url], (url, box) => onImageSizeRef.current?.(url, box), uiScale);
+    }
     if (onSpacingRef.current) attachSpacingDrag(d, (key, pct) => onSpacingRef.current?.(key, pct), uiScale);
     if (onReorderRef.current) attachSectionDrag(d, (keys) => onReorderRef.current?.(keys), uiScale, orderRef.current);
     if (onElementColors) attachColorPick(d, setPicked);

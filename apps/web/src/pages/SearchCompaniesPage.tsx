@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { AlertTriangle, Building2, CheckCircle2, ChevronDown, ExternalLink, Globe, History, Loader2, MapPin, PanelsTopLeft, Phone, Search, Sparkles, Star, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card, ErrorBlock, Input, PageHeader } from '@/components/ui';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
@@ -125,6 +126,9 @@ export function SearchCompaniesPage() {
   const [opening, setOpening] = useState<string | null>(null);
   // No celular o histórico começa recolhido (no computador fica sempre aberto)
   const [historyOpen, setHistoryOpen] = useState(false);
+  // Computador: histórico sempre aberto na lateral; celular/tablet: recolhido até tocar no título
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const showHistory = isDesktop || historyOpen;
 
   /** Abre uma pesquisa do histórico: resultados salvos, com a marcação atual de cadastrada / LP gerada. */
   const openSaved = async (id: string, quiet = false) => {
@@ -275,13 +279,13 @@ export function SearchCompaniesPage() {
       <aside className="lg:order-none order-first">
         <Card className="p-4">
           <h2 className="text-sm font-semibold">
-            <button type="button" onClick={() => setHistoryOpen((o) => !o)} aria-expanded={historyOpen} className="flex w-full items-center gap-2 text-left lg:pointer-events-none">
+            <button type="button" onClick={() => !isDesktop && setHistoryOpen((o) => !o)} aria-expanded={showHistory} className={cn('flex w-full items-center gap-2 text-left', isDesktop && 'pointer-events-none')}>
               <History className="size-4" /> Pesquisas anteriores
               {history.data?.items.length ? <span className="text-xs font-normal text-zinc-500">({history.data.items.length})</span> : null}
-              <ChevronDown className={cn('ml-auto size-4 text-zinc-500 transition-transform lg:hidden', historyOpen && 'rotate-180')} />
+              {isDesktop ? null : <ChevronDown className={cn('ml-auto size-4 text-zinc-500 transition-transform', historyOpen && 'rotate-180')} />}
             </button>
           </h2>
-          <div className={cn('mt-3', !historyOpen && 'hidden lg:block')}>
+          {showHistory ? <div className="mt-3">
           {history.loading && !history.data ? (
             <p className="text-xs text-zinc-500">Carregando…</p>
           ) : history.error && !history.data ? (
@@ -311,7 +315,7 @@ export function SearchCompaniesPage() {
               ))}
             </ul>
           )}
-          </div>
+          </div> : null}
         </Card>
       </aside>
       </div>
