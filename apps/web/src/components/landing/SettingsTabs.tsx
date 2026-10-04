@@ -322,6 +322,38 @@ function TemplateThumb({ template }: { template: TemplateKey }) {
         <div className="relative size-10 bg-zinc-300 [border-radius:58%_42%_46%_54%/52%_44%_56%_48%]" />
       </div>
     ),
+    aurora: (
+      <div className="relative flex gap-2 overflow-hidden p-2">
+        <div className="absolute -left-2 -top-4 size-12 rounded-full bg-sky-300/50 blur-md" />
+        <div className="absolute -top-3 right-6 size-10 rounded-full bg-fuchsia-300/40 blur-md" />
+        <div className="relative flex-1 space-y-1 pt-1"><span className="mb-1 block h-1.5 w-6 rounded-full border border-zinc-300 bg-white" />{bar('85%', 'bg-zinc-500')}{bar('55%')}</div>
+        <div className="relative h-10 w-9 rounded-lg bg-zinc-300" />
+      </div>
+    ),
+    linhas: (
+      <div className="relative flex gap-2 p-2 [background-image:linear-gradient(#e4e4e7_1px,transparent_1px),linear-gradient(90deg,#e4e4e7_1px,transparent_1px)] [background-size:10px_10px]">
+        <div className="flex-1 space-y-1 pt-1">{bar('85%', 'bg-zinc-500')}{bar('55%')}</div>
+        <div className="h-10 w-9 rounded border border-zinc-300 bg-zinc-100 p-0.5"><div className="h-full rounded-sm bg-zinc-300" /></div>
+      </div>
+    ),
+    suave: (
+      <div className="flex gap-2 bg-zinc-100 p-2">
+        <div className="flex-1 space-y-1 pt-1"><span className="mb-1 block h-1.5 w-7 rounded-full bg-white shadow-sm" />{bar('85%', 'bg-zinc-500')}{bar('55%')}</div>
+        <div className="h-10 w-9 rounded-xl border-2 border-white bg-zinc-300 shadow" />
+      </div>
+    ),
+    estudio: (
+      <div className="flex h-[52px]">
+        <div className="flex-1 space-y-1 p-2 pt-3">{bar('90%', 'bg-zinc-500')}{bar('60%')}</div>
+        <div className="w-1/2 bg-zinc-300" />
+      </div>
+    ),
+    degrade: (
+      <div className="flex gap-2 bg-gradient-to-br from-indigo-100 via-white to-pink-100 p-2">
+        <div className="flex-1 space-y-1 pt-1">{bar('85%', 'bg-zinc-500')}{bar('55%')}<span className="mt-1.5 block h-2 w-8 rounded-full bg-gradient-to-r from-indigo-500 to-pink-500" /></div>
+        <div className="h-10 w-9 rounded-lg bg-zinc-300 shadow-[4px_4px_0_#fbcfe8]" />
+      </div>
+    ),
   }[template];
   const body = {
     classico: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded border border-zinc-300 bg-white" />)}</div>,
@@ -333,6 +365,11 @@ function TemplateThumb({ template }: { template: TemplateKey }) {
     noturno: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="grid h-5 place-items-center rounded border border-white/10 bg-white/5"><span className="size-1.5 rounded-full bg-indigo-300" /></div>)}</div>,
     capa: <div className="flex gap-1 overflow-hidden">{[0, 1, 2, 3].map((i) => <div key={i} className="h-7 w-7 flex-none rounded bg-zinc-300" />)}</div>,
     organico: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-7 bg-zinc-300 [border-radius:999px_999px_6px_6px]" />)}</div>,
+    aurora: <><div className="mb-1">{bar('40px', 'mx-auto bg-zinc-500')}</div><div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="grid h-5 place-items-center rounded-lg border border-zinc-200 bg-white/70"><span className="size-1.5 rounded-full bg-sky-300" /></div>)}</div></>,
+    linhas: <div className="grid grid-cols-3 overflow-hidden rounded border border-zinc-300">{[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="h-3.5 border border-zinc-200 bg-white" />)}</div>,
+    suave: <div className="grid grid-cols-3 gap-1 rounded bg-zinc-100 p-1">{[0, 1, 2].map((i) => <div key={i} className="grid h-5 place-items-center rounded-lg bg-white shadow-sm"><span className="size-2 rounded-full bg-zinc-500" /></div>)}</div>,
+    estudio: <div className="flex gap-2"><div className="w-1/3 space-y-1">{bar('90%', 'bg-zinc-500')}{bar('60%')}</div><div className="flex-1 space-y-1.5">{[0, 1].map((i) => <div key={i} className="border-t border-zinc-700 pt-1">{bar('70%')}</div>)}</div></div>,
+    degrade: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded-md border border-zinc-200 bg-white p-0.5"><span className="block size-2.5 rounded bg-gradient-to-br from-indigo-500 to-pink-500" /></div>)}</div>,
     impacto: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="relative h-5 rounded border-t-2 border-zinc-800 bg-white shadow-sm"><span className="absolute right-0.5 top-0.5 text-[6px] font-bold leading-none text-zinc-300">0{i + 1}</span></div>)}</div>,
   }[template];
   return (

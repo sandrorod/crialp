@@ -54,7 +54,7 @@ landingPagesRouter.get('/presets', (_req, res) => {
       primary: p.colors.primary,
       accent: p.colors.accent,
       bg: p.colors.bg,
-      heading: HEADING_FAMILY,
+      heading: `${HEADING_FAMILY} + ${p.body.family}`,
       heroDefault: p.heroDefault,
     })),
   );

@@ -51,7 +51,10 @@ function normalizeFocus(input: unknown): Record<string, ImageFocus> {
   return out;
 }
 
-export const TEMPLATE_KEYS = ['classico', 'moderno', 'minimalista', 'elegante', 'impacto', 'revista', 'blocos', 'noturno', 'capa', 'organico'] as const;
+export const TEMPLATE_KEYS = [
+  'classico', 'moderno', 'minimalista', 'elegante', 'impacto', 'revista', 'blocos', 'noturno', 'capa', 'organico',
+  'aurora', 'linhas', 'suave', 'estudio', 'degrade',
+] as const;
 export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
 
 interface Template {
@@ -123,6 +126,36 @@ export const TEMPLATES: Record<TemplateKey, Template> = {
   organico: {
     label: 'Orgânico',
     description: 'Formas suaves: foto do topo em formato orgânico, fotos em arco, títulos centralizados e seções em faixas arredondadas.',
+    hero: { withPhoto: 'split', withoutPhoto: 'centered' },
+    services: () => 'grid',
+  },
+  aurora: {
+    label: 'Aurora',
+    description: 'Clean e luminoso: brilho suave nas cores da marca atrás do topo, cartões de vidro com borda fina e títulos centralizados.',
+    hero: { withPhoto: 'split', withoutPhoto: 'centered' },
+    services: () => 'grid',
+  },
+  linhas: {
+    label: 'Linhas',
+    description: 'Estilo tecnológico: grade de linhas finas no topo, serviços e diferenciais em células separadas por fios, cantos discretos.',
+    hero: { withPhoto: 'split', withoutPhoto: 'centered' },
+    services: () => 'grid',
+  },
+  suave: {
+    label: 'Suave',
+    description: 'Fundo levemente colorido, cartões brancos bem arredondados com sombra macia e ícones em círculos cheios na cor da marca.',
+    hero: { withPhoto: 'split', withoutPhoto: 'split' },
+    services: () => 'grid',
+  },
+  estudio: {
+    label: 'Estúdio',
+    description: 'Topo dividido com a foto até a borda da tela; no computador, o título de cada seção fica fixo à esquerda e o conteúdo à direita.',
+    hero: { withPhoto: 'split', withoutPhoto: 'split' },
+    services: (n) => (n <= 4 ? 'list' : 'grid'),
+  },
+  degrade: {
+    label: 'Degradê',
+    description: 'Moderno e vibrante: degradê da cor principal para a de destaque no topo, nos botões, nos ícones e no CTA final; resto da página bem limpo.',
     hero: { withPhoto: 'split', withoutPhoto: 'centered' },
     services: () => 'grid',
   },
@@ -222,6 +255,76 @@ export const PRESETS: Record<DesignPreset, Preset> = {
     heading: { family: 'Sora', weight: 700, query: 'Sora:wght@500;600;700;800', case: 'none', tracking: '-0.03em', lineHeight: 1.08 },
     body: { family: 'Inter', query: 'Inter:wght@400;500;600;700' },
     colors: { bg: '#ffffff', surface: '#f5f6f8', text: '#101828', muted: '#5b6474', primary: '#1d4ed8', accent: '#0f172a' },
+    dark: false, radius: 12, buttonRadius: 10, servicesLayout: 'grid', heroDefault: 'split',
+  },
+  ocean: {
+    label: 'Oceano — azul-petróleo e âmbar, leve',
+    heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
+    body: { family: 'Figtree', query: 'Figtree:wght@400;500;600;700' },
+    colors: { bg: '#ffffff', surface: '#eff6f8', text: '#0b2530', muted: '#52707c', primary: '#0e7490', accent: '#f59e0b' },
+    dark: false, radius: 16, buttonRadius: 999, servicesLayout: 'grid', heroDefault: 'split',
+  },
+  forest: {
+    label: 'Floresta — verde natural e acolhedor',
+    heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
+    body: { family: 'Nunito Sans', query: 'Nunito+Sans:wght@400;600;700' },
+    colors: { bg: '#fbfcf8', surface: '#eef3ea', text: '#17241a', muted: '#5a6b5c', primary: '#2f6b3f', accent: '#c08a3e' },
+    dark: false, radius: 18, buttonRadius: 999, servicesLayout: 'grid', heroDefault: 'split',
+  },
+  terracotta: {
+    label: 'Terracota — quente e artesanal',
+    heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
+    body: { family: 'Work Sans', query: 'Work+Sans:wght@400;500;600;700' },
+    colors: { bg: '#fffaf5', surface: '#f7ebe0', text: '#2a1a12', muted: '#6e5646', primary: '#c2553a', accent: '#2f4858' },
+    dark: false, radius: 14, buttonRadius: 10, servicesLayout: 'grid', heroDefault: 'split',
+  },
+  lavender: {
+    label: 'Lavanda — lilás delicado e moderno',
+    heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
+    body: { family: 'Poppins', query: 'Poppins:wght@400;500;600' },
+    colors: { bg: '#fdfcff', surface: '#f3f0fb', text: '#1e1633', muted: '#625a78', primary: '#7c5cd6', accent: '#e86fa3' },
+    dark: false, radius: 22, buttonRadius: 999, servicesLayout: 'grid', heroDefault: 'centered',
+  },
+  graphite: {
+    label: 'Grafite — preto e branco minimalista',
+    heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
+    body: { family: 'Inter', query: 'Inter:wght@400;500;600;700' },
+    colors: { bg: '#ffffff', surface: '#f4f4f5', text: '#09090b', muted: '#52525b', primary: '#18181b', accent: '#2563eb' },
+    dark: false, radius: 10, buttonRadius: 8, servicesLayout: 'list', heroDefault: 'split',
+  },
+  coral: {
+    label: 'Coral — vibrante e jovem',
+    heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
+    body: { family: 'Rubik', query: 'Rubik:wght@400;500;600' },
+    colors: { bg: '#ffffff', surface: '#fff3f0', text: '#1f1414', muted: '#6b5552', primary: '#e8484f', accent: '#2b2d42' },
+    dark: false, radius: 16, buttonRadius: 999, servicesLayout: 'grid', heroDefault: 'centered',
+  },
+  mint: {
+    label: 'Menta — fresco e limpo',
+    heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
+    body: { family: 'Manrope', query: 'Manrope:wght@400;500;600;700' },
+    colors: { bg: '#ffffff', surface: '#effaf6', text: '#0f2a24', muted: '#4f6f67', primary: '#0e9f7a', accent: '#0f2a24' },
+    dark: false, radius: 18, buttonRadius: 12, servicesLayout: 'grid', heroDefault: 'split',
+  },
+  midnight: {
+    label: 'Meia-noite — escuro com dourado',
+    heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
+    body: { family: 'Inter', query: 'Inter:wght@400;500;600;700' },
+    colors: { bg: '#0d1321', surface: '#151d2e', text: '#eef2f8', muted: '#9aa6bb', primary: '#f2c94c', accent: '#5b8def' },
+    dark: true, radius: 14, buttonRadius: 999, servicesLayout: 'grid', heroDefault: 'centered',
+  },
+  sand: {
+    label: 'Areia — bege e marrom, luxo discreto',
+    heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
+    body: { family: 'Lato', query: 'Lato:wght@400;700' },
+    colors: { bg: '#f8f5f0', surface: '#efe9df', text: '#1f1b16', muted: '#6b6359', primary: '#8a6a4a', accent: '#1f1b16' },
+    dark: false, radius: 6, buttonRadius: 999, servicesLayout: 'list', heroDefault: 'split',
+  },
+  royal: {
+    label: 'Real — azul-marinho e dourado, institucional',
+    heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
+    body: { family: 'Plus Jakarta Sans', query: 'Plus+Jakarta+Sans:wght@400;500;600;700' },
+    colors: { bg: '#ffffff', surface: '#f2f5fb', text: '#0c1630', muted: '#55607a', primary: '#1e3a8a', accent: '#c9971c' },
     dark: false, radius: 12, buttonRadius: 10, servicesLayout: 'grid', heroDefault: 'split',
   },
 };

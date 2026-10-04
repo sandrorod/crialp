@@ -12,6 +12,17 @@ export const DESIGN_PRESETS = [
   'tech',         // software, agências, marketing
   'education',    // escolas, cursos
   'professional', // serviços em geral (padrão)
+  // Paletas de estilo (servem a qualquer segmento)
+  'ocean',        // azul-petróleo e âmbar, leve
+  'forest',       // verde natural, sustentável, pet, jardinagem
+  'terracotta',   // terracota quente, artesanal, decoração
+  'lavender',     // lilás e rosa, delicado, bem-estar, infantil
+  'graphite',     // preto e branco minimalista, estúdios, arquitetura
+  'coral',        // coral vibrante, eventos, moda, jovem
+  'mint',         // verde-menta, fresco, saúde, limpeza
+  'midnight',     // azul-noite e dourado, escuro e premium
+  'sand',         // bege e marrom, luxo discreto
+  'royal',        // azul-marinho e dourado, institucional
 ] as const;
 export type DesignPreset = (typeof DESIGN_PRESETS)[number];
 
