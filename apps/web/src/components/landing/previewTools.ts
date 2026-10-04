@@ -179,6 +179,9 @@ html.lp-mode-cores body *{cursor:crosshair!important}
 html.lp-mode-textos [data-lp-text]{outline:1px dashed rgba(37,99,235,.55);outline-offset:3px;cursor:text!important;border-radius:2px}
 html.lp-mode-textos [data-lp-text]:hover{outline:2px solid #2563eb}
 html.lp-mode-textos [data-lp-text][contenteditable]:not([contenteditable="false"]){outline:2px solid #2563eb;background:rgba(37,99,235,.07);caret-color:#2563eb}
+html.lp-mode-textos [data-lp-icon]{outline:1px dashed rgba(37,99,235,.55);outline-offset:4px;cursor:pointer!important;border-radius:4px}
+html.lp-mode-textos [data-lp-icon]:hover,html.lp-mode-textos .icon-box:hover [data-lp-icon]{outline:2px solid #2563eb}
+html.lp-mode-textos .icon-box:has([data-lp-icon]){cursor:pointer!important}
 html.lp-mode-textos [data-lp-empty]:empty{min-width:4em;min-height:1em;display:inline-block}
 html.lp-mode-textos [data-lp-empty]:empty::before{content:attr(data-lp-placeholder);opacity:.5;font-style:italic;font-weight:400;letter-spacing:normal;text-transform:none}
 `;
@@ -709,6 +712,25 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions) {
       bar.remove();
     },
   };
+}
+
+/** Ícones marcados com data-lp-icon: no modo Textos, clicar (no ícone ou na caixinha dele) abre o seletor. */
+export function attachIconPick(doc: Document, onPick: (path: string) => void) {
+  if (doc.body.dataset.lpIcons) return;
+  doc.body.dataset.lpIcons = '1';
+  doc.addEventListener(
+    'click',
+    (e) => {
+      if (currentMode(doc) !== 'textos') return;
+      const t = e.target as Element | null;
+      const el = t?.closest?.<HTMLElement>('[data-lp-icon]') ?? t?.closest?.('.icon-box')?.querySelector<HTMLElement>('[data-lp-icon]');
+      if (!el?.dataset.lpIcon) return;
+      e.preventDefault();
+      e.stopPropagation();
+      onPick(el.dataset.lpIcon);
+    },
+    true,
+  );
 }
 
 export function attachTextEdit(doc: Document, onText: (path: string, value: string) => boolean, sizes?: TextSizeOptions) {

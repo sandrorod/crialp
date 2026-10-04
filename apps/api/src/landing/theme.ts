@@ -316,6 +316,22 @@ function normalizeHex(v: string) {
   return t.startsWith('#') ? t : `#${t}`;
 }
 
+/**
+ * Todos os títulos usam Montserrat, em qualquer estilo. Peso, espaçamento e altura de linha
+ * são ajustados a ela; caixa alta continua vindo do estilo.
+ */
+export const HEADING_FAMILY = 'Montserrat';
+export function headingFont(p: { heading: { weight: number; case: 'none' | 'uppercase'; lineHeight: number } }) {
+  const upper = p.heading.case === 'uppercase';
+  return {
+    family: HEADING_FAMILY,
+    query: 'Montserrat:wght@500;600;700;800',
+    weight: upper ? 800 : Math.min(Math.max(p.heading.weight, 600), 700),
+    tracking: upper ? '0.01em' : '-0.02em',
+    lineHeight: Math.max(p.heading.lineHeight, 1.1),
+  };
+}
+
 export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
   const p = PRESETS[settings.preset] ?? PRESETS.professional;
   const c = p.colors;
@@ -329,7 +345,9 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
   const bandText = readableOn(band);
   const bandAccent = ensureContrast(p.dark ? primary : mix(primary, '#ffffff', 0.35), band, 4.5);
 
-  const families = [p.heading.query, p.body.query].filter(Boolean).map((q) => `family=${q}`).join('&');
+  const h = headingFont(p);
+  // Corpo sem query própria usava a mesma família do título do preset: carrega essa família para o texto
+  const families = [h.query, p.body.query || p.heading.query].filter(Boolean).map((q) => `family=${q}`).join('&');
   return {
     preset: settings.preset,
     p,
@@ -364,12 +382,12 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
       '--radius': `${p.radius}px`,
       '--radius-sm': `${Math.min(p.radius, 12)}px`,
       '--btn-radius': `${p.buttonRadius}px`,
-      '--font-heading': `'${p.heading.family}', ui-serif, Georgia, serif`,
+      '--font-heading': `'${h.family}', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif`,
       '--font-body': `'${p.body.family}', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif`,
-      '--heading-weight': String(p.heading.weight),
+      '--heading-weight': String(h.weight),
       '--heading-case': p.heading.case,
-      '--heading-tracking': p.heading.tracking,
-      '--heading-lh': String(p.heading.lineHeight),
+      '--heading-tracking': h.tracking,
+      '--heading-lh': String(h.lineHeight),
     },
   };
 }

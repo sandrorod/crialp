@@ -1,6 +1,6 @@
 import type { RenderContext } from '../context.js';
 import { TEMPLATES } from '../theme.js';
-import { cad, ed, edOptional } from '../context.js';
+import { cad, ed, edIcon, edOptional } from '../context.js';
 import { Icon } from './Icon.js';
 import { SectionHead } from './SectionHead.js';
 
@@ -81,7 +81,7 @@ export function ServicesSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
             {s.items.map((item, i) => (
               <article key={item.name} className="card reveal">
                 <div className="icon-box">
-                  <Icon name={item.icon} size={24} />
+                  <Icon name={item.icon} size={24} attrs={edIcon(ctx, `services.items.${i}.icon`)} />
                 </div>
                 <h3 {...ed(ctx, `services.items.${i}.name`)}>{item.name}</h3>
                 <p {...ed(ctx, `services.items.${i}.description`)}>{item.description}</p>
@@ -110,7 +110,7 @@ export function BenefitsSection({ ctx }: { ctx: RenderContext }) {
         <div className="diff-grid reveal">
           {d.items.map((item, i) => (
             <div key={item.title} className="diff">
-              <Icon name={item.icon} size={28} stroke={1.6} />
+              <Icon name={item.icon} size={28} stroke={1.6} attrs={edIcon(ctx, `differentials.items.${i}.icon`)} />
               <h3 {...ed(ctx, `differentials.items.${i}.title`)}>{item.title}</h3>
               <p {...ed(ctx, `differentials.items.${i}.description`)}>{item.description}</p>
             </div>

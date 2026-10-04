@@ -48,6 +48,11 @@ export function ed(ctx: RenderContext, path: string, orig?: string): Record<stri
   return fallback === undefined ? { 'data-lp-text': path } : { 'data-lp-text': path, 'data-lp-orig': fallback };
 }
 
+/** Ícone trocável na prévia (clique abre o seletor). `path` aponta para o campo "icon" do conteúdo. */
+export function edIcon(ctx: RenderContext, path: string): Record<string, string> {
+  return ctx.editable ? { 'data-lp-icon': path } : {};
+}
+
 /**
  * Campo opcional: na prévia continua clicável mesmo vazio (mostra `placeholder` no modo Textos)
  * e, ao ser apagado, vira de novo um espaço para escrever.

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import type { ElementColor, ElementColors, ImageFocus, SectionSpacing } from '@/types';
 import { ElementColorPopup } from './ElementColorPopup';
+import { readIconStyle, type IconPageStyle } from './IconPicker';
 import {
   attachColorPick,
+  attachIconPick,
   attachSectionDrag,
   attachSpacingDrag,
   attachTextEdit,
@@ -179,6 +181,7 @@ export function PreviewFrame({
   elementColors,
   onElementColors,
   onText,
+  onIcon,
   sectionSpacing,
   onSpacing,
 }: {
@@ -198,6 +201,8 @@ export function PreviewFrame({
   onElementColors?: (colors: ElementColors) => void;
   /** Texto editado direto na prévia; false = valor recusado (volta o original) */
   onText?: (path: string, value: string) => boolean;
+  /** Ícone clicado na prévia (modo Textos): caminho do campo e o estilo dos ícones da página */
+  onIcon?: (path: string, style: IconPageStyle | undefined) => void;
   /** Margem interna das seções (inclusive não salva), aplicada na hora */
   sectionSpacing?: SectionSpacing;
   /** Espaço de uma seção arrastado na prévia (null = volta ao padrão) */
@@ -216,6 +221,8 @@ export function PreviewFrame({
   onFocusRef.current = onFocus;
   const onTextRef = useRef(onText);
   onTextRef.current = onText;
+  const onIconRef = useRef(onIcon);
+  onIconRef.current = onIcon;
   const onReorderRef = useRef(onReorder);
   onReorderRef.current = onReorder;
   const modeRef = useRef(mode);
@@ -281,6 +288,7 @@ export function PreviewFrame({
     if (onSpacingRef.current) attachSpacingDrag(d, (key, pct) => onSpacingRef.current?.(key, pct), uiScale);
     if (onReorderRef.current) attachSectionDrag(d, (keys) => onReorderRef.current?.(keys), uiScale, orderRef.current);
     if (onElementColors) attachColorPick(d, setPicked);
+    if (onIconRef.current) attachIconPick(d, (path) => onIconRef.current?.(path, readIconStyle(d)));
     if (onTextRef.current) {
       attachTextEdit(
         d,

@@ -105,6 +105,28 @@ export type ExtractedCompany = z.infer<typeof ExtractedCompanySchema>;
 
 // ─── Geração: conteúdo e direção visual da Landing Page ────────────
 const iconEnum = z.enum(ICONS);
+// Na edição manual vale qualquer ícone da biblioteca do editor (desconhecido vira "check" na página)
+const editIcon = z.string().regex(/^[a-z0-9-]{1,40}$/);
+
+function servicesSchema<I extends z.ZodType<string>>(icon: I) {
+  return z
+    .object({
+      title: z.string(),
+      subtitle: z.string().nullable(),
+      items: z.array(z.object({ name: z.string(), description: z.string(), benefit: z.string().nullable(), icon })),
+    })
+    .nullable();
+}
+
+function differentialsSchema<I extends z.ZodType<string>>(icon: I) {
+  return z
+    .object({
+      title: z.string(),
+      subtitle: z.string().nullable(),
+      items: z.array(z.object({ title: z.string(), description: z.string(), icon })),
+    })
+    .nullable();
+}
 
 export const LandingContentSchema = z.object({
   design: z.object({
@@ -128,22 +150,8 @@ export const LandingContentSchema = z.object({
     highlights: z.array(z.string()).describe('2 a 4 fatos curtos e verificáveis'),
   }),
   about: z.object({ title: z.string(), paragraphs: z.array(z.string()) }).nullable(),
-  services: z
-    .object({
-      title: z.string(),
-      subtitle: z.string().nullable(),
-      items: z.array(
-        z.object({ name: z.string(), description: z.string(), benefit: z.string().nullable(), icon: iconEnum }),
-      ),
-    })
-    .nullable(),
-  differentials: z
-    .object({
-      title: z.string(),
-      subtitle: z.string().nullable(),
-      items: z.array(z.object({ title: z.string(), description: z.string(), icon: iconEnum })),
-    })
-    .nullable(),
+  services: servicesSchema(iconEnum),
+  differentials: differentialsSchema(iconEnum),
   products: z
     .object({
       title: z.string(),
@@ -210,6 +218,8 @@ export type LandingContent = Omit<z.infer<typeof LandingContentSchema>, 'section
 
 /** Conteúdo editado manualmente: igual ao gerado, mais rótulos e seções personalizadas. */
 export const LandingContentEditSchema = LandingContentSchema.extend({
+  services: servicesSchema(editIcon),
+  differentials: differentialsSchema(editIcon),
   labels: z.record(z.string(), z.string().max(400)).optional(),
   custom_sections: z.array(CustomSectionSchema).max(20).optional(),
   overrides: z.record(z.string().regex(/^[a-z_]+(\.[a-z0-9_-]+){1,2}$/i).max(100), z.string().max(4000)).optional(),

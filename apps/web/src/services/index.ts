@@ -108,6 +108,7 @@ export const landingPageService = {
   exportUrl: (id: string) => `/api/landing-pages/${id}/export`,
   /** Ícones dos elementos: { nome: svg } */
   icons: () => api.get<Record<string, string>>('/landing-pages/icons'),
+  iconCategories: () => api.get<{ label: string; icons: string[] }[]>('/landing-pages/icon-categories'),
   clientAccess: (id: string) => api.get<{ client: ClientAccess | null }>(`/landing-pages/${id}/client-access`),
   saveClientAccess: (id: string, body: { name?: string; email: string; password?: string }) =>
     api.put<{ client: ClientAccess | null }>(`/landing-pages/${id}/client-access`, body),

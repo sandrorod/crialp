@@ -8,12 +8,12 @@ import { isValidSlug } from '../lib/slug.js';
 import { parseBody, safeUrl, uuidParam } from '../lib/validation.js';
 import { one, query } from '../db/pool.js';
 import { authUser, MANAGER_ROLES, requireRole } from '../middleware/auth.js';
-import { iconSvg, PICKABLE_ICONS } from '../landing/icons.js';
+import { ICON_CATEGORIES, iconSvg, PICKABLE_ICONS } from '../landing/icons.js';
 import { getCompanyFull } from '../repositories/companies.js';
 import * as repo from '../repositories/landingPages.js';
 import { LandingContentEditSchema, type LandingContent } from '../services/ai/schemas.js';
 import { DEFAULT_LABELS } from '../landing/labels.js';
-import { IMAGE_PLACEMENTS, normalizeThemeSettings, PRESETS, TEMPLATE_KEYS, TEMPLATES } from '../landing/theme.js';
+import { HEADING_FAMILY, IMAGE_PLACEMENTS, normalizeThemeSettings, PRESETS, TEMPLATE_KEYS, TEMPLATES } from '../landing/theme.js';
 import { publicUrl, refreshSnapshot, renderFromData } from '../landing/publish.js';
 import { renderUnavailablePage } from '../landing/render.js';
 import { landingPageHeaders } from './public.js';
@@ -54,7 +54,7 @@ landingPagesRouter.get('/presets', (_req, res) => {
       primary: p.colors.primary,
       accent: p.colors.accent,
       bg: p.colors.bg,
-      heading: p.heading.family,
+      heading: HEADING_FAMILY,
       heroDefault: p.heroDefault,
     })),
   );
@@ -63,6 +63,11 @@ landingPagesRouter.get('/presets', (_req, res) => {
 /** Ícones para os elementos das seções personalizadas: { nome: svg } */
 landingPagesRouter.get('/icons', (_req, res) => {
   res.json(Object.fromEntries(PICKABLE_ICONS.map((name) => [name, iconSvg(name, 22)])));
+});
+
+/** Grupos do seletor de ícones: [{ label, icons: [nome] }] */
+landingPagesRouter.get('/icon-categories', (_req, res) => {
+  res.json(ICON_CATEGORIES);
 });
 
 landingPagesRouter.get('/:id', async (req, res) => {

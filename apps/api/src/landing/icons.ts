@@ -1,5 +1,7 @@
+import { LIBRARY_CATEGORIES, LIBRARY_PATHS } from './iconLibrary.js';
+
 // Ícones de traço (estilo Lucide, licença ISC), embutidos como SVG inline — sem requisições extras.
-const PATHS: Record<string, string> = {
+const BASE_PATHS: Record<string, string> = {
   check: '<path d="M20 6 9 17l-5-5"/>',
   star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
   shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
@@ -47,10 +49,19 @@ const PATHS: Record<string, string> = {
   tiktok: '<path d="M9 12a4 4 0 1 0 4 4V2c.5 2.5 2.5 4.5 5 5"/>',
 };
 
+const PATHS: Record<string, string> = { ...LIBRARY_PATHS, ...BASE_PATHS };
+
 export function iconSvg(name: string, size = 22, strokeWidth = 1.75): string {
   const body = PATHS[name] ?? PATHS.check;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 }
 
 /** Ícones oferecidos no editor (sem os de interface: seta, mais, menu). */
-export const PICKABLE_ICONS = Object.keys(PATHS).filter((k) => !['arrow', 'plus', 'menu'].includes(k));
+const UI_ICONS = ['arrow', 'plus', 'menu'];
+export const PICKABLE_ICONS = Object.keys(PATHS).filter((k) => !UI_ICONS.includes(k));
+
+/** Grupos do seletor de ícones: os originais primeiro ("Mais usados"), depois a biblioteca por assunto. */
+export const ICON_CATEGORIES: { label: string; icons: string[] }[] = [
+  { label: 'Mais usados', icons: Object.keys(BASE_PATHS).filter((k) => !UI_ICONS.includes(k)) },
+  ...LIBRARY_CATEGORIES,
+];

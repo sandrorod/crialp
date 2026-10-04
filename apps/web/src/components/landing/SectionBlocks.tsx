@@ -7,6 +7,7 @@ import { errorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { landingPageService, miscService } from '@/services';
 import type { BlockType, BlockWidth, Company, CustomSection, SectionBlock } from '@/types';
+import { IconPickerButton } from './IconPicker';
 
 export const newId = () => Math.random().toString(36).slice(2, 8);
 
@@ -105,42 +106,8 @@ export function NewSectionButton({ onCreate }: { onCreate: (s: Omit<CustomSectio
   );
 }
 
-// Os ícones vêm do servidor (mesmos SVGs da página publicada) e são buscados uma vez só
-let iconsPromise: Promise<Record<string, string>> | null = null;
-const loadIcons = () => (iconsPromise ??= landingPageService.icons().catch((err) => ((iconsPromise = null), Promise.reject(err))));
-
-function IconSvg({ svg, className }: { svg?: string; className?: string }) {
-  return <span className={cn('inline-grid place-items-center [&_svg]:size-5', className)} dangerouslySetInnerHTML={{ __html: svg ?? '' }} />;
-}
-
 function IconPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const { data: icons } = useAsync(loadIcons, []);
-  const [open, setOpen] = useState(false);
-  return (
-    <div>
-      <button type="button" onClick={() => setOpen((o) => !o)} className="inline-flex h-10 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-sm hover:border-zinc-300">
-        <IconSvg svg={icons?.[value]} className="text-brand-600" /> Trocar ícone
-      </button>
-      {open && icons ? (
-        <div className="mt-2 grid grid-cols-8 gap-1 rounded-lg border border-zinc-200 bg-white p-2">
-          {Object.entries(icons).map(([name, svg]) => (
-            <button
-              key={name}
-              type="button"
-              title={name}
-              onClick={() => {
-                onChange(name);
-                setOpen(false);
-              }}
-              className={cn('grid aspect-square place-items-center rounded-md hover:bg-zinc-100', name === value && 'bg-brand-50 text-brand-600 ring-1 ring-brand-500')}
-            >
-              <IconSvg svg={svg} />
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
+  return <IconPickerButton value={value} onChange={onChange} />;
 }
 
 function ImageField({ value, onChange, company }: { value: string; onChange: (url: string) => void; company?: Company | null }) {

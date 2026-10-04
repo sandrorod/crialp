@@ -1,5 +1,5 @@
 import type { CustomSection, SectionBlock } from '../../services/ai/schemas.js';
-import { ed, edOptional, safeHref, type RenderContext } from '../context.js';
+import { ed, edIcon, edOptional, safeHref, type RenderContext } from '../context.js';
 import { Icon } from './Icon.js';
 import { SectionHead } from './SectionHead.js';
 
@@ -66,7 +66,7 @@ function BlockView({ ctx, block: b, path }: { ctx: RenderContext; block: Section
     case 'icon':
       return (
         <div className="card">
-          <div className="icon-box"><Icon name={b.icon} size={24} /></div>
+          <div className="icon-box"><Icon name={b.icon} size={24} attrs={edIcon(ctx, `${path}.icon`)} /></div>
           <h3 {...ed(ctx, `${path}.title`)}>{b.title}</h3>
           {b.text || ctx.editable ? <p {...edOptional(ctx, `${path}.text`, 'Descrição (opcional)')}>{b.text}</p> : null}
         </div>

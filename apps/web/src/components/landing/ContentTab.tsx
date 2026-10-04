@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { companyService, landingPageService } from '@/services';
 import { BlocksEditor, NewSectionButton, newId } from './SectionBlocks';
 import type { Company, CustomSection, LandingContent, SectionKey, SectionOrderKey } from '@/types';
+import { IconPickerButton } from './IconPicker';
 
 const SECTION_LABELS: Record<SectionKey, string> = {
   about: 'Sobre a empresa',
@@ -21,12 +22,6 @@ const SECTION_LABELS: Record<SectionKey, string> = {
 const ALL_SECTIONS = Object.keys(SECTION_LABELS) as SectionKey[];
 const REQUIRED: SectionKey[] = ['contact', 'final_cta'];
 
-const ICONS = [
-  'check', 'star', 'shield', 'clock', 'heart', 'users', 'sparkles', 'calendar', 'briefcase', 'home', 'building',
-  'wrench', 'zap', 'target', 'award', 'leaf', 'truck', 'smile', 'package', 'chart', 'lightbulb', 'scale',
-  'dumbbell', 'utensils', 'car', 'scissors', 'stethoscope', 'graduation', 'code', 'camera', 'globe', 'tooth',
-  'sliders', 'phone', 'mail', 'map-pin', 'message',
-];
 
 const LABEL_FIELDS: { key: string; label: string }[] = [
   { key: 'header_cta', label: 'Botão do cabeçalho' },
@@ -182,11 +177,7 @@ function Txt({ label, value, onChange, area, placeholder }: { label: string; val
 }
 
 function IconSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <Select className="h-9 w-36 text-xs" value={value} onChange={(e) => onChange(e.target.value)} aria-label="Ícone">
-      {ICONS.map((i) => <option key={i} value={i}>ícone: {i}</option>)}
-    </Select>
-  );
+  return <IconPickerButton value={value} onChange={onChange} label="Ícone" />;
 }
 
 /** Lista editável genérica: adicionar, remover e reordenar itens. */
