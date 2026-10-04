@@ -624,6 +624,28 @@ p{margin:0;text-wrap:pretty}
 .tpl-degrade .final{background:var(--grad)}
 .tpl-degrade .final .btn{background:var(--bg);color:var(--text)}
 
+
+/* ─── Galeria organizada pela quantidade de fotos (todos os modelos em grade) ───
+   Celular: 2 colunas quadradas; com número ímpar, a 1ª foto ocupa a linha inteira.
+   Computador: grade escolhida para preencher todas as linhas, sem buracos. */
+body:not(.tpl-revista):not(.tpl-capa) .gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:auto}
+body:not(.tpl-revista):not(.tpl-capa) .gallery figure{grid-column:auto;grid-row:auto;aspect-ratio:1;height:auto;margin:0}
+body:not(.tpl-revista):not(.tpl-capa) .gallery:is(.g-n3,.g-n5,.g-n7,.g-n9) figure:first-child{grid-column:1/-1;aspect-ratio:16/10}
+@media(min-width:860px){
+body:not(.tpl-revista):not(.tpl-capa) .gallery{grid-template-columns:repeat(var(--gc,3),minmax(0,1fr));grid-auto-rows:var(--gr,240px)}
+body:not(.tpl-revista):not(.tpl-capa) .gallery figure,body:not(.tpl-revista):not(.tpl-capa) .gallery:is(.g-n3,.g-n5,.g-n7,.g-n9) figure:first-child{grid-column:auto;grid-row:auto;aspect-ratio:auto}
+body:not(.tpl-revista):not(.tpl-capa) .gallery.g-n2{--gc:2;--gr:400px}
+body:not(.tpl-revista):not(.tpl-capa) .gallery.g-n3{--gc:3;--gr:230px}
+body:not(.tpl-revista):not(.tpl-capa) .gallery.g-n4{--gc:2;--gr:300px}
+body:not(.tpl-revista):not(.tpl-capa) .gallery.g-n5{--gc:4;--gr:220px}
+body:not(.tpl-revista):not(.tpl-capa) .gallery.g-n6{--gc:3;--gr:260px}
+body:not(.tpl-revista):not(.tpl-capa) .gallery.g-n7{--gc:4;--gr:220px}
+body:not(.tpl-revista):not(.tpl-capa) .gallery.g-n8{--gc:4;--gr:230px}
+body:not(.tpl-revista):not(.tpl-capa) .gallery.g-n9{--gc:3;--gr:240px}
+body:not(.tpl-revista):not(.tpl-capa) .gallery:is(.g-n3,.g-n5,.g-n7) figure:first-child{grid-column:span 2;grid-row:span 2}
+body:not(.tpl-revista):not(.tpl-capa) .gallery.g-n7 figure:nth-child(n+6){grid-column:span 2}
+}
+
 /* Computador: título principal com 66px por padrão em todos os modelos */
 @media(min-width:768px){:root .hero h1{font-size:calc(66px * var(--title-scale) * var(--hero-scale))}}
 

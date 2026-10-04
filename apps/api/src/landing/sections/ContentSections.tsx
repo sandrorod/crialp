@@ -160,7 +160,8 @@ export function GallerySection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
     <section id="galeria" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
         <SectionHead eyebrow={ctx.labels.eyebrow_gallery} title={g.title} lead={g.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_gallery'), title: ed(ctx, 'gallery.title'), lead: edOptional(ctx, 'gallery.subtitle', 'Texto de apoio (opcional)') }} />
-        <div className="gallery">
+        {/* g-nN: a grade se ajusta à quantidade de fotos para nunca sobrar buraco (ver styles.ts) */}
+        <div className={`gallery g-n${photos.length}`}>
           {photos.map((img) => (
             <figure key={img.url} className="reveal">
               <img referrerPolicy="no-referrer" src={img.url} alt={img.alt} loading="lazy" decoding="async" data-lp-img={img.url} style={img.style} />
