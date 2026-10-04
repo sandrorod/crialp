@@ -407,6 +407,8 @@ export interface AIKeyInfo {
   last_error: string | null;
   last_error_at: string | null;
   created_at: string;
+  /** Limite diário atingido: quando a cota do Google renova */
+  quota_until?: string | null;
 }
 
 /** Empresa encontrada em "Buscar empresas". */

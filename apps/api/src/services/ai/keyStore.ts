@@ -25,6 +25,8 @@ export interface AIKeyInfo {
   last_error: string | null;
   last_error_at: string | null;
   created_at: string;
+  /** Limite diário atingido: quando a cota do Google renova (ISO); null = sem limite atingido */
+  quota_until?: string | null;
 }
 
 // Criptografia simétrica derivada do segredo do servidor
@@ -68,6 +70,22 @@ export function shortError(raw: string): string {
   return text.length > 160 ? `${text.slice(0, 157)}…` : text;
 }
 
+/** Erro de cota (limite do plano atingido). */
+export const QUOTA_ERROR = /\b429\b|quota|exhausted|rate.?limit/i;
+
+/**
+ * Início do "dia" da cota do Google: as cotas diárias do Gemini zeram à meia-noite do Pacífico
+ * (America/Los_Angeles), ou seja, 4h ou 5h no horário de Brasília.
+ */
+export function lastQuotaReset(now = new Date()): Date {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(now);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  const sinceMidnight = ((get('hour') * 60 + get('minute')) * 60 + get('second')) * 1000 + now.getMilliseconds();
+  return new Date(now.getTime() - sinceMidnight);
+}
+
 const hashKey = (key: string) => crypto.createHash('sha256').update(key.trim()).digest('hex');
 
 /** Chave da variável de ambiente removida pelo painel (vale só para aquela chave: trocar a variável a traz de volta). */
@@ -99,8 +117,15 @@ export const aiKeyStore = {
          from ai_api_keys where provider = $1 order by created_at`,
       [provider],
     );
-    // Erros gravados antes do resumo também aparecem curtos
-    return rows.map((r) => ({ ...r, last_error: r.last_error ? shortError(r.last_error) : null }));
+    // Limite diário de antes da renovação da cota não vale mais: a chave volta a aparecer como disponível
+    const reset = lastQuotaReset();
+    const nextReset = new Date(reset.getTime() + 24 * 3600 * 1000).toISOString();
+    return rows.map((r) => {
+      const quota = !!r.last_error && QUOTA_ERROR.test(r.last_error);
+      if (quota && r.last_error_at && new Date(r.last_error_at) < reset) return { ...r, last_error: null, last_error_at: null, quota_until: null };
+      // Erros gravados antes do resumo também aparecem curtos
+      return { ...r, last_error: r.last_error ? shortError(r.last_error) : null, quota_until: quota ? nextReset : null };
+    });
   },
 
   async exists(key: string) {

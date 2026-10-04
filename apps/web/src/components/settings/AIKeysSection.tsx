@@ -12,7 +12,9 @@ const PROVIDERS: Record<KeyProvider, { name: string; title: string; description:
   gemini: {
     name: 'Chave do Gemini',
     title: 'Chaves do Gemini',
-    description: 'Cada uso da IA passa para a próxima chave ativa (rodízio). Se uma chave estiver sem cota ou inválida, a próxima é usada automaticamente.',
+    description:
+      'Cada uso da IA passa para a próxima chave ativa (rodízio). Se uma chave estiver sem cota ou inválida, a próxima é usada automaticamente. ' +
+      'Atenção: o limite diário do plano gratuito é por projeto do Google, não por chave. Várias chaves do mesmo projeto dividem o mesmo limite; para somar limite, crie as chaves em contas (ou projetos) diferentes.',
     envVar: 'GEMINI_API_KEY',
     label: 'Nova chave do Gemini',
     hint: 'Crie em aistudio.google.com/apikey. A chave é testada antes de salvar.',
@@ -153,7 +155,11 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
                   <div className="text-xs text-zinc-500">
                     Cadastrada em {formatDate(k.created_at, true)} · {k.uses} {k.uses === 1 ? 'uso' : 'usos'} · {k.last_used_at ? `último uso ${formatDate(k.last_used_at, true)}` : 'ainda não usada'}
                   </div>
-                  {k.last_error ? (
+                  {k.quota_until ? (
+                    <div className="mt-0.5 text-xs text-amber-700" title={k.last_error ?? undefined}>
+                      Limite diário do Google atingido ({formatDate(k.last_error_at, true)}). Libera em {formatDate(k.quota_until, true)}.
+                    </div>
+                  ) : k.last_error ? (
                     <div className="mt-0.5 line-clamp-2 break-words text-xs text-red-600 [overflow-wrap:anywhere]" title={k.last_error}>
                       Último erro ({formatDate(k.last_error_at, true)}): {k.last_error}
                     </div>

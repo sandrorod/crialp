@@ -2,7 +2,7 @@ import { ApiError, GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 import { parseWithoutNullText } from '../../lib/nullText.js';
 import { AIProviderError, type AIProvider, type StructuredRequest } from './AIProvider.js';
-import { aiKeyStore, type AIKey } from './keyStore.js';
+import { aiKeyStore, lastQuotaReset, type AIKey } from './keyStore.js';
 
 /** Converte o schema Zod em JSON Schema aceito pelo Gemini (sem metadados nem limites de inteiro gigantes). */
 function toGeminiSchema(schema: z.ZodType): unknown {
@@ -57,6 +57,20 @@ export interface GooglePlaceListing {
 export class GeminiProvider implements AIProvider {
   readonly name = 'gemini';
   private readonly clients = new Map<string, GoogleGenAI>();
+  /**
+   * Chave × modelo com o limite DIÁRIO esgotado: não adianta tentar de novo até a cota renovar
+   * (evita que cada consulta de uma busca passe por todas as chaves esgotadas). Valor = início do dia da cota.
+   */
+  private readonly exhausted = new Map<string, number>();
+  private isExhausted(keyId: string | null, model: string) {
+    const at = this.exhausted.get(`${keyId}|${model}`);
+    return at !== undefined && at === lastQuotaReset().getTime();
+  }
+  private markExhausted(keyId: string | null, model: string, err: unknown) {
+    if (err instanceof ApiError && err.status === 429 && /per ?day|daily|PerDay/i.test(err.message ?? '')) {
+      this.exhausted.set(`${keyId}|${model}`, lastQuotaReset().getTime());
+    }
+  }
   /** Modelo encontrado para cada chave quando os configurados não existem para ela */
   private readonly discoveredModels = new Map<string, string | null>();
 
@@ -198,6 +212,7 @@ export class GeminiProvider implements AIProvider {
     for (const key of keys) {
       const client = this.clientFor(key.key);
       for (const model of models) {
+        if (this.isExhausted(key.id, model)) continue;
         try {
           const response = await client.models.generateContent({
             model,
@@ -208,13 +223,20 @@ export class GeminiProvider implements AIProvider {
             },
           });
           await aiKeyStore.recordUse(key.id);
+          await aiKeyStore.clearError(key.id);
           const text = (response.text ?? '').trim();
           const chunk = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.find((c) => c.maps?.uri);
           if (!chunk?.maps || !text || /NAO_ENCONTRADO/.test(text)) return null;
           return { text, mapsUri: chunk.maps.uri!, title: chunk.maps.title?.replace(/\s*-\s*Google Maps$/i, '') ?? query };
         } catch (err) {
           lastError = err;
+          this.markExhausted(key.id, model, err);
           const missing = err instanceof ApiError && (err.status === 404 || err.status === 400 || /not (found|supported|enabled)/i.test(err.message ?? ''));
+          // Limite diário é por modelo: a mesma chave ainda pode ter cota em outro modelo
+          if (this.isExhausted(key.id, model)) {
+            await aiKeyStore.recordError(key.id, err instanceof Error ? err.message : String(err));
+            continue;
+          }
           if (missing || isOverloaded(err)) continue; // tenta o próximo modelo
           if (!isKeyError(err)) throw this.mapError(err);
           await aiKeyStore.recordError(key.id, err instanceof Error ? err.message : String(err));
@@ -240,6 +262,7 @@ export class GeminiProvider implements AIProvider {
     for (const key of keys) {
       const client = this.clientFor(key.key);
       for (const model of [...new Set(['gemini-2.5-flash', this.model, ...this.fallbackModels])]) {
+        if (this.isExhausted(key.id, model)) continue;
         try {
           // Localização de quem pesquisa (como no Google): sem cidade na pesquisa, o Maps busca perto dela
           const response = await client.models.generateContent({
@@ -248,6 +271,7 @@ export class GeminiProvider implements AIProvider {
             config: { tools: [{ googleMaps: {} }], ...(latLng ? { toolConfig: { retrievalConfig: { latLng } } } : {}) },
           });
           await aiKeyStore.recordUse(key.id);
+          await aiKeyStore.clearError(key.id);
           const chunks = (response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [])
             .map((c) => c.maps)
             .filter((m): m is NonNullable<typeof m> => !!m?.uri && !!m.title)
@@ -294,7 +318,12 @@ export class GeminiProvider implements AIProvider {
           return out;
         } catch (err) {
           lastError = err;
+          this.markExhausted(key.id, model, err);
           const missing = err instanceof ApiError && (err.status === 404 || err.status === 400 || /not (found|supported|enabled)/i.test(err.message ?? ''));
+          if (this.isExhausted(key.id, model)) {
+            await aiKeyStore.recordError(key.id, err instanceof Error ? err.message : String(err));
+            continue;
+          }
           if (missing || isOverloaded(err)) continue;
           if (!isKeyError(err)) throw this.mapError(err);
           await aiKeyStore.recordError(key.id, err instanceof Error ? err.message : String(err));
