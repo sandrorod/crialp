@@ -117,7 +117,7 @@ export function restrictClients(req: Request, _res: Response, next: NextFunction
   const co = u.companyId;
   const allowed: [string, RegExp][] = lp && co
     ? [
-        ['GET', /^\/landing-pages\/(labels|templates|presets|icons)$/],
+        ['GET', /^\/landing-pages\/(labels|templates|presets|icons|icon-categories)$/],
         ['GET', new RegExp(`^/landing-pages/${lp}(/preview|/export)?$`)],
         ['POST', new RegExp(`^/landing-pages/${lp}/(preview|versions/\\d+/restore)$`)],
         ['PUT', new RegExp(`^/landing-pages/${lp}/content$`)],

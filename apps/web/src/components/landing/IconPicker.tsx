@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
-import { Search } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import { Input, Modal } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { cn } from '@/lib/utils';
@@ -126,14 +126,21 @@ export function IconPickerModal({
   );
 }
 
-/** Botão "Trocar ícone" que abre o popup (formulários do editor). */
+/** Campo de ícone (como um select): mostra o desenho do ícone atual; clicar abre o popup com todos. */
 export function IconPickerButton({ value, onChange, label = 'Trocar ícone' }: { value: string; onChange: (v: string) => void; label?: string }) {
   const { data } = useAsync(loadIconCatalog, []);
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="inline-flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-xs hover:border-zinc-300">
-        <IconSvg svg={data?.svgs[value]} className="text-brand-600 [&_svg]:size-4" /> {label}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title={label}
+        aria-label={label}
+        className="inline-flex h-10 flex-none items-center gap-1.5 rounded-lg border border-zinc-200 bg-white pl-1.5 pr-2 hover:border-zinc-300"
+      >
+        <IconSvg svg={data?.svgs[value]} className="size-7 rounded-md bg-brand-50 text-brand-600 [&_svg]:size-[18px]" />
+        <ChevronDown className="size-4 text-zinc-400" />
       </button>
       <IconPickerModal open={open} value={value} onPick={onChange} onClose={() => setOpen(false)} />
     </>
