@@ -62,7 +62,10 @@ export function ServicesSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
           <div className="rows">
             {s.items.map((item, i) => (
               <article key={item.name} className="row reveal">
-                <span className="num">{String(i + 1).padStart(2, '0')}</span>
+                <div className="row-lead">
+                  <span className="row-icon"><Icon name={item.icon} size={22} attrs={edIcon(ctx, `services.items.${i}.icon`)} /></span>
+                  <span className="num">{String(i + 1).padStart(2, '0')}</span>
+                </div>
                 <h3 {...ed(ctx, `services.items.${i}.name`)}>{item.name}</h3>
                 <div>
                   <p {...ed(ctx, `services.items.${i}.description`)}>{item.description}</p>

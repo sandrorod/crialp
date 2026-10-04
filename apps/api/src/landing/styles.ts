@@ -126,7 +126,10 @@ p{margin:0;text-wrap:pretty}
 .benefit .ico{color:var(--primary-ink);margin-top:2px}
 .rows{border-top:1px solid var(--border)}
 .row{display:grid;grid-template-columns:minmax(0,1fr);gap:10px 40px;padding:34px 0;border-bottom:1px solid var(--border)}
-@media(min-width:860px){.row{grid-template-columns:90px 1fr 1.2fr;align-items:baseline}}
+@media(min-width:860px){.row{grid-template-columns:120px 1fr 1.2fr;align-items:start}}
+/* Serviços em lista: ícone (trocável no editor) + número */
+.row-lead{display:flex;align-items:center;gap:12px}
+.row-icon{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:var(--radius-sm);background:var(--primary-soft);color:var(--primary-ink)}
 .row .num{font-family:var(--font-heading);font-size:22px;color:var(--accent-ink)}
 .row h3{font-size:calc((clamp(1.45rem,1.2rem + .8vw,1.9rem)) * var(--title-scale))}
 .row p{color:var(--muted)}
@@ -589,7 +592,7 @@ p{margin:0;text-wrap:pretty}
 .tpl-estudio .section>.container:has(>.section-head){display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:64px;align-items:start}
 .tpl-estudio .section>.container>.section-head{position:sticky;top:calc(var(--header-h,76px) + 24px);margin:0}
 .tpl-estudio .section>.container>.section-head h2{font-size:calc((clamp(1.8rem,1.2rem + 1.6vw,2.6rem)) * var(--title-scale))}
-.tpl-estudio .row{grid-template-columns:56px 1fr 1.3fr}
+.tpl-estudio .row{grid-template-columns:110px 1fr 1.3fr}
 }
 .tpl-estudio .grid{gap:36px 32px}
 .tpl-estudio .card,.tpl-estudio .section-alt .card{border:0;border-top:1px solid var(--text);border-radius:0;background:transparent;padding:22px 0 0;box-shadow:none}
