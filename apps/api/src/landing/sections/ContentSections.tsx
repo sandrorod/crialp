@@ -23,9 +23,7 @@ export function AboutSection({ ctx, alt }: { ctx: RenderContext; alt: boolean })
           ) : null}
           <SectionHead eyebrow={ctx.labels.eyebrow_about} title={about.title} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_about'), title: ed(ctx, 'about.title') }} />
           <div className="reveal">
-            {about.paragraphs.map((p, i) => (
-              <p key={i} {...ed(ctx, `about.paragraphs.${i}`)}>{p}</p>
-            ))}
+            {about.paragraphs.map((p, i) => (p ? <p key={i} {...ed(ctx, `about.paragraphs.${i}`)}>{p}</p> : null))}
           </div>
         </div>
         {ctx.aboutImage ? (
@@ -136,14 +134,16 @@ export function ProductsSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
             <article key={item.name} className="card product reveal">
               <h3 {...ed(ctx, `products.items.${i}.name`)}>{item.name}</h3>
               <p {...ed(ctx, `products.items.${i}.description`)}>{item.description}</p>
-              {item.features.length ? (
+              {item.features.some(Boolean) ? (
                 <ul>
-                  {item.features.slice(0, 6).map((f, j) => (
-                    <li key={f}>
-                      <Icon name="check" size={16} stroke={2.2} />
-                      <span {...ed(ctx, `products.items.${i}.features.${j}`)}>{f}</span>
-                    </li>
-                  ))}
+                  {item.features.slice(0, 6).map((f, j) =>
+                    f ? (
+                      <li key={`${j}-${f}`}>
+                        <Icon name="check" size={16} stroke={2.2} />
+                        <span {...ed(ctx, `products.items.${i}.features.${j}`)}>{f}</span>
+                      </li>
+                    ) : null,
+                  )}
                 </ul>
               ) : null}
             </article>
@@ -244,8 +244,8 @@ export function FaqSection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {
       <div className="container">
         <SectionHead eyebrow={ctx.labels.eyebrow_faq} title={f.title} center paths={{ eyebrow: ed(ctx, 'labels.eyebrow_faq'), title: ed(ctx, 'faq.title') }} />
         <div className="faq reveal">
-          {f.items.map((item, i) => (
-            <details key={item.question}>
+          {f.items.map((item, i) => !item.question ? null : (
+            <details key={`${i}-${item.question}`}>
               <summary>
                 <span {...ed(ctx, `faq.items.${i}.question`)}>{item.question}</span>
                 <Icon name="plus" />

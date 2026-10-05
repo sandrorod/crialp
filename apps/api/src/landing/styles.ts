@@ -652,6 +652,21 @@ body:not(.tpl-revista):not(.tpl-capa) .gallery.g-n7 figure:nth-child(n+6){grid-c
 /* Computador: título principal com 66px por padrão em todos os modelos */
 @media(min-width:768px){:root .hero h1{font-size:calc(66px * var(--title-scale) * var(--hero-scale))}}
 
+/* Celular: tudo cabe na largura da tela, sem rolagem lateral.
+   Palavras longas, e-mails e endereços quebram de linha em vez de alargar a página;
+   no modelo Capa, galeria e depoimentos viram grade/coluna em vez de carrossel. */
+html{overflow-x:clip}
+@media(max-width:767px){
+h1,h2,h3,h4,p,li,dt,dd,blockquote,figcaption,summary,small,strong,.hero-eyebrow,.eyebrow{overflow-wrap:anywhere}
+h1,h2,h3{hyphens:auto;-webkit-hyphens:auto}
+img,video,iframe,svg{max-width:100%}
+.tpl-capa .gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;scroll-snap-type:none;padding-bottom:0}
+.tpl-capa .gallery figure{flex:none;aspect-ratio:1!important;margin:0}
+.tpl-capa .gallery:is(.g-n3,.g-n5,.g-n7,.g-n9) figure:first-child{grid-column:1/-1;aspect-ratio:16/10!important}
+.tpl-capa .quotes{display:grid;grid-template-columns:minmax(0,1fr);overflow:visible;scroll-snap-type:none;padding-bottom:0}
+.tpl-capa .quote{flex:none}
+}
+
 /* Animações discretas (somente com JS ativo e sem preferência por movimento reduzido) */
 .js .reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
 .js .reveal.in{opacity:1;transform:none}

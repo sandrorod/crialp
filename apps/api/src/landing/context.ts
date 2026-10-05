@@ -2,7 +2,7 @@ import type { CompanyFull } from '../repositories/companies.js';
 import type { LandingContent } from '../services/ai/schemas.js';
 import { formatBrazilPhone, telLink, whatsappLink } from '../lib/phone.js';
 import type { ResolvedTheme } from './theme.js';
-import { stripEmojisDeep } from '../lib/emoji.js';
+import { blankSymbolOnlyDeep, stripEmojisDeep } from '../lib/emoji.js';
 import { DEFAULT_LABELS, resolveLabels, type LabelKey, type Labels } from './labels.js';
 
 export interface LpImage {
@@ -78,6 +78,27 @@ export function safeHref(url: string | null | undefined): string | null {
   return null;
 }
 
+export const SOCIAL_NETWORKS = ['instagram', 'facebook', 'youtube', 'linkedin', 'tiktok'] as const;
+export type SocialNetwork = (typeof SOCIAL_NETWORKS)[number];
+
+/** Link da rede a partir do que foi digitado: URL completa, "instagram.com/empresa" ou só "@empresa". */
+export function socialUrl(network: SocialNetwork, raw: string | null | undefined): string | null {
+  const v = raw?.trim();
+  if (!v) return null;
+  if (/^https?:\/\//i.test(v)) return v;
+  if (/^[\w-]+(\.[\w-]+)+\//.test(v) || /^(www\.)?[\w-]+\.(com|net|br)\b/i.test(v)) return `https://${v}`;
+  const user = v.replace(/^@/, '');
+  if (!/^[\w.-]+$/.test(user)) return null;
+  const base: Record<SocialNetwork, string> = {
+    instagram: `https://instagram.com/${user}`,
+    facebook: `https://facebook.com/${user}`,
+    youtube: `https://youtube.com/@${user}`,
+    linkedin: `https://linkedin.com/company/${user}`,
+    tiktok: `https://tiktok.com/@${user}`,
+  };
+  return base[network];
+}
+
 export function absoluteAsset(url: string, origin: string) {
   return url.startsWith('/') ? `${origin}${url}` : url;
 }
@@ -96,7 +117,8 @@ export function buildContext(opts: {
   // Opção "Remover emojis": todos os textos da página (conteúdo, cadastro e SEO) saem sem emoji
   const clean = theme.removeEmojis;
   const company = clean ? stripEmojisDeep(opts.company) : opts.company;
-  const content = clean ? stripEmojisDeep(opts.content) : opts.content;
+  // Textos que são só emoji/símbolo nunca aparecem sozinhos (ex.: ✓ seguido de um emoji, sem texto)
+  const content = blankSymbolOnlyDeep(clean ? stripEmojisDeep(opts.content) : opts.content);
   opts = clean ? { ...opts, seo: stripEmojisDeep(opts.seo) } : opts;
   const displayName = company.trade_name || company.name;
 
@@ -150,12 +172,14 @@ export function buildContext(opts: {
 
   const primary = whatsapp ?? phone ?? email ?? '#contato';
 
+  // Redes da página: as preenchidas no editor (content.overrides "social.<rede>") valem só nesta LP;
+  // sem preenchimento, as do cadastro. Campo apagado no editor tira o ícone desta página.
+  const social = (network: SocialNetwork, fromCompany: string | null) => {
+    const own = content.overrides?.[`social.${network}`];
+    return socialUrl(network, own !== undefined ? own : fromCompany);
+  };
   const socials = [
-    ['instagram', company.instagram],
-    ['facebook', company.facebook],
-    ['youtube', company.youtube],
-    ['linkedin', company.linkedin],
-    ['tiktok', company.tiktok],
+    ...SOCIAL_NETWORKS.map((n) => [n, social(n, company[n])] as const),
     ...company.other_socials.map((s) => [s.network, s.url] as const),
   ]
     .filter(([, url]) => safeHref(url))

@@ -164,6 +164,39 @@ function Group({ title, children, actions, empty }: { title: string; children?: 
   );
 }
 
+const SOCIAL_FIELDS = [
+  { key: 'instagram', label: 'Instagram', placeholder: '@empresa ou link do perfil' },
+  { key: 'facebook', label: 'Facebook', placeholder: 'Link da página' },
+  { key: 'youtube', label: 'YouTube', placeholder: 'Link do canal' },
+  { key: 'linkedin', label: 'LinkedIn', placeholder: 'Link da página da empresa' },
+  { key: 'tiktok', label: 'TikTok', placeholder: '@empresa ou link do perfil' },
+] as const;
+
+/**
+ * Redes sociais desta página (ícones abaixo do botão do WhatsApp em "Fale conosco"). Começam com as do
+ * cadastro; o que for mudado aqui vale só para esta LP. Campo vazio = sem ícone daquela rede.
+ */
+function SocialFields({ content, onChange, company }: { content: LandingContent; onChange: (c: LandingContent) => void; company?: Company | null }) {
+  const overrides = content.overrides ?? {};
+  const valueOf = (key: (typeof SOCIAL_FIELDS)[number]['key']) => overrides[`social.${key}`] ?? company?.[key] ?? '';
+  const setSocial = (key: string, v: string) => onChange({ ...content, overrides: { ...overrides, [`social.${key}`]: v.trim() ? v : '' } });
+  return (
+    <div className="space-y-3 border-t border-zinc-100 pt-3">
+      <div>
+        <h5 className="text-[13px] font-semibold">Redes sociais</h5>
+        <p className="text-xs text-zinc-500">Os ícones aparecem abaixo do botão do WhatsApp, só das redes preenchidas. Mudanças aqui valem só para esta página.</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {SOCIAL_FIELDS.map((f) => (
+          <Field key={f.key} label={f.label}>
+            <Input value={valueOf(f.key)} placeholder={f.placeholder} onChange={(e) => setSocial(f.key, e.target.value)} />
+          </Field>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Txt({ label, value, onChange, area, placeholder }: { label: string; value: string | null | undefined; onChange: (v: string) => void; area?: boolean; placeholder?: string }) {
   return (
     <Field label={label}>
@@ -498,9 +531,10 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
       )}
 
       <Group title="Contato">
-        <p className="text-xs text-zinc-500">Telefone, WhatsApp, e-mail, endereço, horário e redes vêm do cadastro da empresa.</p>
+        <p className="text-xs text-zinc-500">Telefone, WhatsApp, e-mail, endereço e horário vêm do cadastro da empresa.</p>
         <Txt label="Título" value={content.contact.title} onChange={(v) => set('contact', { ...content.contact, title: v })} />
         <Txt label="Subtítulo" value={content.contact.subtitle} onChange={(v) => set('contact', { ...content.contact, subtitle: v || null })} />
+        <SocialFields content={content} onChange={onChange} company={company} />
       </Group>
 
       <Group title="CTA final">

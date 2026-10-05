@@ -13,28 +13,29 @@ export function CustomSectionView({ ctx, section, alt }: { ctx: RenderContext; s
     <section id={`sec-${section.id}`} className={`section${alt ? ' section-alt' : ''}${center ? ' custom-center' : ''}`}>
       <div className="container">
         {section.title ? <SectionHead center={center} eyebrow={section.eyebrow} title={section.title} paths={{ eyebrow: edOptional(ctx, `${base}.eyebrow`, 'Sobretítulo (opcional)'), title: ed(ctx, `${base}.title`) }} /> : null}
-        {section.paragraphs.length ? (
+        {section.paragraphs.some(Boolean) ? (
           <div className="custom-text reveal">
-            {section.paragraphs.map((p, i) => (
-              <p key={i} {...ed(ctx, `${base}.paragraphs.${i}`)}>{p}</p>
-            ))}
+            {section.paragraphs.map((p, i) => (p ? <p key={i} {...ed(ctx, `${base}.paragraphs.${i}`)}>{p}</p> : null))}
           </div>
         ) : null}
-        {section.items.length ? (
+        {section.items.some(Boolean) ? (
           <ul className="custom-list reveal">
-            {section.items.map((item, i) => (
-              <li key={i}>
-                <Icon name="check" size={18} stroke={2.2} />
-                <span {...ed(ctx, `${base}.items.${i}`)}>{item}</span>
-              </li>
-            ))}
+            {/* Item sem texto não vira um ✓ sozinho */}
+            {section.items.map((item, i) =>
+              item ? (
+                <li key={i}>
+                  <Icon name="check" size={18} stroke={2.2} />
+                  <span {...ed(ctx, `${base}.items.${i}`)}>{item}</span>
+                </li>
+              ) : null,
+            )}
           </ul>
         ) : null}
         {blocks.length ? (
           <div className="blocks">
             {blocks.map((b, i) =>
               // Foto ainda não escolhida não aparece na página publicada
-              b.type === 'image' && !safeHref(b.url) && !ctx.editable ? null : (
+              (b.type === 'image' && !safeHref(b.url) && !ctx.editable) || (!ctx.editable && blockIsEmpty(b)) ? null : (
                 <div key={b.id} className={`blk blk-${b.type} w-${b.width ?? 'full'} reveal`}>
                   <BlockView ctx={ctx} block={b} path={`${base}.blocks.${i}`} />
                 </div>
@@ -45,6 +46,14 @@ export function CustomSectionView({ ctx, section, alt }: { ctx: RenderContext; s
       </div>
     </section>
   );
+}
+
+/** Elemento de texto sem texto (ex.: só um emoji) não aparece na página publicada. */
+function blockIsEmpty(b: SectionBlock) {
+  if (b.type === 'heading' || b.type === 'text') return !b.text?.trim();
+  if (b.type === 'icon') return !b.title?.trim() && !b.text?.trim();
+  if (b.type === 'button') return !b.label?.trim();
+  return false;
 }
 
 function BlockView({ ctx, block: b, path }: { ctx: RenderContext; block: SectionBlock; path: string }) {
