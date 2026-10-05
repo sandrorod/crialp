@@ -35,7 +35,7 @@ const TABS: { key: Tab; label: string }[] = [
 const STAFF_TABS: Tab[] = ['publicacao', 'cliente'];
 
 const MODES: { key: PreviewMode; label: string; icon: typeof Monitor; hint: string }[] = [
-  { key: 'textos', label: 'Textos', icon: PenLine, hint: 'Clique em qualquer texto contornado para editar ali mesmo (A− / A+ mudam o tamanho). Enter ou clicar fora confirma; Esc desfaz. Clique num ícone para trocá-lo.' },
+  { key: 'textos', label: 'Textos', icon: PenLine, hint: 'Clique em qualquer texto contornado para editar ali mesmo; clique em qualquer outro elemento (foto, botão, cartão…) para mudar cores, efeito ou excluir. Enter ou clicar fora confirma; Esc desfaz. Clique num ícone para trocá-lo.' },
   { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste qualquer foto (topo, "Sobre" e galeria) para ajustar o enquadramento; use − / + para o zoom. Arraste as alças azuis das bordas para mudar a largura e a altura (duplo clique volta ao padrão).' },
   { key: 'secoes', label: 'Seções', icon: Rows3, hint: 'Arraste as seções pelo botão ⠿ (ou use ↑ ↓) para mudar a ordem.' },
   { key: 'espacos', label: 'Espaços', icon: MoveVertical, hint: 'Arraste a alça azul "↕ Espaço" na borda de baixo de cada seção: para cima diminui a margem interna, para baixo aumenta. Duplo clique volta ao padrão.' },
@@ -67,9 +67,9 @@ function readIconAt(content: LandingContent, path: string): string | null {
  */
 function renderedThemeKey(t: ThemeSettings | null | undefined, c: LandingContent | null | undefined) {
   if (!t) return '';
-  const { preset, primary, accent, heroVariant, sections, images, template, imageOrder, logoPlacement, removeEmojis } = t;
+  const { preset, primary, accent, heroVariant, sections, images, template, imageOrder, logoPlacement, removeEmojis, brand } = t;
   // Todo o conteúdo (textos, seções desativadas, ordem, seções personalizadas) também é renderizado no servidor
-  return JSON.stringify({ preset, primary, accent, heroVariant, sections, images, template, imageOrder, logoPlacement, removeEmojis, content: c ?? null });
+  return JSON.stringify({ preset, primary, accent, heroVariant, sections, images, template, imageOrder, logoPlacement, removeEmojis, brand, content: c ?? null });
 }
 
 export function LandingPageEditorPage() {
@@ -184,11 +184,11 @@ export function LandingPageEditorPage() {
     }
   };
 
-  const addPhotos = async (photos: NewPhoto[]) => {
+  const addPhotos = async (photos: NewPhoto[], opts: { logo?: boolean } = {}) => {
     await companyService.addImages(lp.company_id, photos);
     await reloadCompany();
-    // Sem galeria na página: cria a seção antes de depoimentos/FAQ/contato
-    if (!content.gallery) {
+    // Sem galeria na página: cria a seção antes de depoimentos/FAQ/contato (logotipo não precisa de galeria)
+    if (!content.gallery && !opts.logo) {
       setContent((c) => {
         if (!c || c.gallery) return c;
         const order: SectionOrderKey[] = c.section_order.filter((k) => k !== 'gallery');

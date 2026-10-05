@@ -188,7 +188,7 @@ export function renderLandingPage(ctx: RenderContext): string {
         {ctx.editable ? (
           <style
             dangerouslySetInnerHTML={{
-              __html: '.lp-social-hint{margin-top:24px;padding:12px 14px;border:1px dashed currentColor;border-radius:10px;font-size:13px;opacity:.6}html:not(.lp-mode-textos) [data-lp-empty]:empty,html:not(.lp-mode-textos) [data-lp-hide-empty]:has([data-lp-empty]:empty){display:none!important}',
+              __html: '[data-lp-hide-empty]:has([data-lp-empty]:empty)>.ico{display:none}.lp-social-hint{margin-top:24px;padding:12px 14px;border:1px dashed currentColor;border-radius:10px;font-size:13px;opacity:.6}html:not(.lp-mode-textos) [data-lp-empty]:empty,html:not(.lp-mode-textos) [data-lp-hide-empty]:has([data-lp-empty]:empty){display:none!important}',
             }}
           />
         ) : null}

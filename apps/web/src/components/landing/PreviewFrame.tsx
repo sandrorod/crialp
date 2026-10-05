@@ -354,6 +354,22 @@ export function PreviewFrame({
                 colorsRef.current = next;
                 onColorsRef.current?.(next);
               },
+              // Excluir/restaurar elemento: vale no celular e no computador
+              setHidden: (sel, hidden) => {
+                const all = colorsRef.current ?? { desktop: {}, mobile: {} };
+                const next = { ...all };
+                for (const layout of ['desktop', 'mobile'] as const) {
+                  const map = { ...all[layout] };
+                  const entry: ElementColor = { ...(map[sel] ?? {}) };
+                  if (hidden) entry.hidden = true;
+                  else delete entry.hidden;
+                  if (Object.keys(entry).length) map[sel] = entry;
+                  else delete map[sel];
+                  next[layout] = map;
+                }
+                colorsRef.current = next;
+                onColorsRef.current?.(next);
+              },
             }
           : undefined,
       );

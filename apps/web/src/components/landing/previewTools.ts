@@ -120,6 +120,9 @@ export function elementStyleDecl(c: ElementColor): string {
     c.bold !== undefined ? `font-weight:${c.bold ? 700 : 400}!important` : '',
     c.italic !== undefined ? `font-style:${c.italic ? 'italic' : 'normal'}!important` : '',
     c.underline !== undefined ? `text-decoration:${c.underline ? 'underline' : 'none'}!important` : '',
+    // Na prévia o elemento excluído continua visível (apagado e tracejado) para poder ser restaurado;
+    // na página publicada ele some (display:none, em apps/api/src/landing/elementColors.ts)
+    c.hidden ? 'opacity:.3!important;outline:2px dashed #ef4444!important;outline-offset:2px' : '',
   ]
     .filter(Boolean)
     .join(';');
@@ -409,6 +412,7 @@ html.lp-mode-textos [data-lp-text]{outline:1px dashed rgba(37,99,235,.55);outlin
 html.lp-mode-textos [data-lp-text]:hover{outline:2px solid #2563eb}
 html.lp-mode-textos [data-lp-text][contenteditable]:not([contenteditable="false"]){outline:2px solid #2563eb;background:rgba(37,99,235,.07);caret-color:#2563eb}
 html.lp-mode-textos [data-lp-icon]{outline:1px dashed rgba(37,99,235,.55);outline-offset:4px;cursor:pointer!important;border-radius:4px}
+html.lp-mode-textos [data-lp-selected]{outline:2px solid #f59e0b!important;outline-offset:3px}
 html.lp-mode-textos [data-lp-icon]:hover,html.lp-mode-textos .icon-box:hover [data-lp-icon]{outline:2px solid #2563eb}
 html.lp-mode-textos .icon-box:has([data-lp-icon]){cursor:pointer!important}
 html.lp-mode-textos [data-lp-empty]:empty{min-width:4em;min-height:1em;display:inline-block}
@@ -802,13 +806,15 @@ export interface TextSizeOptions {
   deviceLabel: string;
   /** Efeito de movimento do seletor: vale para celular e computador; `null` remove */
   setEffect?: (selector: string, fx: TextEffect | null) => void;
+  /** Excluir (true) ou restaurar (null) o elemento: vale para celular e computador */
+  setHidden?: (selector: string, hidden: true | null) => void;
   uiScale?: number;
 }
 
-const TEXT_STYLE_KEYS = ['text', 'size', 'font', 'bold', 'italic', 'underline'] as const;
+const TEXT_STYLE_KEYS = ['text', 'bg', 'size', 'font', 'bold', 'italic', 'underline', 'hidden'] as const;
 
 /** Barra flutuante sobre o texto em edição: fonte, tamanho, negrito, itálico, sublinhado e cor (só na prévia). */
-function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions) {
+function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extra: { onParent?: () => void; onRemoved?: () => void } = {}) {
   const win = doc.defaultView!;
   const px = (n: number) => `${Math.round(n * (opts.uiScale ?? 1))}px`;
   const exact = selectorFor(el, true);
@@ -889,12 +895,32 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions) {
   color.setAttribute('style', `${fieldCss};width:${px(34)};padding:${px(3)}`);
   color.addEventListener('input', () => opts.setStyle(sel(), { text: color.value }));
 
+  // Cor de fundo
+  const bg = doc.createElement('input');
+  bg.type = 'color';
+  bg.title = 'Cor de fundo';
+  bg.setAttribute('style', `${fieldCss};width:${px(34)};padding:${px(3)}`);
+  bg.addEventListener('input', () => opts.setStyle(sel(), { bg: bg.value }));
+  const bgLabel = doc.createElement('span');
+  bgLabel.textContent = 'Fundo';
+  bgLabel.setAttribute('style', `opacity:.7;padding-left:${px(4)}`);
+
+  // Excluir / restaurar o elemento (na página publicada ele some; na prévia fica apagado)
+  const remove = mk('', 'Excluir este elemento da página (celular e computador)', () => {
+    const hidden = !saved().hidden;
+    opts.setHidden?.(sel(), hidden ? true : null);
+    later(render);
+    if (hidden) extra.onRemoved?.();
+  });
+  // Elemento de fora (ex.: do texto para o cartão inteiro)
+  const parent = extra.onParent ? mk('↑ Elemento de fora', 'Selecionar o elemento que contém este', extra.onParent, `;font-weight:500;font-size:${px(12)}`) : null;
+
   const scopeBtn = mk('', 'Aplicar só neste texto ou em todos os textos iguais a este', () => {
     scope = scope === 'exact' ? 'similar' : 'exact';
     render();
   });
   const reset = mk('⟲', 'Voltar ao padrão (fonte, tamanho, estilo e cor do texto)', () => {
-    opts.setStyle(sel(), { text: null, size: null, font: null, bold: null, italic: null, underline: null });
+    opts.setStyle(sel(), { text: null, bg: null, size: null, font: null, bold: null, italic: null, underline: null });
     later(render);
   });
   // Efeito de movimento quando o texto aparece na tela: menu desenhado dentro da barra (uma lista nativa
@@ -946,6 +972,9 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions) {
     on(underline, isUnderline());
     color.value = s.text ?? cssColorToHex(cs().color) ?? '#000000';
     scopeBtn.textContent = scope === 'exact' ? 'Só este' : 'Todos iguais';
+    bg.value = s.bg ?? cssColorToHex(cs().backgroundColor) ?? '#ffffff';
+    remove.textContent = s.hidden ? '↺ Restaurar' : '🗑 Excluir';
+    remove.style.background = s.hidden ? '#16a34a' : 'rgba(239,68,68,.85)';
     effect.textContent = `✦ Efeito: ${s.fx ? EFFECT_LABEL.get(s.fx) ?? s.fx : 'nenhum'} ▾`;
     for (const [v, c] of chips) c.style.background = (s.fx ?? null) === v ? '#2563eb' : 'rgba(255,255,255,.1)';
   }
@@ -959,9 +988,13 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions) {
   bar.append(top, bottom);
   if (opts.setEffect) {
     const fxRow = row();
-    fxRow.append(effect);
+    fxRow.append(effect, bgLabel, bg);
     bar.append(fxRow, menu);
   }
+  const actions = row();
+  if (parent) actions.append(parent);
+  if (opts.setHidden) actions.append(remove);
+  if (actions.children.length) bar.append(actions);
   render();
   doc.body.appendChild(bar);
 
@@ -969,7 +1002,8 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions) {
     const r = el.getBoundingClientRect();
     const h = bar.offsetHeight;
     const y = r.top - h - 8 >= 4 ? r.top - h - 8 : r.bottom + 8;
-    bar.style.top = `${y}px`;
+    // Elementos altos (seções inteiras): a barra fica sempre dentro da tela
+    bar.style.top = `${Math.max(4, Math.min(y, win.innerHeight - h - 4))}px`;
     bar.style.left = `${Math.max(4, Math.min(r.left, win.innerWidth - bar.offsetWidth - 4))}px`;
   };
   place();
@@ -1062,7 +1096,29 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
     }
   };
 
+  // Qualquer outro elemento da página (foto, botão, cartão, seção...): mesma barra, sem editar o texto
+  let picked: { el: HTMLElement; close: () => void } | null = null;
+  const unpick = () => {
+    if (!picked) return;
+    picked.el.removeAttribute('data-lp-selected');
+    picked.close();
+    picked = null;
+  };
+  const pick = (el: HTMLElement) => {
+    unpick();
+    if (!sizes) return;
+    el.setAttribute('data-lp-selected', '');
+    const tb = textToolbar(doc, el, sizes, {
+      onParent: () => {
+        const up = el.parentElement;
+        if (up && up !== doc.body && up !== doc.documentElement) pick(up);
+      },
+    });
+    picked = { el, close: tb.close };
+  };
+
   const start = (el: HTMLElement) => {
+    unpick();
     if (editing?.el === el) return;
     finish();
     editing = { el, original: el.innerText, cancelled: false };
@@ -1091,9 +1147,18 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
   doc.addEventListener(
     'mousedown',
     (e) => {
-      if (currentMode(doc) !== 'textos') return;
-      const el = (e.target as Element | null)?.closest?.<HTMLElement>('[data-lp-text]');
-      if (el) start(el);
+      if (currentMode(doc) !== 'textos') return unpick();
+      const t = e.target as Element | null;
+      const el = t?.closest?.<HTMLElement>('[data-lp-text]');
+      if (el) return start(el);
+      // Barras do editor e ícones trocáveis (abrem o seletor de ícones) têm o próprio clique
+      if (!t || t.closest('[data-lp-ui]') || t.closest('[data-lp-icon]') || t.closest('.icon-box')?.querySelector('[data-lp-icon]')) return;
+      // Desenho de ícone: seleciona o ícone inteiro, não um traço dele
+      const svg = t.closest('svg');
+      const node = (svg ? (svg.parentElement?.classList.contains('ico') ? svg.parentElement : svg) : t) as HTMLElement;
+      if (node === doc.body || node === doc.documentElement) return unpick();
+      finish();
+      pick(node);
     },
     true,
   );
@@ -1112,7 +1177,10 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
   doc.addEventListener(
     'keydown',
     (e) => {
-      if (!editing) return;
+      if (!editing) {
+        if (e.key === 'Escape') unpick();
+        return;
+      }
       // Teclas dentro da barra (fonte, cor) são dela
       if (editing.bar?.contains(e.target as Node) && e.key !== 'Escape') return;
       if (e.key === 'Escape') {

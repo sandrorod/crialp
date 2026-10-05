@@ -276,6 +276,8 @@ export interface ThemeSettings {
   logoPlacement?: 'header' | 'hero' | 'about';
   /** Tira os emojis de todos os textos da página */
   removeEmojis?: boolean;
+  /** Cabeçalho: logotipo, nome da empresa ou os dois */
+  brand?: 'logo' | 'name' | 'both';
 }
 
 /** Tamanho de uma foto arrastado na prévia: largura em % do espaço disponível, altura em px. */
@@ -309,6 +311,8 @@ export interface ElementColor {
   underline?: boolean;
   /** Efeito de movimento quando o texto aparece na tela (celular e computador) */
   fx?: TextEffect;
+  /** Elemento excluído da página no editor (Restaurar volta) */
+  hidden?: boolean;
 }
 
 export type TextEffect =

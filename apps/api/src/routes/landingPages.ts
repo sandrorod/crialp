@@ -113,6 +113,8 @@ const ElementStyleSchema = z.object({
   underline: z.boolean().nullish(),
   // Efeito de movimento quando o texto aparece na tela
   fx: z.enum(TEXT_EFFECTS).nullish(),
+  // Elemento excluído da página pelo editor
+  hidden: z.boolean().nullish(),
 });
 
 const ContentUpdateSchema = z.object({
@@ -137,6 +139,8 @@ const ContentUpdateSchema = z.object({
     imageOrder: z.array(z.string().max(2048)).max(300).optional(),
     // Onde o logotipo aparece: cabeçalho, início do conteúdo ou seção "Sobre"
     logoPlacement: z.enum(['header', 'hero', 'about']).optional(),
+    // Cabeçalho: logotipo, nome da empresa ou os dois
+    brand: z.enum(['logo', 'name', 'both']).optional(),
     // Tira os emojis de todos os textos da página
     removeEmojis: z.boolean().optional(),
     // Ordem das seções só no celular (vazia = igual ao computador)

@@ -29,7 +29,8 @@ export const isSymbolOnly = (text: string) => !!text.trim() && !/[\p{L}\p{N}]/u.
  * sem texto. Itens de lista continuam no lugar (as posições ligam a prévia aos campos); a página pula os vazios.
  */
 export function blankSymbolOnlyDeep<T>(value: T): T {
-  if (typeof value === 'string') return (isSymbolOnly(value) ? '' : value) as T;
+  // Só espaços também conta como vazio (ex.: subdescrição " " mostraria o ✓ sem texto)
+  if (typeof value === 'string') return (!value.trim() || isSymbolOnly(value) ? '' : value) as T;
   if (Array.isArray(value)) return value.map(blankSymbolOnlyDeep) as T;
   if (value && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
     return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, blankSymbolOnlyDeep(v)])) as T;

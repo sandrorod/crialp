@@ -32,7 +32,11 @@ export interface ThemeSettings {
   logoPlacement?: LogoPlacement;
   /** Tira os emojis de todos os textos da página. */
   removeEmojis?: boolean;
+  /** Cabeçalho: logotipo (padrão), nome da empresa ou os dois. */
+  brand?: BrandDisplay;
 }
+
+export type BrandDisplay = 'logo' | 'name' | 'both';
 
 export type LogoPlacement = 'header' | 'hero' | 'about';
 
@@ -393,6 +397,7 @@ export interface ResolvedTheme {
   imageSize: ImageSizes;
   logoPlacement: LogoPlacement;
   removeEmojis: boolean;
+  brand: BrandDisplay;
   fontsHref: string;
   vars: Record<string, string>;
 }
@@ -420,6 +425,7 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
     imageSize: normalizeImageSizes(input?.imageSize),
     logoPlacement: input?.logoPlacement === 'hero' || input?.logoPlacement === 'about' ? input.logoPlacement : 'header',
     removeEmojis: input?.removeEmojis === true,
+    brand: input?.brand === 'name' || input?.brand === 'both' ? input.brand : 'logo',
   };
 }
 
@@ -475,6 +481,7 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
     imageSize: settings.imageSize ?? {},
     logoPlacement: settings.logoPlacement ?? 'header',
     removeEmojis: settings.removeEmojis === true,
+    brand: settings.brand ?? 'logo',
     fontsHref: `https://fonts.googleapis.com/css2?${families}&display=swap`,
     vars: {
       '--bg': c.bg,

@@ -16,6 +16,8 @@ export interface ElementColor {
   underline?: boolean;
   /** Efeito de movimento quando o texto aparece na tela (vale para celular e computador) */
   fx?: TextEffect;
+  /** Elemento excluído da página pelo editor (fica salvo; "Restaurar" volta) */
+  hidden?: boolean;
 }
 
 /** Efeitos de movimento dos textos. Mantenha igual em apps/web/src/components/landing/previewTools.ts. */
@@ -91,6 +93,7 @@ function normalizeMap(input: unknown): Record<string, ElementColor> {
       ...(flag(value?.italic) !== null ? { italic: value.italic } : {}),
       ...(flag(value?.underline) !== null ? { underline: value.underline } : {}),
       ...(TEXT_EFFECTS.includes(value?.fx as TextEffect) ? { fx: value.fx } : {}),
+      ...(value?.hidden === true ? { hidden: true } : {}),
     };
     if (Object.keys(entry).length) out[sel] = entry;
   }
@@ -113,6 +116,7 @@ function rules(map: Record<string, ElementColor>) {
         c.bold !== undefined ? `font-weight:${c.bold ? 700 : 400}!important` : '',
         c.italic !== undefined ? `font-style:${c.italic ? 'italic' : 'normal'}!important` : '',
         c.underline !== undefined ? `text-decoration:${c.underline ? 'underline' : 'none'}!important` : '',
+        c.hidden ? 'display:none!important' : '',
       ]
         .filter(Boolean)
         .join(';');

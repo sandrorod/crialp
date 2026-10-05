@@ -522,7 +522,7 @@ export function PhotosTab({
   theme: ThemeSettings;
   onChange: (t: ThemeSettings) => void;
   images: CompanyImage[] | null;
-  onAddPhotos: (photos: NewPhoto[]) => Promise<void>;
+  onAddPhotos: (photos: NewPhoto[], opts?: { logo?: boolean }) => Promise<void>;
   onRemovePhotos: (urls: string[]) => Promise<void>;
   /** Ordem das seções da página: decide se "Sobre" aparece antes ou depois da galeria */
   sectionOrder?: string[];
@@ -533,8 +533,25 @@ export function PhotosTab({
   // Fotos a apagar (confirmação aberta)
   const [toRemove, setToRemove] = useState<string[] | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const logoRef = useRef<HTMLInputElement>(null);
   if (!images) return <div className="skeleton h-40 rounded-lg" />;
   const photos = images.filter((i) => i.type !== 'logo');
+  // Logotipo enviado: entra no cadastro da empresa e vira o logotipo desta página
+  const uploadLogo = async (file: File) => {
+    setLogoBusy(true);
+    try {
+      const { url } = await miscService.upload(file);
+      await onAddPhotos([{ url, source: 'upload' }], { logo: true });
+      const placements = Object.fromEntries(Object.entries(theme.images ?? {}).filter(([, p]) => p !== 'logo'));
+      onChange({ ...theme, images: { ...placements, [url]: 'logo' }, brand: theme.brand === 'name' ? 'logo' : theme.brand });
+      toast.success('Logotipo enviado. Salve a página para publicar.');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setLogoBusy(false);
+    }
+  };
   const logo =
     images.find((i) => i.usage_allowed && theme.images?.[i.url] === 'logo') ?? images.find((i) => i.type === 'logo' && i.usage_allowed);
   const logoBox = (
@@ -544,6 +561,29 @@ export function PhotosTab({
       ) : (
         <div className="grid h-12 w-24 flex-none place-items-center rounded bg-zinc-50 text-center text-[10px] leading-tight text-zinc-400">sem logotipo</div>
       )}
+      <div className="flex flex-col gap-2">
+        <Button type="button" variant="secondary" size="sm" loading={logoBusy} icon={<Upload className="size-4" />} onClick={() => logoRef.current?.click()}>
+          {logo ? 'Trocar logotipo' : 'Enviar logotipo'}
+        </Button>
+        <input
+          ref={logoRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = '';
+            if (f) void uploadLogo(f);
+          }}
+        />
+      </div>
+      <Field label="No cabeçalho, mostrar" hint={logo ? undefined : 'Sem logotipo, o cabeçalho mostra o nome da empresa.'}>
+        <Select value={theme.brand ?? 'logo'} onChange={(e) => onChange({ ...theme, brand: e.target.value as ThemeSettings['brand'] })}>
+          <option value="logo">Logotipo</option>
+          <option value="name">Nome da empresa</option>
+          <option value="both">Logotipo e nome</option>
+        </Select>
+      </Field>
       <Field
         label="Onde mostrar o logotipo"
         hint={logo ? 'No “Sobre”, se a seção não aparecer, o logo vai para o início do conteúdo.' : 'Escolha “Logotipo” em uma das fotos abaixo (ou envie o arquivo do logo).'}
