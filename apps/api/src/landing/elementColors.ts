@@ -19,7 +19,14 @@ export interface ElementColor {
 }
 
 /** Efeitos de movimento dos textos. Mantenha igual em apps/web/src/components/landing/previewTools.ts. */
-export const TEXT_EFFECTS = ['fade', 'up', 'down', 'left', 'right', 'zoom', 'bounce', 'typing', 'pulse'] as const;
+export const TEXT_EFFECTS = [
+  // Entrada (tocam uma vez quando o texto aparece)
+  'fade', 'up', 'down', 'left', 'right', 'zoom', 'zoomout', 'bounce', 'blur', 'flip', 'rotate', 'swing', 'expand', 'typing',
+  // Chamar atenção (aparecem e se mexem uma vez)
+  'shake', 'rubber', 'tada',
+  // Contínuos (repetem enquanto a página está aberta)
+  'pulse', 'heartbeat', 'float', 'glow', 'blink',
+] as const;
 export type TextEffect = (typeof TEXT_EFFECTS)[number];
 
 /**

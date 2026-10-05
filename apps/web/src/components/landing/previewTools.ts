@@ -25,17 +25,39 @@ export const TEXT_FONTS: Record<string, { label: string; stack: string; google?:
 };
 
 /** Efeitos de movimento dos textos (iguais a TEXT_EFFECTS em apps/api/src/landing/elementColors.ts). */
-export const TEXT_EFFECTS: { value: TextEffect; label: string }[] = [
-  { value: 'fade', label: 'Surgir' },
-  { value: 'up', label: 'Subir' },
-  { value: 'down', label: 'Descer' },
-  { value: 'left', label: 'Entrar da esquerda' },
-  { value: 'right', label: 'Entrar da direita' },
-  { value: 'zoom', label: 'Zoom' },
-  { value: 'bounce', label: 'Quicar' },
-  { value: 'typing', label: 'Digitação' },
-  { value: 'pulse', label: 'Pulsar (contínuo)' },
+export const TEXT_EFFECT_GROUPS: { title: string; items: { value: TextEffect; label: string }[] }[] = [
+  {
+    title: 'Entrada',
+    items: [
+      { value: 'fade', label: 'Surgir' },
+      { value: 'up', label: 'Subir' },
+      { value: 'down', label: 'Descer' },
+      { value: 'left', label: 'Da esquerda' },
+      { value: 'right', label: 'Da direita' },
+      { value: 'zoom', label: 'Zoom' },
+      { value: 'zoomout', label: 'Afastar' },
+      { value: 'bounce', label: 'Quicar' },
+      { value: 'blur', label: 'Desfoque' },
+      { value: 'flip', label: 'Virar' },
+      { value: 'rotate', label: 'Girar' },
+      { value: 'swing', label: 'Balançar' },
+      { value: 'expand', label: 'Expandir letras' },
+      { value: 'typing', label: 'Digitação' },
+    ],
+  },
+  { title: 'Chamar atenção', items: [{ value: 'shake', label: 'Tremer' }, { value: 'rubber', label: 'Elástico' }, { value: 'tada', label: 'Tadã' }] },
+  {
+    title: 'Contínuos',
+    items: [
+      { value: 'pulse', label: 'Pulsar' },
+      { value: 'heartbeat', label: 'Batimento' },
+      { value: 'float', label: 'Flutuar' },
+      { value: 'glow', label: 'Brilhar' },
+      { value: 'blink', label: 'Piscar' },
+    ],
+  },
 ];
+const EFFECT_LABEL = new Map(TEXT_EFFECT_GROUPS.flatMap((g) => g.items.map((i) => [i.value, i.label] as const)));
 
 /** Prévia: digitação mostrada como revelação da esquerda para a direita (o texto em edição não é reescrito). */
 const FX_PREVIEW_CSS =
@@ -570,14 +592,15 @@ export interface PickedElement {
 }
 
 /** Classes que mudam conforme estado/posição e não devem entrar no seletor. */
-const VOLATILE = new Set(['reveal', 'in', 'section-alt']);
+// Classes que mudam na prévia (animações): fora do seletor, senão ele não bateria com a página publicada
+const VOLATILE = new Set(['reveal', 'in', 'section-alt', 'fx-in', 'fx-demo', 'fx-typing']);
 
 /**
  * Elementos que existem só na prévia do editor (barras de controle e campos opcionais vazios):
  * não entram na contagem do :nth-child, senão o seletor não bateria com a página publicada.
  */
 function editorOnly(c: Element) {
-  if (c.hasAttribute('data-lp-ui')) return true;
+  if (c.hasAttribute('data-lp-ui') || c.classList.contains('lp-social-hint')) return true;
   const empty = (e: Element | null) => !!e && e.hasAttribute('data-lp-empty') && !e.textContent?.trim();
   return empty(c) || (c.hasAttribute('data-lp-hide-empty') && empty(c.querySelector('[data-lp-empty]')));
 }
@@ -874,21 +897,37 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions) {
     opts.setStyle(sel(), { text: null, size: null, font: null, bold: null, italic: null, underline: null });
     later(render);
   });
-  // Efeito de movimento quando o texto aparece na tela
-  const effect = doc.createElement('select');
-  effect.title = 'Efeito quando o texto aparece na tela (celular e computador)';
-  effect.setAttribute('style', `${fieldCss};max-width:${px(170)};padding:0 ${px(6)}`);
-  effect.append(new Option('✦ Sem efeito', ''));
-  for (const f of TEXT_EFFECTS) {
-    const o = new Option(`✦ ${f.label}`, f.value);
-    o.style.color = '#111';
-    effect.append(o);
-  }
-  effect.addEventListener('change', () => {
-    const fx = (effect.value || null) as TextEffect | null;
-    opts.setEffect?.(sel(), fx);
-    playTextEffect(el, fx);
-  });
+  // Efeito de movimento quando o texto aparece na tela: menu desenhado dentro da barra (uma lista nativa
+  // abriria fora da escala da prévia, com a fonte desproporcional)
+  const effect = mk('', 'Efeito quando o texto aparece na tela (celular e computador)', () => {
+    menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+    place();
+  }, `;background:rgba(255,255,255,.12);font-weight:500;font-size:${px(12)}`);
+  const menu = doc.createElement('div');
+  menu.setAttribute('style', `display:none;flex-direction:column;gap:${px(6)};padding:${px(6)} ${px(4)} ${px(2)};max-width:${px(330)};white-space:normal`);
+  const chipCss = `height:${px(26)};padding:0 ${px(9)};border:0;border-radius:${px(13)};background:rgba(255,255,255,.1);color:#fff;font:500 ${px(12)}/1 system-ui,sans-serif;cursor:pointer`;
+  const chips: [TextEffect | null, HTMLButtonElement][] = [];
+  const chip = (value: TextEffect | null, label: string) => {
+    const c = mk(label, value ? `Efeito: ${label}` : 'Sem efeito', () => {
+      opts.setEffect?.(sel(), value);
+      playTextEffect(el, value);
+      render();
+    }, chipCss.replace(/^/, ';'));
+    chips.push([value, c]);
+    return c;
+  };
+  const group = (title: string, items: HTMLButtonElement[]) => {
+    const g = doc.createElement('div');
+    const t = doc.createElement('div');
+    t.textContent = title;
+    t.setAttribute('style', `opacity:.6;font-size:${px(11)};margin:0 0 ${px(4)} ${px(2)}`);
+    const list = doc.createElement('div');
+    list.setAttribute('style', `display:flex;flex-wrap:wrap;gap:${px(4)}`);
+    list.append(...items);
+    g.append(t, list);
+    return g;
+  };
+  menu.append(group('Sem movimento', [chip(null, 'Sem efeito')]), ...TEXT_EFFECT_GROUPS.map((g) => group(g.title, g.items.map((i) => chip(i.value, i.label)))));
 
   const tag = doc.createElement('span');
   tag.setAttribute('style', `opacity:.6;padding:0 ${px(6)}`);
@@ -907,7 +946,8 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions) {
     on(underline, isUnderline());
     color.value = s.text ?? cssColorToHex(cs().color) ?? '#000000';
     scopeBtn.textContent = scope === 'exact' ? 'Só este' : 'Todos iguais';
-    effect.value = s.fx ?? '';
+    effect.textContent = `✦ Efeito: ${s.fx ? EFFECT_LABEL.get(s.fx) ?? s.fx : 'nenhum'} ▾`;
+    for (const [v, c] of chips) c.style.background = (s.fx ?? null) === v ? '#2563eb' : 'rgba(255,255,255,.1)';
   }
   // Valores que dependem do CSS recém-aplicado: lê depois do navegador redesenhar
   const later = (fn: () => void) => win.requestAnimationFrame(() => win.requestAnimationFrame(fn));
@@ -920,7 +960,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions) {
   if (opts.setEffect) {
     const fxRow = row();
     fxRow.append(effect);
-    bar.append(fxRow);
+    bar.append(fxRow, menu);
   }
   render();
   doc.body.appendChild(bar);

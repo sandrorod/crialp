@@ -311,7 +311,10 @@ export interface ElementColor {
   fx?: TextEffect;
 }
 
-export type TextEffect = 'fade' | 'up' | 'down' | 'left' | 'right' | 'zoom' | 'bounce' | 'typing' | 'pulse';
+export type TextEffect =
+  | 'fade' | 'up' | 'down' | 'left' | 'right' | 'zoom' | 'zoomout' | 'bounce' | 'blur' | 'flip' | 'rotate' | 'swing' | 'expand' | 'typing'
+  | 'shake' | 'rubber' | 'tada'
+  | 'pulse' | 'heartbeat' | 'float' | 'glow' | 'blink';
 
 export interface ElementColors {
   desktop: Record<string, ElementColor>;
