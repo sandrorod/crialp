@@ -82,8 +82,8 @@ export function LandingPageEditorPage() {
   const { data: lp, error, loading, reload } = useAsync(() => landingPageService.get(id), [id]);
   const { data: company, reload: reloadCompany } = useAsync(async () => (lp ? companyService.get(lp.company_id) : null), [lp?.company_id]);
   const [tab, setTab] = useState<Tab>('textos');
-  // Grupo do painel da direita a abrir depois de clicar num elemento da prévia (n força repetir o mesmo)
-  const [focusGroup, setFocusGroup] = useState<{ id: string; n: number } | null>(null);
+  // Grupo (e campo exato) do painel da direita a mostrar depois de clicar num elemento da prévia (n força repetir)
+  const [focusGroup, setFocusGroup] = useState<{ id: string; n: number; fields: string[] } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   /** Elemento clicado na prévia: mostra à direita a área com os campos daquela parte da página. */
   const showFieldsFor = (s: PreviewSelection) => {
@@ -100,8 +100,13 @@ export function LandingPageEditorPage() {
         ? 'labels'
         : section;
     if (!id) return;
+    // Campo mais específico primeiro: "services.items.1.benefit" → "services.items.1" → "services.items" → "services".
+    // Clique num cartão (sem texto próprio): o item do primeiro texto dentro dele
+    const base = s.path ?? (s.innerPath ? s.innerPath.split('.').slice(0, -1).join('.') : null);
+    const parts = base ? base.split('.') : [];
+    const fields = parts.map((_, i) => parts.slice(0, parts.length - i).join('.'));
     setTab('textos');
-    setFocusGroup((f) => ({ id, n: (f?.n ?? 0) + 1 }));
+    setFocusGroup((f) => ({ id, fields, n: (f?.n ?? 0) + 1 }));
   };
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [mode, setMode] = useState<PreviewMode>('textos');
@@ -189,16 +194,22 @@ export function LandingPageEditorPage() {
   useEffect(() => {
     if (!focusGroup || tab !== 'textos') return;
     const panel = panelRef.current;
-    const el = panel?.querySelector<HTMLElement>(`[data-group="${CSS.escape(focusGroup.id)}"]`);
+    const group = panel?.querySelector<HTMLElement>(`[data-group="${CSS.escape(focusGroup.id)}"]`);
+    // Campo exato (ou o mais próximo dele); sem campo correspondente, o grupo inteiro
+    const field = focusGroup.fields.map((f) => panel?.querySelector<HTMLElement>(`[data-field="${CSS.escape(f)}"]`)).find(Boolean);
+    const el = field ?? group;
     if (!panel || !el) return;
-    if (el instanceof HTMLDetailsElement) el.open = true;
+    for (let d = el.closest('details'); d; d = d.parentElement?.closest('details') ?? null) d.open = true;
     // Computador largo: o painel rola sozinho até o grupo. Telas menores: o painel fica abaixo da prévia,
     // então a página não pula (o grupo só abre e fica destacado)
     if (panel.scrollHeight > panel.clientHeight + 1) {
-      panel.scrollTo({ top: el.getBoundingClientRect().top - panel.getBoundingClientRect().top + panel.scrollTop - 8, behavior: 'smooth' });
+      // Campo: no meio do painel; grupo: no topo
+      const offset = field ? Math.max(8, (panel.clientHeight - el.offsetHeight) / 2) : 8;
+      panel.scrollTo({ top: el.getBoundingClientRect().top - panel.getBoundingClientRect().top + panel.scrollTop - offset, behavior: 'smooth' });
     }
-    el.style.boxShadow = '0 0 0 2px #f59e0b';
-    const t = setTimeout(() => (el.style.boxShadow = ''), 1600);
+    el.style.boxShadow = '0 0 0 3px #f59e0b';
+    el.style.borderRadius ||= '8px';
+    const t = setTimeout(() => (el.style.boxShadow = ''), field ? 2500 : 1600);
     // Outro clique antes de terminar: apaga o destaque deste grupo
     return () => {
       clearTimeout(t);

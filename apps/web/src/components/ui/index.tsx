@@ -94,7 +94,7 @@ export function TextField({
 }
 
 // ─── Lista de textos editável ───────────────────────────────────────
-export function ListEditor({ label, values, onChange, placeholder }: { label: string; values: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
+export function ListEditor({ label, values, onChange, placeholder, field }: { label: string; values: string[]; onChange: (v: string[]) => void; placeholder?: string; field?: string }) {
   const [draft, setDraft] = useState('');
   const add = () => {
     const t = draft.trim();
@@ -102,12 +102,12 @@ export function ListEditor({ label, values, onChange, placeholder }: { label: st
     setDraft('');
   };
   return (
-    <div>
+    <div data-field={field}>
       <span className="mb-1.5 block text-[13px] font-medium text-zinc-700">{label}</span>
       {values.length ? (
         <ul className="mb-2 flex flex-wrap gap-1.5">
           {values.map((v, i) => (
-            <li key={`${v}-${i}`} className="inline-flex max-w-full items-center gap-1 rounded-md bg-zinc-100 py-1 pl-2.5 pr-1 text-[13px] text-zinc-700">
+            <li key={`${v}-${i}`} data-field={field ? `${field}.${i}` : undefined} className="inline-flex max-w-full items-center gap-1 rounded-md bg-zinc-100 py-1 pl-2.5 pr-1 text-[13px] text-zinc-700">
               <span className="truncate">{v}</span>
               <button type="button" onClick={() => onChange(values.filter((_, j) => j !== i))} className="rounded p-0.5 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700" aria-label={`Remover ${v}`}>
                 <X className="size-3.5" />

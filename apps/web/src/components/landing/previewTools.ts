@@ -1062,8 +1062,10 @@ const iconPickers = new WeakMap<Document, (path: string) => void>();
 export interface PreviewSelection {
   /** Seção da página ([data-section]); "header" = cabeçalho */
   section: string | null;
-  /** Campo do conteúdo (data-lp-text) quando é um texto */
+  /** Campo do conteúdo (data-lp-text) quando é um texto; ícone: caminho do campo "icon" */
   path: string | null;
+  /** Elemento que contém textos (ex.: cartão): caminho do primeiro texto dentro dele */
+  innerPath: string | null;
   /** Foto (topo, "Sobre", galeria, logotipo) */
   image: boolean;
   /** Ícones de redes sociais */
@@ -1076,9 +1078,21 @@ export function onPreviewSelect(doc: Document, fn: (s: PreviewSelection) => void
 function notifySelect(doc: Document, el: HTMLElement) {
   const fn = selectListeners.get(doc);
   if (!fn) return;
+  // Elemento sem texto (ex.: ✓ ao lado de um item): usa o texto do item que o contém; se esse item
+  // tem um texto só, é exatamente aquele campo
+  let near: string | null = null;
+  for (let up = el.parentElement, i = 0; up && i < 3 && !near; up = up.parentElement, i++) {
+    if (up.matches('[data-section],body')) break;
+    const texts = up.querySelectorAll<HTMLElement>('[data-lp-text]');
+    if (texts.length === 1) near = texts[0].dataset.lpText ?? null;
+  }
   fn({
     section: el.closest<HTMLElement>('[data-section]')?.dataset.section ?? (el.closest('.site-header') ? 'header' : null),
-    path: el.closest<HTMLElement>('[data-lp-text]')?.dataset.lpText ?? null,
+    path:
+      el.closest<HTMLElement>('[data-lp-text]')?.dataset.lpText ??
+      el.closest<HTMLElement>('[data-lp-icon]')?.dataset.lpIcon ??
+      (el.querySelector('[data-lp-text]') ? null : near),
+    innerPath: el.querySelector<HTMLElement>('[data-lp-text]')?.dataset.lpText ?? null,
     image: el.tagName === 'IMG' || !!el.querySelector(':scope > img') || !!el.closest('.hero-media,.about-media,.gallery figure,.brand'),
     socials: !!el.closest('.socials'),
   });

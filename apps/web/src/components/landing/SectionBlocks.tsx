@@ -209,7 +209,7 @@ function BlockFields({ block: b, onChange, company }: { block: SectionBlock; onC
 }
 
 /** Lista de elementos da seção: adicionar, editar, reordenar e excluir. */
-export function BlocksEditor({ blocks, onChange, company }: { blocks: SectionBlock[]; onChange: (b: SectionBlock[]) => void; company?: Company | null }) {
+export function BlocksEditor({ blocks, onChange, company, path }: { blocks: SectionBlock[]; onChange: (b: SectionBlock[]) => void; company?: Company | null; path?: string }) {
   const update = (i: number, b: SectionBlock) => onChange(blocks.map((x, j) => (j === i ? b : x)));
   const move = (i: number, dir: -1 | 1) => {
     const j = i + dir;
@@ -222,7 +222,7 @@ export function BlocksEditor({ blocks, onChange, company }: { blocks: SectionBlo
     <div className="space-y-2">
       <span className="block text-[13px] font-medium text-zinc-700">Elementos</span>
       {blocks.map((b, i) => (
-        <div key={b.id} className="space-y-2 rounded-md border border-zinc-200 bg-white p-2.5">
+        <div key={b.id} data-field={path ? `${path}.${i}` : undefined} className="space-y-2 rounded-md border border-zinc-200 bg-white p-2.5">
           <div className="flex items-center gap-1.5">
             <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{TYPE_LABEL[b.type]}</span>
             {b.type !== 'divider' ? (
