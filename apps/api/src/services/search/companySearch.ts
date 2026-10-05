@@ -27,9 +27,26 @@ export interface FoundCompany {
 
 const TIMEOUT_MS = 30_000;
 
+/** Resultados por página da pesquisa ("Buscar mais" traz os próximos). */
+export const PAGE_SIZE = 50;
+
+/** Filtro da pesquisa: todas as empresas, só as que têm site ou só as sem site. */
+export type SiteFilter = 'todos' | 'com_site' | 'sem_site';
+
+/** Instagram, Facebook, WhatsApp e agregadores de links não contam como site próprio. */
+const NOT_A_SITE = /(^|\.)(instagram\.com|facebook\.com|fb\.com|wa\.me|whatsapp\.com|linktr\.ee|linkr\.bio|beacons\.ai|bio\.link)$/i;
+export function hasOwnSite(c: Pick<FoundCompany, 'website'>): boolean {
+  if (!c.website) return false;
+  try {
+    return !NOT_A_SITE.test(new URL(c.website).hostname);
+  } catch {
+    return false;
+  }
+}
+
 /** Portais, buscadores e órgãos públicos não são empresas a prospectar. */
 const IGNORED_HOSTS =
-  /(^|\.)(google\.[a-z.]+|youtube\.com|wikipedia\.org|gov\.br|jus\.br|leg\.br|serasaexperian\.com\.br|cnpj\.[a-z.]+|econodata\.com\.br|casadosdados\.com\.br|solutudo\.com\.br|reclameaqui\.com\.br|linkedin\.com|tiktok\.com|x\.com|twitter\.com|pinterest\.[a-z.]+|olx\.com\.br|mercadolivre\.com\.br|glassdoor\.com\.br|indeed\.com|infojobs\.com\.br|apontador\.com\.br|guiamais\.com\.br|telelistas\.net)$/i;
+  /(^|\.)(google\.[a-z.]+|youtube\.com|wikipedia\.org|gov\.br|jus\.br|leg\.br|serasaexperian\.com\.br|cnpj\.[a-z.]+|econodata\.com\.br|casadosdados\.com\.br|solutudo\.com\.br|reclameaqui\.com\.br|linkedin\.com|tiktok\.com|x\.com|twitter\.com|pinterest\.[a-z.]+|olx\.com\.br|mercadolivre\.com\.br|glassdoor\.com\.br|indeed\.com|infojobs\.com\.br|apontador\.com\.br|guiamais\.com\.br|telelistas\.net|tripadvisor\.com(\.br)?|reddit\.com|ifood\.com\.br|yelp\.[a-z.]+|foursquare\.com|restaurantguru\.[a-z.]+|facebook\.com\/groups)$/i;
 
 const notSubscribed = (r: { status: number; body: any }) => /not subscribed/i.test(r.body?.message ?? '');
 
@@ -88,9 +105,8 @@ function formatPhone(raw: string | null | undefined): string | null {
 }
 
 /** "Local Business Data" (fichas do Google Maps com telefone e endereço), se a chave assinar essa API. */
-async function searchMaps(query: string): Promise<FoundCompany[] | null> {
-  const near = '';
-  const r = await rapid('local-business-data.p.rapidapi.com', `/search?query=${encodeURIComponent(query)}&limit=20&region=br&language=pt${near}`);
+async function searchMaps(query: string, limit = PAGE_SIZE): Promise<FoundCompany[] | null> {
+  const r = await rapid('local-business-data.p.rapidapi.com', `/search?query=${encodeURIComponent(query)}&limit=${limit}&region=br&language=pt`);
   if (notSubscribed(r)) return null;
   if (r.status !== 200 || !Array.isArray(r.body?.data)) throw new AppError(502, 'A pesquisa de empresas falhou. Tente novamente.');
   return r.body.data.map(
@@ -162,8 +178,8 @@ export async function webResults(query: string, limit = 10): Promise<{ url: stri
 export const isIgnoredHost = (host: string) => IGNORED_HOSTS.test(host);
 
 /** Busca web do Google ("Google Search 74"): sites encontrados, um por domínio. */
-async function searchWeb(query: string): Promise<FoundCompany[]> {
-  const r = await rapid('google-search74.p.rapidapi.com', `/?query=${encodeURIComponent(query)}&limit=30&related_keywords=false`);
+async function searchWeb(query: string, limit = 30): Promise<FoundCompany[]> {
+  const r = await rapid('google-search74.p.rapidapi.com', `/?query=${encodeURIComponent(query)}&limit=${limit}&related_keywords=false`);
   if (notSubscribed(r)) throw new AppError(503, 'A chave do RapidAPI não está assinada em nenhuma API de pesquisa suportada.');
   if (r.status !== 200 || !Array.isArray(r.body?.results)) throw new AppError(502, 'A pesquisa falhou. Tente novamente.');
   const seen = new Set<string>();
@@ -331,11 +347,10 @@ export async function searchCompanyPlaces(
   };
   const located = mentionsPlace(query);
 
-  if (page === 0) {
-    // Lista completa do RapidAPI, se a chave assinar a "Local Business Data" (região: Brasil)
-    const maps = (await aiKeyStore.hasAny('rapidapi', env.rapidApiKey)) ? await searchMaps(query).catch(() => null) : null;
-    if (maps) return { items: maps.filter((c) => c.name), center: null, hasMore: false, warning: null };
-  }
+  // Lista completa do RapidAPI, se a chave assinar a "Local Business Data" (região: Brasil): 50 por página
+  const limit = PAGE_SIZE * (page + 1);
+  const maps = (await aiKeyStore.hasAny('rapidapi', env.rapidApiKey)) && limit <= 500 ? await searchMaps(query, limit).catch(() => null) : null;
+  if (maps) return { items: maps.slice(page * PAGE_SIZE).filter((c) => c.name), center: null, hasMore: maps.length >= limit && limit < 500, warning: null };
 
   // Com cidade na pesquisa: a cidade e arredores (anéis cada vez maiores em "Buscar mais locais")
   // Sem cidade: o Brasil todo, percorrendo as maiores cidades (7 por página)
@@ -347,8 +362,11 @@ export async function searchCompanyPlaces(
         throw mapError(err);
       });
       add(first);
+      // Centro da busca: endereço de um local encontrado; senão, a cidade citada na pesquisa
       const address = first.find((p) => p.address)?.address;
-      center = address ? await geocode(address) : null;
+      center = (address ? await geocode(address) : null) ?? (await geocode(placeInQuery(query)));
+      const known = BRAZIL_CITIES.find(([city]) => ` ${norm(query)} `.includes(` ${norm(city.split(' - ')[0])} `));
+      center ??= known ? { latitude: known[1], longitude: known[2] } : null;
       if (!center) return { items: found, center: null, hasMore: false, warning: null };
     }
     tasks = searchPoints(center, Math.min(page, 3)).map((at) => ({ prompt: query, at }));
@@ -372,4 +390,65 @@ export async function searchCompanyPlaces(
     : null;
   const hasMore = !quota && (located ? page < 3 : page < MAX_SEARCH_PAGE);
   return { items: found, center, hasMore, warning };
+}
+
+
+/** Lugar citado na pesquisa ("pizzaria em Campinas" → "Campinas"), para achar o centro no mapa. */
+function placeInQuery(query: string) {
+  const m = /\sem\s+(.+)$/i.exec(query.trim());
+  return `${m ? m[1] : query}, Brasil`;
+}
+
+/**
+ * Cada página da busca web usa uma variação da pesquisa: a API devolve sempre os mesmos ~100 primeiros
+ * resultados, e as variações trazem empresas novas a cada "Buscar mais".
+ */
+const WEB_VARIANTS = ['', 'telefone', 'whatsapp', 'contato', 'orçamento', 'site oficial', 'endereço', 'empresa'];
+
+const hostKey = (url: string | null) => {
+  try {
+    return url ? new URL(url).hostname.replace(/^www\./, '').toLowerCase() : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Pesquisa de "Buscar empresas": locais do Google Maps + sites da busca do Google (quando o filtro aceita
+ * empresas com site), ~50 por página. Sem site = só locais do Maps sem site próprio.
+ */
+export async function searchCompanies(
+  query: string,
+  filter: SiteFilter,
+  page = 0,
+  savedCenter?: LatLng | null,
+): Promise<{ items: FoundCompany[]; center: LatLng | null; hasMore: boolean; warning: string | null }> {
+  const variant = WEB_VARIANTS[page];
+  const wantWeb = filter !== 'sem_site' && variant !== undefined && (await aiKeyStore.hasAny('rapidapi', env.rapidApiKey));
+  // Páginas além das que o Maps cobre (4 anéis na cidade / todas as cidades do país) só trazem sites
+  const mapsDone = page > (mentionsPlace(query) ? 3 : MAX_SEARCH_PAGE);
+  const [places, web] = await Promise.all([
+    mapsDone
+      ? Promise.resolve({ items: [] as FoundCompany[], center: savedCenter ?? null, hasMore: false, warning: null })
+      : searchCompanyPlaces(query, undefined, page, savedCenter).catch((err: unknown) => err),
+    wantWeb ? searchWeb(variant ? `${query} ${variant}` : query, 100).catch(() => [] as FoundCompany[]) : Promise.resolve([] as FoundCompany[]),
+  ]);
+  const placesFailed = !(places && typeof places === 'object' && 'items' in places);
+  if (placesFailed && !web.length) throw places;
+  const p = placesFailed ? null : (places as Awaited<ReturnType<typeof searchCompanyPlaces>>);
+
+  // Locais do Maps primeiro; da busca web, só os sites que ainda não apareceram como local
+  const mapsHosts = new Set((p?.items ?? []).map((c) => hostKey(c.website)).filter(Boolean));
+  const merged = [...(p?.items ?? []), ...web.filter((c) => !mapsHosts.has(hostKey(c.website)))];
+  const items = merged.filter((c) => (filter === 'todos' ? true : filter === 'com_site' ? hasOwnSite(c) : !hasOwnSite(c)));
+
+  const failure = placesFailed
+    ? `Os locais do Google Maps não foram consultados (${places instanceof AppError ? places.message : 'erro na consulta'}); a lista tem só sites da busca do Google.`
+    : null;
+  return {
+    items,
+    center: p?.center ?? savedCenter ?? null,
+    hasMore: !!p?.hasMore || (wantWeb && page + 1 < WEB_VARIANTS.length),
+    warning: [p?.warning, failure].filter(Boolean).join(' ') || null,
+  };
 }

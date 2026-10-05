@@ -10,7 +10,7 @@ import { jobService } from '../services/jobs/JobService.js';
 import { analyzeUrl } from '../services/pipeline/analyzeUrl.js';
 import { generateLanding } from '../services/pipeline/generateLanding.js';
 import { findDuplicateCompany, getCompanyFull, matchRegisteredCompanies } from '../repositories/companies.js';
-import { searchCompanyPlaces, searchCompanySites, type FoundCompany } from '../services/search/companySearch.js';
+import { searchCompanies, searchCompanySites, type FoundCompany } from '../services/search/companySearch.js';
 import { appendSearch, createSearch, deleteSearch, getSearch, listSearches } from '../repositories/companySearches.js';
 
 export const analyzeRouter = Router();
@@ -109,10 +109,12 @@ const searchLimiter = rateLimit({
 /** GET /api/company-search?q=…&type=sites|locais — empresas encontradas no Google, marcando as já cadastradas. */
 analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
   const user = authUser(req);
-  const { q, type, lat, lng, page, search_id } = z
+  const { q, type, filter, lat, lng, page, search_id } = z
     .object({
       q: z.string().trim().min(2, 'Digite o que deseja pesquisar.').max(200),
       type: z.enum(['sites', 'locais']).default('sites'),
+      // Todas as empresas, só com site próprio ou só sem site
+      filter: z.enum(['todos', 'com_site', 'sem_site']).default('todos'),
       // Localização do navegador (opcional): locais perto de quem pesquisa, como no Google
       lat: z.coerce.number().min(-90).max(90).optional(),
       lng: z.coerce.number().min(-180).max(180).optional(),
@@ -125,7 +127,7 @@ analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
   const latLng = lat != null && lng != null ? { latitude: lat, longitude: lng } : undefined;
   // "Buscar mais locais" de pesquisa com cidade continua ao redor do mesmo centro
   const saved = search_id && page > 0 ? await getSearch(user.organizationId, search_id) : null;
-  const places = type === 'locais' ? await searchCompanyPlaces(q, latLng, page, saved?.center ?? latLng ?? null) : null;
+  const places = type === 'locais' ? await searchCompanies(q, filter, page, saved?.center ?? latLng ?? null) : null;
   const items = places ? places.items : await searchCompanySites(q);
   const source = type === 'locais' ? 'maps' : 'web';
   const registered = await matchRegisteredCompanies(user.organizationId, items);

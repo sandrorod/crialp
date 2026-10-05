@@ -414,6 +414,9 @@ export interface AIKeyInfo {
 }
 
 /** Empresa encontrada em "Buscar empresas". */
+/** Filtro de "Buscar empresas": todas, só com site próprio ou só sem site. */
+export type SiteFilter = 'todos' | 'com_site' | 'sem_site';
+
 export interface FoundCompany {
   name: string;
   phone: string | null;

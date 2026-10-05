@@ -255,7 +255,7 @@ export class GeminiProvider implements AIProvider {
     const keys = await aiKeyStore.rotation('gemini', this.envKey);
     if (!keys.length) throw new AIProviderError('Nenhuma chave do Gemini configurada.', false, 'Nenhuma chave do Gemini cadastrada. Adicione uma em Configurações.');
     const prompt =
-      `Use o Google Maps para listar até 10 estabelecimentos para a pesquisa: "${query}".\n` +
+      `Use o Google Maps para listar até 20 estabelecimentos para a pesquisa: "${query}".\n` +
       'Para cada um, uma linha no formato: Nome | Telefone | Endereço | Site | Nota | Avaliações\n' +
       'Use "-" quando o Maps não tiver o dado. Não invente nada. Sem texto extra.';
     let lastError: unknown;

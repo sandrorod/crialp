@@ -8,12 +8,12 @@ import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
 import { searchService } from '@/services';
-import type { FoundCompany, SavedSearchItem } from '@/types';
+import type { FoundCompany, SavedSearchItem, SiteFilter } from '@/types';
 
 
 // A última pesquisa continua na tela ao voltar de outra página
 const STORE_KEY = 'lp:company-search';
-type Saved = { q: string; items: FoundCompany[]; center: { lat: number; lng: number } | null; page: number; hasMore: boolean; searchId?: string | null };
+type Saved = { q: string; items: FoundCompany[]; center: { lat: number; lng: number } | null; page: number; hasMore: boolean; searchId?: string | null; filter?: SiteFilter };
 function loadSaved(): Saved | null {
   try {
     return JSON.parse(sessionStorage.getItem(STORE_KEY) ?? 'null');
@@ -30,6 +30,24 @@ function store(next: Saved) {
 }
 
 type Near = { lat: number; lng: number } | null;
+
+const FILTERS: { value: SiteFilter; label: string }[] = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'com_site', label: 'Com site' },
+  { value: 'sem_site', label: 'Sem site' },
+];
+
+/** Instagram, Facebook, WhatsApp e agregadores de links não contam como site próprio (igual ao servidor). */
+const NOT_A_SITE = /(^|\.)(instagram\.com|facebook\.com|fb\.com|wa\.me|whatsapp\.com|linktr\.ee|linkr\.bio|beacons\.ai|bio\.link)$/i;
+function hasOwnSite(c: FoundCompany) {
+  if (!c.website) return false;
+  try {
+    return !NOT_A_SITE.test(new URL(c.website).hostname);
+  } catch {
+    return false;
+  }
+}
+const matchesFilter = (c: FoundCompany, f: SiteFilter) => (f === 'todos' ? true : f === 'com_site' ? hasOwnSite(c) : !hasOwnSite(c));
 
 const MATCH_REASON = { link: 'mesmo link', site: 'mesmo site e nome/telefone', nome_telefone: 'mesmo nome e telefone', nome_cep: 'mesmo nome e CEP' } as const;
 
@@ -116,6 +134,7 @@ export function SearchCompaniesPage() {
   const [page, setPage] = useState(saved?.page ?? 0);
   const [hasMore, setHasMore] = useState(saved?.hasMore ?? false);
   const [lastQ, setLastQ] = useState(saved?.q ?? '');
+  const [filter, setFilter] = useState<SiteFilter>(saved?.filter ?? 'todos');
   const [loading, setLoading] = useState<'new' | 'more' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -145,7 +164,7 @@ export function SearchCompaniesPage() {
       setHasMore(r.has_more);
       setWarning(null);
       setSearchId(r.id);
-      store({ q: r.query, items: r.results, center: c, page: r.page, hasMore: r.has_more, searchId: r.id });
+      store({ q: r.query, items: r.results, center: c, page: r.page, hasMore: r.has_more, searchId: r.id, filter });
     } catch (err) {
       if (!quiet) toast.error(errorMessage(err));
     } finally {
@@ -174,7 +193,7 @@ export function SearchCompaniesPage() {
     setLoading(p === 0 ? 'new' : 'more');
     setError(null);
     try {
-      const r = await searchService.places(term, at, p, sid);
+      const r = await searchService.places(term, at, p, sid, filter);
       // Sem repetir locais já mostrados
       const known = new Set(prev.map((c) => c.url));
       const merged = [...prev, ...r.items.filter((c) => !known.has(c.url))];
@@ -185,7 +204,7 @@ export function SearchCompaniesPage() {
       setHasMore(r.has_more);
       setWarning(r.warning);
       setSearchId(r.search_id);
-      store({ q: term, items: merged, center: nextCenter, page: p, hasMore: r.has_more, searchId: r.search_id });
+      store({ q: term, items: merged, center: nextCenter, page: p, hasMore: r.has_more, searchId: r.search_id, filter });
       void history.reload();
     } catch (err) {
       setError(errorMessage(err));
@@ -205,6 +224,8 @@ export function SearchCompaniesPage() {
   };
 
   const more = () => void fetchPage(lastQ, center, page + 1, items ?? [], searchId);
+  // Filtro aplicado na tela também: trocar Todos / Com site / Sem site não refaz a pesquisa
+  const shown = (items ?? []).filter((c) => matchesFilter(c, filter));
 
   const generate = (c: FoundCompany) => {
     // A análise usa os dados já trazidos pela pesquisa (sem consultar o Maps de novo)
@@ -219,7 +240,7 @@ export function SearchCompaniesPage() {
   const waiting = (
     <Card className="flex items-center gap-3 p-5 text-sm text-zinc-600">
       <Loader2 className="size-5 flex-none animate-spin text-brand-600" />
-      Buscando locais no Google Maps… pode levar até 2 minutos.
+      Buscando empresas no Google… pode levar até 2 minutos.
     </Card>
   );
 
@@ -234,6 +255,26 @@ export function SearchCompaniesPage() {
           </div>
           <Button type="submit" size="lg" loading={loading === 'new'} disabled={!!loading} icon={<Search className="size-4" />}>Pesquisar</Button>
         </form>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-zinc-600">Empresas:</span>
+          <div role="radiogroup" className="inline-flex rounded-lg border border-zinc-200 p-0.5">
+            {FILTERS.map((f) => (
+              <button
+                key={f.value}
+                type="button"
+                role="radio"
+                aria-checked={filter === f.value}
+                onClick={() => {
+                  setFilter(f.value);
+                  if (items) store({ q: lastQ, items, center, page, hasMore, searchId, filter: f.value });
+                }}
+                className={cn('rounded-md px-3 py-1.5 text-[13px] font-medium transition', filter === f.value ? 'bg-ink text-white' : 'text-zinc-600 hover:bg-zinc-100')}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm text-zinc-700">
           <input type="checkbox" className="mt-0.5 size-4 accent-zinc-900" checked={allowImages} onChange={(e) => setAllowImages(e.target.checked)} />
           <span>
@@ -242,7 +283,7 @@ export function SearchCompaniesPage() {
           </span>
         </label>
         <p className="mt-3 text-xs text-zinc-500">
-          Sem cidade, a pesquisa cobre o Brasil todo, começando pelas maiores cidades; "Buscar mais locais" segue para as próximas. Para uma cidade específica, inclua-a (ex.: "manutenção predial em Campinas").
+          Cada pesquisa traz cerca de 50 empresas (locais do Google Maps e sites da busca do Google); "Buscar mais" traz as próximas. Sem cidade, a pesquisa cobre o Brasil todo, começando pelas maiores cidades. Para uma cidade específica, inclua-a (ex.: "manutenção predial em Campinas").
         </p>
       </Card>
 
@@ -250,15 +291,21 @@ export function SearchCompaniesPage() {
       <div className="min-w-0">
       {items ? (
         <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
-          <h2 className="text-lg font-semibold">Locais no Google Maps</h2>
-          <span className="text-xs text-zinc-500">{items.length} local(is) para “{lastQ}”</span>
+          <h2 className="text-lg font-semibold">Empresas encontradas</h2>
+          <span className="text-xs text-zinc-500">
+            {filter === 'todos' ? `${items.length} empresa(s)` : `${shown.length} de ${items.length} empresa(s) ${filter === 'com_site' ? 'com site' : 'sem site'}`} para “{lastQ}”
+          </span>
         </div>
       ) : null}
       {loading === 'new' ? waiting : null}
-      {items && !items.length && !loading ? <Card className="p-5 text-sm text-zinc-500">Nenhum local encontrado. Tente outras palavras ou inclua a cidade.</Card> : null}
-      {items?.length ? (
+      {items && !shown.length && !loading ? (
+        <Card className="p-5 text-sm text-zinc-500">
+          {items.length ? `Nenhuma empresa ${filter === 'com_site' ? 'com' : 'sem'} site entre as encontradas até agora. Use "Buscar mais" ou troque o filtro.` : 'Nenhuma empresa encontrada. Tente outras palavras ou inclua a cidade.'}
+        </Card>
+      ) : null}
+      {shown.length ? (
         <div className="grid gap-3 md:grid-cols-2">
-          {items.map((c, i) => <ResultCard key={`${c.url}-${i}`} c={c} onGenerate={() => generate(c)} />)}
+          {shown.map((c, i) => <ResultCard key={`${c.url}-${i}`} c={c} onGenerate={() => generate(c)} />)}
         </div>
       ) : null}
       {warning && !loading ? (
@@ -268,9 +315,9 @@ export function SearchCompaniesPage() {
       ) : null}
       {error ? <div className="mt-4"><ErrorBlock message={error} onRetry={() => (items?.length ? more() : void search())} /></div> : null}
       {loading === 'more' ? <div className="mt-4">{waiting}</div> : null}
-      {items?.length && hasMore && !loading && !error ? (
+      {items && hasMore && !loading && !error ? (
         <div className="mt-5 flex justify-center">
-          <Button variant="secondary" onClick={more} icon={<MapPin className="size-4" />}>Buscar mais locais</Button>
+          <Button variant="secondary" onClick={more} icon={<Search className="size-4" />}>Buscar mais</Button>
         </div>
       ) : null}
       </div>

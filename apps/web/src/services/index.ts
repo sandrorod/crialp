@@ -21,6 +21,7 @@ import type {
   Preset,
   ProspectingNote,
   SalesCompany,
+  SiteFilter,
   SubUser,
   TemplateInfo,
   ThemeSettings,
@@ -53,9 +54,9 @@ export type { AnalysisResult };
 
 export const searchService = {
   /** Locais do Google Maps; `page` > 0 busca em anéis mais largos ao redor do mesmo centro */
-  places: (q: string, near: { lat: number; lng: number } | null, page = 0, searchId?: string | null) =>
+  places: (q: string, near: { lat: number; lng: number } | null, page = 0, searchId?: string | null, filter: SiteFilter = 'todos') =>
     api.get<{ items: FoundCompany[]; center: { latitude: number; longitude: number } | null; has_more: boolean; warning: string | null; search_id: string | null }>(
-      `/company-search${qs({ q, type: 'locais', lat: near?.lat.toFixed(5), lng: near?.lng.toFixed(5), page: String(page), search_id: searchId ?? undefined })}`,
+      `/company-search${qs({ q, type: 'locais', filter, lat: near?.lat.toFixed(5), lng: near?.lng.toFixed(5), page: String(page), search_id: searchId ?? undefined })}`,
     ),
   /** Histórico de pesquisas salvas */
   history: () => api.get<{ items: SavedSearchItem[] }>('/company-searches'),
