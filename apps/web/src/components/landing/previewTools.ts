@@ -1016,8 +1016,46 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   // Valores que dependem do CSS recém-aplicado: lê depois do navegador redesenhar
   const later = (fn: () => void) => win.requestAnimationFrame(() => win.requestAnimationFrame(fn));
 
+  // Alça para arrastar a barra para outro lugar (duplo clique volta ao automático, junto do elemento)
+  const handle = doc.createElement('span');
+  handle.textContent = '⠿';
+  handle.title = 'Arraste para mudar a barra de lugar (duplo clique: volta para junto do elemento)';
+  handle.setAttribute('style', `display:grid;place-items:center;width:${px(22)};height:${px(28)};border-radius:${px(6)};cursor:grab;opacity:.7;font-size:${px(16)};touch-action:none;user-select:none`);
+  handle.addEventListener('mousedown', (e) => e.preventDefault());
+  handle.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handle.setPointerCapture(e.pointerId);
+    handle.style.cursor = 'grabbing';
+    const r = bar.getBoundingClientRect();
+    const dx = e.clientX - r.left;
+    const dy = e.clientY - r.top;
+    const move = (ev: PointerEvent) => {
+      const x = Math.max(0, Math.min(ev.clientX - dx, win.innerWidth - bar.offsetWidth));
+      const y = Math.max(0, Math.min(ev.clientY - dy, win.innerHeight - bar.offsetHeight));
+      bar.style.left = `${x}px`;
+      bar.style.top = `${y}px`;
+      barPositions.set(doc, { x, y });
+    };
+    const up = () => {
+      handle.style.cursor = 'grab';
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+  });
+  handle.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    barPositions.delete(doc);
+    place();
+  });
+
   const top = row();
-  top.append(font, mk('A−', 'Diminuir fonte', () => setSize(Math.max(8, size() - step()))), value, mk('A+', 'Aumentar fonte', () => setSize(Math.min(160, size() + step()))), reset);
+  top.append(handle, font, mk('A−', 'Diminuir fonte', () => setSize(Math.max(8, size() - step()))), value, mk('A+', 'Aumentar fonte', () => setSize(Math.min(160, size() + step()))), reset);
   const bottom = row();
   bottom.append(bold, italic, underline, color, scopeBtn, tag);
   bar.append(top, bottom);
@@ -1035,6 +1073,13 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   doc.body.appendChild(bar);
 
   const place = () => {
+    // Barra arrastada pelo usuário: fica onde ele deixou (dentro da tela)
+    const fixed = barPositions.get(doc);
+    if (fixed) {
+      bar.style.left = `${Math.max(0, Math.min(fixed.x, win.innerWidth - bar.offsetWidth))}px`;
+      bar.style.top = `${Math.max(0, Math.min(fixed.y, win.innerHeight - bar.offsetHeight))}px`;
+      return;
+    }
     const r = el.getBoundingClientRect();
     const h = bar.offsetHeight;
     const y = r.top - h - 8 >= 4 ? r.top - h - 8 : r.bottom + 8;
@@ -1057,6 +1102,9 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
 
 /** Ícones marcados com data-lp-icon: no modo Textos, clicar (no ícone ou na caixinha dele) abre o seletor. */
 const iconPickers = new WeakMap<Document, (path: string) => void>();
+
+/** Posição escolhida arrastando a barra (vale para as próximas barras da mesma prévia). */
+const barPositions = new WeakMap<Document, { x: number; y: number }>();
 
 /** O que foi clicado na prévia: o editor abre à direita a área com os campos daquela parte. */
 export interface PreviewSelection {
