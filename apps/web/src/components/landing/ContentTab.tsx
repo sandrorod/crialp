@@ -149,9 +149,10 @@ function CustomSectionEditor({ section, onChange, company }: { section: CustomSe
 }
 
 // ─── Blocos de interface ────────────────────────────────────────────
-function Group({ title, children, actions, empty }: { title: string; children?: ReactNode; actions?: ReactNode; empty?: boolean }) {
+function Group({ title, children, actions, empty, id }: { title: string; children?: ReactNode; actions?: ReactNode; empty?: boolean; id?: string }) {
   return (
-    <details open={!empty} className="group rounded-lg border border-zinc-200 bg-white">
+    // data-group: o editor abre e rola até este grupo quando o elemento é clicado na prévia
+    <details open={!empty} data-group={id} className="group rounded-lg border border-zinc-200 bg-white transition-shadow">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
         <span className={cn(empty && 'text-zinc-400')}>{title}</span>
         <span className="flex items-center gap-2" onClick={(e) => actions && e.preventDefault()}>
@@ -350,7 +351,7 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
           Crie seções com títulos, textos, fotos, ícones e botões, com informações do site que não entraram automaticamente (unidades, convênios, história…) ou conteúdo próprio. A nova seção entra antes do contato; mude a posição em "Seções e ordem".
         </p>
         {customs.map((c) => (
-          <div key={c.id} className="space-y-2 rounded-md border border-zinc-100 bg-zinc-50/50 p-3">
+          <div key={c.id} data-group={`custom:${c.id}`} className="space-y-2 rounded-md border border-zinc-100 bg-zinc-50/50 p-3 transition-shadow">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">{c.title || 'Seção personalizada'}</span>
               <span className="flex items-center gap-1">
@@ -363,11 +364,11 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
         ))}
       </Group>
 
-      <Group title="Redes sociais (Fale conosco)">
+      <Group id="socials" title="Redes sociais (Fale conosco)">
         <SocialFields content={content} onChange={onChange} company={company} />
       </Group>
 
-      <Group title="Hero (topo da página)">
+      <Group id="hero" title="Hero (topo da página)">
         <Txt label="Linha de apoio (acima do título)" value={content.hero.eyebrow} onChange={(v) => set('hero', { ...content.hero, eyebrow: v || null })} />
         <Txt label="Título principal" area value={content.hero.headline} onChange={(v) => set('hero', { ...content.hero, headline: v })} />
         <Txt label="Subtítulo" area value={content.hero.subheadline} onChange={(v) => set('hero', { ...content.hero, subheadline: v })} />
@@ -379,7 +380,7 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
       </Group>
 
       {content.about ? (
-        <Group title="Sobre a empresa" actions={removeBtn('about')}>
+        <Group id="about" title="Sobre a empresa" actions={removeBtn('about')}>
           <Txt label="Título" value={content.about.title} onChange={(v) => set('about', { ...content.about!, title: v })} />
           <Field label="Texto" hint="Separe os parágrafos com uma linha em branco.">
             <Textarea
@@ -390,11 +391,11 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
           </Field>
         </Group>
       ) : (
-        <Group title="Sobre a empresa (sem seção)" empty actions={createBtn(() => createSection('about', { title: 'Sobre nós', paragraphs: company?.description ? [company.description] : [] }))} />
+        <Group id="about" title="Sobre a empresa (sem seção)" empty actions={createBtn(() => createSection('about', { title: 'Sobre nós', paragraphs: company?.description ? [company.description] : [] }))} />
       )}
 
       {content.services ? (
-        <Group title={`Serviços (${content.services.items.length})`} actions={removeBtn('services')}>
+        <Group id="services" title={`Serviços (${content.services.items.length})`} actions={removeBtn('services')}>
           <Txt label="Título" value={content.services.title} onChange={(v) => set('services', { ...content.services!, title: v })} />
           <Txt label="Subtítulo" value={content.services.subtitle} onChange={(v) => set('services', { ...content.services!, subtitle: v || null })} />
           <ItemList
@@ -429,7 +430,7 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
       )}
 
       {content.differentials ? (
-        <Group title={`Diferenciais (${content.differentials.items.length})`} actions={removeBtn('differentials')}>
+        <Group id="differentials" title={`Diferenciais (${content.differentials.items.length})`} actions={removeBtn('differentials')}>
           <Txt label="Título" value={content.differentials.title} onChange={(v) => set('differentials', { ...content.differentials!, title: v })} />
           <Txt label="Subtítulo" value={content.differentials.subtitle} onChange={(v) => set('differentials', { ...content.differentials!, subtitle: v || null })} />
           <ItemList
@@ -463,7 +464,7 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
       )}
 
       {content.products ? (
-        <Group title={`Produtos (${content.products.items.length})`} actions={removeBtn('products')}>
+        <Group id="products" title={`Produtos (${content.products.items.length})`} actions={removeBtn('products')}>
           <Txt label="Título" value={content.products.title} onChange={(v) => set('products', { ...content.products!, title: v })} />
           <Txt label="Subtítulo" value={content.products.subtitle} onChange={(v) => set('products', { ...content.products!, subtitle: v || null })} />
           <ItemList
@@ -495,16 +496,16 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
       )}
 
       {content.gallery ? (
-        <Group title="Galeria" actions={removeBtn('gallery')}>
+        <Group id="gallery" title="Galeria" actions={removeBtn('gallery')}>
           <p className="text-xs text-zinc-500">As fotos vêm das imagens liberadas da empresa (Editar empresa → Imagens).</p>
           <Txt label="Título" value={content.gallery.title} onChange={(v) => set('gallery', { ...content.gallery!, title: v })} />
           <Txt label="Subtítulo" value={content.gallery.subtitle} onChange={(v) => set('gallery', { ...content.gallery!, subtitle: v || null })} />
         </Group>
       ) : (
-        <Group title="Galeria (sem seção)" empty actions={createBtn(() => createSection('gallery', { title: 'Conheça nosso espaço', subtitle: null }))} />
+        <Group id="gallery" title="Galeria (sem seção)" empty actions={createBtn(() => createSection('gallery', { title: 'Conheça nosso espaço', subtitle: null }))} />
       )}
 
-      <Group title="Depoimentos" actions={hideBtn('testimonials')}>
+      <Group id="testimonials" title="Depoimentos" actions={hideBtn('testimonials')}>
         <p className="text-xs text-zinc-500">
           Os depoimentos são sempre os reais, cadastrados na empresa (Editar empresa → Depoimentos). A seção só aparece se houver algum.
         </p>
@@ -512,7 +513,7 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
       </Group>
 
       {content.faq ? (
-        <Group title={`Perguntas frequentes (${content.faq.items.length})`} actions={removeBtn('faq')}>
+        <Group id="faq" title={`Perguntas frequentes (${content.faq.items.length})`} actions={removeBtn('faq')}>
           <Txt label="Título" value={content.faq.title} onChange={(v) => set('faq', { ...content.faq!, title: v })} />
           <ItemList
             items={content.faq.items}
@@ -528,22 +529,22 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
           />
         </Group>
       ) : (
-        <Group title="Perguntas frequentes (sem seção)" empty actions={createBtn(() => createSection('faq', { title: 'Perguntas frequentes', items: [] }))} />
+        <Group id="faq" title="Perguntas frequentes (sem seção)" empty actions={createBtn(() => createSection('faq', { title: 'Perguntas frequentes', items: [] }))} />
       )}
 
-      <Group title="Contato">
+      <Group id="contact" title="Contato">
         <p className="text-xs text-zinc-500">Telefone, WhatsApp, e-mail, endereço e horário vêm do cadastro da empresa.</p>
         <Txt label="Título" value={content.contact.title} onChange={(v) => set('contact', { ...content.contact, title: v })} />
         <Txt label="Subtítulo" value={content.contact.subtitle} onChange={(v) => set('contact', { ...content.contact, subtitle: v || null })} />
       </Group>
 
-      <Group title="CTA final">
+      <Group id="final_cta" title="CTA final">
         <Txt label="Título" area value={content.final_cta.title} onChange={(v) => set('final_cta', { ...content.final_cta, title: v })} />
         <Txt label="Subtítulo" value={content.final_cta.subtitle} onChange={(v) => set('final_cta', { ...content.final_cta, subtitle: v || null })} />
         <Txt label="Texto do botão" value={content.final_cta.cta} onChange={(v) => set('final_cta', { ...content.final_cta, cta: v })} />
       </Group>
 
-      <Group title="Rótulos, menu e botões" empty>
+      <Group id="labels" title="Rótulos, menu e botões" empty>
         <p className="text-xs text-zinc-500">Deixe em branco para usar o texto padrão (mostrado em cinza).</p>
         <div className="grid gap-3 sm:grid-cols-2">
           {LABEL_FIELDS.map((f) => (

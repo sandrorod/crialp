@@ -16,6 +16,8 @@ import {
   sectionSpacingCss,
   loadElementFonts,
   applyTextEffects,
+  onPreviewSelect,
+  type PreviewSelection,
   setColorsCss,
   setSpacingCss,
   setDraftCss,
@@ -185,6 +187,7 @@ export function PreviewFrame({
   elementColors,
   onElementColors,
   onText,
+  onSelect,
   onIcon,
   sectionSpacing,
   onSpacing,
@@ -207,6 +210,8 @@ export function PreviewFrame({
   onElementColors?: (colors: ElementColors) => void;
   /** Texto editado direto na prévia; false = valor recusado (volta o original) */
   onText?: (path: string, value: string) => boolean;
+  /** Elemento clicado na prévia (o editor mostra à direita os campos daquela parte) */
+  onSelect?: (s: PreviewSelection) => void;
   /** Ícone clicado na prévia (modo Textos): caminho do campo e o estilo dos ícones da página */
   onIcon?: (path: string, style: IconPageStyle | undefined) => void;
   /** Margem interna das seções (inclusive não salva), aplicada na hora */
@@ -231,6 +236,8 @@ export function PreviewFrame({
   onFocusRef.current = onFocus;
   const onTextRef = useRef(onText);
   onTextRef.current = onText;
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
   const onIconRef = useRef(onIcon);
   onIconRef.current = onIcon;
   const onReorderRef = useRef(onReorder);
@@ -300,6 +307,7 @@ export function PreviewFrame({
       win.addEventListener('scroll', () => (scrollY.current = win.scrollY), { passive: true });
     }
     setupEditorDocument(d);
+    onPreviewSelect(d, (s) => onSelectRef.current?.(s));
     setPreviewMode(d, modeRef.current);
     if (onFocusRef.current) attachFocusDrag(d, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), uiScale);
     setColorsCss(d, elementColorsCss(colorsRef.current));

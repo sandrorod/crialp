@@ -22,7 +22,9 @@ export function landingPageHeaders(res: Response, opts: { preview?: boolean } = 
   );
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Cache-Control', opts.preview ? 'no-store' : 'public, max-age=60, stale-while-revalidate=300');
+  // Sempre confere com o servidor: depois de salvar no editor, o link já mostra a versão nova
+  // (com cópia guardada, um "salvei e não mudou" aparecia por até 6 minutos). A ETag evita baixar de novo o que não mudou.
+  res.setHeader('Cache-Control', opts.preview ? 'no-store' : 'no-cache');
   if (opts.preview) res.setHeader('X-Robots-Tag', 'noindex');
 }
 

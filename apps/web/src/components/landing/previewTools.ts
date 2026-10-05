@@ -1058,6 +1058,32 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
 /** Ícones marcados com data-lp-icon: no modo Textos, clicar (no ícone ou na caixinha dele) abre o seletor. */
 const iconPickers = new WeakMap<Document, (path: string) => void>();
 
+/** O que foi clicado na prévia: o editor abre à direita a área com os campos daquela parte. */
+export interface PreviewSelection {
+  /** Seção da página ([data-section]); "header" = cabeçalho */
+  section: string | null;
+  /** Campo do conteúdo (data-lp-text) quando é um texto */
+  path: string | null;
+  /** Foto (topo, "Sobre", galeria, logotipo) */
+  image: boolean;
+  /** Ícones de redes sociais */
+  socials: boolean;
+}
+const selectListeners = new WeakMap<Document, (s: PreviewSelection) => void>();
+export function onPreviewSelect(doc: Document, fn: (s: PreviewSelection) => void) {
+  selectListeners.set(doc, fn);
+}
+function notifySelect(doc: Document, el: HTMLElement) {
+  const fn = selectListeners.get(doc);
+  if (!fn) return;
+  fn({
+    section: el.closest<HTMLElement>('[data-section]')?.dataset.section ?? (el.closest('.site-header') ? 'header' : null),
+    path: el.closest<HTMLElement>('[data-lp-text]')?.dataset.lpText ?? null,
+    image: el.tagName === 'IMG' || !!el.querySelector(':scope > img') || !!el.closest('.hero-media,.about-media,.gallery figure,.brand'),
+    socials: !!el.closest('.socials'),
+  });
+}
+
 export function attachIconPick(doc: Document, onPick: (path: string) => void) {
   iconPickers.set(doc, onPick);
   if (doc.body.dataset.lpIcons) return;
@@ -1150,6 +1176,7 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
     unpick();
     if (!sizes) return;
     el.setAttribute('data-lp-selected', '');
+    notifySelect(doc, el);
     const tb = textToolbar(doc, el, sizes, {
       onIcon: iconPath && iconPickers.get(doc)
         ? () => {
@@ -1168,6 +1195,7 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
   const start = (el: HTMLElement) => {
     unpick();
     if (editing?.el === el) return;
+    notifySelect(doc, el);
     finish();
     editing = { el, original: el.innerText, cancelled: false };
     el.setAttribute('contenteditable', 'plaintext-only');

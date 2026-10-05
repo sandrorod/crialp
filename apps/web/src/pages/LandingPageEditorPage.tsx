@@ -6,7 +6,7 @@ import { ClientAccessTab, OwnAccessTab } from '@/components/landing/ClientAccess
 import { ContentTab } from '@/components/landing/ContentTab';
 import { IconPickerModal, type IconPageStyle } from '@/components/landing/IconPicker';
 import { PreviewFrame } from '@/components/landing/PreviewFrame';
-import { applyTextEdit, type PreviewMode } from '@/components/landing/previewTools';
+import { applyTextEdit, type PreviewMode, type PreviewSelection } from '@/components/landing/previewTools';
 import { DesignTab, PhotosTab, TemplateTab, PublishTab, SeoTab, VersionsTab, type NewPhoto, type SeoState } from '@/components/landing/SettingsTabs';
 import { ProgressSteps } from '@/components/ProgressSteps';
 import { StopJobButton } from '@/components/StopJobButton';
@@ -82,6 +82,27 @@ export function LandingPageEditorPage() {
   const { data: lp, error, loading, reload } = useAsync(() => landingPageService.get(id), [id]);
   const { data: company, reload: reloadCompany } = useAsync(async () => (lp ? companyService.get(lp.company_id) : null), [lp?.company_id]);
   const [tab, setTab] = useState<Tab>('textos');
+  // Grupo do painel da direita a abrir depois de clicar num elemento da prévia (n força repetir o mesmo)
+  const [focusGroup, setFocusGroup] = useState<{ id: string; n: number } | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  /** Elemento clicado na prévia: mostra à direita a área com os campos daquela parte da página. */
+  const showFieldsFor = (s: PreviewSelection) => {
+    if (s.image && !s.path) {
+      setTab('fotos');
+      setFocusGroup(null);
+      return;
+    }
+    const section = s.section ?? '';
+    const labelPath = s.path?.startsWith('labels.') && /^(labels\.(nav_|header_cta|skip_link|footer_note|whatsapp))/.test(s.path);
+    const id = s.socials
+      ? 'socials'
+      : labelPath || section === 'header' || section === 'footer'
+        ? 'labels'
+        : section;
+    if (!id) return;
+    setTab('textos');
+    setFocusGroup((f) => ({ id, n: (f?.n ?? 0) + 1 }));
+  };
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [mode, setMode] = useState<PreviewMode>('textos');
   const [frameKey, setFrameKey] = useState(0);
@@ -164,6 +185,26 @@ export function LandingPageEditorPage() {
     window.addEventListener('beforeunload', h);
     return () => window.removeEventListener('beforeunload', h);
   }, [dirty]);
+
+  useEffect(() => {
+    if (!focusGroup || tab !== 'textos') return;
+    const panel = panelRef.current;
+    const el = panel?.querySelector<HTMLElement>(`[data-group="${CSS.escape(focusGroup.id)}"]`);
+    if (!panel || !el) return;
+    if (el instanceof HTMLDetailsElement) el.open = true;
+    // Computador largo: o painel rola sozinho até o grupo. Telas menores: o painel fica abaixo da prévia,
+    // então a página não pula (o grupo só abre e fica destacado)
+    if (panel.scrollHeight > panel.clientHeight + 1) {
+      panel.scrollTo({ top: el.getBoundingClientRect().top - panel.getBoundingClientRect().top + panel.scrollTop - 8, behavior: 'smooth' });
+    }
+    el.style.boxShadow = '0 0 0 2px #f59e0b';
+    const t = setTimeout(() => (el.style.boxShadow = ''), 1600);
+    // Outro clique antes de terminar: apaga o destaque deste grupo
+    return () => {
+      clearTimeout(t);
+      el.style.boxShadow = '';
+    };
+  }, [focusGroup, tab]);
 
   if (error) return <ErrorBlock message={error} onRetry={reload} />;
   if (loading && !lp) return <Card><LoadingBlock rows={8} /></Card>;
@@ -339,6 +380,7 @@ export function LandingPageEditorPage() {
                 }
                 setDirty(true);
               }}
+              onSelect={showFieldsFor}
               onText={(path, value) => {
                 const next = applyTextEdit(content, path, value);
                 if (!next) {
@@ -394,7 +436,7 @@ export function LandingPageEditorPage() {
               </button>
             ))}
           </div>
-          <div className="xl:max-h-[calc(72vh+10px)] xl:overflow-y-auto xl:pr-1">
+          <div ref={panelRef} className="xl:max-h-[calc(72vh+10px)] xl:overflow-y-auto xl:pr-1">
             {tab === 'textos' ? <ContentTab content={content} onChange={change(setContent)} company={company} /> : null}
             {tab === 'modelo' ? <Card className="p-5"><TemplateTab theme={theme} onChange={change(setTheme)} hasPhoto={!!company?.images.some((i) => i.usage_allowed && i.type !== 'logo')} /></Card> : null}
             {tab === 'fotos' ? <Card className="p-5"><PhotosTab theme={theme} onChange={change(setTheme)} images={company?.images ?? null} onAddPhotos={addPhotos} onRemovePhotos={removePhotos} sectionOrder={content.section_order} /></Card> : null}
