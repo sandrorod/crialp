@@ -188,6 +188,19 @@ export function DesignTab({ theme, onChange, content }: { theme: ThemeSettings; 
         </div>
       </div>
 
+      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 p-3 hover:border-zinc-300">
+        <input
+          type="checkbox"
+          checked={!!theme.removeEmojis}
+          onChange={(e) => onChange({ ...theme, removeEmojis: e.target.checked })}
+          className="mt-0.5 size-4 accent-zinc-900"
+        />
+        <span>
+          <span className="block text-[13px] font-medium">Remover emojis da página</span>
+          <span className="block text-[11px] text-zinc-500">Tira os emojis de todos os textos (títulos, serviços, depoimentos, rodapé…). Desmarque para os emojis voltarem.</span>
+        </span>
+      </label>
+
       <SectionSpacingEditor theme={theme} onChange={onChange} />
 
       <ElementColorsSummary theme={theme} onChange={onChange} />

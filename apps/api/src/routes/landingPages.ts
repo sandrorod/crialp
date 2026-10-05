@@ -134,6 +134,8 @@ const ContentUpdateSchema = z.object({
     imageOrder: z.array(z.string().max(2048)).max(300).optional(),
     // Onde o logotipo aparece: cabeçalho, início do conteúdo ou seção "Sobre"
     logoPlacement: z.enum(['header', 'hero', 'about']).optional(),
+    // Tira os emojis de todos os textos da página
+    removeEmojis: z.boolean().optional(),
     // Ordem das seções só no celular (vazia = igual ao computador)
     mobileOrder: z.array(z.string().max(60)).max(60).optional(),
     // Cores e estilo do texto de elementos clicados na prévia: { desktop: { "<seletor>": { text, bg, size, font, bold, italic, underline } }, mobile: {...} }

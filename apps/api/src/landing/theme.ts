@@ -30,6 +30,8 @@ export interface ThemeSettings {
   imageSize?: ImageSizes;
   /** Onde o logotipo aparece: cabeçalho (padrão), início do conteúdo (acima do título) ou seção "Sobre". */
   logoPlacement?: LogoPlacement;
+  /** Tira os emojis de todos os textos da página. */
+  removeEmojis?: boolean;
 }
 
 export type LogoPlacement = 'header' | 'hero' | 'about';
@@ -390,6 +392,7 @@ export interface ResolvedTheme {
   sectionSpacing: SectionSpacing;
   imageSize: ImageSizes;
   logoPlacement: LogoPlacement;
+  removeEmojis: boolean;
   fontsHref: string;
   vars: Record<string, string>;
 }
@@ -416,6 +419,7 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
     sectionSpacing: normalizeSectionSpacing(input?.sectionSpacing),
     imageSize: normalizeImageSizes(input?.imageSize),
     logoPlacement: input?.logoPlacement === 'hero' || input?.logoPlacement === 'about' ? input.logoPlacement : 'header',
+    removeEmojis: input?.removeEmojis === true,
   };
 }
 
@@ -470,6 +474,7 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
     sectionSpacing: settings.sectionSpacing ?? {},
     imageSize: settings.imageSize ?? {},
     logoPlacement: settings.logoPlacement ?? 'header',
+    removeEmojis: settings.removeEmojis === true,
     fontsHref: `https://fonts.googleapis.com/css2?${families}&display=swap`,
     vars: {
       '--bg': c.bg,

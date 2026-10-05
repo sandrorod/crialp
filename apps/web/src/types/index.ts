@@ -274,6 +274,8 @@ export interface ThemeSettings {
   imageSize?: ImageSizes;
   /** Onde o logotipo aparece: cabeçalho (padrão), início do conteúdo ou seção "Sobre" */
   logoPlacement?: 'header' | 'hero' | 'about';
+  /** Tira os emojis de todos os textos da página */
+  removeEmojis?: boolean;
 }
 
 /** Tamanho de uma foto arrastado na prévia: largura em % do espaço disponível, altura em px. */

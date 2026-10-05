@@ -67,9 +67,9 @@ function readIconAt(content: LandingContent, path: string): string | null {
  */
 function renderedThemeKey(t: ThemeSettings | null | undefined, c: LandingContent | null | undefined) {
   if (!t) return '';
-  const { preset, primary, accent, heroVariant, sections, images, template, imageOrder, logoPlacement } = t;
+  const { preset, primary, accent, heroVariant, sections, images, template, imageOrder, logoPlacement, removeEmojis } = t;
   // Todo o conteúdo (textos, seções desativadas, ordem, seções personalizadas) também é renderizado no servidor
-  return JSON.stringify({ preset, primary, accent, heroVariant, sections, images, template, imageOrder, logoPlacement, content: c ?? null });
+  return JSON.stringify({ preset, primary, accent, heroVariant, sections, images, template, imageOrder, logoPlacement, removeEmojis, content: c ?? null });
 }
 
 export function LandingPageEditorPage() {

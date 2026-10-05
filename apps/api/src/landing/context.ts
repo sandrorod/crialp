@@ -2,6 +2,7 @@ import type { CompanyFull } from '../repositories/companies.js';
 import type { LandingContent } from '../services/ai/schemas.js';
 import { formatBrazilPhone, telLink, whatsappLink } from '../lib/phone.js';
 import type { ResolvedTheme } from './theme.js';
+import { stripEmojisDeep } from '../lib/emoji.js';
 import { DEFAULT_LABELS, resolveLabels, type LabelKey, type Labels } from './labels.js';
 
 export interface LpImage {
@@ -91,7 +92,12 @@ export function buildContext(opts: {
   pageUrl: string;
   editable?: boolean;
 }): RenderContext {
-  const { company, content, theme, pageUrl } = opts;
+  const { theme, pageUrl } = opts;
+  // Opção "Remover emojis": todos os textos da página (conteúdo, cadastro e SEO) saem sem emoji
+  const clean = theme.removeEmojis;
+  const company = clean ? stripEmojisDeep(opts.company) : opts.company;
+  const content = clean ? stripEmojisDeep(opts.content) : opts.content;
+  opts = clean ? { ...opts, seo: stripEmojisDeep(opts.seo) } : opts;
   const displayName = company.trade_name || company.name;
 
   // Imagens só entram na página com permissão de uso confirmada pelo administrador.
