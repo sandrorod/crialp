@@ -18,6 +18,8 @@ export interface ElementColor {
   fx?: TextEffect;
   /** Elemento excluído da página pelo editor (fica salvo; "Restaurar" volta) */
   hidden?: boolean;
+  /** Velocidade do efeito (0,1x a 2x; 1 = normal) */
+  fxSpeed?: number;
 }
 
 /** Efeitos de movimento dos textos. Mantenha igual em apps/web/src/components/landing/previewTools.ts. */
@@ -26,7 +28,7 @@ export const TEXT_EFFECTS = [
   'fade', 'up', 'down', 'left', 'right', 'zoom', 'zoomout', 'bounce', 'blur', 'flip', 'rotate', 'swing', 'expand', 'typing',
   // Chamar atenção (aparecem e se mexem uma vez)
   'shake', 'rubber', 'tada',
-  // Contínuos (repetem enquanto a página está aberta)
+  // Destaque (também tocam uma vez)
   'pulse', 'heartbeat', 'float', 'glow', 'blink',
 ] as const;
 export type TextEffect = (typeof TEXT_EFFECTS)[number];
@@ -94,6 +96,9 @@ function normalizeMap(input: unknown): Record<string, ElementColor> {
       ...(flag(value?.underline) !== null ? { underline: value.underline } : {}),
       ...(TEXT_EFFECTS.includes(value?.fx as TextEffect) ? { fx: value.fx } : {}),
       ...(value?.hidden === true ? { hidden: true } : {}),
+      ...(Number.isFinite(Number(value?.fxSpeed)) && value?.fxSpeed != null && Number(value.fxSpeed) !== 1
+        ? { fxSpeed: Math.round(Math.min(2, Math.max(0.1, Number(value.fxSpeed))) * 100) / 100 }
+        : {}),
     };
     if (Object.keys(entry).length) out[sel] = entry;
   }
@@ -117,6 +122,8 @@ function rules(map: Record<string, ElementColor>) {
         c.italic !== undefined ? `font-style:${c.italic ? 'italic' : 'normal'}!important` : '',
         c.underline !== undefined ? `text-decoration:${c.underline ? 'underline' : 'none'}!important` : '',
         c.hidden ? 'display:none!important' : '',
+        // Velocidade do efeito: as durações das animações dividem por ela
+        c.fxSpeed ? `--fx-s:${c.fxSpeed}` : '',
       ]
         .filter(Boolean)
         .join(';');

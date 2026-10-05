@@ -47,7 +47,7 @@ export const TEXT_EFFECT_GROUPS: { title: string; items: { value: TextEffect; la
   },
   { title: 'Chamar atenção', items: [{ value: 'shake', label: 'Tremer' }, { value: 'rubber', label: 'Elástico' }, { value: 'tada', label: 'Tadã' }] },
   {
-    title: 'Contínuos',
+    title: 'Destaque',
     items: [
       { value: 'pulse', label: 'Pulsar' },
       { value: 'heartbeat', label: 'Batimento' },
@@ -61,7 +61,7 @@ const EFFECT_LABEL = new Map(TEXT_EFFECT_GROUPS.flatMap((g) => g.items.map((i) =
 
 /** Prévia: digitação mostrada como revelação da esquerda para a direita (o texto em edição não é reescrito). */
 const FX_PREVIEW_CSS =
-  '[data-fx="typing"].fx-in.fx-demo{animation:lpfx-wipe 1.2s steps(24) both}@keyframes lpfx-wipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}';
+  '[data-fx="typing"].fx-in.fx-demo{animation:lpfx-wipe calc(1.2s / var(--fx-s,1)) steps(24) both}@keyframes lpfx-wipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}';
 
 /** Toca o efeito do texto na prévia (ao escolher na barra). */
 export function playTextEffect(el: HTMLElement, fx: TextEffect | null) {
@@ -123,6 +123,7 @@ export function elementStyleDecl(c: ElementColor): string {
     // Na prévia o elemento excluído continua visível (apagado e tracejado) para poder ser restaurado;
     // na página publicada ele some (display:none, em apps/api/src/landing/elementColors.ts)
     c.hidden ? 'opacity:.3!important;outline:2px dashed #ef4444!important;outline-offset:2px' : '',
+    c.fxSpeed ? `--fx-s:${c.fxSpeed}` : '',
   ]
     .filter(Boolean)
     .join(';');
@@ -806,6 +807,8 @@ export interface TextSizeOptions {
   deviceLabel: string;
   /** Efeito de movimento do seletor: vale para celular e computador; `null` remove */
   setEffect?: (selector: string, fx: TextEffect | null) => void;
+  /** Velocidade do efeito (0,1 a 2; `null` = normal): vale para celular e computador */
+  setFxSpeed?: (selector: string, speed: number | null) => void;
   /** Excluir (true) ou restaurar (null) o elemento: vale para celular e computador */
   setHidden?: (selector: string, hidden: true | null) => void;
   uiScale?: number;
@@ -814,7 +817,7 @@ export interface TextSizeOptions {
 const TEXT_STYLE_KEYS = ['text', 'bg', 'size', 'font', 'bold', 'italic', 'underline', 'hidden'] as const;
 
 /** Barra flutuante sobre o texto em edição: fonte, tamanho, negrito, itálico, sublinhado e cor (só na prévia). */
-function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extra: { onParent?: () => void; onRemoved?: () => void } = {}) {
+function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extra: { onParent?: () => void; onRemoved?: () => void; onIcon?: () => void } = {}) {
   const win = doc.defaultView!;
   const px = (n: number) => `${Math.round(n * (opts.uiScale ?? 1))}px`;
   const exact = selectorFor(el, true);
@@ -913,6 +916,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     if (hidden) extra.onRemoved?.();
   });
   // Elemento de fora (ex.: do texto para o cartão inteiro)
+  const iconBtn = extra.onIcon ? mk('◇ Trocar ícone', 'Escolher outro ícone', extra.onIcon, `;font-weight:500;font-size:${px(12)};background:rgba(255,255,255,.12)`) : null;
   const parent = extra.onParent ? mk('↑ Elemento de fora', 'Selecionar o elemento que contém este', extra.onParent, `;font-weight:500;font-size:${px(12)}`) : null;
 
   const scopeBtn = mk('', 'Aplicar só neste texto ou em todos os textos iguais a este', () => {
@@ -954,6 +958,35 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     return g;
   };
   menu.append(group('Sem movimento', [chip(null, 'Sem efeito')]), ...TEXT_EFFECT_GROUPS.map((g) => group(g.title, g.items.map((i) => chip(i.value, i.label)))));
+  // Velocidade do movimento: 0x a 2x (1x = normal); o efeito toca de novo ao soltar
+  const speedRow = doc.createElement('div');
+  speedRow.setAttribute('style', `display:flex;align-items:center;gap:${px(8)};padding:${px(4)} ${px(2)} 0`);
+  const speedLabel = doc.createElement('span');
+  speedLabel.setAttribute('style', `min-width:${px(92)};font-variant-numeric:tabular-nums`);
+  const speed = doc.createElement('input');
+  speed.type = 'range';
+  speed.min = '0';
+  speed.max = '2';
+  speed.step = '0.05';
+  speed.title = 'Velocidade do movimento (0x a 2x)';
+  speed.setAttribute('style', `flex:1;accent-color:#2563eb;height:${px(18)};cursor:pointer`);
+  const speedValue = () => Math.max(0.1, Number(speed.value) || 0.1);
+  const showSpeed = () => (speedLabel.textContent = `Velocidade ${Number(speed.value).toFixed(2).replace(/0$/, '')}x`);
+  speed.addEventListener('mousedown', (e) => e.stopPropagation());
+  speed.addEventListener('input', () => {
+    showSpeed();
+    const v = speedValue();
+    opts.setFxSpeed?.(sel(), Math.abs(v - 1) < 0.001 ? null : v);
+  });
+  speed.addEventListener('change', () => {
+    const fx = saved().fx ?? null;
+    if (fx) playTextEffect(el, fx);
+  });
+  const ticks = doc.createElement('span');
+  ticks.textContent = '0x · 1x · 2x';
+  ticks.setAttribute('style', `opacity:.55;font-size:${px(11)}`);
+  speedRow.append(speedLabel, speed, ticks);
+  if (opts.setFxSpeed) menu.append(group('Velocidade do movimento', []), speedRow);
 
   const tag = doc.createElement('span');
   tag.setAttribute('style', `opacity:.6;padding:0 ${px(6)}`);
@@ -973,6 +1006,8 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     color.value = s.text ?? cssColorToHex(cs().color) ?? '#000000';
     scopeBtn.textContent = scope === 'exact' ? 'Só este' : 'Todos iguais';
     bg.value = s.bg ?? cssColorToHex(cs().backgroundColor) ?? '#ffffff';
+    speed.value = String(s.fxSpeed ?? 1);
+    showSpeed();
     remove.textContent = s.hidden ? '↺ Restaurar' : '🗑 Excluir';
     remove.style.background = s.hidden ? '#16a34a' : 'rgba(239,68,68,.85)';
     effect.textContent = `✦ Efeito: ${s.fx ? EFFECT_LABEL.get(s.fx) ?? s.fx : 'nenhum'} ▾`;
@@ -992,6 +1027,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     bar.append(fxRow, menu);
   }
   const actions = row();
+  if (iconBtn) actions.append(iconBtn);
   if (parent) actions.append(parent);
   if (opts.setHidden) actions.append(remove);
   if (actions.children.length) bar.append(actions);
@@ -1020,7 +1056,10 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
 }
 
 /** Ícones marcados com data-lp-icon: no modo Textos, clicar (no ícone ou na caixinha dele) abre o seletor. */
+const iconPickers = new WeakMap<Document, (path: string) => void>();
+
 export function attachIconPick(doc: Document, onPick: (path: string) => void) {
+  iconPickers.set(doc, onPick);
   if (doc.body.dataset.lpIcons) return;
   doc.body.dataset.lpIcons = '1';
   doc.addEventListener(
@@ -1032,7 +1071,9 @@ export function attachIconPick(doc: Document, onPick: (path: string) => void) {
       if (!el?.dataset.lpIcon) return;
       e.preventDefault();
       e.stopPropagation();
-      onPick(el.dataset.lpIcon);
+      // Com a barra de elementos, o ícone abre a barra (efeito, cores, excluir e "Trocar ícone")
+      if (doc.body.dataset.lpElementBar) return;
+      iconPickers.get(doc)?.(el.dataset.lpIcon);
     },
     true,
   );
@@ -1042,6 +1083,7 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
   const win = doc.defaultView;
   if (!win || doc.body.dataset.lpTexts) return;
   doc.body.dataset.lpTexts = '1';
+  if (sizes) doc.body.dataset.lpElementBar = '1';
   let editing: { el: HTMLElement; original: string; cancelled: boolean; closeBar?: () => void; bar?: HTMLElement; unlisten?: () => void } | null = null;
 
   const finish = () => {
@@ -1104,11 +1146,17 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
     picked.close();
     picked = null;
   };
-  const pick = (el: HTMLElement) => {
+  const pick = (el: HTMLElement, iconPath?: string) => {
     unpick();
     if (!sizes) return;
     el.setAttribute('data-lp-selected', '');
     const tb = textToolbar(doc, el, sizes, {
+      onIcon: iconPath && iconPickers.get(doc)
+        ? () => {
+            unpick();
+            iconPickers.get(doc)?.(iconPath);
+          }
+        : undefined,
       onParent: () => {
         const up = el.parentElement;
         if (up && up !== doc.body && up !== doc.documentElement) pick(up);
@@ -1151,8 +1199,14 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
       const t = e.target as Element | null;
       const el = t?.closest?.<HTMLElement>('[data-lp-text]');
       if (el) return start(el);
-      // Barras do editor e ícones trocáveis (abrem o seletor de ícones) têm o próprio clique
-      if (!t || t.closest('[data-lp-ui]') || t.closest('[data-lp-icon]') || t.closest('.icon-box')?.querySelector('[data-lp-icon]')) return;
+      if (!t || t.closest('[data-lp-ui]')) return;
+      // Ícone trocável: abre a barra do ícone (efeito, cores, excluir e "Trocar ícone")
+      const icon = t.closest<HTMLElement>('[data-lp-icon]') ?? t.closest('.icon-box')?.querySelector<HTMLElement>('[data-lp-icon]');
+      if (icon) {
+        if (!sizes) return;
+        finish();
+        return pick(icon, icon.dataset.lpIcon);
+      }
       // Desenho de ícone: seleciona o ícone inteiro, não um traço dele
       const svg = t.closest('svg');
       const node = (svg ? (svg.parentElement?.classList.contains('ico') ? svg.parentElement : svg) : t) as HTMLElement;

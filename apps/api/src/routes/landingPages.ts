@@ -115,6 +115,8 @@ const ElementStyleSchema = z.object({
   fx: z.enum(TEXT_EFFECTS).nullish(),
   // Elemento excluído da página pelo editor
   hidden: z.boolean().nullish(),
+  // Velocidade do efeito (0 a 2x)
+  fxSpeed: z.number().min(0).max(2).nullish(),
 });
 
 const ContentUpdateSchema = z.object({

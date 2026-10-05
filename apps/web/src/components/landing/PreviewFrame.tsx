@@ -370,6 +370,22 @@ export function PreviewFrame({
                 colorsRef.current = next;
                 onColorsRef.current?.(next);
               },
+              // Velocidade do efeito: a mesma no celular e no computador
+              setFxSpeed: (sel, speed) => {
+                const all = colorsRef.current ?? { desktop: {}, mobile: {} };
+                const next = { ...all };
+                for (const layout of ['desktop', 'mobile'] as const) {
+                  const map = { ...all[layout] };
+                  const entry: ElementColor = { ...(map[sel] ?? {}) };
+                  if (speed) entry.fxSpeed = speed;
+                  else delete entry.fxSpeed;
+                  if (Object.keys(entry).length) map[sel] = entry;
+                  else delete map[sel];
+                  next[layout] = map;
+                }
+                colorsRef.current = next;
+                onColorsRef.current?.(next);
+              },
             }
           : undefined,
       );

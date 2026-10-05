@@ -313,6 +313,8 @@ export interface ElementColor {
   fx?: TextEffect;
   /** Elemento excluído da página no editor (Restaurar volta) */
   hidden?: boolean;
+  /** Velocidade do efeito (0,1x a 2x; ausente = 1x) */
+  fxSpeed?: number;
 }
 
 export type TextEffect =

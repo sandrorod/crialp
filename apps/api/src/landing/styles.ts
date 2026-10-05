@@ -670,30 +670,31 @@ img,video,iframe,svg{max-width:100%}
 /* Animações discretas (somente com JS ativo e sem preferência por movimento reduzido) */
 .js .reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
 .js .reveal.in{opacity:1;transform:none}
-/* Efeitos de movimento dos textos escolhidos no editor: tocam quando o texto entra na tela */
+/* Efeitos de movimento escolhidos no editor: tocam UMA vez quando o elemento entra na tela.
+   --fx-s = velocidade escolhida (0,1x a 2x): as durações são divididas por ela */
 .js [data-fx]:not(.fx-in){opacity:0}
-[data-fx].fx-in{animation-duration:.85s;animation-timing-function:cubic-bezier(.2,.7,.2,1);animation-fill-mode:both}
+[data-fx].fx-in{--fx-d:calc(.85s / var(--fx-s,1));animation-duration:var(--fx-d);animation-timing-function:cubic-bezier(.2,.7,.2,1);animation-fill-mode:both;animation-iteration-count:1}
 [data-fx="fade"].fx-in{animation-name:lpfx-fade}
 [data-fx="up"].fx-in{animation-name:lpfx-up}
 [data-fx="down"].fx-in{animation-name:lpfx-down}
 [data-fx="left"].fx-in{animation-name:lpfx-left}
 [data-fx="right"].fx-in{animation-name:lpfx-right}
 [data-fx="zoom"].fx-in{animation-name:lpfx-zoom}
-[data-fx="bounce"].fx-in{animation-name:lpfx-bounce;animation-duration:1s;animation-timing-function:ease-out}
 [data-fx="zoomout"].fx-in{animation-name:lpfx-zoomout}
-[data-fx="blur"].fx-in{animation-name:lpfx-blur;animation-duration:1s}
-[data-fx="flip"].fx-in{animation-name:lpfx-flip;animation-duration:1s}
+[data-fx="bounce"].fx-in{animation-name:lpfx-bounce;animation-duration:calc(1s / var(--fx-s,1));animation-timing-function:ease-out}
+[data-fx="blur"].fx-in{animation-name:lpfx-blur;animation-duration:calc(1s / var(--fx-s,1))}
+[data-fx="flip"].fx-in{animation-name:lpfx-flip;animation-duration:calc(1s / var(--fx-s,1))}
 [data-fx="rotate"].fx-in{animation-name:lpfx-rotate}
-[data-fx="swing"].fx-in{animation-name:lpfx-swing;animation-duration:1.1s;transform-origin:top center}
-[data-fx="expand"].fx-in{animation-name:lpfx-expand;animation-duration:1s}
-[data-fx="shake"].fx-in{animation:lpfx-fade .3s ease both,lpfx-shake .8s ease .3s both}
-[data-fx="rubber"].fx-in{animation:lpfx-fade .3s ease both,lpfx-rubber 1s ease .3s both}
-[data-fx="tada"].fx-in{animation:lpfx-fade .3s ease both,lpfx-tada 1s ease .3s both}
-[data-fx="pulse"].fx-in{animation:lpfx-fade .6s ease both,lpfx-pulse 1.8s ease-in-out .6s infinite}
-[data-fx="heartbeat"].fx-in{animation:lpfx-fade .6s ease both,lpfx-heartbeat 1.6s ease-in-out .6s infinite}
-[data-fx="float"].fx-in{animation:lpfx-fade .6s ease both,lpfx-float 3s ease-in-out .6s infinite}
-[data-fx="glow"].fx-in{animation:lpfx-fade .6s ease both,lpfx-glow 2.2s ease-in-out .6s infinite}
-[data-fx="blink"].fx-in{animation:lpfx-blink 1.4s ease-in-out infinite}
+[data-fx="swing"].fx-in{animation-name:lpfx-swing;animation-duration:calc(1.1s / var(--fx-s,1));transform-origin:top center}
+[data-fx="expand"].fx-in{animation-name:lpfx-expand;animation-duration:calc(1s / var(--fx-s,1))}
+[data-fx="shake"].fx-in{animation:lpfx-fade calc(.3s / var(--fx-s,1)) ease both,lpfx-shake calc(.8s / var(--fx-s,1)) ease calc(.3s / var(--fx-s,1)) 1 both}
+[data-fx="rubber"].fx-in{animation:lpfx-fade calc(.3s / var(--fx-s,1)) ease both,lpfx-rubber calc(1s / var(--fx-s,1)) ease calc(.3s / var(--fx-s,1)) 1 both}
+[data-fx="tada"].fx-in{animation:lpfx-fade calc(.3s / var(--fx-s,1)) ease both,lpfx-tada calc(1s / var(--fx-s,1)) ease calc(.3s / var(--fx-s,1)) 1 both}
+[data-fx="pulse"].fx-in{animation:lpfx-fade calc(.5s / var(--fx-s,1)) ease both,lpfx-pulse calc(1.2s / var(--fx-s,1)) ease-in-out calc(.5s / var(--fx-s,1)) 1 both}
+[data-fx="heartbeat"].fx-in{animation:lpfx-fade calc(.5s / var(--fx-s,1)) ease both,lpfx-heartbeat calc(1.4s / var(--fx-s,1)) ease-in-out calc(.5s / var(--fx-s,1)) 1 both}
+[data-fx="float"].fx-in{animation:lpfx-fade calc(.5s / var(--fx-s,1)) ease both,lpfx-float calc(2s / var(--fx-s,1)) ease-in-out calc(.5s / var(--fx-s,1)) 1 both}
+[data-fx="glow"].fx-in{animation:lpfx-fade calc(.5s / var(--fx-s,1)) ease both,lpfx-glow calc(1.8s / var(--fx-s,1)) ease-in-out calc(.5s / var(--fx-s,1)) 1 both}
+[data-fx="blink"].fx-in{animation:lpfx-blink calc(1.2s / var(--fx-s,1)) ease-in-out 1 both}
 [data-fx="typing"].fx-in{animation:none}
 [data-fx].fx-typing::after{content:"";display:inline-block;width:.08em;height:1em;margin-left:.06em;vertical-align:-.12em;background:currentColor;animation:lpfx-caret .8s steps(1) infinite}
 @keyframes lpfx-fade{from{opacity:0}to{opacity:1}}
@@ -716,10 +717,10 @@ img,video,iframe,svg{max-width:100%}
 @keyframes lpfx-heartbeat{0%,40%,100%{transform:none}10%,30%{transform:scale(1.1)}20%{transform:scale(1.02)}}
 @keyframes lpfx-float{0%,100%{transform:none}50%{transform:translateY(-8px)}}
 @keyframes lpfx-glow{0%,100%{text-shadow:none}50%{text-shadow:0 0 14px currentColor,0 0 28px currentColor}}
-@keyframes lpfx-blink{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes lpfx-blink{0%,50%,100%{opacity:1}25%,75%{opacity:.2}}
 @keyframes lpfx-caret{50%{opacity:0}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.js .reveal{opacity:1;transform:none;transition:none}*{transition:none!important}.js [data-fx]{opacity:1!important;animation:none!important}}
 `.replace(/\n\s*/g, '');
 }
 
-export const REVEAL_SCRIPT = `document.documentElement.classList.add('js');addEventListener('DOMContentLoaded',function(){var h=document.querySelector('.site-header');function m(){if(h)document.documentElement.style.setProperty('--header-h',h.offsetHeight+'px')}m();addEventListener('resize',m);document.querySelectorAll('.menu-panel a').forEach(function(a){a.addEventListener('click',function(){var d=a.closest('details');if(d)d.open=false})});var e=document.querySelectorAll('.reveal');if(!('IntersectionObserver'in window)){e.forEach(function(n){n.classList.add('in')});return}var o=new IntersectionObserver(function(t){t.forEach(function(n){if(n.isIntersecting){n.target.classList.add('in');o.unobserve(n.target)}})},{rootMargin:'0px 0px -8% 0px'});e.forEach(function(n){o.observe(n)});var j=document.getElementById('lp-fx');if(!j)return;var L=[];try{L=JSON.parse(j.textContent)}catch(_){}var rm=matchMedia('(prefers-reduced-motion: reduce)').matches;function ty(n){if(n.children.length||rm)return;var t=n.textContent,i=0;n.textContent='';n.classList.add('fx-typing');var k=setInterval(function(){i++;n.textContent=t.slice(0,i);if(i>=t.length){clearInterval(k);n.classList.remove('fx-typing')}},Math.max(18,Math.min(70,1400/t.length)))}var q=new IntersectionObserver(function(t){t.forEach(function(x){if(x.isIntersecting){var n=x.target;n.classList.add('fx-in');if(n.getAttribute('data-fx')==='typing')ty(n);q.unobserve(n)}})},{rootMargin:'0px 0px -8% 0px'});L.forEach(function(x){if(!matchMedia(x[2]==='m'?'(max-width:767px)':'(min-width:768px)').matches)return;try{document.querySelectorAll(x[0]).forEach(function(n){n.setAttribute('data-fx',x[1]);if(getComputedStyle(n).display==='inline')n.style.display='inline-block';q.observe(n)})}catch(_){}})});`;
+export const REVEAL_SCRIPT = `document.documentElement.classList.add('js');addEventListener('DOMContentLoaded',function(){var h=document.querySelector('.site-header');function m(){if(h)document.documentElement.style.setProperty('--header-h',h.offsetHeight+'px')}m();addEventListener('resize',m);document.querySelectorAll('.menu-panel a').forEach(function(a){a.addEventListener('click',function(){var d=a.closest('details');if(d)d.open=false})});var e=document.querySelectorAll('.reveal');if(!('IntersectionObserver'in window)){e.forEach(function(n){n.classList.add('in')});return}var o=new IntersectionObserver(function(t){t.forEach(function(n){if(n.isIntersecting){n.target.classList.add('in');o.unobserve(n.target)}})},{rootMargin:'0px 0px -8% 0px'});e.forEach(function(n){o.observe(n)});var j=document.getElementById('lp-fx');if(!j)return;var L=[];try{L=JSON.parse(j.textContent)}catch(_){}var rm=matchMedia('(prefers-reduced-motion: reduce)').matches;function ty(n){if(n.children.length||rm)return;var t=n.textContent,i=0;n.textContent='';n.classList.add('fx-typing');var k=setInterval(function(){i++;n.textContent=t.slice(0,i);if(i>=t.length){clearInterval(k);n.classList.remove('fx-typing')}},Math.max(18,Math.min(70,1400/t.length))/(parseFloat(getComputedStyle(n).getPropertyValue('--fx-s'))||1))}var q=new IntersectionObserver(function(t){t.forEach(function(x){if(x.isIntersecting){var n=x.target;n.classList.add('fx-in');if(n.getAttribute('data-fx')==='typing')ty(n);q.unobserve(n)}})},{rootMargin:'0px 0px -8% 0px'});L.forEach(function(x){if(!matchMedia(x[2]==='m'?'(max-width:767px)':'(min-width:768px)').matches)return;try{document.querySelectorAll(x[0]).forEach(function(n){n.setAttribute('data-fx',x[1]);if(getComputedStyle(n).display==='inline')n.style.display='inline-block';q.observe(n)})}catch(_){}})});`;
