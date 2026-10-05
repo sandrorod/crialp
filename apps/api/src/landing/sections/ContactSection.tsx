@@ -35,6 +35,9 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
                 </a>
               ))}
             </div>
+          ) : ctx.editable ? (
+            // Só na prévia do editor: indica onde preencher as redes (a página publicada não mostra nada)
+            <p className="lp-social-hint">+ Redes sociais: preencha em Textos → “Redes sociais”</p>
           ) : null}
         </div>
         <ul className="contact-list reveal">

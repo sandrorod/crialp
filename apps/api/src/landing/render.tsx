@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { SectionKey, SectionOrderKey } from '../services/ai/schemas.js';
 import { CustomSectionView } from './sections/CustomSection.js';
 import { finalCtaVars, sectionVars } from './sectionColors.js';
-import { elementColorsCss, elementFontsHref, MOBILE_MAX } from './elementColors.js';
+import { elementColorsCss, elementFontsHref, MOBILE_MAX, textEffectsJson } from './elementColors.js';
 import { sectionSpacingCss } from './spacing.js';
 import { imageSizesCss } from './imageSize.js';
 import type { CSSProperties, ReactNode } from 'react';
@@ -188,7 +188,7 @@ export function renderLandingPage(ctx: RenderContext): string {
         {ctx.editable ? (
           <style
             dangerouslySetInnerHTML={{
-              __html: 'html:not(.lp-mode-textos) [data-lp-empty]:empty,html:not(.lp-mode-textos) [data-lp-hide-empty]:has([data-lp-empty]:empty){display:none!important}',
+              __html: '.lp-social-hint{margin-top:24px;padding:12px 14px;border:1px dashed currentColor;border-radius:10px;font-size:13px;opacity:.6}html:not(.lp-mode-textos) [data-lp-empty]:empty,html:not(.lp-mode-textos) [data-lp-hide-empty]:has([data-lp-empty]:empty){display:none!important}',
             }}
           />
         ) : null}
@@ -197,6 +197,8 @@ export function renderLandingPage(ctx: RenderContext): string {
         <style id="lp-colors" dangerouslySetInnerHTML={{ __html: elementColorsCss(theme.elementColors) }} />
         <style id="lp-spacing" dangerouslySetInnerHTML={{ __html: sectionSpacingCss(theme.sectionSpacing) }} />
         <style id="lp-image-size" dangerouslySetInnerHTML={{ __html: imageSizesCss(theme.imageSize) }} />
+        {/* Efeitos de movimento dos textos (lidos pelo script abaixo) */}
+        {textEffectsJson(theme.elementColors) ? <script type="application/json" id="lp-fx" dangerouslySetInnerHTML={{ __html: textEffectsJson(theme.elementColors)! }} /> : null}
         <script dangerouslySetInnerHTML={{ __html: REVEAL_SCRIPT }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ctx) }} />
       </head>

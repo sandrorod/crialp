@@ -15,6 +15,7 @@ import {
   elementColorsCss,
   sectionSpacingCss,
   loadElementFonts,
+  applyTextEffects,
   setColorsCss,
   setSpacingCss,
   setDraftCss,
@@ -273,6 +274,7 @@ export function PreviewFrame({
     if (d?.head) {
       setColorsCss(d, elementColorsCss(elementColors));
       loadElementFonts(d, elementColors);
+      applyTextEffects(d, elementColors, device);
     }
   }, [elementColors]);
 
@@ -302,6 +304,7 @@ export function PreviewFrame({
     if (onFocusRef.current) attachFocusDrag(d, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), uiScale);
     setColorsCss(d, elementColorsCss(colorsRef.current));
     loadElementFonts(d, colorsRef.current);
+    applyTextEffects(d, colorsRef.current, device);
     setSpacingCss(d, sectionSpacingCss(spacingRef.current));
     setImageSizeCss(d, imageSizesCss(imageSizeRef.current));
     if (onImageSizeRef.current) {
@@ -332,6 +335,22 @@ export function PreviewFrame({
                 if (Object.keys(entry).length) map[sel] = entry as ElementColor;
                 else delete map[sel];
                 const next = { ...all, [device]: map };
+                colorsRef.current = next;
+                onColorsRef.current?.(next);
+              },
+              // Efeito de movimento: o mesmo no celular e no computador
+              setEffect: (sel, fx) => {
+                const all = colorsRef.current ?? { desktop: {}, mobile: {} };
+                const next = { ...all };
+                for (const layout of ['desktop', 'mobile'] as const) {
+                  const map = { ...all[layout] };
+                  const entry: ElementColor = { ...(map[sel] ?? {}) };
+                  if (fx) entry.fx = fx;
+                  else delete entry.fx;
+                  if (Object.keys(entry).length) map[sel] = entry;
+                  else delete map[sel];
+                  next[layout] = map;
+                }
                 colorsRef.current = next;
                 onColorsRef.current?.(next);
               },

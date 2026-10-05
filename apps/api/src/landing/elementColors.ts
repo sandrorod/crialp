@@ -14,7 +14,13 @@ export interface ElementColor {
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;
+  /** Efeito de movimento quando o texto aparece na tela (vale para celular e computador) */
+  fx?: TextEffect;
 }
+
+/** Efeitos de movimento dos textos. Mantenha igual em apps/web/src/components/landing/previewTools.ts. */
+export const TEXT_EFFECTS = ['fade', 'up', 'down', 'left', 'right', 'zoom', 'bounce', 'typing', 'pulse'] as const;
+export type TextEffect = (typeof TEXT_EFFECTS)[number];
 
 /**
  * Fontes oferecidas ao editar um texto. `google` = família carregada do Google Fonts;
@@ -77,6 +83,7 @@ function normalizeMap(input: unknown): Record<string, ElementColor> {
       ...(flag(value?.bold) !== null ? { bold: value.bold } : {}),
       ...(flag(value?.italic) !== null ? { italic: value.italic } : {}),
       ...(flag(value?.underline) !== null ? { underline: value.underline } : {}),
+      ...(TEXT_EFFECTS.includes(value?.fx as TextEffect) ? { fx: value.fx } : {}),
     };
     if (Object.keys(entry).length) out[sel] = entry;
   }
@@ -115,6 +122,19 @@ export function elementColorsCss(colors: ElementColors): string {
     desktop ? `@media(min-width:${MOBILE_MAX + 1}px){${desktop}}` : '',
     mobile ? `@media(max-width:${MOBILE_MAX}px){${mobile}}` : '',
   ].join('');
+}
+
+/**
+ * Efeitos dos textos para o script da página: [seletor, efeito, layout]. Vai num bloco JSON
+ * (não executável); o script marca os elementos e toca o efeito quando entram na tela.
+ */
+export function textEffectsJson(colors: ElementColors): string | null {
+  const list: [string, TextEffect, 'd' | 'm'][] = [];
+  for (const [layout, map] of [['d', colors.desktop], ['m', colors.mobile]] as const) {
+    for (const [sel, c] of Object.entries(map)) if (c.fx) list.push([sel, c.fx, layout]);
+  }
+  // Evita fechar a tag <script> dentro do JSON
+  return list.length ? JSON.stringify(list).replace(/</g, '\\u003c') : null;
 }
 
 /** Google Fonts das fontes escolhidas nos textos (null se nenhuma precisa ser carregada). */

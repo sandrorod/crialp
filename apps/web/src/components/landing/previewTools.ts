@@ -1,4 +1,4 @@
-import type { ElementColor, ElementColors, ImageBox, ImageSizes, LandingContent, SectionSpacing } from '@/types';
+import type { ElementColor, ElementColors, ImageBox, ImageSizes, LandingContent, SectionSpacing, TextEffect } from '@/types';
 
 /** Ferramentas ativas na prévia: enquadrar fotos, arrastar seções ou escolher cores. */
 export type PreviewMode = 'textos' | 'fotos' | 'secoes' | 'espacos' | 'cores';
@@ -23,6 +23,70 @@ export const TEXT_FONTS: Record<string, { label: string; stack: string; google?:
   playfair: { label: 'Playfair Display', stack: '"Playfair Display",serif', google: 'Playfair+Display:ital,wght@0,400;0,700;1,400;1,700' },
   merriweather: { label: 'Merriweather', stack: '"Merriweather",serif', google: 'Merriweather:ital,wght@0,400;0,700;1,400;1,700' },
 };
+
+/** Efeitos de movimento dos textos (iguais a TEXT_EFFECTS em apps/api/src/landing/elementColors.ts). */
+export const TEXT_EFFECTS: { value: TextEffect; label: string }[] = [
+  { value: 'fade', label: 'Surgir' },
+  { value: 'up', label: 'Subir' },
+  { value: 'down', label: 'Descer' },
+  { value: 'left', label: 'Entrar da esquerda' },
+  { value: 'right', label: 'Entrar da direita' },
+  { value: 'zoom', label: 'Zoom' },
+  { value: 'bounce', label: 'Quicar' },
+  { value: 'typing', label: 'Digitação' },
+  { value: 'pulse', label: 'Pulsar (contínuo)' },
+];
+
+/** Prévia: digitação mostrada como revelação da esquerda para a direita (o texto em edição não é reescrito). */
+const FX_PREVIEW_CSS =
+  '[data-fx="typing"].fx-in.fx-demo{animation:lpfx-wipe 1.2s steps(24) both}@keyframes lpfx-wipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}';
+
+/** Toca o efeito do texto na prévia (ao escolher na barra). */
+export function playTextEffect(el: HTMLElement, fx: TextEffect | null) {
+  const doc = el.ownerDocument;
+  if (!doc.getElementById('lp-fx-preview')) {
+    const style = doc.createElement('style');
+    style.id = 'lp-fx-preview';
+    style.textContent = FX_PREVIEW_CSS;
+    doc.head.appendChild(style);
+  }
+  el.classList.remove('fx-in', 'fx-demo');
+  if (!fx) {
+    el.removeAttribute('data-fx');
+    return;
+  }
+  el.setAttribute('data-fx', fx);
+  if (doc.defaultView?.getComputedStyle(el).display === 'inline') el.style.display = 'inline-block';
+  void el.offsetWidth; // reinicia a animação
+  el.classList.add('fx-in', 'fx-demo');
+}
+
+/**
+ * Marca na prévia os textos com efeito do layout mostrado (sem escondê-los: na prévia ficam visíveis;
+ * o efeito toca ao ser escolhido na barra). Na página publicada o script da página faz isso.
+ */
+export function applyTextEffects(doc: Document, colors: ElementColors | undefined, device: 'desktop' | 'mobile') {
+  const wanted = new Map<HTMLElement, TextEffect>();
+  for (const [sel, c] of Object.entries(colors?.[device] ?? {})) {
+    if (!c.fx) continue;
+    try {
+      doc.querySelectorAll<HTMLElement>(sel).forEach((el) => wanted.set(el, c.fx!));
+    } catch {
+      /* seletor inválido: ignora */
+    }
+  }
+  doc.querySelectorAll<HTMLElement>('[data-fx]').forEach((el) => {
+    if (wanted.has(el)) return;
+    el.removeAttribute('data-fx');
+    el.classList.remove('fx-in', 'fx-demo', 'fx-typing');
+  });
+  // Quem já está com o mesmo efeito fica como está (não interrompe a animação que acabou de tocar)
+  for (const [el, fx] of wanted) {
+    if (el.getAttribute('data-fx') === fx) continue;
+    el.setAttribute('data-fx', fx);
+    el.classList.add('fx-in');
+  }
+}
 
 /** Declarações CSS de um elemento (mesma regra da página publicada). */
 export function elementStyleDecl(c: ElementColor): string {
@@ -713,6 +777,8 @@ export interface TextSizeOptions {
   setStyle: (selector: string, patch: { [K in keyof ElementColor]?: ElementColor[K] | null }) => void;
   /** Layout mostrado na prévia (texto da barra) */
   deviceLabel: string;
+  /** Efeito de movimento do seletor: vale para celular e computador; `null` remove */
+  setEffect?: (selector: string, fx: TextEffect | null) => void;
   uiScale?: number;
 }
 
@@ -808,6 +874,22 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions) {
     opts.setStyle(sel(), { text: null, size: null, font: null, bold: null, italic: null, underline: null });
     later(render);
   });
+  // Efeito de movimento quando o texto aparece na tela
+  const effect = doc.createElement('select');
+  effect.title = 'Efeito quando o texto aparece na tela (celular e computador)';
+  effect.setAttribute('style', `${fieldCss};max-width:${px(170)};padding:0 ${px(6)}`);
+  effect.append(new Option('✦ Sem efeito', ''));
+  for (const f of TEXT_EFFECTS) {
+    const o = new Option(`✦ ${f.label}`, f.value);
+    o.style.color = '#111';
+    effect.append(o);
+  }
+  effect.addEventListener('change', () => {
+    const fx = (effect.value || null) as TextEffect | null;
+    opts.setEffect?.(sel(), fx);
+    playTextEffect(el, fx);
+  });
+
   const tag = doc.createElement('span');
   tag.setAttribute('style', `opacity:.6;padding:0 ${px(6)}`);
   tag.textContent = opts.deviceLabel;
@@ -825,6 +907,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions) {
     on(underline, isUnderline());
     color.value = s.text ?? cssColorToHex(cs().color) ?? '#000000';
     scopeBtn.textContent = scope === 'exact' ? 'Só este' : 'Todos iguais';
+    effect.value = s.fx ?? '';
   }
   // Valores que dependem do CSS recém-aplicado: lê depois do navegador redesenhar
   const later = (fn: () => void) => win.requestAnimationFrame(() => win.requestAnimationFrame(fn));
@@ -834,6 +917,11 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions) {
   const bottom = row();
   bottom.append(bold, italic, underline, color, scopeBtn, tag);
   bar.append(top, bottom);
+  if (opts.setEffect) {
+    const fxRow = row();
+    fxRow.append(effect);
+    bar.append(fxRow);
+  }
   render();
   doc.body.appendChild(bar);
 

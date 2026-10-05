@@ -670,8 +670,30 @@ img,video,iframe,svg{max-width:100%}
 /* Animações discretas (somente com JS ativo e sem preferência por movimento reduzido) */
 .js .reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
 .js .reveal.in{opacity:1;transform:none}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.js .reveal{opacity:1;transform:none;transition:none}*{transition:none!important}}
+/* Efeitos de movimento dos textos escolhidos no editor: tocam quando o texto entra na tela */
+.js [data-fx]:not(.fx-in){opacity:0}
+[data-fx].fx-in{animation-duration:.85s;animation-timing-function:cubic-bezier(.2,.7,.2,1);animation-fill-mode:both}
+[data-fx="fade"].fx-in{animation-name:lpfx-fade}
+[data-fx="up"].fx-in{animation-name:lpfx-up}
+[data-fx="down"].fx-in{animation-name:lpfx-down}
+[data-fx="left"].fx-in{animation-name:lpfx-left}
+[data-fx="right"].fx-in{animation-name:lpfx-right}
+[data-fx="zoom"].fx-in{animation-name:lpfx-zoom}
+[data-fx="bounce"].fx-in{animation-name:lpfx-bounce;animation-duration:1s;animation-timing-function:ease-out}
+[data-fx="pulse"].fx-in{animation:lpfx-fade .6s ease both,lpfx-pulse 1.8s ease-in-out .6s infinite}
+[data-fx="typing"].fx-in{animation:none}
+[data-fx].fx-typing::after{content:"";display:inline-block;width:.08em;height:1em;margin-left:.06em;vertical-align:-.12em;background:currentColor;animation:lpfx-caret .8s steps(1) infinite}
+@keyframes lpfx-fade{from{opacity:0}to{opacity:1}}
+@keyframes lpfx-up{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
+@keyframes lpfx-down{from{opacity:0;transform:translateY(-40px)}to{opacity:1;transform:none}}
+@keyframes lpfx-left{from{opacity:0;transform:translateX(-60px)}to{opacity:1;transform:none}}
+@keyframes lpfx-right{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:none}}
+@keyframes lpfx-zoom{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+@keyframes lpfx-bounce{0%{opacity:0;transform:translateY(-60px)}55%{opacity:1;transform:translateY(10px)}75%{transform:translateY(-6px)}90%{transform:translateY(2px)}to{opacity:1;transform:none}}
+@keyframes lpfx-pulse{0%,100%{transform:none}50%{transform:scale(1.06)}}
+@keyframes lpfx-caret{50%{opacity:0}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.js .reveal{opacity:1;transform:none;transition:none}*{transition:none!important}.js [data-fx]{opacity:1!important;animation:none!important}}
 `.replace(/\n\s*/g, '');
 }
 
-export const REVEAL_SCRIPT = `document.documentElement.classList.add('js');addEventListener('DOMContentLoaded',function(){var h=document.querySelector('.site-header');function m(){if(h)document.documentElement.style.setProperty('--header-h',h.offsetHeight+'px')}m();addEventListener('resize',m);document.querySelectorAll('.menu-panel a').forEach(function(a){a.addEventListener('click',function(){var d=a.closest('details');if(d)d.open=false})});var e=document.querySelectorAll('.reveal');if(!('IntersectionObserver'in window)){e.forEach(function(n){n.classList.add('in')});return}var o=new IntersectionObserver(function(t){t.forEach(function(n){if(n.isIntersecting){n.target.classList.add('in');o.unobserve(n.target)}})},{rootMargin:'0px 0px -8% 0px'});e.forEach(function(n){o.observe(n)})});`;
+export const REVEAL_SCRIPT = `document.documentElement.classList.add('js');addEventListener('DOMContentLoaded',function(){var h=document.querySelector('.site-header');function m(){if(h)document.documentElement.style.setProperty('--header-h',h.offsetHeight+'px')}m();addEventListener('resize',m);document.querySelectorAll('.menu-panel a').forEach(function(a){a.addEventListener('click',function(){var d=a.closest('details');if(d)d.open=false})});var e=document.querySelectorAll('.reveal');if(!('IntersectionObserver'in window)){e.forEach(function(n){n.classList.add('in')});return}var o=new IntersectionObserver(function(t){t.forEach(function(n){if(n.isIntersecting){n.target.classList.add('in');o.unobserve(n.target)}})},{rootMargin:'0px 0px -8% 0px'});e.forEach(function(n){o.observe(n)});var j=document.getElementById('lp-fx');if(!j)return;var L=[];try{L=JSON.parse(j.textContent)}catch(_){}var rm=matchMedia('(prefers-reduced-motion: reduce)').matches;function ty(n){if(n.children.length||rm)return;var t=n.textContent,i=0;n.textContent='';n.classList.add('fx-typing');var k=setInterval(function(){i++;n.textContent=t.slice(0,i);if(i>=t.length){clearInterval(k);n.classList.remove('fx-typing')}},Math.max(18,Math.min(70,1400/t.length)))}var q=new IntersectionObserver(function(t){t.forEach(function(x){if(x.isIntersecting){var n=x.target;n.classList.add('fx-in');if(n.getAttribute('data-fx')==='typing')ty(n);q.unobserve(n)}})},{rootMargin:'0px 0px -8% 0px'});L.forEach(function(x){if(!matchMedia(x[2]==='m'?'(max-width:767px)':'(min-width:768px)').matches)return;try{document.querySelectorAll(x[0]).forEach(function(n){n.setAttribute('data-fx',x[1]);if(getComputedStyle(n).display==='inline')n.style.display='inline-block';q.observe(n)})}catch(_){}})});`;

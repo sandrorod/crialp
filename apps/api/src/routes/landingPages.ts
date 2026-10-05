@@ -13,6 +13,7 @@ import { getCompanyFull } from '../repositories/companies.js';
 import * as repo from '../repositories/landingPages.js';
 import { LandingContentEditSchema, type LandingContent } from '../services/ai/schemas.js';
 import { DEFAULT_LABELS } from '../landing/labels.js';
+import { TEXT_EFFECTS } from '../landing/elementColors.js';
 import { HEADING_FAMILY, IMAGE_PLACEMENTS, normalizeThemeSettings, PRESETS, TEMPLATE_KEYS, TEMPLATES } from '../landing/theme.js';
 import { publicUrl, refreshSnapshot, renderFromData } from '../landing/publish.js';
 import { renderUnavailablePage } from '../landing/render.js';
@@ -110,6 +111,8 @@ const ElementStyleSchema = z.object({
   bold: z.boolean().nullish(),
   italic: z.boolean().nullish(),
   underline: z.boolean().nullish(),
+  // Efeito de movimento quando o texto aparece na tela
+  fx: z.enum(TEXT_EFFECTS).nullish(),
 });
 
 const ContentUpdateSchema = z.object({

@@ -181,11 +181,8 @@ function SocialFields({ content, onChange, company }: { content: LandingContent;
   const valueOf = (key: (typeof SOCIAL_FIELDS)[number]['key']) => overrides[`social.${key}`] ?? company?.[key] ?? '';
   const setSocial = (key: string, v: string) => onChange({ ...content, overrides: { ...overrides, [`social.${key}`]: v.trim() ? v : '' } });
   return (
-    <div className="space-y-3 border-t border-zinc-100 pt-3">
-      <div>
-        <h5 className="text-[13px] font-semibold">Redes sociais</h5>
-        <p className="text-xs text-zinc-500">Os ícones aparecem abaixo do botão do WhatsApp, só das redes preenchidas. Mudanças aqui valem só para esta página.</p>
-      </div>
+    <div className="space-y-3">
+      <p className="text-xs text-zinc-500">Os ícones aparecem na seção “Fale conosco”, abaixo do botão do WhatsApp, só das redes preenchidas. Mudanças aqui valem só para esta página.</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {SOCIAL_FIELDS.map((f) => (
           <Field key={f.key} label={f.label}>
@@ -366,6 +363,10 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
         ))}
       </Group>
 
+      <Group title="Redes sociais (Fale conosco)">
+        <SocialFields content={content} onChange={onChange} company={company} />
+      </Group>
+
       <Group title="Hero (topo da página)">
         <Txt label="Linha de apoio (acima do título)" value={content.hero.eyebrow} onChange={(v) => set('hero', { ...content.hero, eyebrow: v || null })} />
         <Txt label="Título principal" area value={content.hero.headline} onChange={(v) => set('hero', { ...content.hero, headline: v })} />
@@ -534,7 +535,6 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
         <p className="text-xs text-zinc-500">Telefone, WhatsApp, e-mail, endereço e horário vêm do cadastro da empresa.</p>
         <Txt label="Título" value={content.contact.title} onChange={(v) => set('contact', { ...content.contact, title: v })} />
         <Txt label="Subtítulo" value={content.contact.subtitle} onChange={(v) => set('contact', { ...content.contact, subtitle: v || null })} />
-        <SocialFields content={content} onChange={onChange} company={company} />
       </Group>
 
       <Group title="CTA final">

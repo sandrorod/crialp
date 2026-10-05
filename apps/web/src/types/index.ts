@@ -307,7 +307,11 @@ export interface ElementColor {
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;
+  /** Efeito de movimento quando o texto aparece na tela (celular e computador) */
+  fx?: TextEffect;
 }
+
+export type TextEffect = 'fade' | 'up' | 'down' | 'left' | 'right' | 'zoom' | 'bounce' | 'typing' | 'pulse';
 
 export interface ElementColors {
   desktop: Record<string, ElementColor>;
