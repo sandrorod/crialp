@@ -139,13 +139,15 @@ export function ElementColorPopup({
     onSave(next);
   };
 
-  const left = Math.min(Math.max(8, anchor.x + 12), window.innerWidth - WIDTH - 8);
+  // No celular o popup fica com a largura da tela (sem passar da borda)
+  const width = Math.min(WIDTH, window.innerWidth - 16);
+  const left = Math.max(8, Math.min(anchor.x + 12, window.innerWidth - width - 8));
   const estimated = 420;
   const top = anchor.y + 12 + estimated > window.innerHeight ? Math.max(8, anchor.y - estimated - 12) : anchor.y + 12;
   const DeviceIcon = device === 'mobile' ? Smartphone : Monitor;
 
   return createPortal(
-    <div className="fixed z-50 rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl" style={{ left, top, width: WIDTH }} role="dialog" aria-label="Alterar cor e tamanho do elemento">
+    <div className="fixed z-50 rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl" style={{ left, top, width }} role="dialog" aria-label="Alterar cor e tamanho do elemento">
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-semibold">{picked.label}</p>

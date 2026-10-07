@@ -289,7 +289,7 @@ export function LandingPageEditorPage() {
             {isClient ? null : <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />}
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-500">
-            <a href={lp.public_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+            <a href={lp.public_url} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1 break-all text-brand-600 hover:underline">
               {lp.public_url.replace(/^https?:\/\//, '')} <ExternalLink className="size-3.5" />
             </a>
             <button onClick={() => actions.copyUrl(lp.public_url)} className="inline-flex items-center gap-1 hover:text-ink"><Copy className="size-3.5" /> Copiar</button>
@@ -333,8 +333,8 @@ export function LandingPageEditorPage() {
           </div>
           <div className="bg-zinc-100 p-3 sm:p-4">
             <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
-              {/* No celular os modos rolam para o lado numa linha só */}
-              <div className="flex max-w-full overflow-x-auto overscroll-x-contain rounded-lg bg-white p-0.5 shadow-sm ring-1 ring-black/5">
+              {/* No celular os modos quebram em mais de uma linha (sem rolagem lateral) */}
+              <div className="flex max-w-full flex-wrap justify-center gap-0.5 rounded-lg bg-white p-0.5 shadow-sm ring-1 ring-black/5">
                 {MODES.map((m) => (
                   <button key={m.key} onClick={() => setMode(m.key)} className={cn('inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium', mode === m.key ? 'bg-ink text-white' : 'text-zinc-600 hover:text-ink')}>
                     <m.icon className="size-3.5" /> {m.label}
@@ -440,7 +440,7 @@ export function LandingPageEditorPage() {
 
         {/* Painel de edição */}
         <div className="min-w-0">
-          <div className="mb-3 flex gap-1 overflow-x-auto overscroll-x-contain rounded-lg bg-zinc-100 p-1">
+          <div className="mb-3 flex flex-wrap gap-1 rounded-lg bg-zinc-100 p-1">
             {TABS.filter((t) => !STAFF_TABS.includes(t.key) || (t.key === 'cliente' ? canManageAccess || isClient : !isClient)).map((t) => (
               <button key={t.key} onClick={() => setTab(t.key)} className={cn('shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition', tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink')}>
                 {t.label}
@@ -459,9 +459,9 @@ export function LandingPageEditorPage() {
             {tab === 'versoes' ? <VersionsTab lp={lp} onRestored={refresh} /> : null}
           </div>
           {['modelo', 'textos', 'fotos', 'visual', 'seo'].includes(tab) ? (
-            <div className="sticky bottom-0 mt-3 flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white/95 p-3 backdrop-blur">
+            <div className="sticky bottom-0 mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white/95 p-3 backdrop-blur">
               <span className="text-xs text-zinc-500">{dirty ? 'Alterações não salvas' : 'Sem alterações'}</span>
-              <div className="flex gap-2">
+              <div className="ml-auto flex gap-2">
                 {dirty ? <Button variant="ghost" size="sm" onClick={() => { setContent(lp.content); setTheme(lp.theme); setSeo({ seo_title: lp.seo_title, seo_description: lp.seo_description, seo_keywords: lp.seo_keywords, og_image: lp.og_image }); setDirty(false); }}>Descartar</Button> : null}
                 <Button size="sm" onClick={save} loading={saving} disabled={!dirty} icon={<Save className="size-4" />}>Salvar</Button>
               </div>

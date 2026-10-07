@@ -81,7 +81,7 @@ export function IconPickerModal({
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar (ex.: heart, car, coffee)…" className="pl-9" />
           </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-1">
+          <div className="flex flex-wrap gap-1.5 pb-1">
             {[null, ...data.categories.map((c) => c.label)].map((label) => (
               <button
                 key={label ?? 'todos'}

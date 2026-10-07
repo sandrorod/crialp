@@ -831,10 +831,11 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
 
   const bar = doc.createElement('div');
   bar.dataset.lpUi = 'size';
-  bar.setAttribute('style', `position:fixed;z-index:9999;display:flex;flex-direction:column;gap:${px(2)};padding:${px(4)};border-radius:${px(10)};background:rgba(17,24,39,.94);color:#fff;font:500 ${px(12)}/1 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.3);white-space:nowrap`);
+  bar.setAttribute('style', `position:fixed;z-index:9999;display:flex;flex-direction:column;gap:${px(2)};padding:${px(4)};border-radius:${px(10)};background:rgba(17,24,39,.94);color:#fff;font:500 ${px(12)}/1 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.3);white-space:nowrap;box-sizing:border-box;max-width:calc(100vw - ${px(8)})`);
+  // Linhas quebram quando a prévia é estreita (celular): a barra nunca passa da largura da tela
   const row = () => {
     const r = doc.createElement('div');
-    r.setAttribute('style', `display:flex;align-items:center;gap:${px(2)}`);
+    r.setAttribute('style', `display:flex;flex-wrap:wrap;align-items:center;gap:${px(2)}`);
     return r;
   };
   const btnCss = `height:${px(28)};min-width:${px(28)};padding:0 ${px(8)};border:0;border-radius:${px(7)};background:transparent;color:#fff;font:600 ${px(13)}/1 system-ui,sans-serif;cursor:pointer`;
@@ -934,7 +935,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     place();
   }, `;background:rgba(255,255,255,.12);font-weight:500;font-size:${px(12)}`);
   const menu = doc.createElement('div');
-  menu.setAttribute('style', `display:none;flex-direction:column;gap:${px(6)};padding:${px(6)} ${px(4)} ${px(2)};max-width:${px(330)};white-space:normal`);
+  menu.setAttribute('style', `display:none;flex-direction:column;gap:${px(6)};padding:${px(6)} ${px(4)} ${px(2)};max-width:min(${px(330)}, 100%);box-sizing:border-box;white-space:normal`);
   const chipCss = `height:${px(26)};padding:0 ${px(9)};border:0;border-radius:${px(13)};background:rgba(255,255,255,.1);color:#fff;font:500 ${px(12)}/1 system-ui,sans-serif;cursor:pointer`;
   const chips: [TextEffect | null, HTMLButtonElement][] = [];
   const chip = (value: TextEffect | null, label: string) => {
