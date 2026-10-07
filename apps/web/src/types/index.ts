@@ -345,7 +345,8 @@ export interface TemplateInfo {
   hero: { withPhoto: HeroVariant; withoutPhoto: HeroVariant };
 }
 
-export type ImagePlacement = 'hero' | 'about' | 'gallery' | 'hidden' | 'logo';
+/** "custom:<id>": a foto aparece na seção personalizada com esse id */
+export type ImagePlacement = 'hero' | 'about' | 'gallery' | 'hidden' | 'logo' | `custom:${string}`;
 
 export interface LandingPage {
   id: string;

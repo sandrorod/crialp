@@ -9,6 +9,8 @@ export function CustomSectionView({ ctx, section, alt }: { ctx: RenderContext; s
   // Páginas salvas antes dos elementos não têm "blocks" nem "align"
   const blocks = section.blocks ?? [];
   const center = section.align === 'center';
+  // Fotos escolhidas para esta seção na aba "Fotos" (mesma grade da galeria do modelo)
+  const photos = ctx.customPhotos[section.id] ?? [];
   return (
     <section id={`sec-${section.id}`} className={`section${alt ? ' section-alt' : ''}${center ? ' custom-center' : ''}`}>
       <div className="container">
@@ -41,6 +43,15 @@ export function CustomSectionView({ ctx, section, alt }: { ctx: RenderContext; s
                 </div>
               ),
             )}
+          </div>
+        ) : null}
+        {photos.length ? (
+          <div className={`gallery custom-photos g-n${photos.length}`}>
+            {photos.map((img) => (
+              <figure key={img.url} className="reveal">
+                <img referrerPolicy="no-referrer" src={img.url} alt={img.alt} loading="lazy" decoding="async" data-lp-img={img.url} style={img.style} />
+              </figure>
+            ))}
           </div>
         ) : null}
       </div>

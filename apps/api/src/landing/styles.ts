@@ -227,6 +227,11 @@ p{margin:0;text-wrap:pretty}
 .custom-center .blk-icon .icon-box{margin-left:auto;margin-right:auto}
 .blk-icon p{margin:0;color:var(--muted)}
 .blk-divider hr{border:0;border-top:1px solid var(--border);margin:8px 0}
+/* Fotos da aba "Fotos" escolhidas para uma seção personalizada */
+.custom-photos{margin-top:32px}
+.section-head+.custom-photos{margin-top:0}
+.gallery.custom-photos.g-n1{display:block!important;columns:auto!important}
+.gallery.custom-photos.g-n1 figure{width:100%;aspect-ratio:16/9!important;max-height:560px}
 
 /* Rodapé */
 .site-footer{padding:calc(40px * var(--section-y-scale)) 0 calc(40px * var(--section-y-scale) + env(safe-area-inset-bottom));font-size:14px;color:var(--muted);border-top:1px solid var(--border)}

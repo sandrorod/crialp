@@ -14,7 +14,7 @@ import * as repo from '../repositories/landingPages.js';
 import { LandingContentEditSchema, type LandingContent } from '../services/ai/schemas.js';
 import { DEFAULT_LABELS } from '../landing/labels.js';
 import { TEXT_EFFECTS } from '../landing/elementColors.js';
-import { HEADING_FAMILY, IMAGE_PLACEMENTS, normalizeThemeSettings, PRESETS, TEMPLATE_KEYS, TEMPLATES } from '../landing/theme.js';
+import { CUSTOM_PLACEMENT, HEADING_FAMILY, IMAGE_PLACEMENTS, normalizeThemeSettings, PRESETS, TEMPLATE_KEYS, TEMPLATES } from '../landing/theme.js';
 import { publicUrl, refreshSnapshot, renderFromData } from '../landing/publish.js';
 import { renderUnavailablePage } from '../landing/render.js';
 import { landingPageHeaders } from './public.js';
@@ -133,8 +133,8 @@ const ContentUpdateSchema = z.object({
         z.object({ bg: z.string().max(9).nullish(), text: z.string().max(9).nullish(), accent: z.string().max(9).nullish() }),
       )
       .optional(),
-    // Local de cada foto: { "<url>": "hero" | "about" | "gallery" | "hidden" }; ausente = automático
-    images: z.record(z.string().max(2048), z.enum(IMAGE_PLACEMENTS)).optional(),
+    // Local de cada foto: { "<url>": "hero" | "about" | "gallery" | "hidden" | "logo" | "custom:<id>" }; ausente = automático
+    images: z.record(z.string().max(2048), z.union([z.enum(IMAGE_PLACEMENTS), z.string().regex(CUSTOM_PLACEMENT)])).optional(),
     template: z.enum(TEMPLATE_KEYS).optional(),
     // Ponto de corte das fotos do topo/"sobre": { "<url>": { "x": 0-100, "y": 0-100 } }
     focus: z.record(z.string().max(2048), z.object({ x: z.number().min(0).max(100), y: z.number().min(0).max(100), z: z.number().min(1).max(3).optional() })).optional(),

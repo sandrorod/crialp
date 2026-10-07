@@ -22,6 +22,8 @@ export interface RenderContext {
   heroImage: LpImage | null;
   aboutImage: LpImage | null;
   gallery: LpImage[];
+  /** Fotos escolhidas para cada seção personalizada (id da seção → fotos, na ordem do editor) */
+  customPhotos: Record<string, LpImage[]>;
   links: {
     whatsapp: string | null;
     phone: string | null;
@@ -140,14 +142,24 @@ export function buildContext(opts: {
       const style = f.z && f.z > 1 ? { objectPosition: pos, transform: `scale(${f.z})`, transformOrigin: pos } : { objectPosition: pos };
       return { url: i.url, alt: i.alt_text || displayName, style };
     });
-  // Local escolhido no editor; fotos sem escolha preenchem topo, "sobre" e galeria nessa ordem
-  const place = (url: string) => theme.images[url];
+  // Local escolhido no editor; fotos sem escolha preenchem topo, "sobre" e galeria nessa ordem.
+  // Foto de uma seção personalizada que foi excluída volta para o automático.
+  const customIds = new Set((opts.content.custom_sections ?? []).map((s) => s.id));
+  const place = (url: string) => {
+    const p = theme.images[url];
+    return p?.startsWith('custom:') && !customIds.has(p.slice(7)) ? undefined : p;
+  };
   const visible = photos.filter((p) => place(p.url) !== 'hidden');
   const heroImage = visible.find((p) => place(p.url) === 'hero') ?? visible.find((p) => !place(p.url)) ?? null;
   const aboutImage =
     visible.find((p) => p !== heroImage && place(p.url) === 'about') ?? visible.find((p) => p !== heroImage && !place(p.url)) ?? null;
   // Galeria: até 9 fotos, como no editor (as demais aparecem lá em "Fora da página")
   const gallery = visible.filter((p) => p !== heroImage && p !== aboutImage && (place(p.url) === 'gallery' || !place(p.url))).slice(0, MAX_GALLERY);
+  const customPhotos: Record<string, LpImage[]> = {};
+  for (const p of visible) {
+    const at = place(p.url);
+    if (at?.startsWith('custom:')) (customPhotos[at.slice(7)] ??= []).push(p);
+  }
 
   const labels = resolveLabels((content as { labels?: unknown }).labels);
   const waMessage = labels.whatsapp_message.replaceAll('{empresa}', displayName);
@@ -203,6 +215,7 @@ export function buildContext(opts: {
     heroImage,
     aboutImage,
     gallery,
+    customPhotos,
     links: {
       whatsapp,
       phone,

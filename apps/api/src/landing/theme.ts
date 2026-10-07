@@ -172,13 +172,17 @@ export const TEMPLATES: Record<TemplateKey, Template> = {
 
 // "logo": a foto escolhida vira o logotipo da página (no lugar do logotipo do cadastro)
 export const IMAGE_PLACEMENTS = ['hero', 'about', 'gallery', 'hidden', 'logo'] as const;
-export type ImagePlacement = (typeof IMAGE_PLACEMENTS)[number];
+// "custom:<id>": a foto aparece na seção personalizada com esse id (fora da galeria)
+export const CUSTOM_PLACEMENT = /^custom:[a-z0-9-]{1,40}$/;
+export type ImagePlacement = (typeof IMAGE_PLACEMENTS)[number] | `custom:${string}`;
+export const isImagePlacement = (v: unknown): v is ImagePlacement =>
+  typeof v === 'string' && ((IMAGE_PLACEMENTS as readonly string[]).includes(v) || CUSTOM_PLACEMENT.test(v));
 
 function normalizeImagePlacements(input: unknown): Record<string, ImagePlacement> {
   const out: Record<string, ImagePlacement> = {};
   if (!input || typeof input !== 'object') return out;
   for (const [url, place] of Object.entries(input).slice(0, 300)) {
-    if (url.length <= 2048 && IMAGE_PLACEMENTS.includes(place as ImagePlacement)) out[url] = place as ImagePlacement;
+    if (url.length <= 2048 && isImagePlacement(place)) out[url] = place;
   }
   return out;
 }

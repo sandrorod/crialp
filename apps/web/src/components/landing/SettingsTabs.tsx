@@ -425,13 +425,15 @@ export function TemplateTab({ theme, onChange, hasPhoto }: { theme: ThemeSetting
 }
 
 // ─── Fotos ──────────────────────────────────────────────────────────
-const PLACEMENT_LABELS: Record<ImagePlacement, string> = {
+const PLACEMENT_LABELS: Record<Exclude<ImagePlacement, `custom:${string}`>, string> = {
   hero: 'Topo da página',
   about: 'Seção "Sobre"',
   gallery: 'Galeria',
   logo: 'Logotipo',
   hidden: 'Não usar',
 };
+
+const isCustom = (p: ImagePlacement | undefined): p is `custom:${string}` => !!p?.startsWith('custom:');
 
 /** Mesma regra da renderização: fotos em "Automático" preenchem topo, "sobre" e galeria nessa ordem. */
 function resolvePlacements(urls: string[], chosen: Record<string, ImagePlacement>) {
@@ -442,6 +444,7 @@ function resolvePlacements(urls: string[], chosen: Record<string, ImagePlacement
   for (const u of urls) {
     if (chosen[u] === 'hidden') out[u] = 'hidden';
     else if (chosen[u] === 'logo') out[u] = 'logo';
+    else if (isCustom(chosen[u])) out[u] = chosen[u];
     else if (u === hero) out[u] = 'hero';
     else if (u === about) out[u] = 'about';
     else if (chosen[u] === 'gallery' || !chosen[u]) out[u] = 'gallery';
@@ -518,6 +521,7 @@ export function PhotosTab({
   onAddPhotos,
   onRemovePhotos,
   sectionOrder,
+  customSections = [],
 }: {
   theme: ThemeSettings;
   onChange: (t: ThemeSettings) => void;
@@ -526,6 +530,8 @@ export function PhotosTab({
   onRemovePhotos: (urls: string[]) => Promise<void>;
   /** Ordem das seções da página: decide se "Sobre" aparece antes ou depois da galeria */
   sectionOrder?: string[];
+  /** Seções criadas no editor: também podem receber fotos */
+  customSections?: { id: string; title: string }[];
 }) {
   // Ordem provisória enquanto uma foto está sendo arrastada
   const [dragOrder, setDragOrder] = useState<string[] | null>(null);
@@ -607,8 +613,14 @@ export function PhotosTab({
     .map(({ img }) => img);
   const byUrl = new Map(allowed.map((i) => [i.url, i]));
 
-  const chosen = theme.images ?? {};
+  // Foto de uma seção criada que foi excluída volta para o automático (como na renderização)
+  const customIds = new Set(customSections.map((s) => s.id));
+  const chosen = Object.fromEntries(
+    Object.entries(theme.images ?? {}).filter(([, p]) => !isCustom(p) || customIds.has(p.slice(7))),
+  ) as Record<string, ImagePlacement>;
   const resolved = resolvePlacements(allowed.map((i) => i.url), chosen);
+  const sectionName = (p: `custom:${string}`) => customSections.find((s) => `custom:${s.id}` === p)?.title.trim() || 'Seção personalizada';
+  const placementLabel = (p: ImagePlacement) => (isCustom(p) ? `Seção "${sectionName(p)}"` : PLACEMENT_LABELS[p]);
   // Ativas = as que aparecem na página: topo, "sobre" e as 9 primeiras da galeria (se tiver 2 ou mais),
   // listadas na ordem em que aparecem na página (topo, depois "sobre" e galeria conforme a ordem das seções)
   const galleryUrls = allowed.map((i) => i.url).filter((u) => resolved[u] === 'gallery');
@@ -620,11 +632,17 @@ export function PhotosTab({
     return i < 0 ? Infinity : i;
   };
   const aboutFirst = sectionPos('about') <= sectionPos('gallery');
-  const roles: { url: string; role: 'hero' | 'about' | 'gallery' }[] = [
+  // Fotos das seções criadas, agrupadas na ordem das seções da página
+  const customUrls = allowed
+    .map((i) => i.url)
+    .filter((u) => isCustom(resolved[u]))
+    .sort((a, b) => sectionPos(resolved[a]) - sectionPos(resolved[b]));
+  const roles: { url: string; role: 'hero' | 'about' | 'gallery' | 'custom' }[] = [
     ...(heroUrl ? [{ url: heroUrl, role: 'hero' as const }] : []),
     ...(aboutFirst && aboutUrl ? [{ url: aboutUrl, role: 'about' as const }] : []),
     ...shownGallery.map((url) => ({ url, role: 'gallery' as const })),
     ...(!aboutFirst && aboutUrl ? [{ url: aboutUrl, role: 'about' as const }] : []),
+    ...customUrls.map((url) => ({ url, role: 'custom' as const })),
   ];
   const activeSet = new Set(roles.map((r) => r.url));
   const isActive = (u: string) => activeSet.has(u);
@@ -661,10 +679,11 @@ export function PhotosTab({
     };
     assign(heroPick, 'hero');
     assign(aboutPick, 'about');
-    const gallery = newActive.filter((u) => u !== heroPick && u !== aboutPick);
-    for (const u of gallery) if (next[u] && next[u] !== 'gallery') delete next[u];
+    const rest = newActive.filter((u) => u !== heroPick && u !== aboutPick);
+    // Fotos das seções criadas continuam na sua seção; as demais voltam para a galeria
+    for (const u of rest) if (next[u] && next[u] !== 'gallery' && !isCustom(next[u])) delete next[u];
     for (const u of newOutside) if (activeSet.has(u)) next[u] = 'hidden';
-    const imageOrder = [heroPick, aboutPick, ...gallery, ...newOutside].filter((u): u is string => !!u);
+    const imageOrder = [heroPick, aboutPick, ...rest, ...newOutside].filter((u): u is string => !!u);
     onChange({ ...theme, images: next, imageOrder });
   };
 
@@ -732,7 +751,7 @@ export function PhotosTab({
     <div className="space-y-4">
       {logoBox}
       <p className="text-xs text-zinc-500">
-        Escolha onde cada foto aparece e arraste pela alça para mudar a ordem. Em "Automático", as fotos preenchem o topo, a seção "Sobre" e a galeria, seguindo a ordem da lista.
+        Escolha onde cada foto aparece e arraste pela alça para mudar a ordem. Em "Automático", as fotos preenchem o topo, a seção "Sobre" e a galeria, seguindo a ordem da lista. Seções criadas em "Textos" também aparecem na lista e podem receber fotos.
       </p>
       {theme.heroVariant === 'centered' ? (
         <p className="text-xs text-amber-700">O topo está no estilo "Centralizado", que não exibe foto. Para mostrar a foto do topo, escolha "Dividido" ou "Imagem cheia" em "Cores e estilo".</p>
@@ -777,10 +796,17 @@ export function PhotosTab({
               <PhotoThumb url={img.url} alt={img.alt_text ?? ''} dimmed={!isActive(img.url) && chosen[img.url] !== 'logo'} />
               <div className="min-w-0 flex-1">
                 <Select className="h-9 text-[13px]" value={chosen[img.url] ?? ''} onChange={(e) => setPlacement(img.url, e.target.value as ImagePlacement | '')}>
-                  <option value="">Automático{chosen[img.url] ? '' : ` (${PLACEMENT_LABELS[resolved[img.url]]})`}</option>
-                  {(Object.keys(PLACEMENT_LABELS) as ImagePlacement[]).map((p) => (
+                  <option value="">Automático{chosen[img.url] ? '' : ` (${placementLabel(resolved[img.url])})`}</option>
+                  {(Object.keys(PLACEMENT_LABELS) as (keyof typeof PLACEMENT_LABELS)[]).map((p) => (
                     <option key={p} value={p}>{PLACEMENT_LABELS[p]}</option>
                   ))}
+                  {customSections.length ? (
+                    <optgroup label="Seções criadas">
+                      {customSections.map((s) => (
+                        <option key={s.id} value={`custom:${s.id}`}>{placementLabel(`custom:${s.id}`)}</option>
+                      ))}
+                    </optgroup>
+                  ) : null}
                 </Select>
                 {img.alt_text ? <p className="mt-1 truncate text-[11px] text-zinc-500">{img.alt_text}</p> : null}
               </div>
