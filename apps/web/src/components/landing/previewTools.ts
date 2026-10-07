@@ -1056,6 +1056,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   // Excluir / restaurar o elemento (na página publicada ele some; na prévia fica apagado)
   const remove = mk('', 'Excluir este elemento da página (celular e computador)', () => {
     const hidden = !saved().hidden;
+    if (hidden && !window.confirm('Tem certeza de que deseja apagar este elemento da página? (dá para restaurar depois)')) return;
     opts.setHidden?.(sel(), hidden ? true : null);
     later(render);
     if (hidden) extra.onRemoved?.();

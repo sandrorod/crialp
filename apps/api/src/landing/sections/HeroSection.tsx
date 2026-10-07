@@ -21,14 +21,15 @@ function Copy({ ctx }: { ctx: RenderContext }) {
           </a>
         ) : null}
       </div>
-      {hero.highlights.length ? (
+      {/* Todos os destaques preenchidos (antes só os 4 primeiros apareciam) */}
+      {hero.highlights.some((h) => h.trim()) ? (
         <ul className="highlights reveal">
-          {hero.highlights.slice(0, 4).map((h, i) => (
-            <li key={h}>
+          {hero.highlights.map((h, i) => (h.trim() ? (
+            <li key={`${i}-${h}`}>
               <Icon name="check" size={18} stroke={2.2} />
               <span {...ed(ctx, `hero.highlights.${i}`)}>{h}</span>
             </li>
-          ))}
+          ) : null))}
         </ul>
       ) : null}
     </>

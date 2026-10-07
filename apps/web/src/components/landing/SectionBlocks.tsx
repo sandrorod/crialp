@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Button, Input, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { cn, confirmDelete } from '@/lib/utils';
 import { landingPageService, miscService } from '@/services';
 import type { BlockType, BlockWidth, Company, CustomSection, SectionBlock } from '@/types';
 import { IconPickerButton } from './IconPicker';
@@ -135,7 +135,7 @@ function ImageField({ value, onChange, company }: { value: string; onChange: (ur
       {value ? (
         <div className="relative w-40">
           <img src={value} alt="" referrerPolicy="no-referrer" className="h-24 w-40 rounded-md object-cover ring-1 ring-zinc-200" />
-          <button type="button" onClick={() => onChange('')} className="absolute right-1 top-1 rounded bg-white/90 p-0.5 text-zinc-600 hover:text-red-600" aria-label="Tirar imagem"><X className="size-3.5" /></button>
+          <button type="button" onClick={() => confirmDelete('esta imagem do elemento') && onChange('')} className="absolute right-1 top-1 rounded bg-white/90 p-0.5 text-zinc-600 hover:text-red-600" aria-label="Tirar imagem"><X className="size-3.5" /></button>
         </div>
       ) : null}
       <div className="flex flex-wrap gap-2">
@@ -232,7 +232,7 @@ export function BlocksEditor({ blocks, onChange, company, path }: { blocks: Sect
             ) : null}
             <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-100" onClick={() => move(i, -1)} aria-label="Subir"><ArrowUp className="size-3.5" /></button>
             <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-100" onClick={() => move(i, 1)} aria-label="Descer"><ArrowDown className="size-3.5" /></button>
-            <button type="button" className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" onClick={() => onChange(blocks.filter((_, j) => j !== i))} aria-label="Excluir elemento"><Trash2 className="size-3.5" /></button>
+            <button type="button" className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" onClick={() => confirmDelete(`este elemento (${TYPE_LABEL[b.type].toLowerCase()})`) && onChange(blocks.filter((_, j) => j !== i))} aria-label="Excluir elemento"><Trash2 className="size-3.5" /></button>
           </div>
           <BlockFields block={b} onChange={(nb) => update(i, nb)} company={company} />
         </div>

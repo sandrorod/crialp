@@ -9,7 +9,7 @@ export interface LpImage {
   url: string;
   alt: string;
   /** Enquadramento escolhido no editor (object-position e zoom); ausente = centralizado, sem zoom */
-  style?: { objectPosition: string; transform?: string; transformOrigin?: string };
+  style?: { objectPosition: string; transform?: string; transformOrigin?: string; objectFit?: 'contain' };
 }
 
 export interface RenderContext {
@@ -138,8 +138,12 @@ export function buildContext(opts: {
       const f = theme.focus[i.url];
       if (!f) return { url: i.url, alt: i.alt_text || displayName };
       const pos = `${f.x}% ${f.y}%`;
-      // Zoom a partir do mesmo ponto: o recorte continua centrado onde o usuário escolheu
-      const style = f.z && f.z > 1 ? { objectPosition: pos, transform: `scale(${f.z})`, transformOrigin: pos } : { objectPosition: pos };
+      // Zoom a partir do mesmo ponto: o recorte continua centrado onde o usuário escolheu.
+      // Abaixo de 100%: a foto inteira (sem corte) encolhe dentro do espaço
+      const style =
+        f.z && f.z !== 1
+          ? { objectPosition: pos, transform: `scale(${f.z})`, transformOrigin: pos, ...(f.z < 1 ? { objectFit: 'contain' as const } : {}) }
+          : { objectPosition: pos };
       return { url: i.url, alt: i.alt_text || displayName, style };
     });
   // Local escolhido no editor; fotos sem escolha preenchem topo, "sobre" e galeria nessa ordem.

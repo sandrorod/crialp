@@ -49,3 +49,8 @@ export function shortUrl(url: string | null | undefined, max = 48): string {
   const head = Math.ceil((max - 1) * 0.65);
   return `${text.slice(0, head)}…${text.slice(-(max - 1 - head))}`;
 }
+
+/** Pergunta antes de apagar qualquer coisa do editor (item, elemento, seção…). `what` vem com artigo: "esta seção". */
+export function confirmDelete(what: string) {
+  return window.confirm(`Tem certeza de que deseja apagar ${what}?`);
+}

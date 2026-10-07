@@ -37,12 +37,15 @@ function applyFocus(img: HTMLImageElement, f: ImageFocus) {
   const pos = `${f.x}% ${f.y}%`;
   img.style.objectPosition = pos;
   img.style.transformOrigin = pos;
-  img.style.transform = f.z && f.z > 1 ? `scale(${f.z})` : '';
+  img.style.transform = f.z && f.z !== 1 ? `scale(${f.z})` : '';
+  // Abaixo de 100% a foto inteira aparece (sem corte) e encolhe dentro do espaço
+  img.style.objectFit = f.z && f.z < 1 ? 'contain' : '';
 }
 
-const ZOOM_MIN = 1;
+/** Zoom de 10% (foto inteira, bem pequena dentro do espaço) até 300% */
+const ZOOM_MIN = 0.1;
 const ZOOM_MAX = 3;
-const ZOOM_STEP = 0.2;
+const zoomStep = (z: number) => (z <= 1 ? 0.1 : 0.2);
 
 /**
  * Ajuste de enquadramento direto na prévia: as fotos marcadas com data-lp-img (topo e "sobre")
@@ -56,7 +59,7 @@ function attachFocusDrag(doc: Document, getFocus: () => FocusMap, onFocus: (url:
   const round = (f: ImageFocus): ImageFocus => ({
     x: Math.round(f.x * 10) / 10,
     y: Math.round(f.y * 10) / 10,
-    ...(f.z && f.z > 1 ? { z: Math.round(f.z * 100) / 100 } : {}),
+    ...(f.z && Math.abs(f.z - 1) > 0.001 ? { z: Math.round(f.z * 100) / 100 } : {}),
   });
 
   doc.querySelectorAll<HTMLImageElement>('img[data-lp-img]').forEach((img) => {
@@ -82,8 +85,9 @@ function attachFocusDrag(doc: Document, getFocus: () => FocusMap, onFocus: (url:
       const box = handle.getBoundingClientRect();
       const nw = img.naturalWidth;
       const nh = img.naturalHeight;
-      const cover = Math.max(box.width / nw, box.height / nh);
-      return { x: nw * cover * z - box.width, y: nh * cover * z - box.height };
+      // Abaixo de 100%: foto inteira (contain) reduzida; a sobra fica negativa (espaço livre em volta)
+      const fit = z < 1 ? Math.min(box.width / nw, box.height / nh) : Math.max(box.width / nw, box.height / nh);
+      return { x: nw * fit * z - box.width, y: nh * fit * z - box.height };
     };
 
     const setZoom = (z: number) => {
@@ -114,8 +118,14 @@ function attachFocusDrag(doc: Document, getFocus: () => FocusMap, onFocus: (url:
       return b;
     };
     bar.append(
-      mkButton('−', 'Diminuir zoom', () => setZoom((current().z ?? 1) - ZOOM_STEP)),
-      mkButton('+', 'Aumentar zoom', () => setZoom((current().z ?? 1) + ZOOM_STEP)),
+      mkButton('−', 'Diminuir zoom (até 10%)', () => {
+        const z = current().z ?? 1;
+        setZoom(z - zoomStep(z - 0.001));
+      }),
+      mkButton('+', 'Aumentar zoom', () => {
+        const z = current().z ?? 1;
+        setZoom(z + zoomStep(z));
+      }),
       mkButton('⟲', 'Restaurar enquadramento', () => {
         const reset = { x: 50, y: 50 };
         applyFocus(img, reset);
@@ -148,11 +158,13 @@ function attachFocusDrag(doc: Document, getFocus: () => FocusMap, onFocus: (url:
       handle.style.cursor = 'grabbing';
 
       const move = (ev: PointerEvent) => {
-        // Arrastar para a direita/baixo revela o lado esquerdo/de cima da foto (a posição diminui)
+        // Foto maior que o espaço: arrastar para a direita/baixo revela o lado esquerdo/de cima (a posição diminui).
+        // Foto menor que o espaço (zoom abaixo de 100%): a foto acompanha o ponteiro dentro do espaço livre.
+        const axis = (o: number, p: number, d: number) => (o > 1 ? clamp(p - (d / o) * 100) : o < -1 ? clamp(p + (d / -o) * 100) : p);
         moved = {
           ...start,
-          x: over.x > 1 ? clamp(start.x - ((ev.clientX - sx) / over.x) * 100) : start.x,
-          y: over.y > 1 ? clamp(start.y - ((ev.clientY - sy) / over.y) * 100) : start.y,
+          x: axis(over.x, start.x, ev.clientX - sx),
+          y: axis(over.y, start.y, ev.clientY - sy),
         };
         applyFocus(img, moved);
       };

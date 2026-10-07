@@ -140,7 +140,7 @@ const ContentUpdateSchema = z.object({
     images: z.record(z.string().max(2048), z.union([z.enum(IMAGE_PLACEMENTS), z.string().regex(CUSTOM_PLACEMENT)])).optional(),
     template: z.enum(TEMPLATE_KEYS).optional(),
     // Ponto de corte das fotos do topo/"sobre": { "<url>": { "x": 0-100, "y": 0-100 } }
-    focus: z.record(z.string().max(2048), z.object({ x: z.number().min(0).max(100), y: z.number().min(0).max(100), z: z.number().min(1).max(3).optional() })).optional(),
+    focus: z.record(z.string().max(2048), z.object({ x: z.number().min(0).max(100), y: z.number().min(0).max(100), z: z.number().min(0.1).max(3).optional() })).optional(),
     imageOrder: z.array(z.string().max(2048)).max(300).optional(),
     // Onde o logotipo aparece: cabeçalho, início do conteúdo ou seção "Sobre"
     logoPlacement: z.enum(['header', 'hero', 'about']).optional(),

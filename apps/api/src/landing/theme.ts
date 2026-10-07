@@ -54,8 +54,9 @@ function normalizeFocus(input: unknown): Record<string, ImageFocus> {
   for (const [url, f] of Object.entries(input).slice(0, 300)) {
     if (url.length > 2048 || !f || typeof f !== 'object') continue;
     const z = (f as ImageFocus).z;
-    const zoom = typeof z === 'number' && Number.isFinite(z) ? Math.round(Math.min(3, Math.max(1, z)) * 100) / 100 : 1;
-    out[url] = { x: pct((f as ImageFocus).x), y: pct((f as ImageFocus).y), ...(zoom > 1 ? { z: zoom } : {}) };
+    // Zoom de 10% (foto inteira, reduzida) a 300%
+    const zoom = typeof z === 'number' && Number.isFinite(z) ? Math.round(Math.min(3, Math.max(0.1, z)) * 100) / 100 : 1;
+    out[url] = { x: pct((f as ImageFocus).x), y: pct((f as ImageFocus).y), ...(zoom !== 1 ? { z: zoom } : {}) };
   }
   return out;
 }

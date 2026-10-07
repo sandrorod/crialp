@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, Plus, Search, Trash2, X } from 'lucide-react';
 import { Button, Field, Input, ListEditor, Select, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
-import { cn } from '@/lib/utils';
+import { cn, confirmDelete } from '@/lib/utils';
 import { companyService, landingPageService } from '@/services';
 import { BlocksEditor, NewSectionButton, newId } from './SectionBlocks';
 import type { Company, CustomSection, LandingContent, SectionKey, SectionOrderKey } from '@/types';
@@ -232,7 +232,7 @@ function ItemList<T>({ items, onChange, create, addLabel, render, path }: { item
             <span className="mr-auto text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Item {i + 1}</span>
             <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-200 disabled:opacity-30" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Subir"><ArrowUp className="size-3.5" /></button>
             <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-200 disabled:opacity-30" disabled={i === items.length - 1} onClick={() => move(i, 1)} aria-label="Descer"><ArrowDown className="size-3.5" /></button>
-            <button type="button" className="rounded p-1 text-zinc-500 hover:bg-red-100 hover:text-red-600" onClick={() => onChange(items.filter((_, j) => j !== i))} aria-label="Remover"><Trash2 className="size-3.5" /></button>
+            <button type="button" className="rounded p-1 text-zinc-500 hover:bg-red-100 hover:text-red-600" onClick={() => confirmDelete(`o item ${i + 1}`) && onChange(items.filter((_, j) => j !== i))} aria-label="Remover"><Trash2 className="size-3.5" /></button>
           </div>
           <div className="space-y-2">{render(item, (patch) => onChange(items.map((x, j) => (j === i ? { ...x, ...patch } : x))), (key) => (path ? `${path}.${i}.${key}` : undefined))}</div>
         </div>
@@ -263,6 +263,7 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
   };
   const hidden = content.hidden_sections ?? [];
   const isHidden = (k: SectionOrderKey) => hidden.includes(k);
+  const SECTION_NAMES = { about: 'Sobre a empresa', services: 'Serviços', differentials: 'Diferenciais', products: 'Produtos', gallery: 'Galeria', faq: 'Perguntas frequentes' } as const;
   const removeSection = (key: 'about' | 'services' | 'differentials' | 'products' | 'gallery' | 'faq') =>
     onChange({ ...content, [key]: null, section_order: order.filter((k) => k !== key), hidden_sections: hidden.filter((k) => k !== key) });
   /** Desativa (sai do site, mas fica salva e no lugar) ou reativa a seção. */
@@ -315,7 +316,7 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
   const removeBtn = (key: Parameters<typeof removeSection>[0]) => (
     <>
       {hideBtn(key)}
-      <button type="button" className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title="Excluir seção" onClick={() => removeSection(key)}>
+      <button type="button" className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title="Excluir seção" onClick={() => confirmDelete(`a seção "${SECTION_NAMES[key]}" (os textos dela serão perdidos)`) && removeSection(key)}>
         <Trash2 className="size-4" />
       </button>
     </>
@@ -360,7 +361,7 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
               <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">{c.title || 'Seção personalizada'}</span>
               <span className="flex items-center gap-1">
                 {hideBtn(`custom:${c.id}`)}
-                <button type="button" className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title="Excluir seção" onClick={() => removeCustom(c.id)}><Trash2 className="size-4" /></button>
+                <button type="button" className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title="Excluir seção" onClick={() => confirmDelete(`a seção "${c.title || 'Seção personalizada'}" e todo o conteúdo dela`) && removeCustom(c.id)}><Trash2 className="size-4" /></button>
               </span>
             </div>
             <CustomSectionEditor section={c} onChange={updateCustom} company={company} />
