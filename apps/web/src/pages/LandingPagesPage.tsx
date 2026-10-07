@@ -63,7 +63,7 @@ export function LandingPagesPage() {
         ) : (
           <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] text-sm">
+            <table className="table-cards w-full min-w-[880px] text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
                   <th className="px-5 py-3">Empresa</th>
@@ -81,14 +81,14 @@ export function LandingPagesPage() {
                       <Link to={`/landing-pages/${lp.id}`} className="font-medium hover:underline">{lp.company_name}</Link>
                       <div className="text-xs text-zinc-500">{lp.segment ?? '—'} · v{lp.current_version}</div>
                     </td>
-                    <td className="px-3 py-3.5">
+                    <td data-label="Vendedor" className="px-3 py-3.5">
                       <SellerCell landingPageId={lp.id} sellerId={lp.seller_id} sellerName={lp.seller_name} sellers={sellers} canAssign={canAssign} onChanged={reload} />
                     </td>
-                    <td className="px-3 py-3.5">
+                    <td data-label="Status" className="px-3 py-3.5">
                       <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />
                     </td>
-                    <td className="px-3 py-3.5 text-zinc-500">{formatDate(lp.created_at)}</td>
-                    <td className="px-3 py-3.5 text-zinc-500">{formatDate(lp.updated_at, true)}</td>
+                    <td data-label="Criação" className="px-3 py-3.5 text-zinc-500">{formatDate(lp.created_at)}</td>
+                    <td data-label="Última atualização" className="px-3 py-3.5 text-zinc-500">{formatDate(lp.updated_at, true)}</td>
                     <td className="px-5 py-3.5">
                       <div className="flex justify-end gap-1">
                         <a href={landingPageService.previewUrl(lp.id)} target="_blank" rel="noreferrer" title="Visualizar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">

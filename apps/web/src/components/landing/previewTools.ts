@@ -1,7 +1,7 @@
 import type { ElementColor, ElementColors, ImageBox, ImageSizes, LandingContent, SectionSpacing, TextEffect } from '@/types';
 
 /** Ferramentas ativas na prévia: enquadrar fotos, arrastar seções ou escolher cores. */
-export type PreviewMode = 'textos' | 'fotos' | 'secoes' | 'espacos' | 'cores';
+export type PreviewMode = 'textos' | 'fotos' | 'mover' | 'secoes' | 'espacos' | 'cores';
 
 export const MOBILE_MAX = 767;
 
@@ -124,6 +124,7 @@ export function elementStyleDecl(c: ElementColor): string {
     // na página publicada ele some (display:none, em apps/api/src/landing/elementColors.ts)
     c.hidden ? 'opacity:.3!important;outline:2px dashed #ef4444!important;outline-offset:2px' : '',
     c.fxSpeed ? `--fx-s:${c.fxSpeed}` : '',
+    c.mx || c.my ? `translate:${c.mx ?? 0}px ${c.my ?? 0}px` : '',
   ]
     .filter(Boolean)
     .join(';');
@@ -409,6 +410,10 @@ html.lp-mode-secoes main>[data-section]:not([data-section="hero"]):not([data-sec
 html:not(.lp-mode-fotos) [data-lp-drag-handle]{cursor:auto!important;touch-action:auto!important}
 html.lp-mode-fotos .gallery figure:hover img:not([style*=scale]){transform:none}
 html.lp-mode-cores body *{cursor:crosshair!important}
+html.lp-mode-mover body *{cursor:move!important}
+html.lp-mode-mover :is(img,figure,h1,h2,h3,h4,p,li,blockquote,.btn,.eyebrow,.card){touch-action:none;user-select:none;-webkit-user-select:none}
+html.lp-mode-mover img{-webkit-user-drag:none}
+html.lp-mode-mover [data-lp-moving]{outline:2px solid #2563eb!important;outline-offset:2px}
 html.lp-mode-textos [data-lp-text]{outline:1px dashed rgba(37,99,235,.55);outline-offset:3px;cursor:text!important;border-radius:2px}
 html.lp-mode-textos [data-lp-text]:hover{outline:2px solid #2563eb}
 html.lp-mode-textos [data-lp-text][contenteditable]:not([contenteditable="false"]){outline:2px solid #2563eb;background:rgba(37,99,235,.07);caret-color:#2563eb}
@@ -430,14 +435,14 @@ export function setupEditorDocument(doc: Document) {
 
 export function setPreviewMode(doc: Document, mode: PreviewMode) {
   const root = doc.documentElement;
-  root.classList.remove('lp-mode-textos', 'lp-mode-fotos', 'lp-mode-secoes', 'lp-mode-espacos', 'lp-mode-cores');
+  root.classList.remove('lp-mode-textos', 'lp-mode-fotos', 'lp-mode-mover', 'lp-mode-secoes', 'lp-mode-espacos', 'lp-mode-cores');
   root.classList.add(`lp-mode-${mode}`);
   // Respostas do FAQ ficam abertas para poderem ser editadas
   if (mode === 'textos') doc.querySelectorAll<HTMLDetailsElement>('.faq details').forEach((d) => (d.open = true));
 }
 
 export const currentMode = (doc: Document): PreviewMode =>
-  (['textos', 'secoes', 'espacos', 'cores'] as const).find((m) => doc.documentElement.classList.contains(`lp-mode-${m}`)) ?? 'fotos';
+  (['textos', 'mover', 'secoes', 'espacos', 'cores'] as const).find((m) => doc.documentElement.classList.contains(`lp-mode-${m}`)) ?? 'fotos';
 
 // ─── Arrastar seções ────────────────────────────────────────────────
 /** Topo, contato e CTA final têm posição fixa na página. */
@@ -747,6 +752,112 @@ export function attachColorPick(doc: Document, onPick: (p: PickedElement) => voi
     },
     true,
   );
+}
+
+// ─── Mover fotos e textos ──────────────────────────────────────────
+/** Offset salvo de um seletor no layout atual. */
+export type MoveOffset = { mx: number; my: number };
+
+/** Elemento que se move ao arrastar: a moldura da foto (não só a imagem dentro dela) ou o botão inteiro. */
+function movableFor(win: Window & typeof globalThis, target: EventTarget | null): HTMLElement | null {
+  let el = target instanceof win.Element ? (target as Element) : null;
+  while (el && !(el instanceof win.HTMLElement)) el = el.parentElement;
+  if (!el || el.closest('[data-lp-ui]') || ['BODY', 'HTML', 'MAIN'].includes(el.tagName)) return null;
+  if (el.dataset.section !== undefined || el.tagName === 'SECTION' || el.classList.contains('container')) return null;
+  if (el.tagName === 'IMG') return (el.closest('figure,.hero-media,.about-media') as HTMLElement | null) ?? el;
+  return (el.closest('.btn') as HTMLElement | null) ?? el;
+}
+
+/**
+ * Modo "Mover": arrastar qualquer foto ou texto para outro ponto da seção (mouse ou dedo).
+ * O elemento não sai da área da seção (assim a página nunca ganha rolagem lateral).
+ * Duplo clique volta à posição original. `onMove(seletor, null)` = sem deslocamento.
+ */
+export function attachMoveDrag(doc: Document, getOffset: (sel: string) => MoveOffset | undefined, onMove: (sel: string, off: MoveOffset | null) => void) {
+  const win = doc.defaultView;
+  if (!win || doc.body.dataset.lpMove) return;
+  doc.body.dataset.lpMove = '1';
+  let moved = false;
+
+  doc.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (currentMode(doc) !== 'mover' || e.button > 0) return;
+      const el = movableFor(win, e.target);
+      if (!el) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const sel = selectorFor(el, true);
+      const start = getOffset(sel) ?? { mx: 0, my: 0 };
+      // Limites: o retângulo do elemento sem deslocamento tem de caber na seção
+      const r = el.getBoundingClientRect();
+      const base = { left: r.left - start.mx, top: r.top - start.my, right: r.right - start.mx, bottom: r.bottom - start.my };
+      const area = ((el.closest('[data-section]') as HTMLElement | null) ?? doc.body).getBoundingClientRect();
+      const vw = doc.documentElement.clientWidth;
+      const minX = Math.max(area.left, 0) - base.left;
+      const maxX = Math.min(area.right, vw) - base.right;
+      const minY = area.top - base.top;
+      const maxY = area.bottom - base.bottom;
+      const clamp = (v: number, lo: number, hi: number) => Math.round(lo > hi ? 0 : Math.min(hi, Math.max(lo, v)));
+      const x0 = e.clientX;
+      const y0 = e.clientY;
+      let cur = start;
+      moved = false;
+      el.setAttribute('data-lp-moving', '');
+      try {
+        el.setPointerCapture(e.pointerId);
+      } catch {
+        /* sem captura: o arrasto segue pelo documento */
+      }
+      const move = (ev: PointerEvent) => {
+        if (ev.pointerId !== e.pointerId) return;
+        const dx = ev.clientX - x0;
+        const dy = ev.clientY - y0;
+        if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+        moved = true;
+        cur = { mx: clamp(start.mx + dx, minX, maxX), my: clamp(start.my + dy, minY, maxY) };
+        el.style.setProperty('translate', `${cur.mx}px ${cur.my}px`, 'important');
+      };
+      const up = (ev: PointerEvent) => {
+        if (ev.pointerId !== e.pointerId) return;
+        doc.removeEventListener('pointermove', move);
+        doc.removeEventListener('pointerup', up);
+        doc.removeEventListener('pointercancel', up);
+        el.removeAttribute('data-lp-moving');
+        if (moved) onMove(sel, cur.mx || cur.my ? cur : null);
+        // O CSS salvo passa a valer (o estilo em linha era só durante o arrasto)
+        win.requestAnimationFrame(() => el.style.removeProperty('translate'));
+      };
+      doc.addEventListener('pointermove', move);
+      doc.addEventListener('pointerup', up);
+      doc.addEventListener('pointercancel', up);
+    },
+    true,
+  );
+  // Sem abrir links, perguntas ou menus ao soltar
+  doc.addEventListener(
+    'click',
+    (e) => {
+      if (currentMode(doc) !== 'mover') return;
+      e.preventDefault();
+      e.stopPropagation();
+    },
+    true,
+  );
+  doc.addEventListener(
+    'dblclick',
+    (e) => {
+      if (currentMode(doc) !== 'mover') return;
+      const el = movableFor(win, e.target);
+      if (!el) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const sel = selectorFor(el, true);
+      if (getOffset(sel)) onMove(sel, null);
+    },
+    true,
+  );
+  doc.addEventListener('dragstart', (e) => currentMode(doc) === 'mover' && e.preventDefault(), true);
 }
 
 /**

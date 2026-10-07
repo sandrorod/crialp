@@ -117,6 +117,9 @@ const ElementStyleSchema = z.object({
   hidden: z.boolean().nullish(),
   // Velocidade do efeito (0 a 2x)
   fxSpeed: z.number().min(0).max(2).nullish(),
+  // Posição arrastada no modo "Mover" (px)
+  mx: z.number().min(-3000).max(3000).nullish(),
+  my: z.number().min(-3000).max(3000).nullish(),
 });
 
 const ContentUpdateSchema = z.object({

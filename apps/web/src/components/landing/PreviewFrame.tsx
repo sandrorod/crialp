@@ -6,6 +6,7 @@ import {
   attachColorPick,
   attachIconPick,
   attachImageResize,
+  attachMoveDrag,
   imageSizesCss,
   setImageSizeCss,
   attachSectionDrag,
@@ -321,6 +322,30 @@ export function PreviewFrame({
     if (onSpacingRef.current) attachSpacingDrag(d, (key, pct) => onSpacingRef.current?.(key, pct), uiScale);
     if (onReorderRef.current) attachSectionDrag(d, (keys) => onReorderRef.current?.(keys), uiScale, orderRef.current);
     if (onElementColors) attachColorPick(d, setPicked);
+    if (onElementColors) {
+      // Modo "Mover": a posição arrastada fica junto do estilo do elemento, no layout atual
+      attachMoveDrag(
+        d,
+        (sel) => {
+          const c = colorsRef.current?.[device]?.[sel];
+          return c?.mx || c?.my ? { mx: c.mx ?? 0, my: c.my ?? 0 } : undefined;
+        },
+        (sel, off) => {
+          const all = colorsRef.current ?? { desktop: {}, mobile: {} };
+          const map = { ...all[device] };
+          const entry: ElementColor = { ...(map[sel] ?? {}) };
+          delete entry.mx;
+          delete entry.my;
+          if (off?.mx) entry.mx = off.mx;
+          if (off?.my) entry.my = off.my;
+          if (Object.keys(entry).length) map[sel] = entry;
+          else delete map[sel];
+          const next = { ...all, [device]: map };
+          colorsRef.current = next;
+          onColorsRef.current?.(next);
+        },
+      );
+    }
     if (onIconRef.current) attachIconPick(d, (path) => onIconRef.current?.(path, readIconStyle(d)));
     if (onTextRef.current) {
       attachTextEdit(

@@ -129,9 +129,9 @@ export function ElementColorPopup({
   const write = (entry: ElementColor | null) => {
     const next: ElementColors = { desktop: { ...colors.desktop }, mobile: { ...colors.mobile } };
     for (const d of both ? [device, other] : [device]) {
-      // Fonte, negrito, itálico e sublinhado (definidos ao editar o texto) continuam valendo
-      const { font, bold, italic, underline } = next[d][selector] ?? {};
-      const keep = Object.fromEntries(Object.entries({ font, bold, italic, underline }).filter(([, v]) => v !== undefined));
+      // Fonte, estilo, efeito, exclusão e posição (definidos em outros modos) continuam valendo
+      const { font, bold, italic, underline, fx, fxSpeed, hidden, mx, my } = next[d][selector] ?? {};
+      const keep = Object.fromEntries(Object.entries({ font, bold, italic, underline, fx, fxSpeed, hidden, mx, my }).filter(([, v]) => v !== undefined));
       const merged: ElementColor = { ...keep, ...(entry?.text ? { text: entry.text } : {}), ...(entry?.bg ? { bg: entry.bg } : {}), ...(entry?.size ? { size: entry.size } : {}) };
       if (Object.keys(merged).length) next[d][selector] = merged;
       else delete next[d][selector];

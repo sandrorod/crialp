@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Building2, Loader2, Copy, Download, ExternalLink, Image as ImageIcon, Monitor, MoveVertical, Palette, PenLine, RefreshCw, Rows3, Save, Smartphone, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, Building2, Loader2, Copy, Download, ExternalLink, Image as ImageIcon, Monitor, Move, MoveVertical, Palette, PenLine, RefreshCw, Rows3, Save, Smartphone, Sparkles, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ClientAccessTab, OwnAccessTab } from '@/components/landing/ClientAccessTab';
 import { ContentTab } from '@/components/landing/ContentTab';
@@ -37,6 +37,7 @@ const STAFF_TABS: Tab[] = ['publicacao', 'cliente'];
 const MODES: { key: PreviewMode; label: string; icon: typeof Monitor; hint: string }[] = [
   { key: 'textos', label: 'Textos', icon: PenLine, hint: 'Clique em qualquer texto contornado para editar ali mesmo; clique em qualquer outro elemento (foto, botão, cartão…) para mudar cores, efeito ou excluir. Enter ou clicar fora confirma; Esc desfaz. Clique num ícone para trocá-lo.' },
   { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste qualquer foto (topo, "Sobre" e galeria) para ajustar o enquadramento; use − / + para o zoom. Arraste as alças azuis das bordas para mudar a largura e a altura (duplo clique volta ao padrão).' },
+  { key: 'mover', label: 'Mover', icon: Move, hint: 'Arraste qualquer foto ou texto para o ponto da seção onde quer deixá-lo (no celular, com o dedo). Ele não sai da área da seção. Duplo clique volta à posição original.' },
   { key: 'secoes', label: 'Seções', icon: Rows3, hint: 'Arraste as seções pelo botão ⠿ (ou use ↑ ↓) para mudar a ordem.' },
   { key: 'espacos', label: 'Espaços', icon: MoveVertical, hint: 'Arraste a alça azul "↕ Espaço" na borda de baixo de cada seção: para cima diminui a margem interna, para baixo aumenta. Duplo clique volta ao padrão.' },
   { key: 'cores', label: 'Cores', icon: Palette, hint: 'Clique em qualquer elemento (título, texto, botão, fundo…) para escolher a cor da fonte, do fundo e o tamanho.' },

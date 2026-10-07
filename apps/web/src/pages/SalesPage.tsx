@@ -66,7 +66,7 @@ export function SalesPage() {
         ) : (
           <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] text-sm">
+            <table className="table-cards w-full min-w-[880px] text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
                   <th className="px-5 py-3">Empresa</th>
@@ -82,13 +82,13 @@ export function SalesPage() {
                 {pager.items.map((c) => (
                   <tr key={c.id} className="transition hover:bg-zinc-50/70">
                     <td className="px-5 py-3.5 font-medium text-ink">{c.name}</td>
-                    <td className="px-3 py-3.5 text-zinc-600">{c.segment ?? '—'}</td>
-                    <td className="px-3 py-3.5 text-zinc-600">{c.city ? `${c.city}${c.state ? ` – ${c.state}` : ''}` : '—'}</td>
-                    <td className="px-3 py-3.5 text-zinc-600">{c.whatsapp || c.phone || c.email || '—'}</td>
-                    <td className="px-3 py-3.5">
+                    <td data-label="Segmento" className="px-3 py-3.5 text-zinc-600">{c.segment ?? '—'}</td>
+                    <td data-label="Cidade" className="px-3 py-3.5 text-zinc-600">{c.city ? `${c.city}${c.state ? ` – ${c.state}` : ''}` : '—'}</td>
+                    <td data-label="Contato" className="px-3 py-3.5 text-zinc-600">{c.whatsapp || c.phone || c.email || '—'}</td>
+                    <td data-label="Vendedor" className="px-3 py-3.5">
                       <SellerCell landingPageId={c.landing_page_id} sellerId={c.seller_id} sellerName={c.seller_name} sellers={sellers} canAssign={canAssign} onChanged={reload} />
                     </td>
-                    <td className="px-3 py-3.5 text-zinc-500">
+                    <td data-label="Última prospecção" className="px-3 py-3.5 text-zinc-500">
                       {c.last_note_at ? `${formatDate(c.last_note_at)} · ${c.notes_count} ${c.notes_count === 1 ? 'lançamento' : 'lançamentos'}` : '—'}
                     </td>
                     <td className="px-5 py-3.5">

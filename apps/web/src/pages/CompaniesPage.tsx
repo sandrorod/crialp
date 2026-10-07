@@ -100,7 +100,7 @@ export function CompaniesPage() {
         ) : (
           <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-sm">
+            <table className="table-cards w-full min-w-[980px] text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
                   <th className="px-5 py-3">Empresa</th>
@@ -119,20 +119,20 @@ export function CompaniesPage() {
                     <td className="px-5 py-3.5">
                       <Link to={`/empresas/${c.id}`} className="font-medium text-ink hover:underline">{c.name}</Link>
                     </td>
-                    <td className="px-3 py-3.5 text-zinc-600">{c.segment ?? '—'}</td>
-                    <td className="px-3 py-3.5 text-zinc-600">{c.city ? `${c.city}${c.state ? ` – ${c.state}` : ''}` : '—'}</td>
-                    <td className="px-3 py-3.5 text-zinc-600">{c.whatsapp || c.phone || c.email || '—'}</td>
-                    <td className="px-3 py-3.5">
+                    <td data-label="Segmento" className="px-3 py-3.5 text-zinc-600">{c.segment ?? '—'}</td>
+                    <td data-label="Cidade" className="px-3 py-3.5 text-zinc-600">{c.city ? `${c.city}${c.state ? ` – ${c.state}` : ''}` : '—'}</td>
+                    <td data-label="Contato" className="px-3 py-3.5 text-zinc-600">{c.whatsapp || c.phone || c.email || '—'}</td>
+                    <td data-label="Vendedor" className="px-3 py-3.5">
                       <SellerCell landingPageId={c.landing_page_id} sellerId={c.seller_id} sellerName={c.seller_name} sellers={sellers} canAssign={canAssign} onChanged={reload} />
                     </td>
-                    <td className="px-3 py-3.5">
+                    <td data-label="Status" className="px-3 py-3.5">
                       {c.landing_page_id && c.status ? (
                         <StatusToggle status={c.status} loading={actions.busyId === c.landing_page_id} onToggle={() => actions.toggleStatus(c.landing_page_id!, c.status!)} />
                       ) : (
                         <StatusBadge status={null} />
                       )}
                     </td>
-                    <td className="px-3 py-3.5 text-zinc-500">{formatDate(c.created_at)}</td>
+                    <td data-label="Data" className="px-3 py-3.5 text-zinc-500">{formatDate(c.created_at)}</td>
                     <td className="px-5 py-3.5">
                       <div className="flex justify-end gap-1">
                         {c.slug ? (

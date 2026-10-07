@@ -20,6 +20,9 @@ export interface ElementColor {
   hidden?: boolean;
   /** Velocidade do efeito (0,1x a 2x; 1 = normal) */
   fxSpeed?: number;
+  /** Deslocamento arrastado no modo "Mover" do editor, em px (horizontal e vertical), por layout */
+  mx?: number;
+  my?: number;
 }
 
 /** Efeitos de movimento dos textos. Mantenha igual em apps/web/src/components/landing/previewTools.ts. */
@@ -75,6 +78,9 @@ export function isElementSelector(sel: unknown): sel is string {
 
 const hex = (v: unknown) => (isHex(v) ? (String(v).startsWith('#') ? String(v) : `#${v}`).toLowerCase() : null);
 
+/** Limite do deslocamento do modo "Mover" (px) */
+const MAX_OFFSET = 3000;
+
 function normalizeMap(input: unknown): Record<string, ElementColor> {
   const out: Record<string, ElementColor> = {};
   if (!input || typeof input !== 'object') return out;
@@ -86,6 +92,12 @@ function normalizeMap(input: unknown): Record<string, ElementColor> {
     const size = Number.isFinite(raw) && raw > 0 ? Math.round(Math.min(200, Math.max(6, raw))) : null;
     const font = typeof value?.font === 'string' && TEXT_FONTS[value.font] ? value.font : null;
     const flag = (v: unknown) => (typeof v === 'boolean' ? v : null);
+    const offset = (v: unknown) => {
+      const n = Math.round(Number(v));
+      return v != null && Number.isFinite(n) && n !== 0 ? Math.min(MAX_OFFSET, Math.max(-MAX_OFFSET, n)) : null;
+    };
+    const mx = offset(value?.mx);
+    const my = offset(value?.my);
     const entry: ElementColor = {
       ...(text ? { text } : {}),
       ...(bg ? { bg } : {}),
@@ -96,6 +108,8 @@ function normalizeMap(input: unknown): Record<string, ElementColor> {
       ...(flag(value?.underline) !== null ? { underline: value.underline } : {}),
       ...(TEXT_EFFECTS.includes(value?.fx as TextEffect) ? { fx: value.fx } : {}),
       ...(value?.hidden === true ? { hidden: true } : {}),
+      ...(mx !== null ? { mx } : {}),
+      ...(my !== null ? { my } : {}),
       ...(Number.isFinite(Number(value?.fxSpeed)) && value?.fxSpeed != null && Number(value.fxSpeed) !== 1
         ? { fxSpeed: Math.round(Math.min(2, Math.max(0.1, Number(value.fxSpeed))) * 100) / 100 }
         : {}),
@@ -122,6 +136,8 @@ function rules(map: Record<string, ElementColor>) {
         c.italic !== undefined ? `font-style:${c.italic ? 'italic' : 'normal'}!important` : '',
         c.underline !== undefined ? `text-decoration:${c.underline ? 'underline' : 'none'}!important` : '',
         c.hidden ? 'display:none!important' : '',
+        // Posição arrastada no editor: "translate" não interfere nas animações (que usam transform)
+        c.mx || c.my ? `translate:${c.mx ?? 0}px ${c.my ?? 0}px` : '',
         // Velocidade do efeito: as durações das animações dividem por ela
         c.fxSpeed ? `--fx-s:${c.fxSpeed}` : '',
       ]

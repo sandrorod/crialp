@@ -61,7 +61,7 @@ export function UsersPage() {
           <EmptyState icon={<Users className="size-5" />} title="Nenhum usuário" description="Crie o primeiro subusuário." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="table-cards w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
                   <th className="px-5 py-3">Nome</th>
@@ -80,13 +80,13 @@ export function UsersPage() {
                       <td className="px-5 py-3.5 font-medium text-ink">
                         {u.name} {isMe ? <span className="ml-1 text-xs font-normal text-zinc-400">(você)</span> : null}
                       </td>
-                      <td className="px-3 py-3.5 text-zinc-600">{u.email}</td>
-                      <td className="px-3 py-3.5">
+                      <td data-label="E-mail" className="px-3 py-3.5 text-zinc-600">{u.email}</td>
+                      <td data-label="Tipo" className="px-3 py-3.5">
                         <span className={cn('inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium', u.role === 'seller' ? 'bg-amber-50 text-amber-700' : 'bg-zinc-100 text-zinc-700')}>
                           {ROLE_LABELS[u.role] ?? u.role}
                         </span>
                       </td>
-                      <td className="px-3 py-3.5 text-zinc-500">{u.last_login_at ? formatDate(u.last_login_at, true) : 'Nunca acessou'}</td>
+                      <td data-label="Último acesso" className="px-3 py-3.5 text-zinc-500">{u.last_login_at ? formatDate(u.last_login_at, true) : 'Nunca acessou'}</td>
                       <td className="px-5 py-3.5">
                         <div className="flex justify-end gap-1">
                           {!locked ? (

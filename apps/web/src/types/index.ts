@@ -315,6 +315,9 @@ export interface ElementColor {
   hidden?: boolean;
   /** Velocidade do efeito (0,1x a 2x; ausente = 1x) */
   fxSpeed?: number;
+  /** Deslocamento arrastado no modo "Mover" (px), por layout */
+  mx?: number;
+  my?: number;
 }
 
 export type TextEffect =
