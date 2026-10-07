@@ -190,3 +190,69 @@ export function ElementColorPopup({
     document.body,
   );
 }
+
+/**
+ * Popup aberto ao clicar no fundo de uma seção (modo Textos): cor de fundo da seção inteira.
+ * Grava nas cores da seção (as mesmas de "Cores e estilo"); o texto da seção ajusta o contraste sozinho.
+ */
+export function SectionColorPopup({
+  label,
+  saved,
+  original,
+  anchor,
+  onDraft,
+  onSave,
+  onClose,
+}: {
+  label: string;
+  /** Cor de fundo própria já salva para a seção (null = cor do modelo) */
+  saved: string | null;
+  /** Cor de fundo que aparece hoje na seção */
+  original: string;
+  anchor: { x: number; y: number };
+  onDraft: (bg: string | null) => void;
+  onSave: (bg: string | null) => void;
+  onClose: () => void;
+}) {
+  const [bg, setBg] = useState<string | null>(saved);
+
+  useEffect(() => {
+    onDraft(bg);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bg]);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [onClose]);
+
+  const width = Math.min(WIDTH, window.innerWidth - 16);
+  const left = Math.max(8, Math.min(anchor.x + 12, window.innerWidth - width - 8));
+  const estimated = 230;
+  const top = anchor.y + 12 + estimated > window.innerHeight ? Math.max(8, anchor.y - estimated - 12) : anchor.y + 12;
+
+  return createPortal(
+    <div className="fixed z-50 rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl" style={{ left, top, width }} role="dialog" aria-label="Cor de fundo da seção">
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">Seção {label}</p>
+          <p className="mt-0.5 text-[11px] text-zinc-500">Cor de fundo da seção inteira (celular e computador)</p>
+        </div>
+        <button type="button" onClick={onClose} className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-ink" aria-label="Fechar"><X className="size-4" /></button>
+      </div>
+      <ColorRow label="Cor de fundo" value={bg ?? original} original={original} changed={!!bg && bg !== saved} onChange={setBg} onReset={() => setBg(saved)} />
+      <p className="mt-2 text-[11px] text-zinc-500">A cor dos textos da seção se ajusta para continuar legível.</p>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        {saved ? (
+          <button type="button" onClick={() => onSave(null)} className="text-xs text-zinc-500 hover:text-red-600">Voltar à cor do modelo</button>
+        ) : <span />}
+        <div className="ml-auto flex gap-2">
+          <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
+          <Button size="sm" onClick={() => onSave(bg)} disabled={!bg || bg === saved}>Aplicar</Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}

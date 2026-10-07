@@ -1268,6 +1268,50 @@ export interface PreviewSelection {
 const selectListeners = new WeakMap<Document, (s: PreviewSelection) => void>();
 export function onPreviewSelect(doc: Document, fn: (s: PreviewSelection) => void) {
   selectListeners.set(doc, fn);
+  const win = doc.defaultView;
+  if (!win || doc.body.dataset.lpSelectAll) return;
+  doc.body.dataset.lpSelectAll = '1';
+  // Nos outros modos (Fotos, Mover, Seções, Espaços, Cores), clicar num elemento também leva o painel
+  // da direita até os campos dele. Na janela e na captura: roda antes dos ouvintes que interrompem o clique
+  win.addEventListener(
+    'click',
+    (e) => {
+      if (currentMode(doc) === 'textos') return; // o modo Textos já avisa ao editar/selecionar
+      let el = e.target instanceof win.Element ? (e.target as Element) : null;
+      while (el && !(el instanceof win.HTMLElement)) el = el.parentElement;
+      if (!el || el.closest('[data-lp-ui]') || el === doc.body || el === doc.documentElement) return;
+      notifySelect(doc, el as HTMLElement);
+    },
+    true,
+  );
+}
+
+// ─── Cor de fundo da seção ──────────────────────────────────────────
+/** Seção clicada no fundo (fora dos textos e fotos): o editor abre a escolha da cor de fundo. */
+export interface SectionPick {
+  key: string;
+  label: string;
+  x: number;
+  y: number;
+}
+const sectionPickers = new WeakMap<Document, (p: SectionPick) => void>();
+export function onSectionPick(doc: Document, fn: (p: SectionPick) => void) {
+  sectionPickers.set(doc, fn);
+}
+const SECTION_NAMES: Record<string, string> = {
+  hero: 'Topo', header: 'Cabeçalho', footer: 'Rodapé', about: 'Sobre', services: 'Serviços', differentials: 'Diferenciais',
+  products: 'Produtos', gallery: 'Galeria', testimonials: 'Depoimentos', faq: 'Perguntas frequentes', contact: 'Contato', final_cta: 'Chamada final',
+};
+/** Clique no fundo da seção: o próprio contêiner, a <section>/<header>/<footer> ou a área .container. */
+function sectionAreaKey(el: HTMLElement): string | null {
+  if (!el.matches('[data-section],section,header,footer,.section,.container,.hero,.site-header,.site-footer')) return null;
+  const key = el.closest<HTMLElement>('[data-section]')?.dataset.section ?? (el.closest('.site-header') ? 'header' : el.closest('.site-footer') ? 'footer' : null);
+  return key && /^(hero|header|footer|about|services|differentials|products|gallery|testimonials|faq|contact|final_cta|custom:[a-z0-9-]{1,40})$/.test(key) ? key : null;
+}
+function sectionLabel(doc: Document, key: string) {
+  if (SECTION_NAMES[key]) return SECTION_NAMES[key];
+  const title = doc.querySelector(`[data-section="${key}"] h2`)?.textContent?.trim();
+  return title ? `"${title.slice(0, 40)}"` : 'Seção criada';
 }
 function notifySelect(doc: Document, el: HTMLElement) {
   const fn = selectListeners.get(doc);
@@ -1448,6 +1492,15 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
       const node = (svg ? (svg.parentElement?.classList.contains('ico') ? svg.parentElement : svg) : t) as HTMLElement;
       if (node === doc.body || node === doc.documentElement) return unpick();
       finish();
+      // Fundo da seção: abre a escolha da cor de fundo da seção inteira
+      const sectionKey = sectionAreaKey(node);
+      const onSection = sectionPickers.get(doc);
+      if (sectionKey && onSection) {
+        unpick();
+        notifySelect(doc, node);
+        onSection({ key: sectionKey, label: sectionLabel(doc, sectionKey), x: e.clientX, y: e.clientY });
+        return;
+      }
       pick(node);
     },
     true,

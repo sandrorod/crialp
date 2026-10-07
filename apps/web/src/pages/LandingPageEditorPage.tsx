@@ -418,6 +418,20 @@ export function LandingPageEditorPage() {
                 });
                 setDirty(true);
               }}
+              sectionColors={theme.sections}
+              onSectionBg={(key, bg) => {
+                setTheme((t) => {
+                  if (!t) return t;
+                  const cur = { ...(t.sections?.[key] ?? {}) };
+                  if (bg) cur.bg = bg;
+                  else delete cur.bg;
+                  const sections = { ...t.sections };
+                  if (cur.bg || cur.text || cur.accent) sections[key] = cur;
+                  else delete sections[key];
+                  return { ...t, sections };
+                });
+                setDirty(true);
+              }}
               imageSize={theme.imageSize}
               onImageSize={(changes) => {
                 setTheme((t) => {

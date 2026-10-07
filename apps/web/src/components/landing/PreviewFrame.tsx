@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import type { ElementColor, ElementColors, ImageBox, ImageFocus, ImageSizes, SectionSpacing } from '@/types';
-import { ElementColorPopup } from './ElementColorPopup';
+import type { ElementColor, ElementColors, ImageBox, ImageFocus, ImageSizes, SectionColors, SectionSpacing } from '@/types';
+import { ElementColorPopup, SectionColorPopup } from './ElementColorPopup';
 import { readIconStyle, type IconPageStyle } from './IconPicker';
 import {
   attachColorPick,
   attachIconPick,
   attachImageResize,
   attachMoveDrag,
+  cssColorToHex,
+  onSectionPick,
+  type SectionPick,
   imageSizesCss,
   setImageSizeCss,
   attachSectionDrag,
@@ -206,6 +209,8 @@ export function PreviewFrame({
   onSpacing,
   imageSize,
   onImageSize,
+  sectionColors,
+  onSectionBg,
 }: {
   src: string;
   /** HTML do rascunho (mudanças ainda não salvas); ausente = página salva em `src` */
@@ -233,6 +238,10 @@ export function PreviewFrame({
   onSpacing?: (key: string, pct: number | null) => void;
   /** Tamanho das fotos (inclusive não salvo), aplicado na hora */
   imageSize?: ImageSizes;
+  /** Cores próprias das seções (cor de fundo escolhida ao clicar no fundo da seção) */
+  sectionColors?: Record<string, SectionColors>;
+  /** Cor de fundo escolhida para uma seção; null = volta à cor do modelo */
+  onSectionBg?: (key: string, bg: string | null) => void;
   /** Fotos redimensionadas na prévia (modo Fotos), no layout atual: chave "<seção>|<url>"; null = volta ao padrão */
   onImageSize?: (changes: Record<string, ImageBox | null>) => void;
 }) {
@@ -240,6 +249,10 @@ export function PreviewFrame({
   const frame = useRef<HTMLIFrameElement>(null);
   const [width, setWidth] = useState(0);
   const [picked, setPicked] = useState<PickedElement | null>(null);
+  // Fundo de seção clicado (modo Textos): popup da cor de fundo da seção
+  const [sectionPick, setSectionPick] = useState<(SectionPick & { original: string }) | null>(null);
+  const onSectionBgRef = useRef(onSectionBg);
+  onSectionBgRef.current = onSectionBg;
   // Posição da rolagem, mantida quando a prévia é recarregada com o rascunho
   const scrollY = useRef(0);
   // Refs para os ouvintes do iframe sempre enxergarem o estado mais recente
@@ -286,6 +299,7 @@ export function PreviewFrame({
     const d = doc();
     if (d?.documentElement) setPreviewMode(d, mode);
     if (mode !== 'cores') setPicked(null);
+    if (mode !== 'textos') setSectionPick(null);
   }, [mode]);
 
   // Cores salvas no editor aparecem na hora, sem esperar salvar a página
@@ -321,6 +335,15 @@ export function PreviewFrame({
     }
     setupEditorDocument(d);
     onPreviewSelect(d, (s) => onSelectRef.current?.(s));
+    onSectionPick(d, (p) => {
+      if (!onSectionBgRef.current) return;
+      // Cor que aparece hoje: a da <section> (ou do contêiner), senão a da página
+      const wrap = d.querySelector<HTMLElement>(`[data-section="${p.key}"]`) ?? d.querySelector<HTMLElement>(p.key === 'header' ? '.site-header' : '.site-footer');
+      const win = d.defaultView;
+      const bgOf = (el: Element | null | undefined) => (el && win ? cssColorToHex(win.getComputedStyle(el).backgroundColor) : null);
+      const original = bgOf(wrap?.firstElementChild) ?? bgOf(wrap) ?? bgOf(d.body) ?? '#ffffff';
+      setSectionPick({ ...p, original });
+    });
     setPreviewMode(d, modeRef.current);
     if (onFocusRef.current) attachFocusDrag(d, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), uiScale);
     setColorsCss(d, elementColorsCss(colorsRef.current));
@@ -437,6 +460,43 @@ export function PreviewFrame({
     }
   };
 
+  const sectionDraftCss = (key: string, bg: string | null) => {
+    if (!bg) return '';
+    const sel = key === 'header' ? '.site-header' : key === 'footer' ? '.site-footer' : `[data-section="${key}"]`;
+    return `${sel},${sel}>section,${sel}>header,${sel}>footer{background:${bg}!important}`;
+  };
+  const sectionPopup =
+    sectionPick && onSectionBg && frame.current ? (
+      <SectionColorPopup
+        key={sectionPick.key}
+        label={sectionPick.label}
+        saved={sectionColors?.[sectionPick.key]?.bg ?? null}
+        original={sectionPick.original}
+        anchor={(() => {
+          const r = frame.current.getBoundingClientRect();
+          return { x: r.left + sectionPick.x * scale, y: r.top + sectionPick.y * scale };
+        })()}
+        onDraft={(bg) => {
+          const d = doc();
+          if (d) setDraftCss(d, sectionDraftCss(sectionPick.key, bg));
+        }}
+        onSave={(bg) => {
+          onSectionBg(sectionPick.key, bg);
+          // A prévia é refeita com a cor salva; até lá a cor escolhida continua aparecendo
+          if (!bg) {
+            const d = doc();
+            if (d) setDraftCss(d, '');
+          }
+          setSectionPick(null);
+        }}
+        onClose={() => {
+          const d = doc();
+          if (d) setDraftCss(d, '');
+          setSectionPick(null);
+        }}
+      />
+    ) : null;
+
   const popup =
     picked && onElementColors && frame.current ? (
       <ElementColorPopup
@@ -470,7 +530,7 @@ export function PreviewFrame({
     return (
       <div ref={box} className="mx-auto w-[390px] max-w-full overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-black/5">
         <iframe ref={frame} title="Prévia da Landing Page" src={src} srcDoc={html ?? undefined} onLoad={onLoad} className="w-full border-0" style={{ height }} />
-        {popup}
+        {popup}{sectionPopup}
       </div>
     );
   }
@@ -488,7 +548,7 @@ export function PreviewFrame({
           style={{ width: DESKTOP_WIDTH, height: height / scale, transform: `scale(${scale})` }}
         />
       ) : null}
-      {popup}
+      {popup}{sectionPopup}
     </div>
   );
 }
