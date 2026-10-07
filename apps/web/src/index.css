@@ -17,6 +17,15 @@ body,
   min-height: 100%;
 }
 
+/* Celular sem rolagem lateral: itens de grade e textos cortados com "…" podem encolher até a largura
+   da tela (sem isso, um link ou nome longo alarga a coluna inteira). Em base: utilitários min-w-* continuam valendo. */
+@layer base {
+  .grid > *,
+  .truncate {
+    min-width: 0;
+  }
+}
+
 body {
   background: var(--color-canvas);
   color: var(--color-ink);

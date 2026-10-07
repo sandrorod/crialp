@@ -54,7 +54,7 @@ const MATCH_REASON = { link: 'mesmo link', site: 'mesmo site e nome/telefone', n
 function ResultCard({ c, onGenerate }: { c: FoundCompany; onGenerate: () => void }) {
   const lp = c.existing?.landing_page;
   return (
-    <Card className={cn('relative flex flex-col p-4', lp ? 'border-2 border-emerald-500 bg-emerald-50/40' : c.existing ? 'border-2 border-amber-400' : '')}>
+    <Card className={cn('relative flex min-w-0 flex-col p-4 [overflow-wrap:anywhere]', lp ? 'border-2 border-emerald-500 bg-emerald-50/40' : c.existing ? 'border-2 border-amber-400' : '')}>
       {/* Selo bem visível: já foi coletada / já tem LP, para não gerar de novo */}
       {c.existing ? (
         <span className={cn('absolute -top-2.5 right-3 flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm', lp ? 'bg-emerald-600' : 'bg-amber-500')}>
@@ -84,7 +84,7 @@ function ResultCard({ c, onGenerate }: { c: FoundCompany; onGenerate: () => void
           <Globe className="size-3.5 flex-none text-zinc-400" />
           {c.website ? (
             <a href={c.website} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1 text-brand-600 hover:underline">
-              <span className="truncate">{c.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</span> <ExternalLink className="size-3 flex-none" />
+              <span className="min-w-0 truncate">{c.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</span> <ExternalLink className="size-3 flex-none" />
             </a>
           ) : <span className="text-zinc-400">Sem site</span>}
         </li>
@@ -287,7 +287,7 @@ export function SearchCompaniesPage() {
         </p>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0">
       {items ? (
         <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
@@ -304,7 +304,7 @@ export function SearchCompaniesPage() {
         </Card>
       ) : null}
       {shown.length ? (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {shown.map((c, i) => <ResultCard key={`${c.url}-${i}`} c={c} onGenerate={() => generate(c)} />)}
         </div>
       ) : null}
@@ -323,7 +323,7 @@ export function SearchCompaniesPage() {
       </div>
 
       {/* Histórico de pesquisas: clicar mostra os resultados salvos, sem nova consulta */}
-      <aside className="lg:order-none order-first">
+      <aside className="order-first min-w-0 lg:order-none">
         <Card className="p-4">
           <h2 className="text-sm font-semibold">
             <button type="button" onClick={() => !isDesktop && setHistoryOpen((o) => !o)} aria-expanded={showHistory} className={cn('flex w-full items-center gap-2 text-left', isDesktop && 'pointer-events-none')}>

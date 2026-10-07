@@ -110,7 +110,7 @@ export function AdminLayout() {
   if (!canAccess(user, location.pathname)) return <Navigate to={homeFor(user)} replace />;
 
   return (
-    <div className="min-h-screen lg:pl-64">
+    <div className="min-h-screen overflow-x-clip lg:pl-64">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-zinc-200/80 bg-white lg:block">
         <Sidebar />
       </aside>

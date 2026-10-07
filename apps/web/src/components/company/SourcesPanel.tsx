@@ -109,7 +109,7 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
         </div>
       ) : (
         <div className="p-5">
-          <div className="mb-4 flex gap-1 overflow-x-auto rounded-lg bg-zinc-100 p-1">
+          <div className="mb-4 flex flex-wrap gap-1 rounded-lg bg-zinc-100 p-1">
             {tabs.map((t) => (
               <button key={t.key} onClick={() => setTab(t.key)} className={cn('whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition', tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink')}>
                 {t.label} <span className="text-zinc-400">{t.count}</span>
