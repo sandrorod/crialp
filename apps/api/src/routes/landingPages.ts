@@ -171,8 +171,8 @@ const ContentUpdateSchema = z.object({
     // Tamanho das fotos arrastado na prévia: { desktop: { "<url>": { w: 20-100 (%), h: 80-1400 (px) } }, mobile: {...} }
     imageSize: z
       .object({
-        desktop: z.record(z.string().max(2048), ImageBoxSchema).optional(),
-        mobile: z.record(z.string().max(2048), ImageBoxSchema).optional(),
+        desktop: z.record(z.string().max(2120), ImageBoxSchema).optional(),
+        mobile: z.record(z.string().max(2120), ImageBoxSchema).optional(),
       })
       .optional(),
   }),

@@ -221,8 +221,8 @@ export function PreviewFrame({
   onSpacing?: (key: string, pct: number | null) => void;
   /** Tamanho das fotos (inclusive não salvo), aplicado na hora */
   imageSize?: ImageSizes;
-  /** Foto redimensionada na prévia (modo Fotos), no layout atual; null = volta ao padrão */
-  onImageSize?: (url: string, box: ImageBox | null) => void;
+  /** Fotos redimensionadas na prévia (modo Fotos), no layout atual: chave "<seção>|<url>"; null = volta ao padrão */
+  onImageSize?: (changes: Record<string, ImageBox | null>) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -317,7 +317,7 @@ export function PreviewFrame({
     setSpacingCss(d, sectionSpacingCss(spacingRef.current));
     setImageSizeCss(d, imageSizesCss(imageSizeRef.current));
     if (onImageSizeRef.current) {
-      attachImageResize(d, (url) => imageSizeRef.current?.[device]?.[url], (url, box) => onImageSizeRef.current?.(url, box), uiScale);
+      attachImageResize(d, (url) => imageSizeRef.current?.[device]?.[url], (changes) => onImageSizeRef.current?.(changes), uiScale);
     }
     if (onSpacingRef.current) attachSpacingDrag(d, (key, pct) => onSpacingRef.current?.(key, pct), uiScale);
     if (onReorderRef.current) attachSectionDrag(d, (keys) => onReorderRef.current?.(keys), uiScale, orderRef.current);

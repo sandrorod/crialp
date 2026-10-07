@@ -32,7 +32,7 @@ function normalizeMap(input: unknown): Record<string, ImageBox> {
   const out: Record<string, ImageBox> = {};
   if (!input || typeof input !== 'object') return out;
   for (const [url, v] of Object.entries(input).slice(0, 300)) {
-    const box = url.length <= 2048 ? normalizeBox(v) : null;
+    const box = url.length <= 2120 ? normalizeBox(v) : null;
     if (box) out[url] = box;
   }
   return out;
@@ -51,6 +51,20 @@ export function normalizeImageSizes(input: any): ImageSizes {
 const cssString = (s: string) => s.replace(/[\\"]/g, (c) => `\\${c}`).replace(/[\n\r<>]/g, '');
 
 /**
+ * Chave do tamanho: "<seção>|<url>" vale só para a foto naquela seção (cada seção tem o seu tamanho);
+ * só "<url>" (páginas antigas) vale para a foto em qualquer seção, com prioridade menor.
+ */
+const SECTION_KEY = /^([a-z0-9:_-]{1,60})\|(.+)$/s;
+export function imageSizeKey(section: string | undefined, url: string) {
+  return section && /^[a-z0-9:_-]{1,60}$/.test(section) ? `${section}|${url}` : url;
+}
+function frameSelector(key: string) {
+  const m = SECTION_KEY.exec(key);
+  const img = (url: string) => `:has(>img[data-lp-img="${cssString(url)}"])`;
+  return m ? `[data-section="${m[1]}"] ${img(m[2])}` : img(key);
+}
+
+/**
  * Regras aplicadas na moldura da foto (o elemento que contém o <img data-lp-img>).
  * Mesmo CSS é gerado na prévia do editor (apps/web/src/components/landing/previewTools.ts).
  */
@@ -63,7 +77,7 @@ export function imageSizesCss(s: ImageSizes | undefined): string {
           b.w !== undefined ? `width:${b.w}%!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important` : '',
           b.h !== undefined ? `height:${b.h}px!important;aspect-ratio:auto!important;min-height:0!important;align-self:start` : '',
         ].filter(Boolean).join(';');
-        return decl ? `:has(>img[data-lp-img="${cssString(url)}"]){${decl}}` : '';
+        return decl ? `${frameSelector(url)}{${decl}}` : '';
       })
       .join('');
   const desktop = rules(s?.desktop);

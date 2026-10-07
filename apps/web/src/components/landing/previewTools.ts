@@ -182,6 +182,20 @@ const IMG_H_MIN = 80;
 const IMG_H_MAX = 1400;
 const cssString = (v: string) => v.replace(/[\\"]/g, (c) => `\\${c}`).replace(/[\n\r<>]/g, '');
 
+/**
+ * Chave do tamanho: "<seção>|<url>" vale só para a foto naquela seção (cada seção tem o seu tamanho);
+ * só "<url>" (páginas antigas) vale para a foto em qualquer seção, com prioridade menor.
+ */
+const SECTION_KEY = /^([a-z0-9:_-]{1,60})\|(.+)$/s;
+export function imageSizeKey(section: string | undefined, url: string) {
+  return section && /^[a-z0-9:_-]{1,60}$/.test(section) ? `${section}|${url}` : url;
+}
+function frameSelector(key: string) {
+  const m = SECTION_KEY.exec(key);
+  const img = (url: string) => `:has(>img[data-lp-img="${cssString(url)}"])`;
+  return m ? `[data-section="${m[1]}"] ${img(m[2])}` : img(key);
+}
+
 /** Mesmo CSS gerado na página publicada (apps/api/src/landing/imageSize.ts). */
 export function imageSizesCss(s: ImageSizes | undefined): string {
   const rules = (map: Record<string, ImageBox> = {}) =>
@@ -191,7 +205,7 @@ export function imageSizesCss(s: ImageSizes | undefined): string {
           b.w !== undefined ? `width:${b.w}%!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important` : '',
           b.h !== undefined ? `height:${b.h}px!important;aspect-ratio:auto!important;min-height:0!important;align-self:start` : '',
         ].filter(Boolean).join(';');
-        return decl ? `:has(>img[data-lp-img="${cssString(url)}"]){${decl}}` : '';
+        return decl ? `${frameSelector(url)}{${decl}}` : '';
       })
       .join('');
   const desktop = rules(s?.desktop);
@@ -221,12 +235,31 @@ type Edge = 'left' | 'right' | 'top' | 'bottom';
  * (a foto fica centralizada, então cresce para os dois lados); topo e base mudam a altura.
  * Duplo clique numa alça volta aquela medida ao padrão do modelo. `onSize(url, null)` = tudo no padrão.
  */
-export function attachImageResize(doc: Document, getSize: (url: string) => ImageBox | undefined, onSize: (url: string, box: ImageBox | null) => void, uiScale = 1) {
+export function attachImageResize(doc: Document, getSize: (url: string) => ImageBox | undefined, onSizes: (changes: Record<string, ImageBox | null>) => void, uiScale = 1) {
   const px = (n: number) => `${Math.round(n * uiScale)}px`;
+  const sectionOf = (img: Element) => img.closest<HTMLElement>('[data-section]')?.dataset.section;
   doc.querySelectorAll<HTMLImageElement>('img[data-lp-img]').forEach((img) => {
-    const url = img.dataset.lpImg;
+    const src = img.dataset.lpImg;
     const frame = img.parentElement;
-    if (!url || !frame || frame.dataset.lpResize) return;
+    if (!src || !frame || frame.dataset.lpResize) return;
+    // Tamanho próprio desta seção; o tamanho antigo (de todas as seções) é só o ponto de partida
+    const url = imageSizeKey(sectionOf(img), src);
+    const sizeOf = () => getSize(url) ?? getSize(src);
+    // Grava o tamanho desta seção. Se havia o tamanho antigo (de todas as seções), as outras seções
+    // onde a foto aparece ficam com ele como tamanho próprio e o antigo deixa de existir
+    const onSize = (key: string, box: ImageBox | null) => {
+      const changes: Record<string, ImageBox | null> = { [key]: box };
+      const legacy = getSize(src);
+      if (legacy && key !== src) {
+        changes[src] = null;
+        doc.querySelectorAll<HTMLImageElement>('img[data-lp-img]').forEach((other) => {
+          if (other.dataset.lpImg !== src) return;
+          const k = imageSizeKey(sectionOf(other), src);
+          if (k !== key && k !== src && !getSize(k)) changes[k] = legacy;
+        });
+      }
+      onSizes(changes);
+    };
     frame.dataset.lpResize = '1';
     if (doc.defaultView?.getComputedStyle(frame).position === 'static') frame.style.position = 'relative';
 
@@ -255,7 +288,7 @@ export function attachImageResize(doc: Document, getSize: (url: string) => Image
       h.addEventListener('dblclick', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const cur = { ...(getSize(url) ?? {}) };
+        const cur = { ...(sizeOf() ?? {}) };
         if (horizontal) delete cur.w;
         else delete cur.h;
         onSize(url, cur.w === undefined && cur.h === undefined ? null : cur);
@@ -265,7 +298,7 @@ export function attachImageResize(doc: Document, getSize: (url: string) => Image
         if (currentMode(doc) !== 'fotos' || e.button !== 0) return;
         e.preventDefault();
         e.stopPropagation();
-        const cur = getSize(url) ?? {};
+        const cur = sizeOf() ?? {};
         const rect = frame.getBoundingClientRect();
         // Largura total disponível (100%) a partir da largura atual e do % aplicado
         const available = rect.width / ((cur.w ?? 100) / 100);

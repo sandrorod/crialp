@@ -419,13 +419,16 @@ export function LandingPageEditorPage() {
                 setDirty(true);
               }}
               imageSize={theme.imageSize}
-              onImageSize={(url, box) => {
+              onImageSize={(changes) => {
                 setTheme((t) => {
                   if (!t) return t;
                   const all = t.imageSize ?? {};
                   const map = { ...(all[device] ?? {}) };
-                  if (box) map[url] = box;
-                  else delete map[url];
+                  // Chave "<seção>|<url>": cada seção guarda o tamanho da foto separado
+                  for (const [key, box] of Object.entries(changes)) {
+                    if (box) map[key] = box;
+                    else delete map[key];
+                  }
                   return { ...t, imageSize: { ...all, [device]: map } };
                 });
                 setDirty(true);
