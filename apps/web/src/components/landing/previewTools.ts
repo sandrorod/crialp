@@ -1178,7 +1178,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     const dy = e.clientY - r.top;
     const move = (ev: PointerEvent) => {
       const x = Math.max(0, Math.min(ev.clientX - dx, win.innerWidth - bar.offsetWidth));
-      const y = Math.max(0, Math.min(ev.clientY - dy, win.innerHeight - bar.offsetHeight));
+      const y = clampY(ev.clientY - dy);
       bar.style.left = `${x}px`;
       bar.style.top = `${y}px`;
       barPositions.set(doc, { x, y });
@@ -1218,32 +1218,69 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   render();
   doc.body.appendChild(bar);
 
+  // A barra fica sempre na parte da prévia que aparece na tela, mesmo rolando a prévia ou a página do editor
+  const clampY = (y: number) => {
+    const band = visibleBand(win);
+    return Math.max(band.top + 4, Math.min(y, band.bottom - bar.offsetHeight - 4));
+  };
   const place = () => {
-    // Barra arrastada pelo usuário: fica onde ele deixou (dentro da tela)
+    // Barra arrastada pelo usuário: fica onde ele deixou (dentro da parte visível)
     const fixed = barPositions.get(doc);
     if (fixed) {
       bar.style.left = `${Math.max(0, Math.min(fixed.x, win.innerWidth - bar.offsetWidth))}px`;
-      bar.style.top = `${Math.max(0, Math.min(fixed.y, win.innerHeight - bar.offsetHeight))}px`;
+      bar.style.top = `${clampY(fixed.y)}px`;
       return;
     }
     const r = el.getBoundingClientRect();
     const h = bar.offsetHeight;
     const y = r.top - h - 8 >= 4 ? r.top - h - 8 : r.bottom + 8;
     // Elementos altos (seções inteiras): a barra fica sempre dentro da tela
-    bar.style.top = `${Math.max(4, Math.min(y, win.innerHeight - h - 4))}px`;
+    bar.style.top = `${clampY(y)}px`;
     bar.style.left = `${Math.max(4, Math.min(r.left, win.innerWidth - bar.offsetWidth - 4))}px`;
   };
   place();
   win.addEventListener('scroll', place, true);
   win.addEventListener('resize', place);
+  // Rolagem da página do editor (fora da prévia)
+  let parentWin: Window | null = null;
+  try {
+    parentWin = win.parent !== win ? win.parent : null;
+    parentWin?.addEventListener('scroll', place, true);
+    parentWin?.addEventListener('resize', place);
+  } catch {
+    parentWin = null;
+  }
   return {
     bar,
     close: () => {
       win.removeEventListener('scroll', place, true);
       win.removeEventListener('resize', place);
+      parentWin?.removeEventListener('scroll', place, true);
+      parentWin?.removeEventListener('resize', place);
       bar.remove();
     },
   };
+}
+
+/**
+ * Faixa da prévia que está visível na tela do editor (coordenadas da prévia). A prévia é um iframe dentro
+ * da página do editor: ao rolar o editor, parte dela sai da tela — barras e quadros ficam nessa faixa.
+ */
+export function visibleBand(win: Window): { top: number; bottom: number } {
+  const all = { top: 0, bottom: win.innerHeight };
+  try {
+    const frame = win.frameElement as HTMLElement | null;
+    const parent = win.parent;
+    if (!frame || !parent || parent === win) return all;
+    const r = frame.getBoundingClientRect();
+    // Prévia de computador reduzida com transform: converte a medida da tela para a da prévia
+    const scale = frame.offsetHeight ? r.height / frame.offsetHeight : 1;
+    const top = Math.max(0, -r.top / scale);
+    const bottom = Math.min(win.innerHeight, (parent.innerHeight - r.top) / scale);
+    return bottom - top >= 60 ? { top, bottom } : all;
+  } catch {
+    return all;
+  }
 }
 
 /** Ícones marcados com data-lp-icon: no modo Textos, clicar (no ícone ou na caixinha dele) abre o seletor. */

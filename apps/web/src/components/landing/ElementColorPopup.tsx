@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Monitor, RotateCcw, Smartphone, X } from 'lucide-react';
+import { GripHorizontal, Monitor, RotateCcw, Smartphone, X } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import type { ElementColor, ElementColors } from '@/types';
@@ -9,6 +9,59 @@ import type { PickedElement } from './previewTools';
 type Device = 'desktop' | 'mobile';
 const HEX = /^#[0-9a-f]{6}$/i;
 const WIDTH = 312;
+
+/**
+ * Quadro flutuante arrastável pelo topo. Fica fixo na tela (rolar a página não o tira de vista) e nunca
+ * passa das bordas, nem ao arrastar nem quando a janela muda de tamanho.
+ */
+function useDraggablePopup(initial: { left: number; top: number }, width: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState(initial);
+  const clamp = (left: number, top: number) => {
+    const h = ref.current?.offsetHeight ?? 200;
+    return {
+      left: Math.max(8, Math.min(left, window.innerWidth - width - 8)),
+      top: Math.max(8, Math.min(top, window.innerHeight - h - 8)),
+    };
+  };
+  // Depois de medir a altura real (e ao mudar o tamanho da janela): inteiro dentro da tela
+  useEffect(() => {
+    const fit = () => setPos((p) => clamp(p.left, p.top));
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const onGrab = (e: ReactPointerEvent<HTMLElement>) => {
+    if ((e.target as HTMLElement).closest('button,input,select,label')) return;
+    e.preventDefault();
+    const dx = e.clientX - pos.left;
+    const dy = e.clientY - pos.top;
+    const move = (ev: PointerEvent) => setPos(clamp(ev.clientX - dx, ev.clientY - dy));
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  };
+  return { ref, pos, onGrab };
+}
+
+/** Topo do quadro: alça de arrastar, título e fechar. */
+function PopupHeader({ onGrab, onClose, children }: { onGrab: (e: ReactPointerEvent<HTMLElement>) => void; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div onPointerDown={onGrab} className="-mx-4 -mt-4 mb-3 flex cursor-move touch-none select-none items-start justify-between gap-2 rounded-t-xl px-4 pb-1 pt-2" title="Arraste para mudar o quadro de lugar">
+      <div className="min-w-0">
+        <GripHorizontal className="mb-1 size-4 text-zinc-300" aria-hidden />
+        {children}
+      </div>
+      <button type="button" onClick={onClose} className="mt-4 rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-ink" aria-label="Fechar"><X className="size-4" /></button>
+    </div>
+  );
+}
 
 function ColorRow({ label, value, original, changed, onChange, onReset }: { label: string; value: string; original: string; changed: boolean; onChange: (v: string) => void; onReset: () => void }) {
   const [text, setText] = useState(value);
@@ -144,19 +197,17 @@ export function ElementColorPopup({
   const left = Math.max(8, Math.min(anchor.x + 12, window.innerWidth - width - 8));
   const estimated = 420;
   const top = anchor.y + 12 + estimated > window.innerHeight ? Math.max(8, anchor.y - estimated - 12) : anchor.y + 12;
+  const drag = useDraggablePopup({ left, top }, width);
   const DeviceIcon = device === 'mobile' ? Smartphone : Monitor;
 
   return createPortal(
-    <div className="fixed z-50 rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl" style={{ left, top, width }} role="dialog" aria-label="Alterar cor e tamanho do elemento">
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold">{picked.label}</p>
-          <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-zinc-500">
-            <DeviceIcon className="size-3" /> Layout de {device === 'mobile' ? 'celular' : 'computador'}
-          </p>
-        </div>
-        <button type="button" onClick={onClose} className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-ink" aria-label="Fechar"><X className="size-4" /></button>
-      </div>
+    <div ref={drag.ref} className="fixed z-50 max-h-[calc(100vh-16px)] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl" style={{ left: drag.pos.left, top: drag.pos.top, width }} role="dialog" aria-label="Alterar cor e tamanho do elemento">
+      <PopupHeader onGrab={drag.onGrab} onClose={onClose}>
+        <p className="text-sm font-semibold">{picked.label}</p>
+        <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-zinc-500">
+          <DeviceIcon className="size-3" /> Layout de {device === 'mobile' ? 'celular' : 'computador'}
+        </p>
+      </PopupHeader>
 
       {picked.similar !== picked.exact ? (
         <div className="mb-3 flex rounded-lg bg-zinc-100 p-0.5 text-xs font-medium">
@@ -231,16 +282,14 @@ export function SectionColorPopup({
   const left = Math.max(8, Math.min(anchor.x + 12, window.innerWidth - width - 8));
   const estimated = 230;
   const top = anchor.y + 12 + estimated > window.innerHeight ? Math.max(8, anchor.y - estimated - 12) : anchor.y + 12;
+  const drag = useDraggablePopup({ left, top }, width);
 
   return createPortal(
-    <div className="fixed z-50 rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl" style={{ left, top, width }} role="dialog" aria-label="Cor de fundo da seção">
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold">Seção {label}</p>
-          <p className="mt-0.5 text-[11px] text-zinc-500">Cor de fundo da seção inteira (celular e computador)</p>
-        </div>
-        <button type="button" onClick={onClose} className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-ink" aria-label="Fechar"><X className="size-4" /></button>
-      </div>
+    <div ref={drag.ref} className="fixed z-50 max-h-[calc(100vh-16px)] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl" style={{ left: drag.pos.left, top: drag.pos.top, width }} role="dialog" aria-label="Cor de fundo da seção">
+      <PopupHeader onGrab={drag.onGrab} onClose={onClose}>
+        <p className="text-sm font-semibold">Seção {label}</p>
+        <p className="mt-0.5 text-[11px] text-zinc-500">Cor de fundo da seção inteira (celular e computador)</p>
+      </PopupHeader>
       <ColorRow label="Cor de fundo" value={bg ?? original} original={original} changed={!!bg && bg !== saved} onChange={setBg} onReset={() => setBg(saved)} />
       <p className="mt-2 text-[11px] text-zinc-500">A cor dos textos da seção se ajusta para continuar legível.</p>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
