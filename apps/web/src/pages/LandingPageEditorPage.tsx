@@ -128,12 +128,22 @@ export function LandingPageEditorPage() {
   // Estado próprio: recarregar a LP reiniciaria o rascunho do editor
   const [shotOverride, setShotOverride] = useState<LandingScreenshot | null>(null);
   // Imagem (JPG) da página inteira: gerada sozinha ao gerar a LP; aqui gera de novo depois de editar
-  const generateShot = async () => {
+  const downloadShot = (createdAt: string) => {
+    const a = document.createElement('a');
+    a.href = `${landingPageService.screenshotUrl(id)}?v=${encodeURIComponent(createdAt)}`;
+    a.download = '';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+  /** Gera a imagem (de novo); `thenDownload`: baixa em seguida (LP ainda sem imagem) */
+  const generateShot = async (thenDownload = false) => {
     setShotBusy(true);
     try {
       const { screenshot } = await landingPageService.regenerateScreenshot(id);
       setShotOverride(screenshot);
-      toast.success(dirty ? 'Imagem gerada a partir da versão salva da página.' : 'Imagem da página gerada.');
+      if (thenDownload) downloadShot(screenshot.created_at);
+      else toast.success(dirty ? 'Imagem gerada a partir da versão salva da página.' : 'Imagem da página gerada.');
       if (screenshot.drive_error) toast.warning(screenshot.drive_error);
     } catch (err) {
       toast.error(errorMessage(err));
@@ -319,26 +329,31 @@ export function LandingPageEditorPage() {
         {isClient ? null : <div className="flex flex-wrap gap-2">
           <Link to={`/empresas/${lp.company_id}`}><Button variant="secondary" icon={<Building2 className="size-4" />}>Editar empresa</Button></Link>
           <Button variant="secondary" onClick={() => setRegenOpen(true)} loading={generating} icon={<Sparkles className="size-4" />}>Regenerar</Button>
+          {/* Sempre visível: sem imagem ainda (LP antiga ou falha), gera e já baixa */}
+          <Button
+            variant="secondary"
+            loading={shotBusy}
+            onClick={() => (shot?.available ? downloadShot(shot.created_at) : generateShot(true))}
+            icon={<ImageIcon className="size-4" />}
+            title={shot?.available ? `Imagem da página inteira, gerada ${formatDate(shot.created_at, true)}` : 'Gera a imagem da página inteira e baixa'}
+          >
+            Baixar JPG
+          </Button>
           {shot?.available ? (
-            <a href={`${landingPageService.screenshotUrl(lp.id)}?v=${encodeURIComponent(shot.created_at)}`} download>
-              <Button variant="secondary" icon={<ImageIcon className="size-4" />} title={`Imagem da página inteira, gerada ${formatDate(shot.created_at, true)}`}>Baixar JPG</Button>
-            </a>
+            <Button
+              variant="ghost"
+              disabled={shotBusy}
+              onClick={() => generateShot()}
+              icon={<RefreshCw className="size-4" />}
+              aria-label="Gerar a imagem novamente"
+              title="Gerar a imagem novamente (depois de editar a página)"
+            />
           ) : null}
           {shot?.drive_file_id ? (
             <a href={`https://drive.google.com/file/d/${shot.drive_file_id}/view`} target="_blank" rel="noreferrer">
               <Button variant="ghost" icon={<ExternalLink className="size-4" />} title={shot.drive_error ?? 'Abrir a imagem no Google Drive (pasta "lp")'}>Drive</Button>
             </a>
           ) : null}
-          <Button
-            variant="ghost"
-            loading={shotBusy}
-            onClick={generateShot}
-            icon={<RefreshCw className="size-4" />}
-            aria-label={shot?.available ? 'Gerar a imagem novamente' : 'Gerar imagem JPG'}
-            title={shot?.available ? 'Gerar a imagem novamente (depois de editar a página)' : 'Gerar imagem JPG da página'}
-          >
-            {shot?.available ? null : 'Gerar JPG'}
-          </Button>
           <a href={landingPageService.exportUrl(lp.id)}><Button variant="ghost" icon={<Download className="size-4" />} aria-label="Exportar HTML" title="Exportar HTML" /></a>
           <Button variant="ghost" onClick={() => setDeleteOpen(true)} icon={<Trash2 className="size-4" />} aria-label="Excluir" title="Excluir" />
         </div>}
