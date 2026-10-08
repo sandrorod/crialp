@@ -5,6 +5,8 @@ import handler from '../api/index.js';
 
 // As migrations são copiadas para junto do pacote da função
 process.env.MIGRATIONS_DIR ??= path.join(path.dirname(fileURLToPath(import.meta.url)), 'migrations');
+// Chromium compactado (@sparticuz/chromium) usado para gerar a imagem das LPs
+process.env.CHROMIUM_PACK_DIR ??= path.join(path.dirname(fileURLToPath(import.meta.url)), 'chromium');
 
 export default function vercelHandler(req, res) {
   // A rota do Vercel pode repassar o caminho original em ?__lp_path=

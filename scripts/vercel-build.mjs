@@ -31,12 +31,15 @@ await build({
   target: 'node22',
   format: 'esm',
   external: ['pg-native'],
+  // __dirname/__filename como globais (não const): pacotes ESM embutidos, como o yargs do puppeteer, declaram os seus
   banner: {
-    js: "import { createRequire as __cr } from 'node:module'; import { fileURLToPath as __fu } from 'node:url'; import __p from 'node:path'; const require = __cr(import.meta.url); const __filename = __fu(import.meta.url); const __dirname = __p.dirname(__filename);",
+    js: "import { createRequire as __cr } from 'node:module'; import { fileURLToPath as __fu } from 'node:url'; import __p from 'node:path'; const require = __cr(import.meta.url); globalThis.__filename = __fu(import.meta.url); globalThis.__dirname = __p.dirname(globalThis.__filename);",
   },
   logLevel: 'warning',
 });
 fs.cpSync(path.join(repoRoot, 'database', 'migrations'), path.join(fnDir, 'migrations'), { recursive: true });
+// Binários do Chromium (imagem das LPs): o pacote procura a pasta bin ao lado do próprio código, que some no bundle
+fs.cpSync(path.join(repoRoot, 'node_modules', '@sparticuz', 'chromium', 'bin'), path.join(fnDir, 'chromium'), { recursive: true });
 fs.writeFileSync(
   path.join(fnDir, '.vc-config.json'),
   JSON.stringify({ runtime: 'nodejs22.x', handler: 'index.mjs', launcherType: 'Nodejs', shouldAddHelpers: false, maxDuration: 300 }, null, 2),

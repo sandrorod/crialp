@@ -13,6 +13,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
     "@google/genai": "^2.24.0",
+    "@sparticuz/chromium": "^153.0.0",
     "@vercel/blob": "^2.8.0",
     "@vercel/functions": "^3.9.9",
     "bcryptjs": "^3.0.3",
@@ -23,6 +24,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.0",
     "pg": "^8.23.0",
+    "puppeteer-core": "^25.13.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "zod": "^4.1.0"

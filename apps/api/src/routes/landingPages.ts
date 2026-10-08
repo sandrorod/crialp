@@ -18,6 +18,7 @@ import { CUSTOM_PLACEMENT, HEADING_FAMILY, IMAGE_PLACEMENTS, normalizeThemeSetti
 import { publicUrl, refreshSnapshot, renderFromData } from '../landing/publish.js';
 import { renderUnavailablePage } from '../landing/render.js';
 import { landingPageHeaders } from './public.js';
+import { generateScreenshot, getScreenshotImage, getScreenshotInfo } from '../services/screenshot/ScreenshotService.js';
 
 export const landingPagesRouter = Router();
 
@@ -79,6 +80,7 @@ landingPagesRouter.get('/:id', async (req, res) => {
     ...serialize(lp),
     company: company && { id: company.id, name: company.name, segment: company.segment, testimonials: company.testimonials.length, images_allowed: company.images.filter((i) => i.usage_allowed).length },
     versions: await repo.listVersions(lp.id),
+    screenshot: await getScreenshotInfo(lp.id),
   });
 });
 
@@ -99,6 +101,27 @@ landingPagesRouter.get('/:id/export', async (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${lp.slug}.html"`);
   res.send(html);
+});
+
+/** Baixa a imagem (JPG) da página inteira. */
+landingPagesRouter.get('/:id/screenshot', async (req, res) => {
+  const user = authUser(req);
+  const lp = await loadOr404(user.organizationId, req.params.id);
+  const image = await getScreenshotImage(lp.id);
+  if (!image) throw notFound('Imagem da página ainda não gerada.');
+  res.setHeader('Content-Type', 'image/jpeg');
+  res.setHeader('Content-Disposition', `attachment; filename="${lp.slug}.jpg"`);
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.send(image);
+});
+
+/** Gera a imagem de novo (ex.: depois de editar a página). */
+landingPagesRouter.post('/:id/screenshot', async (req, res) => {
+  const user = authUser(req);
+  const lp = await loadOr404(user.organizationId, req.params.id);
+  const info = await generateScreenshot(lp);
+  if (!info?.available || info.error) throw new AppError(502, info?.error ?? 'Não foi possível gerar a imagem da página.');
+  res.json({ screenshot: info });
 });
 
 // Cor, tamanho e estilo do texto de um elemento clicado na prévia

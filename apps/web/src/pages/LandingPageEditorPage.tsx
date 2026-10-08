@@ -18,7 +18,7 @@ import { useLandingPageActions } from '@/hooks/useLandingPageActions';
 import { errorMessage } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
 import { analysisService, companyService, landingPageService } from '@/services';
-import type { LandingContent, SectionOrderKey, ThemeSettings } from '@/types';
+import type { LandingContent, LandingScreenshot, SectionOrderKey, ThemeSettings } from '@/types';
 
 type Tab = 'modelo' | 'textos' | 'fotos' | 'visual' | 'seo' | 'publicacao' | 'cliente' | 'versoes';
 const TABS: { key: Tab; label: string }[] = [
@@ -124,6 +124,22 @@ export function LandingPageEditorPage() {
   const frameKeyShown = useRef<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [regenOpen, setRegenOpen] = useState(false);
+  const [shotBusy, setShotBusy] = useState(false);
+  // Estado próprio: recarregar a LP reiniciaria o rascunho do editor
+  const [shotOverride, setShotOverride] = useState<LandingScreenshot | null>(null);
+  // Imagem (JPG) da página inteira: gerada sozinha ao gerar a LP; aqui gera de novo depois de editar
+  const generateShot = async () => {
+    setShotBusy(true);
+    try {
+      const { screenshot } = await landingPageService.regenerateScreenshot(id);
+      setShotOverride(screenshot);
+      toast.success(dirty ? 'Imagem gerada a partir da versão salva da página.' : 'Imagem da página gerada.');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setShotBusy(false);
+    }
+  };
   const [keepTheme, setKeepTheme] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
   // Ícone clicado na prévia: caminho do campo ("services.items.0.icon"…) e estilo da página
@@ -144,6 +160,7 @@ export function LandingPageEditorPage() {
     setSeo({ seo_title: lp.seo_title, seo_description: lp.seo_description, seo_keywords: lp.seo_keywords, og_image: lp.og_image });
     setDirty(false);
     setDraftHtml(null);
+    setShotOverride(null);
   }, [lp]);
 
   const draftKey = renderedThemeKey(theme, content);
@@ -273,6 +290,7 @@ export function LandingPageEditorPage() {
     setDirty(true);
   };
   const generating = !!jobId;
+  const shot = shotOverride ?? lp.screenshot;
 
   return (
     <div>
@@ -300,6 +318,21 @@ export function LandingPageEditorPage() {
         {isClient ? null : <div className="flex flex-wrap gap-2">
           <Link to={`/empresas/${lp.company_id}`}><Button variant="secondary" icon={<Building2 className="size-4" />}>Editar empresa</Button></Link>
           <Button variant="secondary" onClick={() => setRegenOpen(true)} loading={generating} icon={<Sparkles className="size-4" />}>Regenerar</Button>
+          {shot?.available ? (
+            <a href={`${landingPageService.screenshotUrl(lp.id)}?v=${encodeURIComponent(shot.created_at)}`} download>
+              <Button variant="secondary" icon={<ImageIcon className="size-4" />} title={`Imagem da página inteira, gerada ${formatDate(shot.created_at, true)}`}>Baixar JPG</Button>
+            </a>
+          ) : null}
+          <Button
+            variant="ghost"
+            loading={shotBusy}
+            onClick={generateShot}
+            icon={<RefreshCw className="size-4" />}
+            aria-label={shot?.available ? 'Gerar a imagem novamente' : 'Gerar imagem JPG'}
+            title={shot?.available ? 'Gerar a imagem novamente (depois de editar a página)' : 'Gerar imagem JPG da página'}
+          >
+            {shot?.available ? null : 'Gerar JPG'}
+          </Button>
           <a href={landingPageService.exportUrl(lp.id)}><Button variant="ghost" icon={<Download className="size-4" />} aria-label="Exportar HTML" title="Exportar HTML" /></a>
           <Button variant="ghost" onClick={() => setDeleteOpen(true)} icon={<Trash2 className="size-4" />} aria-label="Excluir" title="Excluir" />
         </div>}

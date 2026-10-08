@@ -17,6 +17,7 @@ import type {
   LandingPage,
   LandingPageDetail,
   LandingPageListItem,
+  LandingScreenshot,
   LpStatus,
   Preset,
   ProspectingNote,
@@ -107,6 +108,9 @@ export const landingPageService = {
   /** HTML da prévia com conteúdo e tema ainda não salvos. */
   previewDraft: (id: string, body: { content: LandingContent; theme: ThemeSettings }) => api.post<{ html: string }>(`/landing-pages/${id}/preview`, body),
   exportUrl: (id: string) => `/api/landing-pages/${id}/export`,
+  /** Imagem (JPG) da página inteira, para download */
+  screenshotUrl: (id: string) => `/api/landing-pages/${id}/screenshot`,
+  regenerateScreenshot: (id: string) => api.post<{ screenshot: LandingScreenshot }>(`/landing-pages/${id}/screenshot`),
   /** Ícones dos elementos: { nome: svg } */
   icons: () => api.get<Record<string, string>>('/landing-pages/icons'),
   iconCategories: () => api.get<{ label: string; icons: string[] }[]>('/landing-pages/icon-categories'),
