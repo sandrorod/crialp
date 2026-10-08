@@ -134,6 +134,7 @@ export function LandingPageEditorPage() {
       const { screenshot } = await landingPageService.regenerateScreenshot(id);
       setShotOverride(screenshot);
       toast.success(dirty ? 'Imagem gerada a partir da versão salva da página.' : 'Imagem da página gerada.');
+      if (screenshot.drive_error) toast.warning(screenshot.drive_error);
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -321,6 +322,11 @@ export function LandingPageEditorPage() {
           {shot?.available ? (
             <a href={`${landingPageService.screenshotUrl(lp.id)}?v=${encodeURIComponent(shot.created_at)}`} download>
               <Button variant="secondary" icon={<ImageIcon className="size-4" />} title={`Imagem da página inteira, gerada ${formatDate(shot.created_at, true)}`}>Baixar JPG</Button>
+            </a>
+          ) : null}
+          {shot?.drive_file_id ? (
+            <a href={`https://drive.google.com/file/d/${shot.drive_file_id}/view`} target="_blank" rel="noreferrer">
+              <Button variant="ghost" icon={<ExternalLink className="size-4" />} title={shot.drive_error ?? 'Abrir a imagem no Google Drive (pasta "lp")'}>Drive</Button>
             </a>
           ) : null}
           <Button

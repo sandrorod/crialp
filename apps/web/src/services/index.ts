@@ -121,6 +121,12 @@ export const landingPageService = {
 };
 
 export type KeyProvider = 'gemini' | 'rapidapi';
+export interface DriveStatus {
+  configured: boolean;
+  connected: boolean;
+  email: string | null;
+  redirect_uri: string;
+}
 
 export const miscService = {
   dashboard: () => api.get<DashboardStats>('/dashboard'),
@@ -132,6 +138,11 @@ export const miscService = {
   addApiKey: (provider: KeyProvider, key: string, label?: string) => api.post<AIKeyInfo & { moved_from?: string }>(`/settings/keys/${provider}`, { key, label: label || null }),
   updateApiKey: (provider: KeyProvider, id: string, body: { active?: boolean; label?: string | null }) => api.patch(`/settings/keys/${provider}/${id}`, body),
   removeApiKey: (provider: KeyProvider, id: string) => api.del(`/settings/keys/${provider}/${id}`),
+  /** Google Drive (imagem das LPs vai para a pasta "lp") */
+  driveStatus: () => api.get<DriveStatus>('/google-drive/status'),
+  disconnectDrive: () => api.del<DriveStatus>('/google-drive'),
+  /** Navegação direta: abre o login do Google */
+  driveConnectUrl: '/api/google-drive/connect',
   /** Tira do rodízio a chave da variável de ambiente (GEMINI_API_KEY / RAPIDAPI_KEY) */
   removeEnvApiKey: (provider: KeyProvider) => api.del(`/settings/keys/${provider}/env`),
   upload: async (file: File) => {

@@ -2,6 +2,7 @@ import { env } from '../../config/env.js';
 import { one, query } from '../../db/pool.js';
 import { renderFromData } from '../../landing/publish.js';
 import type { LandingPageRow } from '../../repositories/landingPages.js';
+import { uploadJpgToDrive } from '../google/googleDrive.js';
 
 const VIEWPORT = { width: 1366, height: 900 };
 const JPEG_QUALITY = 82;
@@ -14,6 +15,9 @@ export interface ScreenshotInfo {
   height: number | null;
   error: string | null;
   available: boolean;
+  /** Cópia no Google Drive (pasta "lp"); drive_error quando o envio falhou */
+  drive_file_id: string | null;
+  drive_error: string | null;
 }
 
 async function launchBrowser() {
@@ -78,6 +82,7 @@ export async function generateScreenshot(lp: LandingPageRow): Promise<Screenshot
        on conflict (landing_page_id) do update set image = excluded.image, width = excluded.width, height = excluded.height, error = null, created_at = now()`,
       [lp.id, shot.image, shot.width, shot.height],
     );
+    await sendToDrive(lp, shot.image);
   } catch (err) {
     console.error(`[screenshot ${lp.id}]`, err);
     // Mantém a imagem anterior, se houver; só registra o erro
@@ -90,9 +95,22 @@ export async function generateScreenshot(lp: LandingPageRow): Promise<Screenshot
   return getScreenshotInfo(lp.id);
 }
 
+/** Envia a imagem ao Google Drive, se conectado. Falha só fica registrada. */
+async function sendToDrive(lp: LandingPageRow, image: Buffer) {
+  try {
+    const row = await one<{ drive_file_id: string | null }>('select drive_file_id from lp_screenshots where landing_page_id = $1', [lp.id]);
+    const fileId = await uploadJpgToDrive(`${lp.slug}.jpg`, image, row?.drive_file_id ?? null);
+    await query('update lp_screenshots set drive_file_id = coalesce($2, drive_file_id), drive_error = null where landing_page_id = $1', [lp.id, fileId]);
+  } catch (err) {
+    console.error(`[screenshot ${lp.id}] Google Drive:`, err);
+    const msg = err instanceof Error && err.message.includes('Configurações') ? err.message : 'Não foi possível enviar a imagem ao Google Drive.';
+    await query('update lp_screenshots set drive_error = $2 where landing_page_id = $1', [lp.id, msg]).catch(() => {});
+  }
+}
+
 export function getScreenshotInfo(landingPageId: string) {
   return one<ScreenshotInfo>(
-    `select created_at, width, height, error, image is not null as available from lp_screenshots where landing_page_id = $1`,
+    `select created_at, width, height, error, image is not null as available, drive_file_id, drive_error from lp_screenshots where landing_page_id = $1`,
     [landingPageId],
   );
 }

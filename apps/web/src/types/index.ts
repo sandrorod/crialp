@@ -387,6 +387,9 @@ export interface LandingScreenshot {
   height: number | null;
   error: string | null;
   available: boolean;
+  /** Cópia no Google Drive (pasta "lp") */
+  drive_file_id: string | null;
+  drive_error: string | null;
 }
 
 export interface LandingPageListItem {

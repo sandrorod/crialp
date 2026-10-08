@@ -11,6 +11,7 @@ import { authRouter } from './routes/auth.js';
 import { companiesRouter } from './routes/companies.js';
 import { landingPagesRouter } from './routes/landingPages.js';
 import { miscRouter } from './routes/misc.js';
+import { googleDriveRouter } from './routes/googleDrive.js';
 import { salesRouter } from './routes/sales.js';
 import { usersRouter } from './routes/users.js';
 import { customDomainMiddleware, publicRouter } from './routes/public.js';
@@ -43,6 +44,7 @@ export function createApp() {
   api.use('/sales', salesRouter); // único acesso do vendedor
   api.use(blockSellers);
   api.use('/users', requireRole(...MANAGER_ROLES), usersRouter);
+  api.use('/google-drive', requireRole(...MANAGER_ROLES), googleDriveRouter);
   api.use(analyzeRouter);
   api.use('/companies', companiesRouter);
   api.use('/landing-pages', landingPagesRouter);

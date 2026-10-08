@@ -34,14 +34,14 @@ function cipherKey() {
   return crypto.createHash('sha256').update(`lp-ai-keys:${env.jwtSecret}`).digest();
 }
 
-function encrypt(plain: string) {
+export function encrypt(plain: string) {
   const iv = crypto.randomBytes(12);
   const c = crypto.createCipheriv('aes-256-gcm', cipherKey(), iv);
   const data = Buffer.concat([c.update(plain, 'utf8'), c.final()]);
   return [iv, c.getAuthTag(), data].map((b) => b.toString('base64')).join('.');
 }
 
-function decrypt(payload: string): string | null {
+export function decrypt(payload: string): string | null {
   try {
     const [iv, tag, data] = payload.split('.').map((p) => Buffer.from(p, 'base64'));
     const d = crypto.createDecipheriv('aes-256-gcm', cipherKey(), iv);
