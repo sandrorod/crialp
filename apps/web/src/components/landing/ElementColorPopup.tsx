@@ -35,17 +35,32 @@ function useDraggablePopup(initial: { left: number; top: number }, width: number
   const onGrab = (e: ReactPointerEvent<HTMLElement>) => {
     if ((e.target as HTMLElement).closest('button,input,select,label')) return;
     e.preventDefault();
+    const handle = e.currentTarget;
     const dx = e.clientX - pos.left;
     const dy = e.clientY - pos.top;
+    // O ponteiro fica preso à alça: ao passar por cima da prévia (iframe) o arrasto não se perde
+    try {
+      handle.setPointerCapture(e.pointerId);
+    } catch {
+      /* sem captura: as prévias ficam sem receber o ponteiro durante o arrasto (abaixo) */
+    }
+    const frames = Array.from(document.querySelectorAll('iframe'));
+    frames.forEach((f) => (f.style.pointerEvents = 'none'));
     const move = (ev: PointerEvent) => setPos(clamp(ev.clientX - dx, ev.clientY - dy));
     const up = () => {
+      frames.forEach((f) => (f.style.pointerEvents = ''));
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
-      window.removeEventListener('pointercancel', up);
     };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+    // Navegadores sem captura: segue pelo documento
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
-    window.addEventListener('pointercancel', up);
   };
   return { ref, pos, onGrab };
 }

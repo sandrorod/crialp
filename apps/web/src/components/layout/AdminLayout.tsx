@@ -110,23 +110,19 @@ export function AdminLayout() {
   if (!canAccess(user, location.pathname)) return <Navigate to={homeFor(user)} replace />;
 
   return (
-    <div className="min-h-screen overflow-x-clip lg:pl-64">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-zinc-200/80 bg-white lg:block">
-        <Sidebar />
-      </aside>
-
-      {/* Mobile */}
-      <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-zinc-200/80 bg-white/90 px-4 backdrop-blur lg:hidden">
+    <div className="min-h-screen overflow-x-clip">
+      {/* Menu hambúrguer em todas as telas: o conteúdo (principalmente o editor) usa a largura inteira */}
+      <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-zinc-200/80 bg-white/90 px-4 backdrop-blur sm:px-6">
+        <button onClick={() => setOpen(true)} className="-ml-2 rounded-lg p-2 hover:bg-zinc-100" aria-label="Abrir menu" title="Menu">
+          <Menu className="size-5" />
+        </button>
         <div className="flex items-center gap-2">
           <div className="grid size-7 place-items-center rounded-md bg-ink text-[11px] font-bold text-white">LP</div>
           <span className="text-sm font-semibold">Landing Pages</span>
         </div>
-        <button onClick={() => setOpen(true)} className="rounded-lg p-2 hover:bg-zinc-100" aria-label="Abrir menu">
-          <Menu className="size-5" />
-        </button>
       </header>
       {open ? (
-        <div className="fixed inset-0 z-40 lg:hidden">
+        <div className="fixed inset-0 z-40">
           <div className="absolute inset-0 bg-zinc-950/30" onClick={() => setOpen(false)} />
           <aside className="absolute inset-y-0 left-0 w-72 bg-white shadow-xl">
             <button onClick={() => setOpen(false)} className="absolute right-3 top-4 rounded-lg p-1.5 hover:bg-zinc-100" aria-label="Fechar menu">
@@ -137,7 +133,8 @@ export function AdminLayout() {
         </div>
       ) : null}
 
-      <main className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+      {/* Editor de Landing Page: largura total da tela; demais páginas com largura de leitura */}
+      <main className={cn('mx-auto px-4 py-6 sm:px-6 lg:py-8', /^\/landing-pages\/[^/]+/.test(location.pathname) ? 'max-w-none lg:px-8' : 'max-w-[1280px] lg:px-10')}>
         <Outlet />
       </main>
     </div>
