@@ -440,13 +440,19 @@ export function TemplateTab({ theme, onChange, hasPhoto }: { theme: ThemeSetting
       <p className="text-xs text-zinc-500">
         O modelo define a estrutura da página e se adapta ao conteúdo: sem foto liberada, o topo usa uma versão sem imagem, e a disposição dos serviços muda conforme a quantidade. As cores e fontes continuam em "Cores e estilo".
       </p>
+      {manualColorCount(theme) ? (
+        <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Ao trocar de modelo, a página inteira passa a seguir o modelo e as cores de "Cores e estilo": os fundos de seção e as cores de elementos ajustados à mão são substituídos. Para desfazer antes de salvar, use "Descartar".
+        </p>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
         {templates?.map((t) => (
           <button
             key={t.key}
             type="button"
             // Ao trocar de modelo, o topo segue a recomendação do modelo para o conteúdo atual
-            onClick={() => onChange({ ...theme, template: t.key, heroVariant: hasPhoto ? t.hero.withPhoto : t.hero.withoutPhoto })}
+            // Novo modelo vale para a página inteira: sai qualquer cor feita à mão
+            onClick={() => onChange(withoutManualColors({ ...theme, template: t.key, heroVariant: hasPhoto ? t.hero.withPhoto : t.hero.withoutPhoto }))}
             className={cn('rounded-lg border p-2.5 text-left transition', current === t.key ? 'border-ink ring-1 ring-ink' : 'border-zinc-200 hover:border-zinc-300')}
             aria-pressed={current === t.key}
           >
