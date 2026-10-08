@@ -15,7 +15,7 @@ export function landingCss(theme: ResolvedTheme): string {
 /* Links do menu (#secao): a seção começa logo abaixo da barra fixa do topo (--header-h vem do script);
    o espaço acima do título é a própria margem interna da seção */
 html{scroll-behavior:smooth;scroll-padding-top:var(--header-h,76px);-webkit-text-size-adjust:100%}
-body{margin:0;overflow-x:hidden;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body{margin:0;overflow-x:hidden;overflow-x:clip;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 img{max-width:100%;display:block}
 a{color:inherit}
 h1,h2,h3{font-family:var(--font-heading);font-weight:var(--heading-weight);letter-spacing:var(--heading-tracking);line-height:var(--heading-lh);text-transform:var(--heading-case);margin:0;text-wrap:balance}
