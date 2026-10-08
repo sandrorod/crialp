@@ -6,7 +6,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { cn, copyToClipboard, formatDate } from '@/lib/utils';
 import { landingPageService, miscService } from '@/services';
-import type { CompanyImage, HeroVariant, ImagePlacement, LandingContent, TemplateKey, LandingPageDetail, SectionColors, SectionOrderKey, ThemeSettings } from '@/types';
+import type { CompanyImage, ElementColor, HeroVariant, ImagePlacement, LandingContent, TemplateKey, LandingPageDetail, SectionColors, SectionOrderKey, ThemeSettings } from '@/types';
 
 // ─── Visual ─────────────────────────────────────────────────────────
 const HERO_VARIANTS: { value: HeroVariant; label: string; hint: string }[] = [
@@ -125,9 +125,43 @@ function ElementColorsSummary({ theme, onChange }: { theme: ThemeSettings; onCha
   );
 }
 
-export function DesignTab({ theme, onChange, content }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; content: LandingContent }) {
+/**
+ * Cores feitas à mão: cor própria de seção (fundo, texto, destaque) e cor de texto/fundo de elementos.
+ * Fonte, tamanho, efeito, posição e elementos excluídos não são cores e ficam como estão.
+ */
+function manualColorCount(theme: ThemeSettings) {
+  const sections = Object.keys(theme.sections ?? {}).length;
+  const elements = (['desktop', 'mobile'] as const).reduce(
+    (n, d) => n + Object.values(theme.elementColors?.[d] ?? {}).filter((c) => c.text || c.bg).length,
+    0,
+  );
+  return sections + elements;
+}
+function withoutManualColors(theme: ThemeSettings): ThemeSettings {
+  const strip = (map: Record<string, ElementColor> = {}) =>
+    Object.fromEntries(
+      Object.entries(map)
+        .map(([sel, c]) => {
+          const { text: _t, bg: _b, ...rest } = c;
+          return [sel, rest] as const;
+        })
+        .filter(([, c]) => Object.keys(c).length),
+    );
+  return {
+    ...theme,
+    sections: {},
+    elementColors: theme.elementColors ? { desktop: strip(theme.elementColors.desktop), mobile: strip(theme.elementColors.mobile) } : theme.elementColors,
+  };
+}
+
+export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; content: LandingContent }) {
   const { data: presets } = useAsync(() => landingPageService.presets(), []);
   const current = presets?.find((p) => p.key === theme.preset);
+  const manual = manualColorCount(theme);
+  // Mudar a direção visual ou as cores gerais vale para a página inteira: as cores feitas à mão
+  // (seções e elementos) dão lugar às novas cores. Para desfazer antes de salvar: "Descartar".
+  const onPalette = (next: ThemeSettings) => change(withoutManualColors(next));
+  const onChange = change;
 
   return (
     <div className="space-y-6">
@@ -138,7 +172,7 @@ export function DesignTab({ theme, onChange, content }: { theme: ThemeSettings; 
             <button
               key={p.key}
               type="button"
-              onClick={() => onChange({ ...theme, preset: p.key, primary: null, accent: null })}
+              onClick={() => onPalette({ ...theme, preset: p.key, primary: null, accent: null })}
               className={cn('flex items-center gap-3 rounded-lg border p-3 text-left transition', theme.preset === p.key ? 'border-ink ring-1 ring-ink' : 'border-zinc-200 hover:border-zinc-300')}
             >
               <span className="flex flex-none overflow-hidden rounded-md ring-1 ring-black/5">
@@ -161,15 +195,20 @@ export function DesignTab({ theme, onChange, content }: { theme: ThemeSettings; 
           return (
             <Field key={key} label={key === 'primary' ? 'Cor principal' : 'Cor de destaque'} hint={theme[key] ? 'Personalizada' : 'Padrão do estilo'}>
               <div className="flex gap-2">
-                <input type="color" value={value} onChange={(e) => onChange({ ...theme, [key]: e.target.value })} className="h-10 w-12 cursor-pointer rounded-lg border border-zinc-200 bg-white p-1" />
-                <Input value={value} onChange={(e) => /^#[0-9a-f]{6}$/i.test(e.target.value) && onChange({ ...theme, [key]: e.target.value })} className="font-mono uppercase" />
-                {theme[key] ? <Button type="button" variant="ghost" onClick={() => onChange({ ...theme, [key]: null })} icon={<RotateCcw className="size-4" />} aria-label="Restaurar" /> : null}
+                <input type="color" value={value} onChange={(e) => onPalette({ ...theme, [key]: e.target.value })} className="h-10 w-12 cursor-pointer rounded-lg border border-zinc-200 bg-white p-1" />
+                <Input value={value} onChange={(e) => /^#[0-9a-f]{6}$/i.test(e.target.value) && onPalette({ ...theme, [key]: e.target.value })} className="font-mono uppercase" />
+                {theme[key] ? <Button type="button" variant="ghost" onClick={() => onPalette({ ...theme, [key]: null })} icon={<RotateCcw className="size-4" />} aria-label="Restaurar" /> : null}
               </div>
             </Field>
           );
         })}
       </div>
       <p className="-mt-3 text-xs text-zinc-500">O contraste é ajustado automaticamente para manter textos e botões legíveis.</p>
+      {manual ? (
+        <p className="-mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Há {manual === 1 ? '1 cor ajustada' : `${manual} cores ajustadas`} à mão (fundo de seção ou cor de elemento). Ao mudar a direção visual ou as cores acima, a página inteira passa a usar as novas cores e esses ajustes são substituídos. Para desfazer antes de salvar, use "Descartar".
+        </p>
+      ) : null}
 
       <div>
         <h4 className="mb-2 text-sm font-semibold">Topo da página</h4>
