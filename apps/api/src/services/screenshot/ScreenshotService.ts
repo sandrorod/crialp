@@ -6,8 +6,6 @@ import { uploadJpgToDrive } from '../google/googleDrive.js';
 
 const VIEWPORT = { width: 1366, height: 900 };
 const JPEG_QUALITY = 82;
-// Seções que entram na imagem: topo e "Sobre nós" (ids gerados em landing/sections)
-const SECTIONS_IN_IMAGE = '#inicio, #sobre';
 // Chrome do computador no desenvolvimento local (no Vercel usa o @sparticuz/chromium)
 const LOCAL_CHROME = process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
@@ -36,7 +34,7 @@ async function launchBrowser() {
   return puppeteer.launch({ executablePath: LOCAL_CHROME, headless: true });
 }
 
-/** Tira a foto (JPG) do topo e da seção "Sobre nós" a partir do HTML renderizado. */
+/** Tira a foto (JPG) do topo e da seção "Sobre nós" (ou da seção seguinte ao topo) a partir do HTML renderizado. */
 export async function captureHtml(html: string) {
   const browser = await launchBrowser();
   try {
@@ -62,14 +60,25 @@ export async function captureHtml(html: string) {
         new Promise((r) => setTimeout(r, 20_000)),
       ]);
     });
-    // Só o topo (#inicio) e "Sobre nós" (#sobre), com o menu do cabeçalho: o resto da página fica de fora
-    await page.evaluate((keep) => {
+    // Só o topo e "Sobre nós" (sem "Sobre nós": as duas primeiras seções), com o menu do cabeçalho
+    const bottom = await page.evaluate(() => {
+      const sections = Array.from(document.querySelectorAll('section')).filter(
+        (el) => !el.parentElement?.closest('section') && getComputedStyle(el).display !== 'none',
+      );
+      const top = sections.find((el) => el.id === 'inicio') ?? sections[0];
+      const second = sections.find((el) => el.id === 'sobre') ?? sections[sections.indexOf(top) + 1];
+      const keep = [top, second].filter(Boolean);
       document.querySelectorAll('section, footer').forEach((el) => {
-        if (!el.matches(keep) && !el.closest(keep)) (el as HTMLElement).style.setProperty('display', 'none', 'important');
+        if (!keep.some((k) => k === el || k.contains(el))) (el as HTMLElement).style.setProperty('display', 'none', 'important');
       });
-    }, SECTIONS_IN_IMAGE);
-    const height = await page.evaluate(() => document.documentElement.scrollHeight);
-    const image = Buffer.from(await page.screenshot({ type: 'jpeg', quality: JPEG_QUALITY, fullPage: true, captureBeyondViewport: true }));
+      // Fim da última seção mantida: a imagem termina ali (sem faixa vazia embaixo)
+      return Math.max(0, ...keep.map((k) => k.getBoundingClientRect().bottom + window.scrollY));
+    });
+    const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+    const height = Math.ceil(Math.min(bottom || pageHeight, pageHeight));
+    const image = Buffer.from(
+      await page.screenshot({ type: 'jpeg', quality: JPEG_QUALITY, clip: { x: 0, y: 0, width: VIEWPORT.width, height }, captureBeyondViewport: true }),
+    );
     return { image, width: VIEWPORT.width, height };
   } finally {
     await browser.close().catch(() => {});
