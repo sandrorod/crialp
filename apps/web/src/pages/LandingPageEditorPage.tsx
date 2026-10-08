@@ -331,14 +331,13 @@ export function LandingPageEditorPage() {
           <Button variant="secondary" onClick={() => setRegenOpen(true)} loading={generating} icon={<Sparkles className="size-4" />}>Regenerar</Button>
           {/* Sempre visível: sem imagem ainda (LP antiga ou falha), gera e já baixa */}
           <Button
-            variant="secondary"
+            variant="ghost"
             loading={shotBusy}
             onClick={() => (shot?.available ? downloadShot(shot.created_at) : generateShot(true))}
             icon={<ImageIcon className="size-4" />}
-            title={shot?.available ? `Imagem da página inteira, gerada ${formatDate(shot.created_at, true)}` : 'Gera a imagem da página inteira e baixa'}
-          >
-            Baixar JPG
-          </Button>
+            aria-label="Baixar imagem JPG"
+            title={shot?.available ? `Baixar imagem JPG (topo e "Sobre nós"), gerada ${formatDate(shot.created_at, true)}` : 'Gerar e baixar imagem JPG (topo e "Sobre nós")'}
+          />
           {shot?.available ? (
             <Button
               variant="ghost"
