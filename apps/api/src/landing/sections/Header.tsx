@@ -1,4 +1,6 @@
+import type { CSSProperties } from 'react';
 import type { RenderContext } from '../context.js';
+import { sectionVars } from '../sectionColors.js';
 import { cad, ed } from '../context.js';
 import { CtaButton } from './CtaButton.js';
 import { Icon } from './Icon.js';
@@ -7,8 +9,10 @@ export function Header({ ctx, nav }: { ctx: RenderContext; nav: { href: string; 
   const cta = ctx.labels.header_cta;
   const showLogo = !!ctx.logo && ctx.theme.logoPlacement === 'header' && ctx.theme.brand !== 'name';
   const name = cad(ctx, 'company.name', ctx.displayName);
+  // Cor própria do cabeçalho: direto no <header> (um contêiner em volta impediria o menu de ficar fixo no topo)
+  const colors = sectionVars(ctx.theme, ctx.theme.sections.header);
   return (
-    <header className="site-header">
+    <header className="site-header" style={(colors ?? undefined) as CSSProperties | undefined}>
       <div className="container">
         <a className="brand" href="#inicio" aria-label={ctx.displayName}>
           {/* Logotipo e/ou nome, como escolhido no editor (sem logotipo, sempre o nome) */}
