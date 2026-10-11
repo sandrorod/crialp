@@ -114,7 +114,7 @@ export const aiKeyStore = {
   async list(provider = 'gemini'): Promise<AIKeyInfo[]> {
     const { rows } = await query<AIKeyInfo>(
       `select id, label, last4, active, uses::int as uses, last_used_at, last_error, last_error_at, created_at
-         from ai_api_keys where provider = $1 order by created_at`,
+         from ai_api_keys where provider = $1 order by active desc, created_at`, // ativas primeiro
       [provider],
     );
     // Limite diário de antes da renovação da cota não vale mais: a chave volta a aparecer como disponível
