@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { parseWithoutNullText } from '../../lib/nullText.js';
 import { AIProviderError, type AIProvider, type StructuredRequest } from './AIProvider.js';
 import { aiKeyStore, lastQuotaReset, type AIKey } from './keyStore.js';
+import { rapidGemini } from './RapidApiGemini.js';
 
 /** Converte o schema Zod em JSON Schema aceito pelo Gemini (sem metadados nem limites de inteiro gigantes). */
 function toGeminiSchema(schema: z.ZodType): unknown {
@@ -54,6 +55,53 @@ export interface GooglePlaceListing {
   placeId: string | null;
 }
 
+/**
+ * Locais da resposta do Gemini com consulta ao Maps: só entram os que o Maps confirmou (cada um tem
+ * link do Maps). Usado pelas chaves do Gemini e pelas do RapidAPI — Gemini.
+ */
+function listingsFromResponse(text: string, chunks: { uri: string; placeId: string | null; title: string }[]): GooglePlaceListing[] {
+  const key2 = (v: string) => v.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const dash = (v: string | undefined) => (v && v.trim() !== '-' ? v.trim() : null);
+  const out: GooglePlaceListing[] = [];
+  for (const line of text.split('\n')) {
+    // Aceita "Nome | Tel | …", tabela Markdown ("| Nome | Tel |"), marcadores e numeração
+    const cols = line
+      .trim()
+      .replace(/^[*•-]\s+|^\d+[.)]\s+/, '')
+      .replace(/^\|/, '')
+      .replace(/\|$/, '')
+      .split('|')
+      .map((c) => c.trim());
+    if (cols.length < 4 || !cols[0] || /^:?-{2,}/.test(cols[0]) || /^nome$/i.test(cols[0])) continue;
+    const name = cols[0].replace(/\*\*/g, '');
+    // Só locais confirmados pelo Maps (o nome bate com um local citado na resposta)
+    const chunk = chunks.find((c) => key2(c.title) === key2(name)) ?? chunks.find((c) => key2(c.title).includes(key2(name)) || key2(name).includes(key2(c.title)));
+    if (!chunk || out.some((o) => o.mapsUri === chunk.uri)) continue;
+    const rating = Number(dash(cols[4])?.replace(',', '.'));
+    const reviews = Number(dash(cols[5])?.replace(/\D/g, ''));
+    out.push({
+      name: chunk.title,
+      phone: dash(cols[1]),
+      address: dash(cols[2]),
+      website: dash(cols[3]),
+      rating: Number.isFinite(rating) && rating > 0 ? rating : null,
+      reviews: Number.isFinite(reviews) && reviews > 0 ? reviews : null,
+      mapsUri: chunk.uri,
+      placeId: chunk.placeId,
+    });
+  }
+  // Resposta fora do formato: ainda mostra os locais confirmados pelo Maps (só com o nome)
+  if (!out.length && chunks.length) {
+    console.warn('[maps] resposta fora do formato esperado:', text.slice(0, 300));
+    for (const c of chunks) {
+      if (!out.some((o) => o.mapsUri === c.uri)) {
+        out.push({ name: c.title, phone: null, address: null, website: null, rating: null, reviews: null, mapsUri: c.uri, placeId: c.placeId });
+      }
+    }
+  }
+  return out;
+}
+
 export class GeminiProvider implements AIProvider {
   readonly name = 'gemini';
   private readonly clients = new Map<string, GoogleGenAI>();
@@ -82,8 +130,8 @@ export class GeminiProvider implements AIProvider {
     private readonly fallbackModels: string[] = [],
   ) {}
 
-  isConfigured() {
-    return aiKeyStore.hasAny('gemini', this.envKey);
+  async isConfigured() {
+    return (await aiKeyStore.hasAny('gemini', this.envKey)) || (await rapidGemini.hasAny());
   }
 
   private clientFor(key: string) {
@@ -113,6 +161,8 @@ export class GeminiProvider implements AIProvider {
    */
   async generateStructured<T extends z.ZodType>(req: StructuredRequest<T>): Promise<z.infer<T>> {
     const keys = await aiKeyStore.rotation('gemini', this.envKey);
+    // Chaves do Gemini todas desativadas: usa as "Chaves do RapidAPI — Gemini"
+    if (!keys.length && (await rapidGemini.hasAny())) return rapidGemini.generateStructured(req);
     if (!keys.length) throw new AIProviderError('Nenhuma chave do Gemini configurada.', false, 'Nenhuma chave do Gemini cadastrada. Adicione uma em Configurações.');
     let lastError: unknown;
     // Sobrecarga não aparece para o usuário: passa para a próxima chave e, se todas estiverem
@@ -198,7 +248,8 @@ export class GeminiProvider implements AIProvider {
    */
   async describeGooglePlace(query: string, latLng?: { latitude: number; longitude: number }): Promise<GooglePlaceInfo | null> {
     const keys = await aiKeyStore.rotation('gemini', this.envKey);
-    if (!keys.length) throw new AIProviderError('Nenhuma chave do Gemini configurada.', false, 'Nenhuma chave do Gemini cadastrada. Adicione uma em Configurações.');
+    const useRapid = !keys.length && (await rapidGemini.hasAny());
+    if (!keys.length && !useRapid) throw new AIProviderError('Nenhuma chave do Gemini configurada.', false, 'Nenhuma chave do Gemini cadastrada. Adicione uma em Configurações.');
     const prompt =
       `Consulte o Google Maps e encontre o estabelecimento: "${query}".\n` +
       'Responda em português, uma informação por linha, no formato "Campo: valor", usando SOMENTE dados do Google Maps desse local ' +
@@ -206,6 +257,13 @@ export class GeminiProvider implements AIProvider {
       'Nome, Categoria, Endereço completo, Telefone, Site, Horário de funcionamento (um dia por linha), Nota e número de avaliações, ' +
       'Descrição do local (texto do próprio perfil), Serviços/comodidades listados no perfil.\n' +
       'Se não encontrar o local no Google Maps, responda apenas: NAO_ENCONTRADO';
+    // Pelo RapidAPI: só funciona se a API repassar a consulta ao Maps (groundingMetadata)
+    if (useRapid) {
+      const r = await rapidGemini.run({ prompt, maps: true });
+      const chunk = r.mapsChunks[0];
+      if (!chunk || /NAO_ENCONTRADO/.test(r.text)) return null;
+      return { text: r.text, mapsUri: chunk.uri, title: chunk.title || query };
+    }
     let lastError: unknown;
     // Consulta ao Maps funciona nos modelos 2.5: começa por ele e depois tenta os configurados
     const models = [...new Set(['gemini-2.5-flash', this.model, ...this.fallbackModels])];
@@ -253,11 +311,16 @@ export class GeminiProvider implements AIProvider {
    */
   async searchGooglePlaces(query: string, latLng?: { latitude: number; longitude: number }): Promise<GooglePlaceListing[]> {
     const keys = await aiKeyStore.rotation('gemini', this.envKey);
-    if (!keys.length) throw new AIProviderError('Nenhuma chave do Gemini configurada.', false, 'Nenhuma chave do Gemini cadastrada. Adicione uma em Configurações.');
+    const useRapid = !keys.length && (await rapidGemini.hasAny());
+    if (!keys.length && !useRapid) throw new AIProviderError('Nenhuma chave do Gemini configurada.', false, 'Nenhuma chave do Gemini cadastrada. Adicione uma em Configurações.');
     const prompt =
       `Use o Google Maps para listar até 20 estabelecimentos para a pesquisa: "${query}".\n` +
       'Para cada um, uma linha no formato: Nome | Telefone | Endereço | Site | Nota | Avaliações\n' +
       'Use "-" quando o Maps não tiver o dado. Não invente nada. Sem texto extra.';
+    if (useRapid) {
+      const r = await rapidGemini.run({ prompt, maps: true });
+      return listingsFromResponse(r.text, r.mapsChunks);
+    }
     let lastError: unknown;
     for (const key of keys) {
       const client = this.clientFor(key.key);
@@ -276,46 +339,7 @@ export class GeminiProvider implements AIProvider {
             .map((c) => c.maps)
             .filter((m): m is NonNullable<typeof m> => !!m?.uri && !!m.title)
             .map((m) => ({ uri: m.uri!, placeId: m.placeId ?? null, title: m.title!.replace(/\s*-\s*Google Maps$/i, '') }));
-          const key2 = (v: string) => v.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
-          const dash = (v: string | undefined) => (v && v.trim() !== '-' ? v.trim() : null);
-          const out: GooglePlaceListing[] = [];
-          for (const line of (response.text ?? '').split('\n')) {
-            // Aceita "Nome | Tel | …", tabela Markdown ("| Nome | Tel |"), marcadores e numeração
-            const cols = line
-              .trim()
-              .replace(/^[*•-]\s+|^\d+[.)]\s+/, '')
-              .replace(/^\|/, '')
-              .replace(/\|$/, '')
-              .split('|')
-              .map((c) => c.trim());
-            if (cols.length < 4 || !cols[0] || /^:?-{2,}/.test(cols[0]) || /^nome$/i.test(cols[0])) continue;
-            const name = cols[0].replace(/\*\*/g, '');
-            // Só locais confirmados pelo Maps (o nome bate com um local citado na resposta)
-            const chunk = chunks.find((c) => key2(c.title) === key2(name)) ?? chunks.find((c) => key2(c.title).includes(key2(name)) || key2(name).includes(key2(c.title)));
-            if (!chunk || out.some((o) => o.mapsUri === chunk.uri)) continue;
-            const rating = Number(dash(cols[4])?.replace(',', '.'));
-            const reviews = Number(dash(cols[5])?.replace(/\D/g, ''));
-            out.push({
-              name: chunk.title,
-              phone: dash(cols[1]),
-              address: dash(cols[2]),
-              website: dash(cols[3]),
-              rating: Number.isFinite(rating) && rating > 0 ? rating : null,
-              reviews: Number.isFinite(reviews) && reviews > 0 ? reviews : null,
-              mapsUri: chunk.uri,
-              placeId: chunk.placeId,
-            });
-          }
-          // Resposta fora do formato: ainda mostra os locais confirmados pelo Maps (só com o nome)
-          if (!out.length && chunks.length) {
-            console.warn('[maps] resposta fora do formato esperado:', (response.text ?? '').slice(0, 300));
-            for (const c of chunks) {
-              if (!out.some((o) => o.mapsUri === c.uri)) {
-                out.push({ name: c.title, phone: null, address: null, website: null, rating: null, reviews: null, mapsUri: c.uri, placeId: c.placeId });
-              }
-            }
-          }
-          return out;
+          return listingsFromResponse(response.text ?? '', chunks);
         } catch (err) {
           lastError = err;
           this.markExhausted(key.id, model, err);

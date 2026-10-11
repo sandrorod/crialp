@@ -69,6 +69,7 @@ export function SettingsPage() {
         </CardSection>
 
         {canManageKeys ? <AIKeysSection provider="gemini" /> : null}
+        {canManageKeys ? <AIKeysSection provider="rapidapi_gemini" /> : null}
         {canManageKeys ? <AIKeysSection provider="rapidapi" /> : null}
         {canManageKeys ? <GoogleDriveSection /> : null}
 

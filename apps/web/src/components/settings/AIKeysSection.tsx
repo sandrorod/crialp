@@ -1,11 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { AlertTriangle, KeyRound, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, CardSection, ConfirmDialog, ErrorBlock, Field, Input, LoadingBlock, StatusToggle } from '@/components/ui';
+import { Button, CardSection, ConfirmDialog, ErrorBlock, Field, Input, LoadingBlock, Select, StatusToggle } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { ApiError, errorMessage } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
-import { miscService, type KeyProvider } from '@/services';
+import { miscService, type KeyProvider, type RapidGeminiConfig } from '@/services';
 import type { AIKeyInfo } from '@/types';
 
 const PROVIDERS: Record<KeyProvider, { name: string; title: string; description: string; envVar: string; label: string; hint: string; placeholder: string }> = {
@@ -29,7 +29,69 @@ const PROVIDERS: Record<KeyProvider, { name: string; title: string; description:
     hint: 'Em rapidapi.com → seu app → "Authorization" (X-RapidAPI-Key). A chave é testada antes de salvar.',
     placeholder: '1a2b3c…msh…',
   },
+  rapidapi_gemini: {
+    name: 'Chave do RapidAPI (Gemini)',
+    title: 'Chaves do RapidAPI — Gemini',
+    description:
+      'Substituem as chaves do Gemini quando elas estão todas desativadas: gerar e analisar LPs e, se a API repassar a consulta ao Google Maps, ler e pesquisar locais. ' +
+      'Cada uso passa para a próxima chave ativa (rodízio). A mesma chave do RapidAPI pode estar também em "Chaves do RapidAPI — Maps".',
+    envVar: '',
+    label: 'Nova chave do RapidAPI (Gemini)',
+    hint: 'Assine uma API de Gemini no rapidapi.com e preencha o host dela acima. A chave é testada antes de salvar.',
+    placeholder: '1a2b3c…msh…',
+  },
 };
+
+/** Qual API de Gemini do RapidAPI usar (cada uma tem host e formato próprios). */
+function RapidGeminiConfigForm() {
+  const { data, error, loading, reload } = useAsync(() => miscService.rapidGeminiConfig(), []);
+  const [form, setForm] = useState<RapidGeminiConfig | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (data) setForm(data);
+  }, [data]);
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!form) return;
+    setSaving(true);
+    try {
+      setForm(await miscService.saveRapidGeminiConfig(form));
+      toast.success('API do RapidAPI (Gemini) salva.');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (error) return <ErrorBlock message={error} onRetry={reload} />;
+  if (loading || !form) return <LoadingBlock rows={1} />;
+  return (
+    <form onSubmit={save} className="grid gap-3 rounded-lg border border-zinc-200 p-3 sm:grid-cols-2">
+      <Field label="X-RapidAPI-Host" hint="Na página da API no RapidAPI → Endpoints → cabeçalhos do exemplo.">
+        <Input required value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} placeholder="algo.p.rapidapi.com" />
+      </Field>
+      <Field label="Caminho do endpoint" hint="Parte depois do host na URL do exemplo (POST).">
+        <Input value={form.path} onChange={(e) => setForm({ ...form, path: e.target.value })} placeholder="/" />
+      </Field>
+      <Field label="Formato do pedido" hint={'"Google" = corpo com contents/parts; "OpenAI" = corpo com messages.'}>
+        <Select value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value as RapidGeminiConfig['format'] })}>
+          <option value="google">Google (contents)</option>
+          <option value="openai">OpenAI (messages)</option>
+        </Select>
+      </Field>
+      <Field label="Modelo" hint="Enviado no formato OpenAI.">
+        <Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder="gemini-2.5-flash" />
+      </Field>
+      <div className="sm:col-span-2">
+        <Button type="submit" loading={saving} variant="secondary">
+          Salvar API
+        </Button>
+      </div>
+    </form>
+  );
+}
 
 /** Chaves de API com rodízio: cada uso passa para a próxima chave. */
 export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider }) {
@@ -130,6 +192,8 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
               <AlertTriangle className="size-4 flex-none" /> O provedor de IA do servidor não é o Gemini: estas chaves só serão usadas quando AI_PROVIDER=gemini.
             </p>
           ) : null}
+
+          {provider === 'rapidapi_gemini' ? <RapidGeminiConfigForm /> : null}
 
           <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-200">
             {data.env_key ? (

@@ -92,7 +92,7 @@ const hashKey = (key: string) => crypto.createHash('sha256').update(key.trim()).
 const envKeyRemoved = (provider: string) => `${provider}_env_key_removed`;
 
 /** Provedores com chaves cadastradas pelo painel. */
-export const KEY_PROVIDERS = ['gemini', 'rapidapi'] as const;
+export const KEY_PROVIDERS = ['gemini', 'rapidapi', 'rapidapi_gemini'] as const;
 export type KeyProvider = (typeof KEY_PROVIDERS)[number];
 
 export const aiKeyStore = {
@@ -133,9 +133,12 @@ export const aiKeyStore = {
     return !!(await one('select 1 from ai_api_keys where key_hash = $1', [hashKey(key)]));
   },
 
-  /** Onde esta chave já está cadastrada (provedor, nome e final), se estiver. */
-  async findByKey(key: string) {
-    return one<{ id: string; provider: string; label: string | null; last4: string }>('select id, provider, label, last4 from ai_api_keys where key_hash = $1', [hashKey(key)]);
+  /** Onde esta chave já está cadastrada (provedor, nome e final), se estiver; a do provedor informado vem primeiro. */
+  async findByKey(key: string, provider?: string) {
+    return one<{ id: string; provider: string; label: string | null; last4: string }>(
+      'select id, provider, label, last4 from ai_api_keys where key_hash = $1 order by (provider = $2) desc limit 1',
+      [hashKey(key), provider ?? null],
+    );
   },
 
   async add(input: { key: string; label?: string | null; userId?: string }, provider = 'gemini'): Promise<AIKeyInfo> {

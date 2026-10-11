@@ -9,6 +9,7 @@ import { dashboardStats } from '../repositories/landingPages.js';
 import { AIProviderError, aiService } from '../services/ai/index.js';
 import { aiKeyStore, KEY_PROVIDERS, type KeyProvider } from '../services/ai/keyStore.js';
 import { testRapidApiKey } from '../services/search/companySearch.js';
+import { getRapidGeminiConfig, rapidGemini, saveRapidGeminiConfig } from '../services/ai/RapidApiGemini.js';
 import { detectImageType, storage } from '../services/storage/StorageService.js';
 
 export const miscRouter = Router();
@@ -46,7 +47,8 @@ miscRouter.post('/uploads', upload.single('file'), async (req, res) => {
 
 // ─── Chaves de API com rodízio (Gemini e RapidAPI) ──────────────────
 const ProviderParam = z.enum(KEY_PROVIDERS, { message: 'Provedor inválido.' });
-const envKeyOf = (provider: KeyProvider) => (provider === 'gemini' ? env.ai.geminiApiKey : env.rapidApiKey);
+const envKeyOf = (provider: KeyProvider) => (provider === 'gemini' ? env.ai.geminiApiKey : provider === 'rapidapi' ? env.rapidApiKey : undefined);
+const isRapid = (p: string) => p === 'rapidapi' || p === 'rapidapi_gemini';
 
 const KeySchema = z.object({
   key: z.string().trim().min(20, 'Chave inválida.').max(300, 'Chave inválida.'),
@@ -60,7 +62,8 @@ miscRouter.get('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async 
     keys: await aiKeyStore.list(provider),
     // A chave da variável de ambiente também entra no rodízio (não é editável pelo painel)
     env_key: envKey ? { last4: envKey.slice(-4) } : null,
-    provider_active: provider !== 'gemini' || aiService.providerName === 'gemini',
+    // Gemini e RapidAPI — Gemini só valem com AI_PROVIDER=gemini
+    provider_active: provider === 'rapidapi' || aiService.providerName === 'gemini',
   });
 });
 
@@ -69,8 +72,8 @@ miscRouter.post('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async
   const provider = ProviderParam.parse(req.params.provider);
   const body = parseBody(KeySchema, req.body);
   // Mensagem diz onde a chave já está (a chave do servidor aparece na lista como "Chave do servidor")
-  const names: Record<string, string> = { gemini: 'Chaves do Gemini', rapidapi: 'Chaves do RapidAPI — Maps' };
-  const registered = await aiKeyStore.findByKey(body.key);
+  const names: Record<string, string> = { gemini: 'Chaves do Gemini', rapidapi: 'Chaves do RapidAPI — Maps', rapidapi_gemini: 'Chaves do RapidAPI — Gemini' };
+  const registered = await aiKeyStore.findByKey(body.key, provider);
   if (registered && registered.provider === provider) {
     const which = `"${registered.label || 'Chave'} (•••• ${registered.last4})"`;
     throw new AppError(409, `Esta chave já está na lista como ${which}.`, 'KEY_EXISTS', { id: registered.id, provider: registered.provider });
@@ -86,12 +89,20 @@ miscRouter.post('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async
       const msg = err instanceof AIProviderError ? err.userMessage ?? err.message : 'Não foi possível validar a chave.';
       throw new AppError(400, `Chave recusada pelo Gemini: ${msg}`);
     }
+  } else if (provider === 'rapidapi_gemini') {
+    try {
+      await rapidGemini.testKey(body.key);
+    } catch (err) {
+      const msg = err instanceof AIProviderError ? err.userMessage ?? err.message : 'Não foi possível validar a chave.';
+      throw new AppError(400, `Chave recusada: ${msg}`);
+    }
   } else {
     await testRapidApiKey(body.key);
   }
   // Chave cadastrada na lista do outro provedor (ex.: chave do Gemini colada em "Chaves do RapidAPI"):
   // já passou no teste deste provedor, então é movida para cá em vez de recusar
-  if (registered) {
+  // A mesma chave do RapidAPI pode ficar em Maps e em Gemini (uma chave vale para todas as APIs assinadas)
+  if (registered && !(isRapid(registered.provider) && isRapid(provider))) {
     const moved = await aiKeyStore.moveTo(registered.id, provider, body.label);
     res.status(201).json({ ...moved, moved_from: names[registered.provider] ?? registered.provider });
     return;
@@ -99,6 +110,25 @@ miscRouter.post('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async
   const created = await aiKeyStore.add({ key: body.key, label: body.label, userId: user.id }, provider);
   if (sameAsEnv) await aiKeyStore.removeEnvKey(envKeyOf(provider)!, provider);
   res.status(201).json(created);
+});
+
+// API de Gemini do RapidAPI usada pelas "Chaves do RapidAPI — Gemini" (cada API tem host e formato próprios)
+const RapidGeminiConfigSchema = z.object({
+  host: z.string().trim().toLowerCase().regex(/^[a-z0-9.-]+\.p\.rapidapi\.com$/, 'Host inválido: use o X-RapidAPI-Host (algo.p.rapidapi.com).'),
+  path: z.string().trim().max(200).regex(/^\/?[\w\-./?=&%:]*$/, 'Caminho inválido.'),
+  format: z.enum(['google', 'openai']),
+  model: z.string().trim().max(80),
+});
+
+miscRouter.get('/settings/rapidapi-gemini', requireRole(...MANAGER_ROLES), async (_req, res) => {
+  res.json(await getRapidGeminiConfig());
+});
+
+miscRouter.put('/settings/rapidapi-gemini', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const body = parseBody(RapidGeminiConfigSchema, req.body);
+  const cfg = { ...body, path: body.path.startsWith('/') ? body.path : `/${body.path}` };
+  await saveRapidGeminiConfig(cfg);
+  res.json(cfg);
 });
 
 miscRouter.patch('/settings/keys/:provider/:id', requireRole(...MANAGER_ROLES), async (req, res) => {

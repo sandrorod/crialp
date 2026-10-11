@@ -120,7 +120,13 @@ export const landingPageService = {
   removeClientAccess: (id: string) => api.del(`/landing-pages/${id}/client-access`),
 };
 
-export type KeyProvider = 'gemini' | 'rapidapi';
+export type KeyProvider = 'gemini' | 'rapidapi' | 'rapidapi_gemini';
+export interface RapidGeminiConfig {
+  host: string;
+  path: string;
+  format: 'google' | 'openai';
+  model: string;
+}
 export interface DriveStatus {
   configured: boolean;
   connected: boolean;
@@ -138,6 +144,9 @@ export const miscService = {
   addApiKey: (provider: KeyProvider, key: string, label?: string) => api.post<AIKeyInfo & { moved_from?: string }>(`/settings/keys/${provider}`, { key, label: label || null }),
   updateApiKey: (provider: KeyProvider, id: string, body: { active?: boolean; label?: string | null }) => api.patch(`/settings/keys/${provider}/${id}`, body),
   removeApiKey: (provider: KeyProvider, id: string) => api.del(`/settings/keys/${provider}/${id}`),
+  /** API de Gemini do RapidAPI usada quando as chaves do Gemini estão todas desativadas */
+  rapidGeminiConfig: () => api.get<RapidGeminiConfig>('/settings/rapidapi-gemini'),
+  saveRapidGeminiConfig: (body: RapidGeminiConfig) => api.put<RapidGeminiConfig>('/settings/rapidapi-gemini', body),
   /** Google Drive (imagem das LPs vai para a pasta "lp") */
   driveStatus: () => api.get<DriveStatus>('/google-drive/status'),
   disconnectDrive: () => api.del<DriveStatus>('/google-drive'),
