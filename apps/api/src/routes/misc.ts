@@ -69,7 +69,7 @@ miscRouter.post('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async
   const provider = ProviderParam.parse(req.params.provider);
   const body = parseBody(KeySchema, req.body);
   // Mensagem diz onde a chave já está (a chave do servidor aparece na lista como "Chave do servidor")
-  const names: Record<string, string> = { gemini: 'Chaves do Gemini', rapidapi: 'Chaves do RapidAPI' };
+  const names: Record<string, string> = { gemini: 'Chaves do Gemini', rapidapi: 'Chaves do RapidAPI — Maps' };
   const registered = await aiKeyStore.findByKey(body.key);
   if (registered && registered.provider === provider) {
     const which = `"${registered.label || 'Chave'} (•••• ${registered.last4})"`;
