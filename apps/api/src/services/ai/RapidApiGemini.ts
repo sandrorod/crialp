@@ -124,8 +124,9 @@ async function call(cfg: RapidGeminiConfig, key: string, input: { system?: strin
       : cfg.format === 'openai'
       ? {
           ...extra,
-          model: cfg.model,
-          messages: [...(input.system ? [{ role: 'system', content: input.system }] : []), { role: 'user', content: input.prompt }],
+          ...(cfg.model ? { model: cfg.model } : {}),
+          // Instrução junto da mensagem: muitas APIs do RapidAPI recusam o papel "system"
+          messages: [{ role: 'user', content: fullPrompt }],
           ...(input.json ? { response_format: { type: 'json_object' } } : {}),
         }
       : {
@@ -158,6 +159,27 @@ async function call(cfg: RapidGeminiConfig, key: string, input: { system?: strin
   return { text, mapsChunks: extractMapsChunks(parsed) };
 }
 
+/**
+ * Formato errado é a causa comum de 400 (o MCP configuration não diz o formato): a própria API avisa
+ * qual campo espera ("messages" → OpenAI; "contents" → Google). Tenta de novo nesse formato e grava
+ * o que funcionou, para os próximos usos já irem certo.
+ */
+async function callAdaptive(cfg: RapidGeminiConfig, key: string, input: Parameters<typeof call>[2]): Promise<RapidGeminiResponse> {
+  try {
+    return await call(cfg, key, input);
+  } catch (err) {
+    if (!(err instanceof RapidStatusError) || err.status !== 400 || cfg.format === 'template') throw err;
+    const wanted: RapidGeminiConfig['format'] | null =
+      /\bmessages\b/i.test(err.message) && cfg.format !== 'openai' ? 'openai' : /\bcontents\b/i.test(err.message) && cfg.format !== 'google' ? 'google' : null;
+    if (!wanted) throw err;
+    const next: RapidGeminiConfig = { ...cfg, format: wanted, template: wanted === 'openai' ? cfg.template : '' };
+    const r = await call(next, key, input);
+    await saveRapidGeminiConfig(next);
+    console.warn(`[rapidapi-gemini] ${cfg.host}: formato ajustado de ${cfg.format} para ${wanted}`);
+    return r;
+  }
+}
+
 function toUserError(err: unknown): AIProviderError {
   if (err instanceof AIProviderError) return err;
   const msg = err instanceof Error ? err.message : String(err);
@@ -178,7 +200,7 @@ export const rapidGemini = {
   async testKey(key: string) {
     const cfg = await getRapidGeminiConfig();
     try {
-      await call(cfg, key.trim(), { prompt: 'Responda apenas: ok' });
+      await callAdaptive(cfg, key.trim(), { prompt: 'Responda apenas: ok' });
     } catch (err) {
       throw toUserError(err);
     }
@@ -194,7 +216,7 @@ export const rapidGemini = {
     let lastError: unknown;
     for (const key of keys) {
       try {
-        const r = await call(cfg, key.key, input);
+        const r = await callAdaptive(cfg, key.key, input);
         await aiKeyStore.recordUse(key.id);
         await aiKeyStore.clearError(key.id);
         return r;
