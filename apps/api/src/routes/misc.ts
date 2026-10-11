@@ -116,9 +116,22 @@ miscRouter.post('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async
 const RapidGeminiConfigSchema = z.object({
   host: z.string().trim().toLowerCase().regex(/^[a-z0-9.-]+\.p\.rapidapi\.com$/, 'Host inválido: use o X-RapidAPI-Host (algo.p.rapidapi.com).'),
   path: z.string().trim().max(200).regex(/^\/?[\w\-./?=&%:]*$/, 'Caminho inválido.'),
-  format: z.enum(['google', 'openai']),
+  format: z.enum(['google', 'openai', 'template']),
   model: z.string().trim().max(80),
-});
+  template: z
+    .string()
+    .max(20000)
+    .optional()
+    .refine((t) => {
+      if (!t) return true;
+      try {
+        JSON.parse(t.split('"{{prompt}}"').join('""'));
+        return true;
+      } catch {
+        return false;
+      }
+    }, 'Corpo do pedido inválido.'),
+}).refine((c) => c.format !== 'template' || !!c.template?.includes('"{{prompt}}"'), { message: 'O corpo do pedido precisa ter "{{prompt}}" onde vai o texto.', path: ['template'] });
 
 miscRouter.get('/settings/rapidapi-gemini', requireRole(...MANAGER_ROLES), async (_req, res) => {
   res.json(await getRapidGeminiConfig());

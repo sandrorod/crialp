@@ -124,8 +124,10 @@ export type KeyProvider = 'gemini' | 'rapidapi' | 'rapidapi_gemini';
 export interface RapidGeminiConfig {
   host: string;
   path: string;
-  format: 'google' | 'openai';
+  format: 'google' | 'openai' | 'template';
   model: string;
+  /** template: corpo do Playground com "{{prompt}}"; openai: campos extras do corpo */
+  template?: string;
 }
 export interface DriveStatus {
   configured: boolean;

@@ -14,9 +14,15 @@ import { aiKeyStore, type AIKey } from './keyStore.js';
 export interface RapidGeminiConfig {
   host: string;
   path: string;
-  format: 'google' | 'openai';
+  /** google = contents/parts; openai = messages; template = corpo copiado do Playground com {{prompt}} */
+  format: 'google' | 'openai' | 'template';
   /** Modelo enviado no corpo (formato openai) — algumas APIs exigem */
   model: string;
+  /**
+   * Formato template: corpo JSON do Playground com "{{prompt}}" no lugar do texto.
+   * Formato openai: campos extras do corpo do Playground (ex.: web_access) em JSON.
+   */
+  template?: string;
 }
 
 export const DEFAULT_RAPID_GEMINI_CONFIG: RapidGeminiConfig = {
@@ -104,9 +110,20 @@ class RapidStatusError extends Error {
 
 async function call(cfg: RapidGeminiConfig, key: string, input: { system?: string; prompt: string; json?: boolean; maps?: boolean }): Promise<RapidGeminiResponse> {
   const path = cfg.path.startsWith('/') ? cfg.path : `/${cfg.path}`;
+  const extra = (() => {
+    try {
+      return cfg.format === 'openai' && cfg.template ? (JSON.parse(cfg.template) as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  })();
+  const fullPrompt = input.system ? `${input.system}\n\n${input.prompt}` : input.prompt;
   const body =
-    cfg.format === 'openai'
+    cfg.format === 'template'
+      ? JSON.parse((cfg.template ?? '"{{prompt}}"').split('"{{prompt}}"').join(JSON.stringify(fullPrompt)))
+      : cfg.format === 'openai'
       ? {
+          ...extra,
           model: cfg.model,
           messages: [...(input.system ? [{ role: 'system', content: input.system }] : []), { role: 'user', content: input.prompt }],
           ...(input.json ? { response_format: { type: 'json_object' } } : {}),

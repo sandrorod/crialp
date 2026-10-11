@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { AlertTriangle, KeyRound, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, CardSection, ConfirmDialog, ErrorBlock, Field, Input, LoadingBlock, Select, StatusToggle } from '@/components/ui';
+import { Button, CardSection, ConfirmDialog, ErrorBlock, Field, Input, LoadingBlock, Select, StatusToggle, Textarea } from '@/components/ui';
+import { parseRapidSnippet } from '@/lib/rapidSnippet';
 import { useAsync } from '@/hooks/useAsync';
 import { ApiError, errorMessage } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
@@ -43,10 +44,46 @@ const PROVIDERS: Record<KeyProvider, { name: string; title: string; description:
 };
 
 /** Qual API de Gemini do RapidAPI usar (cada uma tem host e formato próprios). */
-function RapidGeminiConfigForm() {
+function RapidGeminiConfigForm({ onKeyAdded }: { onKeyAdded: () => void }) {
   const { data, error, loading, reload } = useAsync(() => miscService.rapidGeminiConfig(), []);
   const [form, setForm] = useState<RapidGeminiConfig | null>(null);
   const [saving, setSaving] = useState(false);
+  const [pasted, setPasted] = useState('');
+  const [applying, setApplying] = useState(false);
+
+  // MCP configuration (ou código do Playground) colado: preenche a API, salva e cadastra a chave
+  const applyPasted = async () => {
+    if (!form) return;
+    const info = parseRapidSnippet(pasted);
+    if (!info.host) {
+      toast.error('Não encontrei o host (x-api-host / algo.p.rapidapi.com) no texto colado.');
+      return;
+    }
+    // MCP configuration não traz caminho nem formato: API nova volta ao padrão em vez de herdar o da anterior
+    const reset = !info.config?.path && info.host !== form.host ? { path: '/', format: 'google' as const, template: '' } : {};
+    const next: RapidGeminiConfig = { ...form, ...reset, ...info.config, host: info.host };
+    setApplying(true);
+    try {
+      setForm(await miscService.saveRapidGeminiConfig(next));
+      if (info.key) {
+        try {
+          await miscService.addApiKey('rapidapi_gemini', info.key, info.host.replace(/\.p\.rapidapi\.com$/, ''));
+          toast.success('API salva e chave cadastrada (testada com sucesso).');
+          onKeyAdded();
+        } catch (err) {
+          if (err instanceof ApiError && err.code === 'KEY_EXISTS') toast.success('API salva. A chave já estava cadastrada.');
+          else toast.error(`API salva, mas a chave não foi cadastrada: ${errorMessage(err)}`);
+        }
+      } else {
+        toast.success('API salva. Não encontrei a chave no texto: cadastre-a abaixo.');
+      }
+      setPasted('');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setApplying(false);
+    }
+  };
   useEffect(() => {
     if (data) setForm(data);
   }, [data]);
@@ -68,6 +105,24 @@ function RapidGeminiConfigForm() {
   if (error) return <ErrorBlock message={error} onRetry={reload} />;
   if (loading || !form) return <LoadingBlock rows={1} />;
   return (
+    <div className="space-y-3">
+    <div className="space-y-2 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-3">
+      <Field
+        label="Colar MCP configuration"
+        hint={'No RapidAPI, abra a API → aba "MCP" → copie o "MCP configuration" e cole aqui. Também aceita o código do Playground. O host e a chave são lidos sozinhos.'}
+      >
+        <Textarea
+          rows={5}
+          value={pasted}
+          onChange={(e) => setPasted(e.target.value)}
+          placeholder={'{\n  "mcpServers": {\n    "RapidAPI Hub - …": {\n      "command": "npx",\n      "args": ["mcp-remote", "https://mcp.rapidapi.com", "--header", "x-api-host: …p.rapidapi.com", "--header", "x-api-key: …"]\n    }\n  }\n}'}
+          className="font-mono text-xs"
+        />
+      </Field>
+      <Button type="button" onClick={() => void applyPasted()} loading={applying} disabled={!pasted.trim()}>
+        Usar esta configuração
+      </Button>
+    </div>
     <form onSubmit={save} className="grid gap-3 rounded-lg border border-zinc-200 p-3 sm:grid-cols-2">
       <Field label="X-RapidAPI-Host" hint="Na página da API no RapidAPI → Endpoints → cabeçalhos do exemplo.">
         <Input required value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} placeholder="algo.p.rapidapi.com" />
@@ -79,17 +134,24 @@ function RapidGeminiConfigForm() {
         <Select value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value as RapidGeminiConfig['format'] })}>
           <option value="google">Google (contents)</option>
           <option value="openai">OpenAI (messages)</option>
+          <option value="template">Corpo do Playground</option>
         </Select>
       </Field>
       <Field label="Modelo" hint="Enviado no formato OpenAI.">
         <Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder="gemini-2.5-flash" />
       </Field>
+      {form.format === 'template' ? (
+        <Field label="Corpo do pedido" hint={'JSON do Playground com "{{prompt}}" onde vai o texto.'} className="sm:col-span-2">
+          <Textarea rows={4} value={form.template ?? ''} onChange={(e) => setForm({ ...form, template: e.target.value })} className="font-mono text-xs" />
+        </Field>
+      ) : null}
       <div className="sm:col-span-2">
         <Button type="submit" loading={saving} variant="secondary">
           Salvar API
         </Button>
       </div>
     </form>
+    </div>
   );
 }
 
@@ -193,7 +255,7 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
             </p>
           ) : null}
 
-          {provider === 'rapidapi_gemini' ? <RapidGeminiConfigForm /> : null}
+          {provider === 'rapidapi_gemini' ? <RapidGeminiConfigForm onKeyAdded={reload} /> : null}
 
           <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-200">
             {data.env_key ? (
