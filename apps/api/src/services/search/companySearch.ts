@@ -64,6 +64,12 @@ const QUOTA_SKIP_MS = 6 * 3600_000;
 const NOT_SUBSCRIBED_SKIP_MS = 3600_000;
 const skipKey = (keyId: string | null, host: string) => `${keyId}|${host}`;
 
+/** 429 do limite por segundo/minuto do plano (não é cota): esperar um pouco resolve. */
+export const isBurstLimit = (status: number, message: string) =>
+  status === 429 && !/quota|monthly|daily|per (day|month|hour)/i.test(message);
+const BURST_RETRY_DELAYS = [1200, 2500, 5000];
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 /**
  * Chamada ao RapidAPI com rodízio de chaves (as cadastradas em Configurações + RAPIDAPI_KEY), igual ao
  * Gemini: cada chamada começa pela próxima chave; chave inválida, sem cota, sem assinatura da API ou que
@@ -80,15 +86,24 @@ async function rapid(host: string, path: string): Promise<{ status: number; body
   let last: { status: number; body: any } | null = null;
   let timedOut = false;
   for (const key of keys) {
-    const res = await fetch(`https://${host}${path}`, {
-      headers: { 'x-rapidapi-key': key.key, 'x-rapidapi-host': host },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    }).catch(() => null);
+    let res: Response | null = null;
+    let r: { status: number; body: any } = { status: 0, body: null };
+    // Plano gratuito do RapidAPI aceita ~1 consulta por segundo e a busca faz várias juntas:
+    // 429 por segundo espera e tenta a mesma chave de novo
+    for (let attempt = 0; ; attempt++) {
+      res = await fetch(`https://${host}${path}`, {
+        headers: { 'x-rapidapi-key': key.key, 'x-rapidapi-host': host },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      }).catch(() => null);
+      if (!res) break;
+      r = { status: res.status, body: await res.json().catch(() => null) };
+      if (!isBurstLimit(r.status, String(r.body?.message ?? '')) || attempt >= BURST_RETRY_DELAYS.length) break;
+      await sleep(BURST_RETRY_DELAYS[attempt] + Math.random() * 500);
+    }
     if (!res) {
       timedOut = true;
       continue;
     }
-    const r = { status: res.status, body: await res.json().catch(() => null) };
     // Esta chave não assina esta API: outra chave do rodízio pode assinar
     if (notSubscribed(r)) {
       rapidSkip.set(skipKey(key.id, host), Date.now() + NOT_SUBSCRIBED_SKIP_MS);

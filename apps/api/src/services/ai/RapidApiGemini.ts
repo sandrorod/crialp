@@ -164,16 +164,30 @@ async function call(cfg: RapidGeminiConfig, key: string, input: { system?: strin
  * qual campo espera ("messages" → OpenAI; "contents" → Google). Tenta de novo nesse formato e grava
  * o que funcionou, para os próximos usos já irem certo.
  */
+/** 429 do limite por segundo/minuto (não é cota): espera e tenta de novo a mesma chave. */
+async function callWithBurstRetry(cfg: RapidGeminiConfig, key: string, input: Parameters<typeof call>[2]): Promise<RapidGeminiResponse> {
+  const delays = [1200, 2500, 5000];
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await call(cfg, key, input);
+    } catch (err) {
+      const burst = err instanceof RapidStatusError && err.status === 429 && !/quota|monthly|daily|per (day|month|hour)/i.test(err.message);
+      if (!burst || attempt >= delays.length) throw err;
+      await new Promise((r) => setTimeout(r, delays[attempt] + Math.random() * 500));
+    }
+  }
+}
+
 async function callAdaptive(cfg: RapidGeminiConfig, key: string, input: Parameters<typeof call>[2]): Promise<RapidGeminiResponse> {
   try {
-    return await call(cfg, key, input);
+    return await callWithBurstRetry(cfg, key, input);
   } catch (err) {
     if (!(err instanceof RapidStatusError) || err.status !== 400 || cfg.format === 'template') throw err;
     const wanted: RapidGeminiConfig['format'] | null =
       /\bmessages\b/i.test(err.message) && cfg.format !== 'openai' ? 'openai' : /\bcontents\b/i.test(err.message) && cfg.format !== 'google' ? 'google' : null;
     if (!wanted) throw err;
     const next: RapidGeminiConfig = { ...cfg, format: wanted, template: wanted === 'openai' ? cfg.template : '' };
-    const r = await call(next, key, input);
+    const r = await callWithBurstRetry(next, key, input);
     await saveRapidGeminiConfig(next);
     console.warn(`[rapidapi-gemini] ${cfg.host}: formato ajustado de ${cfg.format} para ${wanted}`);
     return r;

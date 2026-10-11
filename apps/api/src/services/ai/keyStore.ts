@@ -65,6 +65,10 @@ export function shortError(raw: string): string {
   } catch {
     /* não é JSON */
   }
+  // Limite por segundo/minuto (RapidAPI: "exceeded the rate limit per second"): não é falta de cota
+  if (/rate limit per (second|minute)|too many requests|requests per (second|minute)/i.test(text) && !/quota|monthly|daily|per (day|month|hour)/i.test(text)) {
+    return 'Muitas consultas ao mesmo tempo (limite por segundo/minuto do plano). Não é falta de cota: o sistema espera e tenta de novo.';
+  }
   if (/quota|exhausted|rate limit|429/i.test(text)) return 'Cota esgotada (limite de uso atingido). Tente mais tarde ou use outra chave.';
   text = text.replace(/\s+/g, ' ').trim();
   return text.length > 160 ? `${text.slice(0, 157)}…` : text;
