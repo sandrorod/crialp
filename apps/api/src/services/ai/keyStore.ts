@@ -121,7 +121,8 @@ export const aiKeyStore = {
     const reset = lastQuotaReset();
     const nextReset = new Date(reset.getTime() + 24 * 3600 * 1000).toISOString();
     return rows.map((r) => {
-      const quota = !!r.last_error && QUOTA_ERROR.test(r.last_error);
+      // Renovação à meia-noite do Pacífico é regra do Google; a cota do RapidAPI segue o plano da API.
+      const quota = provider === 'gemini' && !!r.last_error && QUOTA_ERROR.test(r.last_error);
       if (quota && r.last_error_at && new Date(r.last_error_at) < reset) return { ...r, last_error: null, last_error_at: null, quota_until: null };
       // Erros gravados antes do resumo também aparecem curtos
       return { ...r, last_error: r.last_error ? shortError(r.last_error) : null, quota_until: quota ? nextReset : null };

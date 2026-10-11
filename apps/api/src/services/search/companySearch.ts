@@ -55,33 +55,62 @@ const keyProblem = (r: { status: number; body: any }) =>
   r.status === 401 || r.status === 429 || (r.status === 403 && !/not subscribed/i.test(r.body?.message ?? '')) || /invalid api key|quota|exceeded|rate limit/i.test(r.body?.message ?? '');
 
 /**
- * Chamada ao RapidAPI com rodízio de chaves (as cadastradas em Configurações + RAPIDAPI_KEY):
- * cada chamada começa pela próxima chave; chave inválida ou sem cota passa para a seguinte.
+ * Chave × API do RapidAPI que não vale tentar agora (como o "exhausted" do Gemini): sem cota, limite
+ * por segundo ou sem assinatura daquela API. Valor = até quando pular. Por instância do servidor.
+ */
+const rapidSkip = new Map<string, number>();
+const RATE_LIMIT_SKIP_MS = 60_000;
+const QUOTA_SKIP_MS = 6 * 3600_000;
+const NOT_SUBSCRIBED_SKIP_MS = 3600_000;
+const skipKey = (keyId: string | null, host: string) => `${keyId}|${host}`;
+
+/**
+ * Chamada ao RapidAPI com rodízio de chaves (as cadastradas em Configurações + RAPIDAPI_KEY), igual ao
+ * Gemini: cada chamada começa pela próxima chave; chave inválida, sem cota, sem assinatura da API ou que
+ * não respondeu passa para a seguinte. Chave sem cota fica fora por um tempo para não gastar cada consulta
+ * de uma busca passando por ela; o erro some do painel quando ela volta a funcionar.
  */
 async function rapid(host: string, path: string): Promise<{ status: number; body: any }> {
-  const keys = await aiKeyStore.rotation('rapidapi', env.rapidApiKey);
-  if (!keys.length) throw new AppError(503, 'Pesquisa indisponível: cadastre uma chave do RapidAPI em Configurações.');
+  const all = await aiKeyStore.rotation('rapidapi', env.rapidApiKey);
+  if (!all.length) throw new AppError(503, 'Pesquisa indisponível: cadastre uma chave do RapidAPI em Configurações.');
+  const now = Date.now();
+  const usable = all.filter((k) => (rapidSkip.get(skipKey(k.id, host)) ?? 0) <= now);
+  // Todas em espera: tenta assim mesmo (a cota pode ter renovado antes do previsto)
+  const keys = usable.length ? usable : all;
   let last: { status: number; body: any } | null = null;
+  let timedOut = false;
   for (const key of keys) {
     const res = await fetch(`https://${host}${path}`, {
       headers: { 'x-rapidapi-key': key.key, 'x-rapidapi-host': host },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     }).catch(() => null);
-    if (!res) throw new AppError(504, 'A pesquisa demorou demais para responder. Tente novamente.');
+    if (!res) {
+      timedOut = true;
+      continue;
+    }
     const r = { status: res.status, body: await res.json().catch(() => null) };
     // Esta chave não assina esta API: outra chave do rodízio pode assinar
     if (notSubscribed(r)) {
+      rapidSkip.set(skipKey(key.id, host), Date.now() + NOT_SUBSCRIBED_SKIP_MS);
       last ??= r;
       continue;
     }
     if (!keyProblem(r)) {
+      rapidSkip.delete(skipKey(key.id, host));
       await aiKeyStore.recordUse(key.id);
+      await aiKeyStore.clearError(key.id);
       return r;
     }
     last = r;
-    await aiKeyStore.recordError(key.id, `${r.status}: ${r.body?.message ?? 'erro'}`);
+    const message = String(r.body?.message ?? '');
+    if (r.status === 429 || /quota|exceeded|rate limit/i.test(message)) {
+      const quota = /quota|monthly|daily|per day|per month/i.test(message);
+      rapidSkip.set(skipKey(key.id, host), Date.now() + (quota ? QUOTA_SKIP_MS : RATE_LIMIT_SKIP_MS));
+    }
+    await aiKeyStore.recordError(key.id, `${r.status}: ${message || 'erro'}`);
   }
   if (last && notSubscribed(last)) return last;
+  if (!last && timedOut) throw new AppError(504, 'A pesquisa demorou demais para responder. Tente novamente.');
   throw new AppError(503, `Todas as chaves do RapidAPI falharam (${last?.body?.message ?? last?.status}). Verifique as chaves em Configurações.`);
 }
 
