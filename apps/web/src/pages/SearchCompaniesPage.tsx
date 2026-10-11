@@ -13,7 +13,7 @@ import type { FoundCompany, SavedSearchItem, SiteFilter } from '@/types';
 
 // A última pesquisa continua na tela ao voltar de outra página
 const STORE_KEY = 'lp:company-search';
-type Saved = { q: string; items: FoundCompany[]; center: { lat: number; lng: number } | null; page: number; hasMore: boolean; searchId?: string | null; filter?: SiteFilter };
+type Saved = { q: string; items: FoundCompany[]; center: { lat: number; lng: number } | null; page: number; hasMore: boolean; searchId?: string | null; filter?: SiteFilter; phone?: boolean };
 function loadSaved(): Saved | null {
   try {
     return JSON.parse(sessionStorage.getItem(STORE_KEY) ?? 'null');
@@ -31,11 +31,6 @@ function store(next: Saved) {
 
 type Near = { lat: number; lng: number } | null;
 
-const FILTERS: { value: SiteFilter; label: string }[] = [
-  { value: 'todos', label: 'Todos' },
-  { value: 'com_site', label: 'Com site' },
-  { value: 'sem_site', label: 'Sem site' },
-];
 
 /** Instagram, Facebook, WhatsApp e agregadores de links não contam como site próprio (igual ao servidor). */
 const NOT_A_SITE = /(^|\.)(instagram\.com|facebook\.com|fb\.com|wa\.me|whatsapp\.com|linktr\.ee|linkr\.bio|beacons\.ai|bio\.link)$/i;
@@ -47,7 +42,15 @@ function hasOwnSite(c: FoundCompany) {
     return false;
   }
 }
-const matchesFilter = (c: FoundCompany, f: SiteFilter) => (f === 'todos' ? true : f === 'com_site' ? hasOwnSite(c) : !hasOwnSite(c));
+/** Todas as opções marcadas precisam valer (nenhuma marcada = todas as empresas). */
+const matchesFilter = (c: FoundCompany, f: SiteFilter, phone: boolean) =>
+  (f === 'todos' ? true : f === 'com_site' ? hasOwnSite(c) : !hasOwnSite(c)) && (!phone || !!c.phone?.trim());
+/** Resumo das opções marcadas, para os textos da lista ("com telefone e site"). */
+function filterLabel(f: SiteFilter, phone: boolean) {
+  const parts = [phone ? 'telefone' : null, f === 'com_site' ? 'site' : null].filter(Boolean);
+  const com = parts.length ? `com ${parts.join(' e ')}` : '';
+  return [com, f === 'sem_site' ? 'sem site' : ''].filter(Boolean).join(' e ');
+}
 
 const MATCH_REASON = { link: 'mesmo link', site: 'mesmo site e nome/telefone', nome_telefone: 'mesmo nome e telefone', nome_cep: 'mesmo nome e CEP' } as const;
 
@@ -135,6 +138,7 @@ export function SearchCompaniesPage() {
   const [hasMore, setHasMore] = useState(saved?.hasMore ?? false);
   const [lastQ, setLastQ] = useState(saved?.q ?? '');
   const [filter, setFilter] = useState<SiteFilter>(saved?.filter ?? 'todos');
+  const [phoneOnly, setPhoneOnly] = useState(saved?.phone ?? false);
   const [loading, setLoading] = useState<'new' | 'more' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -164,7 +168,7 @@ export function SearchCompaniesPage() {
       setHasMore(r.has_more);
       setWarning(null);
       setSearchId(r.id);
-      store({ q: r.query, items: r.results, center: c, page: r.page, hasMore: r.has_more, searchId: r.id, filter });
+      store({ q: r.query, items: r.results, center: c, page: r.page, hasMore: r.has_more, searchId: r.id, filter, phone: phoneOnly });
     } catch (err) {
       if (!quiet) toast.error(errorMessage(err));
     } finally {
@@ -204,7 +208,7 @@ export function SearchCompaniesPage() {
       setHasMore(r.has_more);
       setWarning(r.warning);
       setSearchId(r.search_id);
-      store({ q: term, items: merged, center: nextCenter, page: p, hasMore: r.has_more, searchId: r.search_id, filter });
+      store({ q: term, items: merged, center: nextCenter, page: p, hasMore: r.has_more, searchId: r.search_id, filter, phone: phoneOnly });
       void history.reload();
     } catch (err) {
       setError(errorMessage(err));
@@ -224,8 +228,14 @@ export function SearchCompaniesPage() {
   };
 
   const more = () => void fetchPage(lastQ, center, page + 1, items ?? [], searchId);
-  // Filtro aplicado na tela também: trocar Todos / Com site / Sem site não refaz a pesquisa
-  const shown = (items ?? []).filter((c) => matchesFilter(c, filter));
+  // Filtro aplicado na tela também: marcar/desmarcar as opções não refaz a pesquisa
+  const shown = (items ?? []).filter((c) => matchesFilter(c, filter, phoneOnly));
+  const filtering = filter !== 'todos' || phoneOnly;
+  const changeFilter = (nextFilter: SiteFilter, nextPhone: boolean) => {
+    setFilter(nextFilter);
+    setPhoneOnly(nextPhone);
+    if (items) store({ q: lastQ, items, center, page, hasMore, searchId, filter: nextFilter, phone: nextPhone });
+  };
 
   const generate = (c: FoundCompany) => {
     // A análise usa os dados já trazidos pela pesquisa (sem consultar o Maps de novo)
@@ -255,26 +265,35 @@ export function SearchCompaniesPage() {
           </div>
           <Button type="submit" size="lg" loading={loading === 'new'} disabled={!!loading} icon={<Search className="size-4" />}>Pesquisar</Button>
         </form>
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-zinc-600">Empresas:</span>
-          <div role="radiogroup" className="inline-flex rounded-lg border border-zinc-200 p-0.5">
-            {FILTERS.map((f) => (
-              <button
-                key={f.value}
-                type="button"
-                role="radio"
-                aria-checked={filter === f.value}
-                onClick={() => {
-                  setFilter(f.value);
-                  if (items) store({ q: lastQ, items, center, page, hasMore, searchId, filter: f.value });
-                }}
-                className={cn('rounded-md px-3 py-1.5 text-[13px] font-medium transition', filter === f.value ? 'bg-ink text-white' : 'text-zinc-600 hover:bg-zinc-100')}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <fieldset className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+          <legend className="sr-only">Opções de pesquisa</legend>
+          <span className="text-zinc-600">Trazer só empresas:</span>
+          {(
+            [
+              { label: 'Com telefone', icon: <Phone className="size-3.5" />, checked: phoneOnly, onChange: (v: boolean) => changeFilter(filter, v) },
+              // Com site e Sem site se excluem: marcar um desmarca o outro
+              { label: 'Com site', icon: <Globe className="size-3.5" />, checked: filter === 'com_site', onChange: (v: boolean) => changeFilter(v ? 'com_site' : 'todos', phoneOnly) },
+              { label: 'Sem site', icon: <Globe className="size-3.5 opacity-50" />, checked: filter === 'sem_site', onChange: (v: boolean) => changeFilter(v ? 'sem_site' : 'todos', phoneOnly) },
+            ] as const
+          ).map((o) => (
+            <label
+              key={o.label}
+              className={cn(
+                'flex cursor-pointer select-none items-center gap-2 rounded-lg border px-3 py-1.5 text-[13px] font-medium transition',
+                o.checked ? 'border-ink bg-ink text-white' : 'border-zinc-200 text-zinc-600 hover:bg-zinc-100',
+              )}
+            >
+              <input type="checkbox" className="size-4 accent-white" checked={o.checked} onChange={(e) => o.onChange(e.target.checked)} />
+              {o.icon}
+              {o.label}
+            </label>
+          ))}
+          {filtering ? (
+            <button type="button" onClick={() => changeFilter('todos', false)} className="text-xs text-zinc-500 underline hover:text-zinc-800">
+              Limpar
+            </button>
+          ) : null}
+        </fieldset>
         <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm text-zinc-700">
           <input type="checkbox" className="mt-0.5 size-4 accent-zinc-900" checked={allowImages} onChange={(e) => setAllowImages(e.target.checked)} />
           <span>
@@ -293,14 +312,14 @@ export function SearchCompaniesPage() {
         <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
           <h2 className="text-lg font-semibold">Empresas encontradas</h2>
           <span className="text-xs text-zinc-500">
-            {filter === 'todos' ? `${items.length} empresa(s)` : `${shown.length} de ${items.length} empresa(s) ${filter === 'com_site' ? 'com site' : 'sem site'}`} para “{lastQ}”
+            {!filtering ? `${items.length} empresa(s)` : `${shown.length} de ${items.length} empresa(s) ${filterLabel(filter, phoneOnly)}`} para “{lastQ}”
           </span>
         </div>
       ) : null}
       {loading === 'new' ? waiting : null}
       {items && !shown.length && !loading ? (
         <Card className="p-5 text-sm text-zinc-500">
-          {items.length ? `Nenhuma empresa ${filter === 'com_site' ? 'com' : 'sem'} site entre as encontradas até agora. Use "Buscar mais" ou troque o filtro.` : 'Nenhuma empresa encontrada. Tente outras palavras ou inclua a cidade.'}
+          {items.length ? `Nenhuma empresa ${filterLabel(filter, phoneOnly)} entre as encontradas até agora. Use "Buscar mais" ou desmarque alguma opção.` : 'Nenhuma empresa encontrada. Tente outras palavras ou inclua a cidade.'}
         </Card>
       ) : null}
       {shown.length ? (
