@@ -56,6 +56,25 @@ export interface GooglePlaceListing {
 }
 
 /**
+ * A API do RapidAPI — Gemini respondeu sem consultar o Google Maps (não repassa o groundingMetadata):
+ * sem a confirmação do Maps os locais seriam inventados pela IA, então avisa em vez de devolver vazio
+ * (antes a busca dizia "nenhum resultado" mesmo havendo empresas).
+ */
+let rapidNoMapsUntil = 0;
+const rapidNoMaps = () => {
+  // Cada busca dispara várias consultas: depois da primeira sem Maps, as outras nem chamam a API
+  rapidNoMapsUntil = Date.now() + 10 * 60_000;
+  return rapidNoMapsError();
+};
+const rapidNoMapsError = () =>
+  new AIProviderError(
+    'RapidAPI — Gemini sem consulta ao Google Maps.',
+    false,
+    'As chaves do Gemini estão desativadas e a API do RapidAPI — Gemini não consulta o Google Maps, então não há como confirmar os locais. ' +
+      'Para "Buscar empresas": ative uma chave do Gemini ou assine a "Local Business Data" na chave do RapidAPI — Maps.',
+  );
+
+/**
  * Locais da resposta do Gemini com consulta ao Maps: só entram os que o Maps confirmou (cada um tem
  * link do Maps). Usado pelas chaves do Gemini e pelas do RapidAPI — Gemini.
  */
@@ -259,8 +278,10 @@ export class GeminiProvider implements AIProvider {
       'Se não encontrar o local no Google Maps, responda apenas: NAO_ENCONTRADO';
     // Pelo RapidAPI: só funciona se a API repassar a consulta ao Maps (groundingMetadata)
     if (useRapid) {
+      if (Date.now() < rapidNoMapsUntil) throw rapidNoMapsError();
       const r = await rapidGemini.run({ prompt, maps: true });
       const chunk = r.mapsChunks[0];
+      if (!chunk && !/NAO_ENCONTRADO/.test(r.text)) throw rapidNoMaps();
       if (!chunk || /NAO_ENCONTRADO/.test(r.text)) return null;
       return { text: r.text, mapsUri: chunk.uri, title: chunk.title || query };
     }
@@ -318,7 +339,9 @@ export class GeminiProvider implements AIProvider {
       'Para cada um, uma linha no formato: Nome | Telefone | Endereço | Site | Nota | Avaliações\n' +
       'Use "-" quando o Maps não tiver o dado. Não invente nada. Sem texto extra.';
     if (useRapid) {
+      if (Date.now() < rapidNoMapsUntil) throw rapidNoMapsError();
       const r = await rapidGemini.run({ prompt, maps: true });
+      if (!r.mapsChunks.length) throw rapidNoMaps();
       return listingsFromResponse(r.text, r.mapsChunks);
     }
     let lastError: unknown;
