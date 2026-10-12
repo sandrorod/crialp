@@ -35,12 +35,12 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
             <Icon name={i.icon} />
             <span>
               <small {...ed(ctx, `labels.${i.key}`)}>{i.label}</small>
-              <strong {...v.attrs}>{text}</strong>
+              <strong {...v.attrs} {...(isPhone(i.key) ? { style: { '--tel-chars': text.length } as React.CSSProperties } : {})}>{text}</strong>
             </span>
           </>
         );
         return (
-          <li key={i.label} className={pairPhones && isPhone(i.key) ? 'contact-half' : undefined}>
+          <li key={i.label} className={isPhone(i.key) ? `contact-tel${pairPhones ? ' contact-half' : ''}` : undefined}>
             {i.href ? (
               <a href={i.href} {...(i.href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {})}>
                 {inner}
