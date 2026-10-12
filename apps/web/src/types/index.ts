@@ -349,7 +349,8 @@ export interface TemplateInfo {
 }
 
 /** "custom:<id>": a foto aparece na seção personalizada com esse id */
-export type ImagePlacement = 'hero' | 'about' | 'gallery' | 'hidden' | 'logo' | `custom:${string}`;
+/** "section:<seção>": a foto aparece no fim dessa seção do modelo (serviços, contato…) */
+export type ImagePlacement = 'hero' | 'about' | 'gallery' | 'hidden' | 'logo' | `custom:${string}` | `section:${string}`;
 
 export interface LandingPage {
   id: string;

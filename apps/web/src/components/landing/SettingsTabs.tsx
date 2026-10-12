@@ -470,7 +470,7 @@ export function TemplateTab({ theme, onChange, hasPhoto }: { theme: ThemeSetting
 }
 
 // ─── Fotos ──────────────────────────────────────────────────────────
-const PLACEMENT_LABELS: Record<Exclude<ImagePlacement, `custom:${string}`>, string> = {
+const PLACEMENT_LABELS: Record<Exclude<ImagePlacement, `custom:${string}` | `section:${string}`>, string> = {
   hero: 'Topo da página',
   about: 'Seção "Sobre"',
   gallery: 'Galeria',
@@ -479,6 +479,11 @@ const PLACEMENT_LABELS: Record<Exclude<ImagePlacement, `custom:${string}`>, stri
 };
 
 const isCustom = (p: ImagePlacement | undefined): p is `custom:${string}` => !!p?.startsWith('custom:');
+/** Seções do modelo que aceitam fotos no fim (mesma lista do servidor) */
+const SECTION_PHOTO_KEYS = ['services', 'differentials', 'products', 'testimonials', 'faq', 'contact', 'final_cta'] as const;
+const isSection = (p: ImagePlacement | undefined): p is `section:${string}` => !!p?.startsWith('section:');
+/** Foto presa a uma seção (criada ou do modelo): fica lá, fora do automático e da galeria */
+const isInSection = (p: ImagePlacement | undefined) => isCustom(p) || isSection(p);
 
 /** Mesma regra da renderização: fotos em "Automático" preenchem topo, "sobre" e galeria nessa ordem. */
 function resolvePlacements(urls: string[], chosen: Record<string, ImagePlacement>) {
@@ -489,7 +494,7 @@ function resolvePlacements(urls: string[], chosen: Record<string, ImagePlacement
   for (const u of urls) {
     if (chosen[u] === 'hidden') out[u] = 'hidden';
     else if (chosen[u] === 'logo') out[u] = 'logo';
-    else if (isCustom(chosen[u])) out[u] = chosen[u];
+    else if (isInSection(chosen[u])) out[u] = chosen[u]!;
     else if (u === hero) out[u] = 'hero';
     else if (u === about) out[u] = 'about';
     else if (chosen[u] === 'gallery' || !chosen[u]) out[u] = 'gallery';
@@ -665,7 +670,8 @@ export function PhotosTab({
   ) as Record<string, ImagePlacement>;
   const resolved = resolvePlacements(allowed.map((i) => i.url), chosen);
   const sectionName = (p: `custom:${string}`) => customSections.find((s) => `custom:${s.id}` === p)?.title.trim() || 'Seção personalizada';
-  const placementLabel = (p: ImagePlacement) => (isCustom(p) ? `Seção "${sectionName(p)}"` : PLACEMENT_LABELS[p]);
+  const placementLabel = (p: ImagePlacement) =>
+    isCustom(p) ? `Seção "${sectionName(p)}"` : isSection(p) ? `Seção "${SECTION_NAMES[p.slice(8)] ?? p.slice(8)}"` : PLACEMENT_LABELS[p];
   // Ativas = as que aparecem na página: topo, "sobre" e as 9 primeiras da galeria (se tiver 2 ou mais),
   // listadas na ordem em que aparecem na página (topo, depois "sobre" e galeria conforme a ordem das seções)
   const galleryUrls = allowed.map((i) => i.url).filter((u) => resolved[u] === 'gallery');
@@ -677,11 +683,12 @@ export function PhotosTab({
     return i < 0 ? Infinity : i;
   };
   const aboutFirst = sectionPos('about') <= sectionPos('gallery');
-  // Fotos das seções criadas, agrupadas na ordem das seções da página
+  // Fotos das seções (criadas e do modelo), agrupadas na ordem das seções da página
+  const sectionKeyOf = (p: ImagePlacement) => (isSection(p) ? p.slice(8) : p);
   const customUrls = allowed
     .map((i) => i.url)
-    .filter((u) => isCustom(resolved[u]))
-    .sort((a, b) => sectionPos(resolved[a]) - sectionPos(resolved[b]));
+    .filter((u) => isInSection(resolved[u]))
+    .sort((a, b) => sectionPos(sectionKeyOf(resolved[a])) - sectionPos(sectionKeyOf(resolved[b])));
   const roles: { url: string; role: 'hero' | 'about' | 'gallery' | 'custom' }[] = [
     ...(heroUrl ? [{ url: heroUrl, role: 'hero' as const }] : []),
     ...(aboutFirst && aboutUrl ? [{ url: aboutUrl, role: 'about' as const }] : []),
@@ -726,7 +733,7 @@ export function PhotosTab({
     assign(aboutPick, 'about');
     const rest = newActive.filter((u) => u !== heroPick && u !== aboutPick);
     // Fotos das seções criadas continuam na sua seção; as demais voltam para a galeria
-    for (const u of rest) if (next[u] && next[u] !== 'gallery' && !isCustom(next[u])) delete next[u];
+    for (const u of rest) if (next[u] && next[u] !== 'gallery' && !isInSection(next[u])) delete next[u];
     for (const u of newOutside) if (activeSet.has(u)) next[u] = 'hidden';
     const imageOrder = [heroPick, aboutPick, ...rest, ...newOutside].filter((u): u is string => !!u);
     onChange({ ...theme, images: next, imageOrder });
@@ -845,6 +852,11 @@ export function PhotosTab({
                   {(Object.keys(PLACEMENT_LABELS) as (keyof typeof PLACEMENT_LABELS)[]).map((p) => (
                     <option key={p} value={p}>{PLACEMENT_LABELS[p]}</option>
                   ))}
+                  <optgroup label="Seções da página">
+                    {SECTION_PHOTO_KEYS.filter((k) => !sectionOrder || sectionOrder.includes(k) || k === 'contact' || k === 'final_cta').map((k) => (
+                      <option key={k} value={`section:${k}`}>{placementLabel(`section:${k}`)}</option>
+                    ))}
+                  </optgroup>
                   {customSections.length ? (
                     <optgroup label="Seções criadas">
                       {customSections.map((s) => (

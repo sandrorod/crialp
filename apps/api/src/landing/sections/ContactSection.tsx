@@ -1,4 +1,5 @@
 import type { RenderContext } from '../context.js';
+import { SectionPhotos } from './SectionPhotos.js';
 import { formatBrazilPhone } from '../../lib/phone.js';
 import { cad, ed, edOptional } from '../context.js';
 import { CtaButton } from './CtaButton.js';
@@ -65,6 +66,7 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
             );
           })}
         </ul>
+        <SectionPhotos ctx={ctx} name="contact" />
       </div>
     </section>
   );
@@ -80,6 +82,7 @@ export function FinalCTA({ ctx }: { ctx: RenderContext }) {
         <div className="reveal">
           <CtaButton ctx={ctx} label={f.cta} path="final_cta.cta" />
         </div>
+        <SectionPhotos ctx={ctx} name="final_cta" />
       </div>
     </section>
   );

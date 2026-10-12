@@ -25,6 +25,8 @@ export interface RenderContext {
   gallery: LpImage[];
   /** Fotos escolhidas para cada seção personalizada (id da seção → fotos, na ordem do editor) */
   customPhotos: Record<string, LpImage[]>;
+  /** Fotos escolhidas no editor para o fim de uma seção do modelo ("section:services" → services) */
+  sectionPhotos: Record<string, LpImage[]>;
   links: {
     whatsapp: string | null;
     phone: string | null;
@@ -178,9 +180,11 @@ export function buildContext(opts: {
   // Galeria: até 9 fotos, como no editor (as demais aparecem lá em "Fora da página")
   const gallery = visible.filter((p) => p !== heroImage && p !== aboutImage && (place(p.url) === 'gallery' || !place(p.url))).slice(0, MAX_GALLERY);
   const customPhotos: Record<string, LpImage[]> = {};
+  const sectionPhotos: Record<string, LpImage[]> = {};
   for (const p of visible) {
     const at = place(p.url);
     if (at?.startsWith('custom:')) (customPhotos[at.slice(7)] ??= []).push(p);
+    if (at?.startsWith('section:')) (sectionPhotos[at.slice(8)] ??= []).push(p);
   }
 
   const labels = resolveLabels((content as { labels?: unknown }).labels);
@@ -238,6 +242,7 @@ export function buildContext(opts: {
     aboutImage,
     gallery,
     customPhotos,
+    sectionPhotos,
     links: {
       whatsapp,
       phone,

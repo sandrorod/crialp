@@ -175,9 +175,13 @@ export const TEMPLATES: Record<TemplateKey, Template> = {
 export const IMAGE_PLACEMENTS = ['hero', 'about', 'gallery', 'hidden', 'logo'] as const;
 // "custom:<id>": a foto aparece na seção personalizada com esse id (fora da galeria)
 export const CUSTOM_PLACEMENT = /^custom:[a-z0-9-]{1,40}$/;
-export type ImagePlacement = (typeof IMAGE_PLACEMENTS)[number] | `custom:${string}`;
+// "section:<seção>": a foto aparece numa grade no fim dessa seção do modelo (serviços, contato…)
+export const SECTION_PHOTO_KEYS = ['services', 'differentials', 'products', 'testimonials', 'faq', 'contact', 'final_cta'] as const;
+export type SectionPhotoKey = (typeof SECTION_PHOTO_KEYS)[number];
+export const SECTION_PLACEMENT = new RegExp(`^section:(${SECTION_PHOTO_KEYS.join('|')})$`);
+export type ImagePlacement = (typeof IMAGE_PLACEMENTS)[number] | `custom:${string}` | `section:${SectionPhotoKey}`;
 export const isImagePlacement = (v: unknown): v is ImagePlacement =>
-  typeof v === 'string' && ((IMAGE_PLACEMENTS as readonly string[]).includes(v) || CUSTOM_PLACEMENT.test(v));
+  typeof v === 'string' && ((IMAGE_PLACEMENTS as readonly string[]).includes(v) || CUSTOM_PLACEMENT.test(v) || SECTION_PLACEMENT.test(v));
 
 function normalizeImagePlacements(input: unknown): Record<string, ImagePlacement> {
   const out: Record<string, ImagePlacement> = {};

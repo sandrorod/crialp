@@ -1,4 +1,5 @@
 import type { RenderContext } from '../context.js';
+import { SectionPhotos } from './SectionPhotos.js';
 import { TEMPLATES } from '../theme.js';
 import { cad, ed, edIcon, edOptional } from '../context.js';
 import { Icon } from './Icon.js';
@@ -96,6 +97,7 @@ export function ServicesSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
             ))}
           </div>
         )}
+        <SectionPhotos ctx={ctx} name="services" />
       </div>
     </section>
   );
@@ -117,6 +119,7 @@ export function BenefitsSection({ ctx }: { ctx: RenderContext }) {
             </div>
           ))}
         </div>
+        <SectionPhotos ctx={ctx} name="differentials" />
       </div>
     </section>
   );
@@ -149,6 +152,7 @@ export function ProductsSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
             </article>
           ))}
         </div>
+        <SectionPhotos ctx={ctx} name="products" />
       </div>
     </section>
   );
@@ -231,6 +235,7 @@ export function TestimonialsSection({ ctx, alt }: { ctx: RenderContext; alt: boo
             </blockquote>
           ))}
         </div>
+        <SectionPhotos ctx={ctx} name="testimonials" />
       </div>
     </section>
   );
@@ -254,6 +259,7 @@ export function FaqSection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {
             </details>
           ))}
         </div>
+        <SectionPhotos ctx={ctx} name="faq" />
       </div>
     </section>
   );
