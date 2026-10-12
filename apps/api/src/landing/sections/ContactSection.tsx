@@ -20,6 +20,34 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
   if (company.opening_hours) items.push({ key: 'contact_hours', data: 'contact.hours', icon: 'clock', label: ctx.labels.contact_hours, value: company.opening_hours });
   if (!items.length && !ctx.socials.length) return null;
 
+  const contactList = (inline: boolean) => items.length ? (
+    <ul className={`contact-list reveal${inline ? ' contact-list-inline' : ''}`}>
+      {items.map((i) => {
+        const v = cad(ctx, i.data, i.value);
+        const inner = (
+          <>
+            <Icon name={i.icon} />
+            <span>
+              <small {...ed(ctx, `labels.${i.key}`)}>{i.label}</small>
+              <strong {...v.attrs}>{v.text}</strong>
+            </span>
+          </>
+        );
+        return (
+          <li key={i.label}>
+            {i.href ? (
+              <a href={i.href} {...(i.href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {})}>
+                {inner}
+              </a>
+            ) : (
+              <div>{inner}</div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  ) : null;
+
   return (
     <section id="contato" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container contact">
@@ -32,7 +60,7 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
             <div className="socials reveal">
               {ctx.socials.map((s) => (
                 <a key={s.url} href={s.url} target="_blank" rel="noopener" aria-label={s.network}>
-                  <Icon name={SOCIAL_ICON[s.network.toLowerCase()] ?? 'globe'} size={20} />
+                  <Icon name={SOCIAL_ICON[s.network.toLowerCase()] ?? 'globe'} size={22} />
                 </a>
               ))}
             </div>
@@ -40,38 +68,15 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
             // Só na prévia do editor: indica onde preencher as redes (a página publicada não mostra nada)
             <p className="lp-social-hint">+ Redes sociais: preencha em Textos → “Redes sociais”</p>
           ) : null}
+          {ctx.mapEmbed ? contactList(true) : null}
         </div>
-        {/* Mapa ativo: ocupa o lugar dos cartões de contato; desativado (ou sem rua no cadastro): os cartões */}
+        {/* Mapa ativo: fica à direita e os contatos descem para a coluna do texto; sem mapa: os cartões à direita */}
         {ctx.mapEmbed ? (
           <div className="contact-map reveal">
             <iframe src={ctx.mapEmbed} title={`Mapa: ${ctx.addressLine ?? ctx.displayName}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
           </div>
         ) : (
-        <ul className="contact-list reveal">
-          {items.map((i) => {
-            const v = cad(ctx, i.data, i.value);
-            const inner = (
-              <>
-                <Icon name={i.icon} />
-                <span>
-                  <small {...ed(ctx, `labels.${i.key}`)}>{i.label}</small>
-                  <strong {...v.attrs}>{v.text}</strong>
-                </span>
-              </>
-            );
-            return (
-              <li key={i.label}>
-                {i.href ? (
-                  <a href={i.href} {...(i.href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {})}>
-                    {inner}
-                  </a>
-                ) : (
-                  <div>{inner}</div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+          contactList(false)
         )}
         <SectionPhotos ctx={ctx} name="contact" />
       </div>
