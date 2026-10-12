@@ -2,6 +2,7 @@ import { one, query } from '../../db/pool.js';
 import { waitUntil } from '@vercel/functions';
 import { env } from '../../config/env.js';
 import { AppError, Messages } from '../../lib/errors.js';
+import { clearUrlError, recordUrlError } from '../../repositories/urlErrors.js';
 
 export type JobType = 'analyze_url' | 'generate_landing_page';
 
@@ -70,6 +71,7 @@ export class JobService {
         await query(`update jobs set status = 'running' where id = $1 and status <> 'error'`, [id]);
         const result = await fn(handle);
         await query(`update jobs set status = 'done', result = $2 where id = $1 and status <> 'error'`, [id, JSON.stringify(result ?? null)]);
+        await this.urlOutcome(id, null);
         // Gerou: tira a marca de erro da empresa
         await query(
           `update companies c set lp_error = null, lp_error_at = null from jobs j
@@ -82,10 +84,38 @@ export class JobService {
         if (!(err instanceof AppError)) console.error(`[job ${id}]`, err);
         await query(`update jobs set status = 'error', error = $2 where id = $1 and status <> 'error'`, [id, message]).catch(() => {});
         await query(MARK_LP_ERROR('select id, type, input, error from jobs where id = $1'), [id]).catch(() => {});
+        await this.urlOutcome(id, message);
       }
     })();
     // No Vercel a função continua viva até a tarefa terminar, mesmo após a resposta
     if (env.isVercel) waitUntil(task);
+  }
+
+  /** Análise de link: grava (ou apaga, se deu certo) o erro pelo link, para "Buscar empresas" mostrar. */
+  private async urlOutcome(id: string, error: string | null) {
+    try {
+      const job = await one<{ organization_id: string; type: JobType; input: any }>('select organization_id, type, input from jobs where id = $1', [id]);
+      const url = job?.type === 'analyze_url' ? job.input?.url : null;
+      if (!job || typeof url !== 'string') return;
+      if (error) await recordUrlError(job.organization_id, url, error);
+      else await clearUrlError(job.organization_id, url);
+    } catch (err) {
+      console.warn('[jobs] erro da análise não registrado:', err instanceof Error ? err.message : err);
+    }
+  }
+
+  /** Processamentos que pararam no meio: gerações marcam a empresa; análises, o link. */
+  private async markFailed(rows: { id: string; organization_id: string; type: JobType; input: any; error: string }[]) {
+    if (!rows.length) return;
+    await query(MARK_LP_ERROR('select id, type, input, error from jobs where id = any($1)'), [rows.map((r) => r.id)]).catch(() => {});
+    await this.markStaleAnalyses(rows);
+  }
+
+  /** Análises que pararam no meio (instância encerrada) também ficam marcadas pelo link. */
+  private async markStaleAnalyses(rows: { organization_id: string; type: JobType; input: any; error: string }[]) {
+    for (const r of rows) {
+      if (r.type === 'analyze_url' && typeof r.input?.url === 'string') await recordUrlError(r.organization_id, r.input.url, r.error).catch(() => {});
+    }
   }
 
   /** Interrompe um processamento em andamento (a tarefa para na próxima etapa, sem salvar). */
@@ -100,24 +130,22 @@ export class JobService {
   /** Tarefas paradas há mais de 10 min (instância encerrada) viram erro. Seguro em várias instâncias. */
   async failStale() {
     // Geração que parou no meio (instância encerrada, tempo esgotado) também marca a empresa
-    await query(
-      `with failed as (
-         update jobs set status = 'error', error = 'Processamento interrompido. Tente novamente.'
-          where status in ('queued','running') and updated_at < now() - interval '10 minutes'
-          returning id, type, input, error
-       )${MARK_LP_ERROR('select * from failed')}`,
+    const stale = await query<{ id: string; organization_id: string; type: JobType; input: any; error: string }>(
+      `update jobs set status = 'error', error = 'Processamento interrompido. Tente novamente.'
+        where status in ('queued','running') and updated_at < now() - interval '10 minutes'
+        returning id, organization_id, type, input, error`,
     );
+    await this.markFailed(stale.rows);
     await query(`delete from jobs where created_at < now() - interval '7 days'`);
   }
 
   /** Tarefas interrompidas por reinício do servidor não ficam "rodando" para sempre. */
   async failInterrupted() {
-    await query(
-      `with failed as (
-         update jobs set status = 'error', error = 'Processamento interrompido. Tente novamente.' where status in ('queued','running')
-          returning id, type, input, error
-       )${MARK_LP_ERROR('select * from failed')}`,
+    const stopped = await query<{ id: string; organization_id: string; type: JobType; input: any; error: string }>(
+      `update jobs set status = 'error', error = 'Processamento interrompido. Tente novamente.' where status in ('queued','running')
+        returning id, organization_id, type, input, error`,
     );
+    await this.markFailed(stopped.rows);
     await query(`delete from jobs where created_at < now() - interval '7 days'`);
   }
 }

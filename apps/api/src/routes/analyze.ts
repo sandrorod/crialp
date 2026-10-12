@@ -12,6 +12,7 @@ import { generateLanding } from '../services/pipeline/generateLanding.js';
 import { findDuplicateCompany, getCompanyFull, matchRegisteredCompanies } from '../repositories/companies.js';
 import { searchCompanies, searchCompanySites, type FoundCompany } from '../services/search/companySearch.js';
 import { appendSearch, createSearch, deleteSearch, getSearch, listSearches } from '../repositories/companySearches.js';
+import { urlErrorsFor } from '../repositories/urlErrors.js';
 
 export const analyzeRouter = Router();
 
@@ -130,8 +131,8 @@ analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
   const places = type === 'locais' ? await searchCompanies(q, filter, page, saved?.center ?? latLng ?? null) : null;
   const items = places ? places.items : await searchCompanySites(q);
   const source = type === 'locais' ? 'maps' : 'web';
-  const registered = await matchRegisteredCompanies(user.organizationId, items);
-  const marked = items.map((c, i) => ({ ...c, existing: registered[i] }));
+  const [registered, failures] = await Promise.all([matchRegisteredCompanies(user.organizationId, items), urlErrorsFor(user.organizationId, items.map((c) => c.url))]);
+  const marked = items.map((c, i) => ({ ...c, existing: registered[i], analysis_error: registered[i] ? null : failures[i] }));
   // Grava toda pesquisa no histórico, mesmo sem resultados (a marcação de cadastrada/LP é recalculada ao abrir)
   let savedId: string | null = null;
   let historyError: string | null = null;
@@ -163,8 +164,8 @@ analyzeRouter.get('/company-searches/:id', async (req, res) => {
   const search = await getSearch(user.organizationId, uuidParam.parse(req.params.id));
   if (!search) throw notFound('Pesquisa não encontrada.');
   const items = search.results as FoundCompany[];
-  const registered = await matchRegisteredCompanies(user.organizationId, items);
-  res.json({ ...search, results: items.map((c, i) => ({ ...c, existing: registered[i] })) });
+  const [registered, failures] = await Promise.all([matchRegisteredCompanies(user.organizationId, items), urlErrorsFor(user.organizationId, items.map((c) => c.url))]);
+  res.json({ ...search, results: items.map((c, i) => ({ ...c, existing: registered[i], analysis_error: registered[i] ? null : failures[i] })) });
 });
 
 analyzeRouter.delete('/company-searches/:id', async (req, res) => {
