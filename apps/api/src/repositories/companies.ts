@@ -279,18 +279,30 @@ export function companyNameKey(raw: string | null | undefined): string | null {
 }
 
 /**
- * Empresa já cadastrada na organização com o mesmo link (endereço analisado ou site)
- * ou com o mesmo nome. Links de página inicial também batem com o site cadastrado.
+ * Empresa já cadastrada na organização com o mesmo link (endereço analisado ou site), ou com o mesmo nome
+ * E o mesmo telefone/CEP. Nome igual sozinho não basta: nomes genéricos ("Marido de aluguel", "Pet Shop")
+ * são de empresas diferentes em cidades diferentes — antes bloqueava o cadastro delas como "mesmo nome".
+ * Links de página inicial também batem com o site cadastrado.
  */
 export async function findDuplicateCompany(
   orgId: string,
-  probe: { url?: string | null; website?: string | null; name?: string | null; tradeName?: string | null },
+  probe: {
+    url?: string | null; website?: string | null; name?: string | null; tradeName?: string | null;
+    phones?: (string | null | undefined)[]; zip?: string | null;
+  },
   ignoreId?: string,
-): Promise<{ id: string; name: string; reason: 'link' | 'nome' } | null> {
-  const { rows } = await query<{ id: string; name: string; trade_name: string | null; reference_url: string | null; website: string | null }>(
-    'select id, name, trade_name, reference_url, website from companies where organization_id = $1',
+): Promise<{ id: string; name: string; reason: 'link' | 'nome e telefone' | 'nome e CEP' } | null> {
+  const { rows } = await query<{ id: string; name: string; trade_name: string | null; reference_url: string | null; website: string | null; phones: string | null; zip_code: string | null }>(
+    `select id, name, trade_name, reference_url, website, concat_ws('|', phone, mobile, whatsapp) as phones, zip_code
+       from companies where organization_id = $1`,
     [orgId],
   );
+  const last8 = (v: string | null | undefined) => {
+    const d = (v ?? '').replace(/\D/g, '');
+    return d.length >= 8 ? d.slice(-8) : null;
+  };
+  const probePhones = new Set((probe.phones ?? []).map(last8).filter((p): p is string => !!p));
+  const probeZip = (probe.zip ?? '').replace(/\D/g, '');
   const urlKeys = new Set([companyUrlKey(probe.url)].filter((k): k is string => !!k));
   // O site (origem) só conta quando é a página inicial: perfis diferentes na mesma plataforma têm a mesma origem
   const homeKeys = new Set([probe.url, probe.website].map(companyUrlKey).filter((k): k is string => !!k && !k.includes('/') && !isPlatformKey(k)));
@@ -303,7 +315,12 @@ export async function findDuplicateCompany(
       return { id: c.id, name: c.trade_name || c.name, reason: 'link' };
     }
     if ([c.name, c.trade_name].map(companyNameKey).some((k) => k && nameKeys.has(k))) {
-      return { id: c.id, name: c.trade_name || c.name, reason: 'nome' };
+      if ((c.phones ?? '').split('|').map(last8).some((p) => p && probePhones.has(p))) {
+        return { id: c.id, name: c.trade_name || c.name, reason: 'nome e telefone' };
+      }
+      if (probeZip.length === 8 && (c.zip_code ?? '').replace(/\D/g, '') === probeZip) {
+        return { id: c.id, name: c.trade_name || c.name, reason: 'nome e CEP' };
+      }
     }
   }
   return null;

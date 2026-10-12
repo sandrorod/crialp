@@ -74,7 +74,14 @@ companiesRouter.post('/', async (req, res) => {
     req.body,
   );
   const { source_meta, analysis_job_id, ...input } = body;
-  const dup = await findDuplicateCompany(user.organizationId, { url: input.reference_url, website: input.website, name: input.name, tradeName: input.trade_name });
+  const dup = await findDuplicateCompany(user.organizationId, {
+    url: input.reference_url,
+    website: input.website,
+    name: input.name,
+    tradeName: input.trade_name,
+    phones: [input.phone, input.mobile, input.whatsapp],
+    zip: input.zip_code,
+  });
   if (dup) throw new AppError(409, `Esta empresa já foi cadastrada: "${dup.name}" (mesmo ${dup.reason}).`, 'DUPLICATE_COMPANY');
   const id = await createCompany(user.organizationId, user.id, withLogo(input), source_meta ?? {});
   // Conteúdo completo do site, guardado pela análise
