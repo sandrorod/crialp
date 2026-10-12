@@ -186,15 +186,15 @@ p{margin:0;text-wrap:pretty}
 
 /* Contato */
 .contact{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(36px,5vw,72px)}
-@media(min-width:960px){.contact{grid-template-columns:1fr 1fr;align-items:start}}
-.contact-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:12px}.contact-list>li{grid-column:1/-1;min-width:0}.contact-list>li.contact-half{grid-column:auto}.contact-list>li>a,.contact-list>li>div{height:100%;box-sizing:border-box}.contact-half a,.contact-half>div{padding:18px 16px;gap:12px}.contact-half strong{white-space:nowrap}@media(max-width:419px){.contact-list>li.contact-half{grid-column:1/-1}}
+@media(min-width:960px){.contact{grid-template-columns:1fr 1fr;align-items:start}.contact:has(>.contact-map){grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr)}}
+.contact-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(max(200px,calc(50% - 6px)),1fr));gap:12px}.contact-list>li{grid-column:1/-1;min-width:0}.contact-list>li.contact-half{grid-column:auto}.contact-list>li>a,.contact-list>li>div{height:100%;box-sizing:border-box}.contact-half a,.contact-half>div{padding:18px 16px;gap:12px}.contact-half strong{white-space:nowrap}
 .contact-list a,.contact-list div{display:flex;gap:16px;align-items:flex-start;padding:20px 22px;border-radius:var(--radius-sm);border:1px solid var(--border);text-decoration:none;background:var(--bg);transition:border-color .2s}
 .contact-list a:hover{border-color:var(--primary-ink)}
 .contact-list .ico{color:var(--primary-ink);margin-top:2px}
 .contact-list small{display:block;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
 .contact-list strong{font-weight:600;word-break:break-word;white-space:pre-line}
 .contact-list-inline{margin-top:28px}
-.contact-map{width:100%;max-width:460px;justify-self:end;aspect-ratio:1/1;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);background:var(--bg)}.contact-map iframe{display:block;width:100%;height:100%;border:0}@media(max-width:767px){.contact-map{justify-self:stretch;max-width:none}}
+.contact-map{width:100%;max-width:552px;justify-self:end;aspect-ratio:1/1;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);background:var(--bg)}.contact-map iframe{display:block;width:100%;height:100%;border:0}@media(max-width:767px){.contact-map{justify-self:stretch;max-width:none}}
 .socials{display:flex;gap:10px;margin-top:28px;flex-wrap:wrap}
 .socials a{width:62px;height:62px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--border);transition:background .2s,color .2s,border-color .2s}
 .socials a:hover{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
@@ -203,7 +203,7 @@ p{margin:0;text-wrap:pretty}
 .final{background:var(--primary);color:var(--on-primary);text-align:center;position:relative;overflow:hidden}
 .final::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 0%,rgba(255,255,255,.14),transparent 45%);pointer-events:none}
 .final .container{position:relative;max-width:900px}
-.final h2{font-size:calc((clamp(2.1rem,1.3rem + 3.4vw,3.6rem)) * var(--title-scale))}
+.final h2{font-size:calc((clamp(2.1rem,1.3rem + 3.4vw,3.6rem)) * var(--title-scale) * .8)}
 .final p{margin:20px auto 0;font-size:clamp(1.05rem,1rem + .35vw,1.25rem);opacity:.86;max-width:640px}
 .final .btn{margin-top:36px;background:var(--on-primary);color:var(--primary);box-shadow:0 18px 40px -18px rgba(0,0,0,.45)}
 .final .btn:hover{transform:translateY(-2px)}
@@ -356,7 +356,7 @@ p{margin:0;text-wrap:pretty}
 .tpl-impacto .card::after{content:counter(svc,decimal-leading-zero);position:absolute;top:16px;right:22px;font:800 46px/1 var(--font-heading);color:color-mix(in srgb,var(--primary) 22%,transparent)}
 .tpl-impacto .gallery figure:first-child{grid-column:1/-1;aspect-ratio:16/9}
 @media(min-width:860px){.tpl-impacto .gallery{grid-template-columns:repeat(3,1fr);grid-auto-rows:240px}.tpl-impacto .gallery figure:first-child{grid-column:1/-1;grid-row:span 2;aspect-ratio:auto}}
-.tpl-impacto .final h2{font-size:calc((clamp(2.4rem,1.3rem + 4.4vw,4.4rem)) * var(--title-scale))}
+.tpl-impacto .final h2{font-size:calc((clamp(2.4rem,1.3rem + 4.4vw,4.4rem)) * var(--title-scale) * .8)}
 
 /* ─── Revista: editorial, fios pretos, capitular, colunas e mosaico ─── */
 .tpl-revista{--radius:0px;--radius-sm:0px;--btn-radius:0px}
