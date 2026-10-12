@@ -145,7 +145,14 @@ export function SearchCompaniesPage() {
   const [allowImages, setAllowImages] = useState(true);
   // Pesquisa salva no histórico que está na tela
   const [searchId, setSearchId] = useState<string | null>(saved?.searchId ?? null);
-  const history = useAsync(() => searchService.history(), []);
+  // Pesquisa no histórico: procura no servidor (todo o histórico), 300 ms depois de parar de digitar
+  const [historyQ, setHistoryQ] = useState('');
+  const [historyTerm, setHistoryTerm] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setHistoryTerm(historyQ.trim()), 300);
+    return () => clearTimeout(t);
+  }, [historyQ]);
+  const history = useAsync(() => searchService.history(historyTerm), [historyTerm]);
   const [opening, setOpening] = useState<string | null>(null);
   // No celular o histórico começa recolhido (no computador fica sempre aberto)
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -352,6 +359,16 @@ export function SearchCompaniesPage() {
             </button>
           </h2>
           {showHistory ? <div className="mt-3">
+          <div className="relative mb-2">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-zinc-400" />
+            <Input
+              className="h-9 pl-8 text-sm"
+              placeholder="Procurar pesquisa…"
+              value={historyQ}
+              onChange={(e) => setHistoryQ(e.target.value)}
+              aria-label="Procurar no histórico de pesquisas"
+            />
+          </div>
           {history.loading && !history.data ? (
             <p className="text-xs text-zinc-500">Carregando…</p>
           ) : history.error && !history.data ? (
@@ -360,7 +377,7 @@ export function SearchCompaniesPage() {
               <button type="button" className="font-medium underline" onClick={() => void history.reload()}>Tentar de novo</button>
             </p>
           ) : !history.data?.items.length ? (
-            <p className="text-xs text-zinc-500">As pesquisas feitas ficam salvas aqui.</p>
+            <p className="text-xs text-zinc-500">{historyTerm ? `Nenhuma pesquisa com “${historyTerm}”.` : 'As pesquisas feitas ficam salvas aqui.'}</p>
           ) : (
             <ul className="max-h-[60vh] space-y-1 overflow-y-auto">
               {history.data.items.map((h) => (

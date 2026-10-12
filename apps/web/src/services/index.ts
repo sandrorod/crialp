@@ -60,7 +60,7 @@ export const searchService = {
       `/company-search${qs({ q, type: 'locais', filter, lat: near?.lat.toFixed(5), lng: near?.lng.toFixed(5), page: String(page), search_id: searchId ?? undefined })}`,
     ),
   /** Histórico de pesquisas salvas */
-  history: () => api.get<{ items: SavedSearchItem[] }>('/company-searches'),
+  history: (q?: string) => api.get<{ items: SavedSearchItem[] }>(`/company-searches${q?.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`),
   saved: (id: string) =>
     api.get<{ id: string; query: string; center: { latitude: number; longitude: number } | null; page: number; has_more: boolean; results: FoundCompany[]; updated_at: string }>(`/company-searches/${id}`),
   removeSaved: (id: string) => api.del(`/company-searches/${id}`),

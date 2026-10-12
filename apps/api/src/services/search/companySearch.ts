@@ -448,6 +448,12 @@ function placeInQuery(query: string) {
  * resultados, e as variações trazem empresas novas a cada "Buscar mais".
  */
 const WEB_VARIANTS = ['', 'telefone', 'whatsapp', 'contato', 'orçamento', 'site oficial', 'endereço', 'empresa'];
+/**
+ * Sem os locais do Maps (chaves do Gemini desativadas / sem "Local Business Data"), uma consulta de sites
+ * rende bem menos que 50 empresas: estas variações completam a página (2 por página, sem repetir entre páginas).
+ */
+const FILL_VARIANTS = ['serviços', 'preço', 'atendimento', 'agendamento', 'avaliações', 'melhor', 'perto de mim', 'profissional', 'loja', 'unidade', 'horário de funcionamento', 'instagram', 'facebook', 'empresa de', 'especializada', 'fale conosco'];
+const FILL_PER_PAGE = 2;
 
 const hostKey = (url: string | null) => {
   try {
@@ -478,6 +484,20 @@ export async function searchCompanies(
     wantWeb ? searchWeb(variant ? `${query} ${variant}` : query, 100).catch(() => [] as FoundCompany[]) : Promise.resolve([] as FoundCompany[]),
   ]);
   const placesFailed = !(places && typeof places === 'object' && 'items' in places);
+  // Sem locais do Maps nesta página: completa com mais consultas de sites até ~50 empresas
+  if (wantWeb && (placesFailed || !(places as { items: FoundCompany[] }).items.length)) {
+    const hosts = new Set(web.map((c) => hostKey(c.website)));
+    for (const extra of FILL_VARIANTS.slice(page * FILL_PER_PAGE, (page + 1) * FILL_PER_PAGE)) {
+      if (web.filter((c) => (filter === 'todos' ? true : hasOwnSite(c))).length >= PAGE_SIZE) break;
+      const more = await searchWeb(`${query} ${extra}`, 100).catch(() => [] as FoundCompany[]);
+      for (const c of more) {
+        const h = hostKey(c.website);
+        if (h && hosts.has(h)) continue;
+        if (h) hosts.add(h);
+        web.push(c);
+      }
+    }
+  }
   if (placesFailed && !web.length) throw places;
   const p = placesFailed ? null : (places as Awaited<ReturnType<typeof searchCompanyPlaces>>);
 

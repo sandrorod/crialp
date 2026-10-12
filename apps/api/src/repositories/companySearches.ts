@@ -38,12 +38,22 @@ export function getSearch(orgId: string, id: string) {
   return one<SavedSearch>('select * from lp_company_searches where id = $1 and organization_id = $2', [id, orgId]);
 }
 
-export async function listSearches(orgId: string) {
+const ACCENTS_FROM = 'áàâãäéèêëíìîïóòôõöúùûüçñ';
+const ACCENTS_TO = 'aaaaaeeeeiiiiooooouuuucn';
+const fold = (v: string) => [...v.toLowerCase()].map((ch) => ACCENTS_TO[ACCENTS_FROM.indexOf(ch)] ?? ch).join('');
+
+/** Pesquisas do histórico; com `q`, procura no texto da pesquisa e no autor (sem acento, sem maiúsculas) em todo o histórico. */
+export async function listSearches(orgId: string, q?: string) {
+  const term = q?.trim() ? `%${fold(q.trim()).replace(/[\\%_]/g, '\\$&')}%` : null;
   const { rows } = await query(
     `select s.id, s.query, jsonb_array_length(s.results) as count, s.created_at, s.updated_at, u.name as author
        from lp_company_searches s left join users u on u.id = s.user_id
-      where s.organization_id = $1 order by s.updated_at desc limit 200`,
-    [orgId],
+      where s.organization_id = $1
+        and ($2::text is null
+             or translate(lower(s.query), $3, $4) like $2
+             or translate(lower(coalesce(u.name, '')), $3, $4) like $2)
+      order by s.updated_at desc limit 200`,
+    [orgId, term, ACCENTS_FROM, ACCENTS_TO],
   );
   return rows;
 }

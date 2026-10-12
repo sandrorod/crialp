@@ -153,7 +153,8 @@ analyzeRouter.get('/company-searches', async (req, res) => {
   const user = authUser(req);
   // Lista muda a cada pesquisa: nunca reaproveitar resposta em cache
   res.set('Cache-Control', 'no-store');
-  res.json({ items: await listSearches(user.organizationId) });
+  const q = typeof req.query.q === 'string' ? req.query.q.slice(0, 100) : undefined;
+  res.json({ items: await listSearches(user.organizationId, q) });
 });
 
 /** Resultados salvos de uma pesquisa, com a marcação atual de empresa cadastrada / LP gerada. */
