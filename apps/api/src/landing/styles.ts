@@ -192,7 +192,7 @@ p{margin:0;text-wrap:pretty}
 .contact-card .section-head{margin-bottom:clamp(24px,3vw,36px)}
 .contact-card .contact-actions .btn{padding:1.05em 2em;font-size:1.08rem}
 .contact-rows{margin:clamp(32px,4vw,48px) 0 0;padding:0}
-.contact-row{display:grid;grid-template-columns:minmax(80px,.38fr) minmax(0,1fr);gap:8px 20px;align-items:baseline;padding:clamp(18px,2vw,26px) 0;border-top:1px solid var(--border)}
+.contact-row{display:grid;grid-template-columns:minmax(80px,.38fr) minmax(0,1fr);gap:8px 20px;align-items:baseline;padding:clamp(9px,1vw,13px) 0;border-top:1px solid var(--border)}
 .contact-row dt{color:var(--muted);font-size:.95rem}
 .contact-row dd{margin:0;font-size:clamp(1.02rem,.95rem + .35vw,1.2rem);font-weight:500;color:var(--text);word-break:break-word;white-space:pre-line;min-width:0}
 .contact-row dd a{color:var(--primary-ink);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
