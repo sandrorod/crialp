@@ -20,12 +20,16 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
   if (company.opening_hours) items.push({ key: 'contact_hours', data: 'contact.hours', icon: 'clock', label: ctx.labels.contact_hours, value: company.opening_hours });
   if (!items.length && !ctx.socials.length) return null;
 
+  // WhatsApp e telefone fixo lado a lado, na mesma linha (quando existem os dois)
+  const isPhone = (key: string) => key === 'contact_whatsapp' || key === 'contact_phone';
+  const pairPhones = items.filter((i) => isPhone(i.key)).length > 1;
+
   const contactList = (inline: boolean) => items.length ? (
     <ul className={`contact-list reveal${inline ? ' contact-list-inline' : ''}`}>
       {items.map((i) => {
         const v = cad(ctx, i.data, i.value);
         // Telefones (WhatsApp e fixo): vários números ficam numa linha só, separados por " · "
-        const text = i.key === 'contact_whatsapp' || i.key === 'contact_phone' ? v.text.split(/\s*\n+\s*/).filter(Boolean).join(' · ') : v.text;
+        const text = isPhone(i.key) ? v.text.split(/\s*\n+\s*/).filter(Boolean).join(' · ') : v.text;
         const inner = (
           <>
             <Icon name={i.icon} />
@@ -36,7 +40,7 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
           </>
         );
         return (
-          <li key={i.label}>
+          <li key={i.label} className={pairPhones && isPhone(i.key) ? 'contact-half' : undefined}>
             {i.href ? (
               <a href={i.href} {...(i.href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {})}>
                 {inner}
@@ -62,7 +66,7 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
             <div className="socials reveal">
               {ctx.socials.map((s) => (
                 <a key={s.url} href={s.url} target="_blank" rel="noopener" aria-label={s.network}>
-                  <Icon name={SOCIAL_ICON[s.network.toLowerCase()] ?? 'globe'} size={24} />
+                  <Icon name={SOCIAL_ICON[s.network.toLowerCase()] ?? 'globe'} size={26} />
                 </a>
               ))}
             </div>
