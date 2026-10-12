@@ -54,7 +54,7 @@ companiesRouter.get('/', async (req, res) => {
       search: z.string().max(200).optional(),
       segment: z.string().max(120).optional(),
       city: z.string().max(120).optional(),
-      status: z.enum(['ativa', 'inativa', 'sem_lp']).optional(),
+      status: z.enum(['ativa', 'inativa', 'sem_lp', 'erro']).optional(),
     })
     .parse(req.query);
   res.json(await listCompanies(user.organizationId, q));

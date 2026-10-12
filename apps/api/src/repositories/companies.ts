@@ -189,7 +189,7 @@ export interface CompanyFilters {
   search?: string;
   segment?: string;
   city?: string;
-  status?: 'ativa' | 'inativa' | 'sem_lp';
+  status?: 'ativa' | 'inativa' | 'sem_lp' | 'erro';
   /** Só as empresas cuja Landing Page está com este vendedor */
   sellerId?: string;
 }
@@ -214,12 +214,14 @@ export async function listCompanies(orgId: string, f: CompanyFilters) {
     where.push(`lp.seller_id = $${params.length}`);
   }
   if (f.status === 'sem_lp') where.push('lp.id is null');
+  else if (f.status === 'erro') where.push('lp.id is null and c.lp_error is not null');
   else if (f.status) {
     params.push(f.status);
     where.push(`lp.status = $${params.length}`);
   }
   const { rows } = await query(
     `select c.id, c.name, c.segment, c.city, c.state, c.phone, c.whatsapp, c.email, c.created_at,
+            case when lp.id is null then c.lp_error end as lp_error, case when lp.id is null then c.lp_error_at end as lp_error_at,
             lp.id as landing_page_id, lp.slug, lp.status, lp.seller_id, s.name as seller_name
        from companies c
        left join lateral (
@@ -348,6 +350,8 @@ export type RegisteredMatch = {
   /** Como foi reconhecida: mesmo link, mesmo site + nome/telefone, ou mesmo nome + telefone */
   reason: 'link' | 'site' | 'nome_telefone' | 'nome_cep';
   landing_page: { id: string; slug: string; status: string } | null;
+  /** Última geração da LP falhou (empresa sem LP): mensagem do erro */
+  lp_error: string | null;
 };
 
 /**
@@ -362,10 +366,10 @@ export async function matchRegisteredCompanies(
 ): Promise<(RegisteredMatch | null)[]> {
   const { rows } = await query<{
     id: string; name: string; trade_name: string | null; reference_url: string | null; website: string | null; phones: string | null;
-    zip_code: string | null; google_urls: string[] | null;
+    zip_code: string | null; google_urls: string[] | null; lp_error: string | null;
     lp_id: string | null; lp_slug: string | null; lp_status: string | null;
   }>(
-    `select c.id, c.name, c.trade_name, c.reference_url, c.website, concat_ws('|', c.phone, c.mobile, c.whatsapp) as phones, c.zip_code,
+    `select c.id, c.name, c.trade_name, c.reference_url, c.website, concat_ws('|', c.phone, c.mobile, c.whatsapp) as phones, c.zip_code, c.lp_error,
             -- Links do perfil no Google usados na coleta (e, em cadastros antigos, as páginas lidas)
             array(
               select e.v from (
@@ -390,6 +394,7 @@ export async function matchRegisteredCompanies(
       id: c.id,
       name: c.trade_name || c.name,
       landing_page: c.lp_id ? { id: c.lp_id, slug: c.lp_slug!, status: c.lp_status! } : null,
+      lp_error: c.lp_id ? null : c.lp_error,
       // O link analisado identifica a empresa; o site cadastrado costuma ser só a origem (pode ser de uma rede),
       // então conta como link exato apenas quando é um perfil em plataforma (Instagram, WhatsApp...)
       links: [
@@ -422,6 +427,6 @@ export async function matchRegisteredCompanies(
       companies.find((c) => domains.some((d) => c.domains.includes(d)) && (nameHit(c) || phoneHit(c)) && (reason = 'site')) ??
       companies.find((c) => nameHit(c) && phoneHit(c) && (reason = 'nome_telefone')) ??
       companies.find((c) => nameHit(c) && zipHit(c) && (reason = 'nome_cep'));
-    return hit && reason ? { id: hit.id, name: hit.name, reason, landing_page: hit.landing_page } : null;
+    return hit && reason ? { id: hit.id, name: hit.name, reason, landing_page: hit.landing_page, lp_error: hit.lp_error } : null;
   });
 }

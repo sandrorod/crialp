@@ -1,6 +1,6 @@
 import { useDeferredValue, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Building2, Eye, Pencil, PanelsTopLeft, Plus, Search, Share2, Trash2 } from 'lucide-react';
+import { AlertTriangle, Building2, Eye, Pencil, PanelsTopLeft, Plus, Search, Share2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SellerCell, useSellers } from '@/components/SellerCell';
 import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBlock, PageHeader, Pagination, Select, StatusBadge, StatusToggle } from '@/components/ui';
@@ -83,6 +83,7 @@ export function CompaniesPage() {
             <option value="ativa">Ativa</option>
             <option value="inativa">Inativa</option>
             <option value="sem_lp">Sem Landing Page</option>
+            <option value="erro">Erro ao gerar</option>
           </Select>
         </div>
 
@@ -128,6 +129,14 @@ export function CompaniesPage() {
                     <td data-label="Status" className="px-3 py-3.5">
                       {c.landing_page_id && c.status ? (
                         <StatusToggle status={c.status} loading={actions.busyId === c.landing_page_id} onToggle={() => actions.toggleStatus(c.landing_page_id!, c.status!)} />
+                      ) : c.lp_error ? (
+                        // A geração da LP falhou: marca em vermelho com o motivo (passar o mouse)
+                        <span
+                          title={`${c.lp_error}${c.lp_error_at ? ` (${formatDate(c.lp_error_at, true)})` : ''}`}
+                          className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 ring-1 ring-red-200"
+                        >
+                          <AlertTriangle className="size-3.5" /> Erro ao gerar
+                        </span>
                       ) : (
                         <StatusBadge status={null} />
                       )}

@@ -149,6 +149,9 @@ export interface CompanyListItem {
   status: LpStatus | null;
   seller_id: string | null;
   seller_name: string | null;
+  /** Última geração da LP falhou (empresa ainda sem LP) */
+  lp_error?: string | null;
+  lp_error_at?: string | null;
 }
 
 export interface AnalysisMeta {
@@ -470,7 +473,7 @@ export interface FoundCompany {
   place_id?: string | null;
   source: 'maps' | 'web';
   /** Empresa já cadastrada (e a LP dela, se já foi gerada) */
-  existing: { id: string; name: string; reason: 'link' | 'site' | 'nome_telefone' | 'nome_cep'; landing_page: { id: string; slug: string; status: LpStatus } | null } | null;
+  existing: { id: string; name: string; reason: 'link' | 'site' | 'nome_telefone' | 'nome_cep'; landing_page: { id: string; slug: string; status: LpStatus } | null; lp_error?: string | null } | null;
 }
 
 /** Dados do Google Maps de um local escolhido na pesquisa, enviados à análise. */

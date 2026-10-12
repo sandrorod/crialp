@@ -70,13 +70,18 @@ const MATCH_REASON = { link: 'mesmo link', site: 'mesmo site e nome/telefone', n
 
 function ResultCard({ c, onGenerate }: { c: FoundCompany; onGenerate: () => void }) {
   const lp = c.existing?.landing_page;
+  // Cadastrada, mas a geração da LP deu erro: dá para tentar de novo
+  const lpError = !lp ? c.existing?.lp_error : null;
   return (
-    <Card className={cn('relative flex min-w-0 flex-col p-4 [overflow-wrap:anywhere]', lp ? 'border-2 border-emerald-500 bg-emerald-50/40' : c.existing ? 'border-2 border-amber-400' : '')}>
+    <Card className={cn('relative flex min-w-0 flex-col p-4 [overflow-wrap:anywhere]', lp ? 'border-2 border-emerald-500 bg-emerald-50/40' : lpError ? 'border-2 border-red-500 bg-red-50/40' : c.existing ? 'border-2 border-amber-400' : '')}>
       {/* Selo bem visível: já foi coletada / já tem LP, para não gerar de novo */}
       {c.existing ? (
-        <span className={cn('absolute -top-2.5 right-3 flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm', lp ? 'bg-emerald-600' : 'bg-amber-500')}>
-          {lp ? <CheckCircle2 className="size-3.5" /> : <Building2 className="size-3.5" />}
-          {lp ? 'LP já gerada' : 'Já coletada'}
+        <span
+          title={lpError ?? undefined}
+          className={cn('absolute -top-2.5 right-3 flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm', lp ? 'bg-emerald-600' : lpError ? 'bg-red-600' : 'bg-amber-500')}
+        >
+          {lp ? <CheckCircle2 className="size-3.5" /> : lpError ? <AlertTriangle className="size-3.5" /> : <Building2 className="size-3.5" />}
+          {lp ? 'LP já gerada' : lpError ? 'Erro ao gerar LP' : 'Já coletada'}
         </span>
       ) : null}
       <div className="flex items-start gap-3">
