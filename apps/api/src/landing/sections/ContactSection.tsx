@@ -24,12 +24,14 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
     <ul className={`contact-list reveal${inline ? ' contact-list-inline' : ''}`}>
       {items.map((i) => {
         const v = cad(ctx, i.data, i.value);
+        // Telefones (WhatsApp e fixo): vários números ficam numa linha só, separados por " · "
+        const text = i.key === 'contact_whatsapp' || i.key === 'contact_phone' ? v.text.split(/\s*\n+\s*/).filter(Boolean).join(' · ') : v.text;
         const inner = (
           <>
             <Icon name={i.icon} />
             <span>
               <small {...ed(ctx, `labels.${i.key}`)}>{i.label}</small>
-              <strong {...v.attrs}>{v.text}</strong>
+              <strong {...v.attrs}>{text}</strong>
             </span>
           </>
         );
@@ -60,7 +62,7 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
             <div className="socials reveal">
               {ctx.socials.map((s) => (
                 <a key={s.url} href={s.url} target="_blank" rel="noopener" aria-label={s.network}>
-                  <Icon name={SOCIAL_ICON[s.network.toLowerCase()] ?? 'globe'} size={22} />
+                  <Icon name={SOCIAL_ICON[s.network.toLowerCase()] ?? 'globe'} size={24} />
                 </a>
               ))}
             </div>
