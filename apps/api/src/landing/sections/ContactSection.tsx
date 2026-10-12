@@ -40,6 +40,12 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
             // Só na prévia do editor: indica onde preencher as redes (a página publicada não mostra nada)
             <p className="lp-social-hint">+ Redes sociais: preencha em Textos → “Redes sociais”</p>
           ) : null}
+          {/* Mapa quadrado ao lado da lista de contatos (no celular, abaixo) */}
+          {ctx.mapEmbed ? (
+            <div className="contact-map reveal">
+              <iframe src={ctx.mapEmbed} title={`Mapa: ${ctx.addressLine ?? ctx.displayName}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
+            </div>
+          ) : null}
         </div>
         <ul className="contact-list reveal">
           {items.map((i) => {
@@ -66,11 +72,6 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
             );
           })}
         </ul>
-        {ctx.mapEmbed ? (
-          <div className="contact-map reveal">
-            <iframe src={ctx.mapEmbed} title={`Mapa: ${ctx.addressLine ?? ctx.displayName}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
-          </div>
-        ) : null}
         <SectionPhotos ctx={ctx} name="contact" />
       </div>
     </section>
