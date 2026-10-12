@@ -1,6 +1,7 @@
 import type { CompanyFull } from '../repositories/companies.js';
 import type { LandingContent } from '../services/ai/schemas.js';
 import { formatBrazilPhone, telLink, whatsappLink } from '../lib/phone.js';
+import { imageKey } from '../lib/imageKey.js';
 import type { ResolvedTheme } from './theme.js';
 import { blankSymbolOnlyDeep, stripEmojisDeep } from '../lib/emoji.js';
 import { DEFAULT_LABELS, resolveLabels, type LabelKey, type Labels } from './labels.js';
@@ -125,7 +126,24 @@ export function buildContext(opts: {
   const displayName = company.trade_name || company.name;
 
   // Imagens só entram na página com permissão de uso confirmada pelo administrador.
-  const allowed = company.images.filter((i) => i.usage_allowed && safeHref(i.url));
+  // A mesma foto em endereços diferentes (tamanhos, CDN) ou cadastrada duas vezes aparece uma vez só.
+  // Fica a versão que tem escolha no editor (local/ordem), para não perder o que o usuário definiu.
+  const usable = company.images.filter((i) => i.usage_allowed && safeHref(i.url));
+  const keyOf = (i: (typeof usable)[number]) => `${i.type === 'logo' ? 'logo' : 'foto'}|${imageKey(i.url)}`;
+  const chosen = new Map<string, { url: string; edited: boolean }>();
+  for (const i of usable) {
+    const k = keyOf(i);
+    const edited = theme.images[i.url] !== undefined || theme.imageOrder.includes(i.url) || theme.focus[i.url] !== undefined;
+    const current = chosen.get(k);
+    if (!current || (edited && !current.edited)) chosen.set(k, { url: i.url, edited });
+  }
+  const kept = new Set<string>();
+  const allowed = usable.filter((i) => {
+    const k = keyOf(i);
+    if (kept.has(k) || chosen.get(k)?.url !== i.url) return false;
+    kept.add(k);
+    return true;
+  });
   // Foto escolhida como logotipo no editor tem prioridade sobre o logotipo do cadastro
   const logoImg = allowed.find((i) => theme.images[i.url] === 'logo') ?? allowed.find((i) => i.type === 'logo');
   // Ordem escolhida no editor; fotos que não estão na lista seguem a ordem da empresa

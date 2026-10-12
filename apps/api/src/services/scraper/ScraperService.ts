@@ -3,6 +3,7 @@ import { AppError, Messages } from '../../lib/errors.js';
 import { assertPublicHost, sameSite } from '../../lib/url.js';
 import { toBrazilE164Digits } from '../../lib/phone.js';
 import { mapLimit, probeImage } from './imageProbe.js';
+import { imageKey } from '../../lib/imageKey.js';
 
 export type SocialNetwork = 'instagram' | 'facebook' | 'youtube' | 'linkedin' | 'tiktok' | 'twitter' | 'pinterest' | 'threads';
 
@@ -107,48 +108,6 @@ function originalOfThumbnail(url: string): string | null {
   const u = url.replace(/[?#].*$/, '');
   const original = u.replace(/-\d{2,4}x\d{2,4}(?=\.(jpe?g|png|webp|gif|avif)$)/i, '');
   return original !== u ? original : null;
-}
-
-/** Parâmetros que só mudam o tamanho/qualidade da mesma foto em CDNs e otimizadores. */
-const SIZE_PARAMS = /^(w|h|q|width|height|quality|fit|format|fm|auto|dpr|crop|resize|size|v|ver|version)$/i;
-
-/**
- * Endereço que identifica a foto. Otimizadores servem fotos diferentes pelo mesmo caminho
- * (Next.js: /_next/image?url=..., Nuxt/Vercel: ?url=...), então a foto está no parâmetro;
- * em caminhos sem extensão o parâmetro também distingue uma foto da outra.
- */
-function imageIdentity(url: string) {
-  try {
-    const u = new URL(url);
-    const inner = u.searchParams.get('url') ?? u.searchParams.get('src') ?? u.searchParams.get('image');
-    if (inner && (IMG_EXT.test(inner) || /^(https?:)?\/\//.test(inner) || inner.startsWith('/'))) return inner;
-    // Cloudflare: /cdn-cgi/image/width=800,quality=80/fotos/a.jpg
-    const cf = /\/cdn-cgi\/image\/[^/]+(\/.+)$/.exec(u.pathname);
-    if (cf) return `${u.origin}${cf[1]}`;
-    if (IMG_EXT.test(u.pathname)) return url;
-    const kept = [...u.searchParams].filter(([k]) => !SIZE_PARAMS.test(k)).sort(([a], [b]) => a.localeCompare(b));
-    return `${u.origin}${u.pathname}${kept.length ? `@${new URLSearchParams(kept)}` : ''}`;
-  } catch {
-    return url;
-  }
-}
-
-/** Mesma foto em tamanhos diferentes (WordPress: foto-700x480.jpg) conta uma vez só. */
-function imageKey(url: string) {
-  let u = imageIdentity(url);
-  try {
-    u = decodeURIComponent(u);
-  } catch {
-    /* URL com % inválido: compara como está */
-  }
-  return u
-    .replace(/[\u200b-\u200d\ufeff]/g, '') // caracteres invisíveis no nome do arquivo
-    .toLowerCase()
-    .replace(/[?#].*$/, '')
-    .replace(/-\d{2,4}x\d{2,4}(?=\.\w+$)/, '')
-    .replace(/-\d{2,4}x(?=\.\w+$)/, '')
-    .replace(/^.*\/wp-content\//, 'wp/')
-    .replace(/\.(jpe?g|png|webp|gif|avif)$/, '');
 }
 
 const PAGE_KEYWORDS = [
@@ -486,9 +445,9 @@ export class ScraperService {
       for (const url of ordered) {
         if (Date.now() > deadline) break;
         const size = await probeImage(url, base.page);
-        if (size) return { ...base, url, width: size.width, height: size.height };
+        if (size) return { ...base, url, width: size.width, height: size.height, fingerprint: size.fingerprint };
       }
-      return { ...base, width: undefined, height: undefined };
+      return { ...base, width: undefined, height: undefined, fingerprint: undefined as string | undefined };
     });
     const kept = measured.filter((img) => {
       if (!img.width || !img.height) return false; // inacessível ou formato não suportado
@@ -498,17 +457,20 @@ export class ScraperService {
       return Math.min(img.width, img.height) >= 200 && img.width * img.height >= 60_000 && ratio < 6.5 && ratio > 0.2;
     });
     // Mesma foto enviada duas vezes (foto.jpg e foto-1.jpg) com as mesmas dimensões: fica uma
+    // e o mesmo arquivo em endereços diferentes (mesma impressão digital): fica uma
     const seenPhoto = new Set<string>();
     const distinct = kept.filter((img) => {
       const k = `${imageKey(img.url).replace(/-\d{1,2}$/, '').replace(/[_\s-]+/g, '-')}|${img.width}x${img.height}`;
-      if (seenPhoto.has(k)) return false;
+      const f = img.fingerprint ? `f:${img.fingerprint}` : null;
+      if (seenPhoto.has(k) || (f && seenPhoto.has(f))) return false;
       seenPhoto.add(k);
+      if (f) seenPhoto.add(f);
       return true;
     });
     kept.length = 0;
     kept.push(...distinct);
     kept.sort((a, b) => Number(b.logoHint) - Number(a.logoHint) || b.width! * b.height! - a.width! * a.height!);
-    return kept.slice(0, MAX_IMAGES).map((img, index) => ({ ...img, index }));
+    return kept.slice(0, MAX_IMAGES).map(({ fingerprint: _f, ...img }, index) => ({ ...img, index }));
   }
 
   private parse(requested: URL, fetched: FetchedHtml[], scope: ProfileScope | null = null): ScrapeResult {

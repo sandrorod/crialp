@@ -1,10 +1,19 @@
+import crypto from 'node:crypto';
 import { assertPublicHost } from '../../lib/url.js';
 
 export interface ImageSize {
   width: number;
   height: number;
   type: 'png' | 'jpg' | 'gif' | 'webp' | 'avif';
+  /**
+   * Impressão digital do arquivo (hash dos primeiros 32 KB, que já incluem os dados da imagem):
+   * a mesma foto publicada em endereços diferentes tem a mesma.
+   */
+  fingerprint?: string;
 }
+
+const FINGERPRINT_BYTES = 32 * 1024;
+const fingerprintOf = (buf: Buffer) => crypto.createHash('sha1').update(buf.subarray(0, FINGERPRINT_BYTES)).digest('hex');
 
 /**
  * Quanto ler do início do arquivo. Fotos de câmera/celular e exportadas do Photoshop trazem
@@ -82,19 +91,24 @@ export async function probeImage(url: string, referer?: string, timeoutMs = 7000
       const reader = res.body.getReader();
       const chunks: Uint8Array[] = [];
       let total = 0;
+      let size: ImageSize | null = null;
+      let done = false;
       while (total < HEAD_BYTES) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        total += value.byteLength;
-        const size = parseImageSize(Buffer.concat(chunks));
-        if (size) {
-          await reader.cancel().catch(() => {});
-          return size;
+        const r = await reader.read();
+        if (r.done) {
+          done = true;
+          break;
         }
+        chunks.push(r.value);
+        total += r.value.byteLength;
+        size ??= parseImageSize(Buffer.concat(chunks));
+        // Com o tamanho achado, lê só até ter o bastante para a impressão digital
+        if (size && total >= FINGERPRINT_BYTES) break;
       }
-      await reader.cancel().catch(() => {});
-      return parseImageSize(Buffer.concat(chunks));
+      if (!done) await reader.cancel().catch(() => {});
+      const buf = Buffer.concat(chunks);
+      size ??= parseImageSize(buf);
+      return size ? { ...size, fingerprint: fingerprintOf(buf) } : null;
     } finally {
       clearTimeout(timer);
     }

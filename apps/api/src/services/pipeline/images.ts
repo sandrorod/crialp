@@ -1,3 +1,4 @@
+import { imageKey } from '../../lib/imageKey.js';
 import type { ScrapedImage } from '../scraper/ScraperService.js';
 
 export interface DraftImage {
@@ -72,8 +73,16 @@ export function assembleImages(opts: {
     rest.push({ img, type: classified ? 'other' : 'gallery', alt: img.alt || null });
   }
   rest.sort((a, b) => score(b.img, b.type) - score(a.img, a.type));
-  for (const p of [...photos, ...rest].slice(0, MAX_PHOTOS)) {
+  // Fotos do site e do Perfil no Google são medidas em separado: a mesma foto nas duas listas entra uma vez
+  const seen = new Set(out.map((o) => imageKey(o.url)));
+  let added = 0;
+  for (const p of [...photos, ...rest]) {
+    if (added >= MAX_PHOTOS) break;
+    const k = imageKey(p.img.url);
+    if (seen.has(k)) continue;
+    seen.add(k);
     out.push({ url: p.img.url, type: p.type, alt_text: p.alt, source: 'scraped', usage_allowed: allowUsage });
+    added++;
   }
   return out;
 }
