@@ -59,18 +59,20 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
       <div className="container contact">
         <div>
           <SectionHead eyebrow={ctx.labels.eyebrow_contact} title={ctx.content.contact.title} lead={ctx.content.contact.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_contact'), title: ed(ctx, 'contact.title'), lead: edOptional(ctx, 'contact.subtitle', 'Texto de apoio (opcional)') }} />
-          <div className="reveal">
+          {/* Botão e redes sociais na mesma linha (quebram só se não couberem) */}
+          <div className="contact-actions reveal">
             <CtaButton ctx={ctx} label={ctx.content.final_cta.cta} path="final_cta.cta" />
+            {ctx.socials.length ? (
+              <div className="socials">
+                {ctx.socials.map((s) => (
+                  <a key={s.url} href={s.url} target="_blank" rel="noopener" aria-label={s.network}>
+                    <Icon name={SOCIAL_ICON[s.network.toLowerCase()] ?? 'globe'} size={26} />
+                  </a>
+                ))}
+              </div>
+            ) : null}
           </div>
-          {ctx.socials.length ? (
-            <div className="socials reveal">
-              {ctx.socials.map((s) => (
-                <a key={s.url} href={s.url} target="_blank" rel="noopener" aria-label={s.network}>
-                  <Icon name={SOCIAL_ICON[s.network.toLowerCase()] ?? 'globe'} size={26} />
-                </a>
-              ))}
-            </div>
-          ) : ctx.editable ? (
+          {!ctx.socials.length && ctx.editable ? (
             // Só na prévia do editor: indica onde preencher as redes (a página publicada não mostra nada)
             <p className="lp-social-hint">+ Redes sociais: preencha em Textos → “Redes sociais”</p>
           ) : null}
