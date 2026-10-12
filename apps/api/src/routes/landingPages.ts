@@ -189,6 +189,9 @@ const ContentUpdateSchema = z.object({
         sections: z
           .object({ desktop: z.record(z.string().max(60), z.number().min(0).max(150)).optional(), mobile: z.record(z.string().max(60), z.number().min(0).max(150)).optional() })
           .optional(),
+        // Largura dos títulos e dos textos (% da área), por layout
+        titleWidth: z.object({ desktop: z.number().min(0).max(100).nullish(), mobile: z.number().min(0).max(100).nullish() }).optional(),
+        textWidth: z.object({ desktop: z.number().min(0).max(100).nullish(), mobile: z.number().min(0).max(100).nullish() }).optional(),
       })
       .optional(),
     // Tamanho das fotos arrastado na prévia: { desktop: { "<url>": { w: 20-100 (%), h: 80-1400 (px) } }, mobile: {...} }

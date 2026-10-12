@@ -1,4 +1,5 @@
 import { Fragment, useRef, useState } from 'react';
+import { TEXT_WIDTH_MIN } from './previewTools';
 import { Check, CheckCircle2, Clock, Copy, Globe, GripVertical, ImageOff, Link2, RotateCcw, ShieldAlert, Trash2, Upload, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, ConfirmDialog, Field, Input, ListEditor, Select, Textarea } from '@/components/ui';
@@ -302,6 +303,63 @@ function SectionSpacingEditor({ theme, onChange }: { theme: ThemeSettings; onCha
           );
         })}
       </div>
+      <TextWidthEditor theme={theme} onChange={onChange} />
+    </div>
+  );
+}
+
+/** Largura dos títulos e dos textos: faixa mais estreita (quebra a linha antes), mesma letra. */
+function TextWidthEditor({ theme, onChange }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void }) {
+  const spacing = theme.sectionSpacing ?? {};
+  const set = (kind: 'titleWidth' | 'textWidth', layout: 'desktop' | 'mobile', pct: number) => {
+    const current = { ...(spacing[kind] ?? {}) };
+    if (pct >= 100) delete current[layout];
+    else current[layout] = pct;
+    const next = { ...spacing, [kind]: current };
+    if (!Object.keys(current).length) delete next[kind];
+    onChange({ ...theme, sectionSpacing: next });
+  };
+  const groups = [
+    { kind: 'titleWidth' as const, title: 'Largura dos títulos', hint: 'Títulos do topo, das seções e da chamada final.' },
+    { kind: 'textWidth' as const, title: 'Largura dos textos', hint: 'Textos de apoio do topo, das seções, do "Sobre" e da chamada final.' },
+  ];
+  const rows = [
+    { key: 'desktop' as const, label: 'Computador' },
+    { key: 'mobile' as const, label: 'Celular' },
+  ];
+  return (
+    <div className="mt-6 space-y-5">
+      {groups.map((g) => (
+        <div key={g.kind}>
+          <h4 className="mb-1 text-sm font-semibold">{g.title}</h4>
+          <p className="mb-3 text-xs text-zinc-500">{g.hint} Menor = faixa mais estreita, com o mesmo tamanho de letra. Celular e computador são independentes.</p>
+          <div className="space-y-3">
+            {rows.map((r) => {
+              const pct = spacing[g.kind]?.[r.key] ?? 100;
+              return (
+                <div key={r.key}>
+                  <div className="mb-1 flex items-center justify-between text-[13px]">
+                    <span>{r.label}</span>
+                    <span className="flex items-center gap-2 text-xs text-zinc-500">
+                      {pct}%{pct < 100 ? <button type="button" className="hover:text-ink" onClick={() => set(g.kind, r.key, 100)}>padrão</button> : ' (padrão)'}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={TEXT_WIDTH_MIN}
+                    max={100}
+                    step={5}
+                    value={pct}
+                    onChange={(e) => set(g.kind, r.key, Number(e.target.value))}
+                    className="w-full accent-zinc-900"
+                    aria-label={`${g.title} no ${r.label.toLowerCase()}`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

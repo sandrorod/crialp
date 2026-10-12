@@ -8,6 +8,9 @@ export interface SectionSpacing {
   desktop?: number;
   mobile?: number;
   sections?: { desktop?: Record<string, number>; mobile?: Record<string, number> };
+  /** Largura dos títulos / dos textos em % (40–100), por layout. Ausente = largura do modelo. */
+  titleWidth?: { desktop?: number; mobile?: number };
+  textWidth?: { desktop?: number; mobile?: number };
 }
 
 export const SPACING_MIN = 20;
@@ -44,8 +47,39 @@ export function normalizeSectionSpacing(input: any): SectionSpacing {
   const sd = normalizeSectionMap(input?.sections?.desktop);
   const sm = normalizeSectionMap(input?.sections?.mobile);
   if (Object.keys(sd).length || Object.keys(sm).length) out.sections = { desktop: sd, mobile: sm };
+  for (const k of ['titleWidth', 'textWidth'] as const) {
+    const w = normalizeWidth(input?.[k]);
+    if (w) out[k] = w;
+  }
   return out;
 }
+
+function normalizeWidth(input: any): { desktop?: number; mobile?: number } | undefined {
+  const pick = (v: unknown) =>
+    typeof v === 'number' && Number.isFinite(v) && v < 100 ? Math.round(Math.max(TEXT_WIDTH_MIN, v)) : undefined;
+  const d = pick(input?.desktop);
+  const m = pick(input?.mobile);
+  return d || m ? { ...(d ? { desktop: d } : {}), ...(m ? { mobile: m } : {}) } : undefined;
+}
+
+/** Largura de títulos e textos (% da área de cada um): faixa mais estreita, mesma letra. */
+export const TEXT_WIDTH_MIN = 40;
+const TITLE_SEL = '.hero h1,.section-head h2,.final h2,.custom-text h3,.blk-heading h3';
+const TEXT_SEL = '.hero .sub,.hero p,.section-head .lead,.about-text p,.custom-text p,.blk-text p,.final p';
+// Onde o modelo centraliza o texto, a faixa mais estreita continua no meio
+const CENTERED_SEL = [
+  '.hero-centered', '.section-head.center', '.final', '.custom-center', '.tpl-elegante .hero-split .container',
+  ...['aurora', 'elegante', 'moderno', 'organico'].map((t) => `.tpl-${t} .section>.container>.section-head`),
+].map((c) => `${c} :is(h1,h2,h3,p,.lead,.sub)`).join(',');
+function textWidthRules(title: number | undefined, text: number | undefined) {
+  if (!title && !text) return '';
+  return (
+    (title ? `:is(${TITLE_SEL}){max-width:${title}%!important}` : '') +
+    (text ? `:is(${TEXT_SEL}){max-width:${text}%!important}` : '') +
+    `:is(${CENTERED_SEL}){margin-left:auto;margin-right:auto}`
+  );
+}
+
 
 const scale = (pct: number) => +((BASE_SCALE * pct) / 100).toFixed(4);
 
@@ -56,8 +90,8 @@ export function sectionSpacingCss(s: SectionSpacing): string {
     Object.entries(map)
       .map(([k, v]) => `[data-section="${k}"]{--section-y-scale:${scale(v)}}`)
       .join('');
-  const desktop = layout(s.desktop, s.sections?.desktop);
-  const mobile = layout(s.mobile, s.sections?.mobile);
+  const desktop = layout(s.desktop, s.sections?.desktop) + textWidthRules(s.titleWidth?.desktop, s.textWidth?.desktop);
+  const mobile = layout(s.mobile, s.sections?.mobile) + textWidthRules(s.titleWidth?.mobile, s.textWidth?.mobile);
   return [
     desktop ? `@media(min-width:${MOBILE_MAX + 1}px){${desktop}}` : '',
     mobile ? `@media(max-width:${MOBILE_MAX}px){${mobile}}` : '',

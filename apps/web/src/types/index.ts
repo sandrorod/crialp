@@ -295,6 +295,9 @@ export interface SectionSpacing {
   mobile?: number;
   /** Espaço próprio de cada seção (0–150%), arrastado na prévia no modo "Espaços" */
   sections?: { desktop?: Record<string, number>; mobile?: Record<string, number> };
+  /** Largura dos títulos / dos textos em % (40–100), por layout. Ausente = largura do modelo. */
+  titleWidth?: { desktop?: number; mobile?: number };
+  textWidth?: { desktop?: number; mobile?: number };
 }
 
 /** Cor escolhida para um elemento (chave = seletor CSS gerado pelo editor). */
