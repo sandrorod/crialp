@@ -20,12 +20,11 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
   if (company.opening_hours) items.push({ key: 'contact_hours', data: 'contact.hours', icon: 'clock', label: ctx.labels.contact_hours, value: company.opening_hours });
   if (!items.length && !ctx.socials.length) return null;
 
-  // WhatsApp e telefone fixo lado a lado, na mesma linha (quando existem os dois)
   const isPhone = (key: string) => key === 'contact_whatsapp' || key === 'contact_phone';
-  const pairPhones = items.filter((i) => isPhone(i.key)).length > 1;
 
-  const contactList = (inline: boolean) => items.length ? (
-    <ul className={`contact-list reveal${inline ? ' contact-list-inline' : ''}`}>
+  // Cartões todos do mesmo tamanho; com mapa ocupam a largura toda, abaixo do texto e do mapa
+  const contactList = (wide: boolean) => items.length ? (
+    <ul className={`contact-list reveal${wide ? ' contact-list-wide' : ''}`}>
       {items.map((i) => {
         const v = cad(ctx, i.data, i.value);
         // Telefones (WhatsApp e fixo): vários números ficam numa linha só, separados por " · "
@@ -35,12 +34,12 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
             <Icon name={i.icon} />
             <span>
               <small {...ed(ctx, `labels.${i.key}`)}>{i.label}</small>
-              <strong {...v.attrs} {...(isPhone(i.key) ? { style: { '--tel-chars': text.length } as React.CSSProperties } : {})}>{text}</strong>
+              <strong {...v.attrs}>{text}</strong>
             </span>
           </>
         );
         return (
-          <li key={i.label} className={isPhone(i.key) ? `contact-tel${pairPhones ? ' contact-half' : ''}` : undefined}>
+          <li key={i.label} className={isPhone(i.key) ? 'contact-tel' : undefined}>
             {i.href ? (
               <a href={i.href} {...(i.href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {})}>
                 {inner}
@@ -60,7 +59,7 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
         <div>
           <SectionHead eyebrow={ctx.labels.eyebrow_contact} title={ctx.content.contact.title} lead={ctx.content.contact.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_contact'), title: ed(ctx, 'contact.title'), lead: edOptional(ctx, 'contact.subtitle', 'Texto de apoio (opcional)') }} />
           {/* Botão e redes sociais na mesma linha (quebram só se não couberem) */}
-          <div className="contact-actions reveal">
+          <div className={`contact-actions reveal sn-${Math.min(ctx.socials.length, 8)}`}>
             <CtaButton ctx={ctx} label={ctx.content.final_cta.cta} path="final_cta.cta" />
             {ctx.socials.length ? (
               <div className="socials">
@@ -76,13 +75,15 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
             // Só na prévia do editor: indica onde preencher as redes (a página publicada não mostra nada)
             <p className="lp-social-hint">+ Redes sociais: preencha em Textos → “Redes sociais”</p>
           ) : null}
-          {ctx.mapEmbed ? contactList(true) : null}
         </div>
-        {/* Mapa ativo: fica à direita e os contatos descem para a coluna do texto; sem mapa: os cartões à direita */}
+        {/* Mapa ativo: fica à direita e os cartões descem para uma faixa larga abaixo; sem mapa: os cartões à direita */}
         {ctx.mapEmbed ? (
-          <div className="contact-map reveal">
-            <iframe src={ctx.mapEmbed} title={`Mapa: ${ctx.addressLine ?? ctx.displayName}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
-          </div>
+          <>
+            <div className="contact-map reveal">
+              <iframe src={ctx.mapEmbed} title={`Mapa: ${ctx.addressLine ?? ctx.displayName}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
+            </div>
+            {contactList(true)}
+          </>
         ) : (
           contactList(false)
         )}
