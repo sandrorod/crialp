@@ -13,7 +13,7 @@ import type { FoundCompany, SavedSearchItem, SiteFilter } from '@/types';
 
 // A última pesquisa continua na tela ao voltar de outra página
 const STORE_KEY = 'lp:company-search';
-type Saved = { q: string; items: FoundCompany[]; center: { lat: number; lng: number } | null; page: number; hasMore: boolean; searchId?: string | null; filter?: SiteFilter; phone?: boolean; noLp?: boolean };
+type Saved = { q: string; items: FoundCompany[]; center: { lat: number; lng: number } | null; page: number; hasMore: boolean; searchId?: string | null; filter?: SiteFilter; phone?: boolean; noLp?: boolean; noErr?: boolean };
 function loadSaved(): Saved | null {
   try {
     return JSON.parse(sessionStorage.getItem(STORE_KEY) ?? 'null');
@@ -53,16 +53,20 @@ function hasAnyPhone(c: FoundCompany) {
   }
   return PHONE_IN_TEXT.test(c.description ?? '');
 }
-type Filters = { site: SiteFilter; phone: boolean; noLp: boolean };
+type Filters = { site: SiteFilter; phone: boolean; noLp: boolean; noErr: boolean };
+/** Deu erro ao gerar a LP: na leitura dos dados do link ou na geração (empresa cadastrada sem LP). */
+const hasLpError = (c: FoundCompany) => !c.existing?.landing_page && !!(c.existing?.lp_error || c.analysis_error?.error);
 /** Todas as opções marcadas precisam valer (nenhuma marcada = todas as empresas). */
 const matchesFilter = (c: FoundCompany, f: Filters) =>
   (f.site === 'todos' ? true : f.site === 'com_site' ? hasOwnSite(c) : !hasOwnSite(c)) &&
   (!f.phone || hasAnyPhone(c)) &&
-  (!f.noLp || !c.existing?.landing_page);
+  (!f.noLp || !c.existing?.landing_page) &&
+  (!f.noErr || !hasLpError(c));
 /** Resumo das opções marcadas, para os textos da lista ("com telefone e site, sem LP gerada"). */
 function filterLabel(f: Filters) {
   const com = [f.phone ? 'telefone' : null, f.site === 'com_site' ? 'site' : null].filter(Boolean);
   const sem = [f.site === 'sem_site' ? 'site' : null, f.noLp ? 'LP gerada' : null].filter(Boolean);
+  if (f.noErr) sem.push('erro ao gerar');
   return [com.length ? `com ${com.join(' e ')}` : '', sem.length ? `sem ${sem.join(' e sem ')}` : ''].filter(Boolean).join(', ');
 }
 
@@ -161,6 +165,7 @@ export function SearchCompaniesPage() {
   const [filter, setFilter] = useState<SiteFilter>(saved?.filter ?? 'todos');
   const [phoneOnly, setPhoneOnly] = useState(saved?.phone ?? false);
   const [noLp, setNoLp] = useState(saved?.noLp ?? false);
+  const [noErr, setNoErr] = useState(saved?.noErr ?? false);
   const [loading, setLoading] = useState<'new' | 'more' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -197,7 +202,7 @@ export function SearchCompaniesPage() {
       setHasMore(r.has_more);
       setWarning(null);
       setSearchId(r.id);
-      store({ q: r.query, items: r.results, center: c, page: r.page, hasMore: r.has_more, searchId: r.id, filter, phone: phoneOnly, noLp });
+      store({ q: r.query, items: r.results, center: c, page: r.page, hasMore: r.has_more, searchId: r.id, filter, phone: phoneOnly, noLp, noErr });
     } catch (err) {
       if (!quiet) toast.error(errorMessage(err));
     } finally {
@@ -237,7 +242,7 @@ export function SearchCompaniesPage() {
       setHasMore(r.has_more);
       setWarning(r.warning);
       setSearchId(r.search_id);
-      store({ q: term, items: merged, center: nextCenter, page: p, hasMore: r.has_more, searchId: r.search_id, filter, phone: phoneOnly, noLp });
+      store({ q: term, items: merged, center: nextCenter, page: p, hasMore: r.has_more, searchId: r.search_id, filter, phone: phoneOnly, noLp, noErr });
       void history.reload();
     } catch (err) {
       setError(errorMessage(err));
@@ -258,14 +263,15 @@ export function SearchCompaniesPage() {
 
   const more = () => void fetchPage(lastQ, center, page + 1, items ?? [], searchId);
   // Filtro aplicado na tela também: marcar/desmarcar as opções não refaz a pesquisa
-  const filters: Filters = { site: filter, phone: phoneOnly, noLp };
+  const filters: Filters = { site: filter, phone: phoneOnly, noLp, noErr };
   const shown = (items ?? []).filter((c) => matchesFilter(c, filters));
-  const filtering = filter !== 'todos' || phoneOnly || noLp;
-  const changeFilter = (nextFilter: SiteFilter, nextPhone: boolean, nextNoLp = noLp) => {
+  const filtering = filter !== 'todos' || phoneOnly || noLp || noErr;
+  const changeFilter = (nextFilter: SiteFilter, nextPhone: boolean, nextNoLp = noLp, nextNoErr = noErr) => {
     setFilter(nextFilter);
     setPhoneOnly(nextPhone);
     setNoLp(nextNoLp);
-    if (items) store({ q: lastQ, items, center, page, hasMore, searchId, filter: nextFilter, phone: nextPhone, noLp: nextNoLp });
+    setNoErr(nextNoErr);
+    if (items) store({ q: lastQ, items, center, page, hasMore, searchId, filter: nextFilter, phone: nextPhone, noLp: nextNoLp, noErr: nextNoErr });
   };
 
   const generate = (c: FoundCompany) => {
@@ -306,6 +312,7 @@ export function SearchCompaniesPage() {
               { label: 'Com site', icon: <Globe className="size-3.5" />, checked: filter === 'com_site', onChange: (v: boolean) => changeFilter(v ? 'com_site' : 'todos', phoneOnly) },
               { label: 'Sem site', icon: <Globe className="size-3.5 opacity-50" />, checked: filter === 'sem_site', onChange: (v: boolean) => changeFilter(v ? 'sem_site' : 'todos', phoneOnly) },
               { label: 'Sem LP gerada', icon: <PanelsTopLeft className="size-3.5" />, checked: noLp, onChange: (v: boolean) => changeFilter(filter, phoneOnly, v) },
+              { label: 'Ignorar erros', icon: <AlertTriangle className="size-3.5" />, checked: noErr, onChange: (v: boolean) => changeFilter(filter, phoneOnly, noLp, v) },
             ] as const
           ).map((o) => (
             <label
@@ -321,7 +328,7 @@ export function SearchCompaniesPage() {
             </label>
           ))}
           {filtering ? (
-            <button type="button" onClick={() => changeFilter('todos', false, false)} className="text-xs text-zinc-500 underline hover:text-zinc-800">
+            <button type="button" onClick={() => changeFilter('todos', false, false, false)} className="text-xs text-zinc-500 underline hover:text-zinc-800">
               Limpar
             </button>
           ) : null}
