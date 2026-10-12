@@ -12,53 +12,21 @@ const SOCIAL_ICON: Record<string, string> = {
 
 export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {
   const { company, links } = ctx;
-  const items: { icon: string; label: string; value: string; href?: string | null; key: string; data: string }[] = [];
-  if (links.whatsapp) items.push({ key: 'contact_whatsapp', data: 'contact.whatsapp', icon: 'message', label: ctx.labels.contact_whatsapp, value: formatBrazilPhone(company.whatsapp || company.mobile), href: links.whatsapp });
-  if (links.phoneLabel && links.phone) items.push({ key: 'contact_phone', data: 'contact.phone', icon: 'phone', label: ctx.labels.contact_phone, value: links.phoneLabel, href: links.phone });
-  if (company.email) items.push({ key: 'contact_email', data: 'contact.email', icon: 'mail', label: ctx.labels.contact_email, value: company.email, href: links.email });
-  if (ctx.addressLine) items.push({ key: 'contact_address', data: 'contact.address', icon: 'map-pin', label: ctx.labels.contact_address, value: ctx.addressLine, href: links.map });
-  if (company.opening_hours) items.push({ key: 'contact_hours', data: 'contact.hours', icon: 'clock', label: ctx.labels.contact_hours, value: company.opening_hours });
+  const items: { label: string; value: string; href?: string | null; key: string; data: string; tel?: boolean }[] = [];
+  if (links.whatsapp) items.push({ key: 'contact_whatsapp', data: 'contact.whatsapp', label: ctx.labels.contact_whatsapp, value: formatBrazilPhone(company.whatsapp || company.mobile), href: links.whatsapp, tel: true });
+  if (links.phoneLabel && links.phone) items.push({ key: 'contact_phone', data: 'contact.phone', label: ctx.labels.contact_phone, value: links.phoneLabel, href: links.phone, tel: true });
+  if (company.email) items.push({ key: 'contact_email', data: 'contact.email', label: ctx.labels.contact_email, value: company.email, href: links.email });
+  if (ctx.addressLine) items.push({ key: 'contact_address', data: 'contact.address', label: ctx.labels.contact_address, value: ctx.addressLine, href: links.map });
+  if (company.opening_hours) items.push({ key: 'contact_hours', data: 'contact.hours', label: ctx.labels.contact_hours, value: company.opening_hours });
   if (!items.length && !ctx.socials.length) return null;
 
-  const isPhone = (key: string) => key === 'contact_whatsapp' || key === 'contact_phone';
-
-  // Cartões todos do mesmo tamanho; com mapa ocupam a largura toda, abaixo do texto e do mapa
-  const contactList = (wide: boolean) => items.length ? (
-    <ul className={`contact-list reveal${wide ? ' contact-list-wide' : ''}`}>
-      {items.map((i) => {
-        const v = cad(ctx, i.data, i.value);
-        // Telefones (WhatsApp e fixo): vários números ficam numa linha só, separados por " · "
-        const text = isPhone(i.key) ? v.text.split(/\s*\n+\s*/).filter(Boolean).join(' · ') : v.text;
-        const inner = (
-          <>
-            <Icon name={i.icon} />
-            <span>
-              <small {...ed(ctx, `labels.${i.key}`)}>{i.label}</small>
-              <strong {...v.attrs}>{text}</strong>
-            </span>
-          </>
-        );
-        return (
-          <li key={i.label} className={isPhone(i.key) ? 'contact-tel' : undefined}>
-            {i.href ? (
-              <a href={i.href} {...(i.href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {})}>
-                {inner}
-              </a>
-            ) : (
-              <div>{inner}</div>
-            )}
-          </li>
-        );
-      })}
-    </ul>
-  ) : null;
-
+  // Cartão com título, botão e linhas "rótulo | valor"; mapa ao lado, da mesma altura
   return (
     <section id="contato" className={`section${alt ? ' section-alt' : ''}`}>
-      <div className="container contact">
-        <div>
+      <div className={`container contact${ctx.mapEmbed ? ' has-map' : ''}`}>
+        <div className="contact-card">
           <SectionHead eyebrow={ctx.labels.eyebrow_contact} title={ctx.content.contact.title} lead={ctx.content.contact.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_contact'), title: ed(ctx, 'contact.title'), lead: edOptional(ctx, 'contact.subtitle', 'Texto de apoio (opcional)') }} />
-          {/* Botão e redes sociais na mesma linha (quebram só se não couberem) */}
+          {/* Botão e redes sociais na mesma linha (descem só se não couberem) */}
           <div className={`contact-actions reveal sn-${Math.min(ctx.socials.length, 8)}`}>
             <CtaButton ctx={ctx} label={ctx.content.final_cta.cta} path="final_cta.cta" />
             {ctx.socials.length ? (
@@ -75,18 +43,32 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
             // Só na prévia do editor: indica onde preencher as redes (a página publicada não mostra nada)
             <p className="lp-social-hint">+ Redes sociais: preencha em Textos → “Redes sociais”</p>
           ) : null}
+          {items.length ? (
+            <dl className="contact-rows reveal">
+              {items.map((i) => {
+                const v = cad(ctx, i.data, i.value);
+                // Vários números ficam numa linha só, separados por " · "
+                const text = i.tel ? v.text.split(/\s*\n+\s*/).filter(Boolean).join(' · ') : v.text;
+                const value = <span {...v.attrs}>{text}</span>;
+                return (
+                  <div key={i.key} className={i.tel ? 'contact-row is-tel' : 'contact-row'}>
+                    <dt {...ed(ctx, `labels.${i.key}`)}>{i.label}</dt>
+                    <dd>
+                      {i.href ? (
+                        <a href={i.href} {...(i.href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {})}>{value}</a>
+                      ) : value}
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
+          ) : null}
         </div>
-        {/* Mapa ativo: fica à direita e os cartões descem para uma faixa larga abaixo; sem mapa: os cartões à direita */}
         {ctx.mapEmbed ? (
-          <>
-            <div className="contact-map reveal">
-              <iframe src={ctx.mapEmbed} title={`Mapa: ${ctx.addressLine ?? ctx.displayName}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
-            </div>
-            {contactList(true)}
-          </>
-        ) : (
-          contactList(false)
-        )}
+          <div className="contact-map reveal">
+            <iframe src={ctx.mapEmbed} title={`Mapa: ${ctx.addressLine ?? ctx.displayName}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
+          </div>
+        ) : null}
         <SectionPhotos ctx={ctx} name="contact" />
       </div>
     </section>
