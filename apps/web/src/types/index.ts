@@ -350,7 +350,7 @@ export interface ImageFocus {
 
 export type TemplateKey =
   | 'classico' | 'moderno' | 'minimalista' | 'elegante' | 'impacto' | 'revista' | 'blocos' | 'noturno' | 'capa' | 'organico'
-  | 'aurora' | 'linhas' | 'suave' | 'estudio' | 'degrade';
+  | 'aurora' | 'linhas' | 'suave' | 'estudio' | 'degrade' | 'oficio';
 
 export interface TemplateInfo {
   key: TemplateKey;

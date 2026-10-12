@@ -65,7 +65,7 @@ function normalizeFocus(input: unknown): Record<string, ImageFocus> {
 
 export const TEMPLATE_KEYS = [
   'classico', 'moderno', 'minimalista', 'elegante', 'impacto', 'revista', 'blocos', 'noturno', 'capa', 'organico',
-  'aurora', 'linhas', 'suave', 'estudio', 'degrade',
+  'aurora', 'linhas', 'suave', 'estudio', 'degrade', 'oficio',
 ] as const;
 export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
 
@@ -169,6 +169,12 @@ export const TEMPLATES: Record<TemplateKey, Template> = {
     label: 'Degradê',
     description: 'Moderno e vibrante: degradê da cor principal para a de destaque no topo, nos botões, nos ícones e no CTA final; resto da página bem limpo.',
     hero: { withPhoto: 'split', withoutPhoto: 'centered' },
+    services: () => 'grid',
+  },
+  oficio: {
+    label: 'Ofício',
+    description: 'Para prestadores de serviço: cabeçalho escuro na cor da marca, mosaico de 3 fotos no topo, serviços em cartões com ícone, foto do "Sobre" com moldura, depoimentos em faixa escura e contato em cartão ao lado do mapa.',
+    hero: { withPhoto: 'split', withoutPhoto: 'split' },
     services: () => 'grid',
   },
 };

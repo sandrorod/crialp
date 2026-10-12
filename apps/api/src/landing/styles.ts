@@ -617,6 +617,38 @@ p{margin:0;text-wrap:pretty}
 .tpl-estudio .final p{margin-left:0}
 
 /* ─── Degradê: cor principal → destaque no topo, botões, ícones e CTA final ─── */
+/* ── Ofício: prestadores de serviço (cabeçalho escuro, mosaico no topo, depoimentos em faixa escura) ── */
+.tpl-oficio{--radius:14px;--radius-sm:12px;--btn-radius:999px;--deep:color-mix(in srgb,var(--primary) 55%,#0b130d)}
+.tpl-oficio .site-header{background:var(--deep);border-bottom:0;box-shadow:0 4px 18px -8px rgba(0,0,0,.45);-webkit-backdrop-filter:none;backdrop-filter:none}
+.tpl-oficio .site-header .brand,.tpl-oficio .site-header .brand span,.tpl-oficio .site-header summary{color:#fff}
+.tpl-oficio .site-header .nav a{color:rgba(255,255,255,.82)}
+.tpl-oficio .site-header .nav a:hover{color:var(--accent)}
+.tpl-oficio .hero-pattern{display:none}
+.tpl-oficio .eyebrow{text-transform:uppercase;letter-spacing:.14em;font-weight:600;color:var(--primary-ink)}
+.tpl-oficio .eyebrow::before,.tpl-oficio .eyebrow::after{display:none}
+.tpl-oficio .hero-media{box-shadow:0 10px 30px -12px rgba(0,0,0,.28)}
+.hero-mosaic{display:grid;grid-template-columns:1.1fr 1fr;grid-template-rows:1fr 1fr;gap:14px;height:520px}
+.hero-mosaic .hero-media{aspect-ratio:auto;height:100%;min-height:0}
+.hero-mosaic .m-a{grid-row:1/3}
+@media(max-width:767px){.hero-mosaic{height:340px;gap:10px}}
+.tpl-oficio .card{background:var(--bg);border:1px solid var(--border);box-shadow:none}
+.tpl-oficio .card:hover{transform:translateY(-4px);box-shadow:0 10px 30px -12px rgba(0,0,0,.25);border-color:transparent}
+.tpl-oficio .icon-box{border-radius:12px}
+.tpl-oficio .about-media{overflow:visible;position:relative;aspect-ratio:1/1}
+.tpl-oficio .about-media img{position:relative;z-index:1;border-radius:var(--radius);box-shadow:0 10px 30px -12px rgba(0,0,0,.28)}
+.tpl-oficio .about-media::before{content:"";position:absolute;inset:24px -24px -24px 24px;border:3px solid var(--accent);border-radius:var(--radius)}
+@media(max-width:767px){.tpl-oficio .about-media::before{inset:14px -12px -12px 14px}}
+.tpl-oficio #depoimentos{background:var(--deep);color:#fff;--text:#fff;--muted:rgba(255,255,255,.75);--border:rgba(255,255,255,.14)}
+.tpl-oficio #depoimentos .eyebrow{color:var(--accent)}
+.tpl-oficio #depoimentos .section-head{margin-left:auto;margin-right:auto;text-align:center}
+.tpl-oficio #depoimentos .quote{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);box-shadow:none;color:#fff}
+.tpl-oficio #depoimentos .quote footer{color:var(--accent);font-weight:600}
+.tpl-oficio .contact>div:first-child{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:clamp(26px,4vw,44px)}
+.tpl-oficio #contato.section-alt .contact>div:first-child{background:var(--bg)}
+.tpl-oficio .contact-map{max-width:none;justify-self:stretch;aspect-ratio:auto;min-height:380px;height:100%;box-shadow:0 10px 30px -12px rgba(0,0,0,.28);border:0}
+@media(min-width:768px){.tpl-oficio .gallery{grid-auto-flow:dense}.tpl-oficio .gallery:not(.g-n1):not(.g-n2):not(.g-n3):not(.g-n4) figure:nth-child(5n+1){grid-row:span 2}}
+.tpl-oficio .site-footer{background:var(--deep);color:rgba(255,255,255,.72);border-top:0}
+.tpl-oficio .site-footer a{color:rgba(255,255,255,.85)}
 .tpl-degrade{--grad:linear-gradient(135deg,var(--primary),color-mix(in srgb,var(--primary) 45%,var(--accent)));--grad-ink:linear-gradient(90deg,var(--primary-ink),var(--accent-ink));--radius:20px;--radius-sm:14px;--btn-radius:999px}
 .tpl-degrade .hero{background:radial-gradient(60% 80% at 0% 0%,color-mix(in srgb,var(--primary) 16%,transparent),transparent 70%),radial-gradient(50% 70% at 100% 10%,color-mix(in srgb,var(--accent) 14%,transparent),transparent 70%)}
 .tpl-degrade .hero-pattern{display:none}

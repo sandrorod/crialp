@@ -21,6 +21,8 @@ export interface RenderContext {
   displayName: string;
   logo: LpImage | null;
   heroImage: LpImage | null;
+  /** Fotos extras do topo em mosaico (modelo Ofício): saem da galeria para não repetir */
+  heroExtras: LpImage[];
   aboutImage: LpImage | null;
   gallery: LpImage[];
   /** Fotos escolhidas para cada seção personalizada (id da seção → fotos, na ordem do editor) */
@@ -180,7 +182,12 @@ export function buildContext(opts: {
   const aboutImage =
     visible.find((p) => p !== heroImage && place(p.url) === 'about') ?? visible.find((p) => p !== heroImage && !place(p.url)) ?? null;
   // Galeria: até 9 fotos, como no editor (as demais aparecem lá em "Fora da página")
-  const gallery = visible.filter((p) => p !== heroImage && p !== aboutImage && (place(p.url) === 'gallery' || !place(p.url))).slice(0, MAX_GALLERY);
+  let galleryPool = visible.filter((p) => p !== heroImage && p !== aboutImage && (place(p.url) === 'gallery' || !place(p.url)));
+  // Modelo Ofício: topo em mosaico de 3 fotos (as 2 seguintes em "Automático"), se a galeria ainda ficar com 2 ou mais
+  const autoExtras = galleryPool.filter((p) => !place(p.url)).slice(0, 2);
+  const heroExtras = theme.template === 'oficio' && heroImage && autoExtras.length === 2 && galleryPool.length >= 4 ? autoExtras : [];
+  if (heroExtras.length) galleryPool = galleryPool.filter((p) => !heroExtras.includes(p));
+  const gallery = galleryPool.slice(0, MAX_GALLERY);
   const customPhotos: Record<string, LpImage[]> = {};
   const sectionPhotos: Record<string, LpImage[]> = {};
   for (const p of visible) {
@@ -247,6 +254,7 @@ export function buildContext(opts: {
     displayName,
     logo: logoImg ? { url: logoImg.url, alt: logoImg.alt_text || displayName } : null,
     heroImage,
+    heroExtras,
     aboutImage,
     gallery,
     customPhotos,

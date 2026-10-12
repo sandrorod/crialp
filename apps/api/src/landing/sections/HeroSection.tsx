@@ -96,7 +96,16 @@ export function HeroSection({ ctx }: { ctx: RenderContext }) {
         <div>
           <Copy ctx={ctx} />
         </div>
-        {ctx.heroImage ? (
+        {ctx.heroImage && ctx.heroExtras.length ? (
+          // Mosaico (modelo Ofício): foto principal alta à esquerda e duas à direita
+          <div className="hero-mosaic reveal">
+            {[ctx.heroImage, ...ctx.heroExtras].map((img, i) => (
+              <div key={img.url} className={`hero-media m-${'abc'[i]}`}>
+                <img referrerPolicy="no-referrer" src={img.url} alt={img.alt} {...(i === 0 ? { fetchPriority: 'high' as const } : { loading: 'lazy' as const })} data-lp-img={img.url} style={img.style} />
+              </div>
+            ))}
+          </div>
+        ) : ctx.heroImage ? (
           <div className="hero-media reveal">
             <img referrerPolicy="no-referrer" src={ctx.heroImage.url} alt={ctx.heroImage.alt} fetchPriority="high" data-lp-img={ctx.heroImage.url} style={ctx.heroImage.style} />
           </div>

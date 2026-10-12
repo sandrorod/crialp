@@ -477,6 +477,15 @@ function TemplateThumb({ template }: { template: TemplateKey }) {
         <div className="h-10 w-9 rounded-lg bg-zinc-300 shadow-[4px_4px_0_#fbcfe8]" />
       </div>
     ),
+    oficio: (
+      <div>
+        <div className="h-2 bg-emerald-900" />
+        <div className="flex gap-2 p-2">
+          <div className="flex-1 space-y-1 pt-1">{bar('90%', 'bg-zinc-600')}{bar('60%')}<span className="mt-1.5 block h-2 w-8 rounded-full bg-emerald-500" /></div>
+          <div className="grid h-10 w-12 grid-cols-2 grid-rows-2 gap-0.5"><div className="row-span-2 rounded bg-zinc-300" /><div className="rounded bg-zinc-300" /><div className="rounded bg-zinc-300" /></div>
+        </div>
+      </div>
+    ),
   }[template];
   const body = {
     classico: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded border border-zinc-300 bg-white" />)}</div>,
@@ -493,6 +502,7 @@ function TemplateThumb({ template }: { template: TemplateKey }) {
     suave: <div className="grid grid-cols-3 gap-1 rounded bg-zinc-100 p-1">{[0, 1, 2].map((i) => <div key={i} className="grid h-5 place-items-center rounded-lg bg-white shadow-sm"><span className="size-2 rounded-full bg-zinc-500" /></div>)}</div>,
     estudio: <div className="flex gap-2"><div className="w-1/3 space-y-1">{bar('90%', 'bg-zinc-500')}{bar('60%')}</div><div className="flex-1 space-y-1.5">{[0, 1].map((i) => <div key={i} className="border-t border-zinc-700 pt-1">{bar('70%')}</div>)}</div></div>,
     degrade: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded-md border border-zinc-200 bg-white p-0.5"><span className="block size-2.5 rounded bg-gradient-to-br from-indigo-500 to-pink-500" /></div>)}</div>,
+    oficio: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded-md border border-zinc-200 bg-white p-0.5"><span className="block size-2.5 rounded bg-emerald-100 ring-1 ring-emerald-700/40" /></div>)}</div>,
     impacto: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="relative h-5 rounded border-t-2 border-zinc-800 bg-white shadow-sm"><span className="absolute right-0.5 top-0.5 text-[6px] font-bold leading-none text-zinc-300">0{i + 1}</span></div>)}</div>,
   }[template];
   return (
