@@ -28,7 +28,7 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
           <SectionHead eyebrow={ctx.labels.eyebrow_contact} title={ctx.content.contact.title} lead={ctx.content.contact.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_contact'), title: ed(ctx, 'contact.title'), lead: edOptional(ctx, 'contact.subtitle', 'Texto de apoio (opcional)') }} />
           {/* Botão e redes sociais na mesma linha (descem só se não couberem) */}
           <div className={`contact-actions reveal sn-${Math.min(ctx.socials.length, 8)}`}>
-            <CtaButton ctx={ctx} label={ctx.content.final_cta.cta} path="final_cta.cta" />
+            <CtaButton ctx={ctx} label={ctx.content.final_cta.cta} path="final_cta.cta" iconFirst />
             {ctx.socials.length ? (
               <div className="socials">
                 {ctx.socials.map((s) => (

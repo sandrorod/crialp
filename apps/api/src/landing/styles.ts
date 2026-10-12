@@ -185,21 +185,21 @@ p{margin:0;text-wrap:pretty}
 .faq details p{padding:0 48px 13px 0;color:var(--muted)}
 
 /* Contato */
-.contact{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(24px,4vw,48px);align-items:stretch}
+.contact{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(20px,2.5vw,30px);align-items:stretch}
 @media(min-width:960px){.contact.has-map{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
-.contact-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:clamp(28px,5vw,72px);min-width:0}
+.contact-card{background:var(--bg);border:1px solid var(--border);border-radius:clamp(14px,var(--radius),18px);padding:clamp(26px,3.7vw,46px) clamp(24px,3.7vw,44px);min-width:0}
 .contact:not(.has-map) .contact-card{max-width:860px;width:100%;margin:0 auto}
-.contact-card .section-head{margin-bottom:clamp(24px,3vw,36px)}
-.contact-card .contact-actions .btn{padding:1.05em 2em;font-size:1.08rem}
-.contact-rows{margin:clamp(32px,4vw,48px) 0 0;padding:0}
-.contact-row{display:grid;grid-template-columns:minmax(80px,.38fr) minmax(0,1fr);gap:8px 20px;align-items:baseline;padding:clamp(9px,1vw,13px) 0;border-top:1px solid var(--border)}
-.contact-row dt{color:var(--muted);font-size:.95rem}
-.contact-row dd{margin:0;font-size:clamp(1.02rem,.95rem + .35vw,1.2rem);font-weight:500;color:var(--text);word-break:break-word;white-space:pre-line;min-width:0}
-.contact-row dd a{color:var(--primary-ink);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
+.contact-card .section-head{margin-bottom:24px;max-width:none}.contact-card .section-head h2{font-size:calc(clamp(1.9rem,1rem + 2.6vw,2.6rem) * var(--title-scale));line-height:1.13;letter-spacing:-.03em;max-width:none;text-wrap:pretty}.contact-card .section-head p{font-size:clamp(1rem,.95rem + .2vw,1.06rem);line-height:1.65;color:var(--muted)}
+.contact-card .contact-actions .btn{min-height:64px;padding:0 34px;font-size:1.06rem;border-radius:999px;gap:12px;box-shadow:0 14px 30px -14px var(--primary)}
+.contact-rows{margin:32px 0 0;padding:0}
+.contact-row{display:grid;grid-template-columns:122px minmax(0,1fr);gap:4px 0;align-items:baseline;padding:15px 0;border-top:1px solid var(--border)}
+.contact-row dt{color:var(--muted);font-size:.92rem}
+.contact-row dd{margin:0;font-size:1.06rem;font-weight:400;line-height:1.5;color:var(--text);word-break:break-word;white-space:pre-line;min-width:0}
+.contact-row dd a{color:var(--primary-ink);text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px}
 .contact-row dd a:hover{text-decoration-thickness:2px}
 .contact-row.is-tel dd{white-space:nowrap;word-break:normal}
 @media(max-width:479px){.contact-row{grid-template-columns:minmax(0,1fr);gap:4px}}
-.contact-map{position:relative;width:100%;min-height:320px;aspect-ratio:1/1;border-radius:var(--radius);overflow:hidden;background:var(--surface);box-shadow:0 18px 40px -20px rgba(0,0,0,.3)}.contact-map iframe{position:absolute;inset:0;display:block;width:100%;height:100%;border:0}@media(min-width:960px){.contact-map{aspect-ratio:auto;height:100%;min-height:420px}}
+.contact-map{position:relative;width:100%;min-height:320px;aspect-ratio:1/1;border-radius:clamp(14px,var(--radius),18px);overflow:hidden;background:var(--surface);box-shadow:0 18px 40px -20px rgba(0,0,0,.3)}.contact-map iframe{position:absolute;inset:0;display:block;width:100%;height:100%;border:0}@media(min-width:960px){.contact-map{aspect-ratio:auto;height:100%;min-height:420px}}
 .socials{display:flex;gap:10px;margin-top:28px;flex-wrap:wrap}.contact-actions{display:flex;flex-wrap:nowrap;align-items:center;gap:14px}.contact-actions .btn{flex:none}.contact-actions .socials{margin-top:0;flex-wrap:nowrap;gap:8px;min-width:0}.contact-actions .socials a{flex:0 1 62px;min-width:40px;height:auto;aspect-ratio:1}.contact-card{container-type:inline-size}@container (max-width:224px){.contact .contact-actions.sn-1{flex-wrap:wrap}}@container (max-width:272px){.contact .contact-actions.sn-2{flex-wrap:wrap}}@container (max-width:320px){.contact .contact-actions.sn-3{flex-wrap:wrap}}@container (max-width:368px){.contact .contact-actions.sn-4{flex-wrap:wrap}}@container (max-width:416px){.contact .contact-actions.sn-5{flex-wrap:wrap}}@container (max-width:464px){.contact .contact-actions.sn-6{flex-wrap:wrap}}@container (max-width:512px){.contact .contact-actions.sn-7{flex-wrap:wrap}}@container (max-width:560px){.contact .contact-actions.sn-8{flex-wrap:wrap}}
 .socials a{width:62px;height:62px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--border);transition:background .2s,color .2s,border-color .2s}
 .socials a:hover{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
