@@ -279,6 +279,8 @@ export interface ThemeSettings {
   logoPlacement?: 'header' | 'hero' | 'about';
   /** Tira os emojis de todos os textos da página */
   removeEmojis?: boolean;
+  /** Esconde o mapa do endereço na seção de contato */
+  hideMap?: boolean;
   /** Cabeçalho: logotipo, nome da empresa ou os dois */
   brand?: 'logo' | 'name' | 'both';
 }

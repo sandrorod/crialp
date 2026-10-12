@@ -174,6 +174,7 @@ const ContentUpdateSchema = z.object({
     brand: z.enum(['logo', 'name', 'both']).optional(),
     // Tira os emojis de todos os textos da página
     removeEmojis: z.boolean().optional(),
+    hideMap: z.boolean().optional(),
     // Ordem das seções só no celular (vazia = igual ao computador)
     mobileOrder: z.array(z.string().max(60)).max(60).optional(),
     // Cores e estilo do texto de elementos clicados na prévia: { desktop: { "<seletor>": { text, bg, size, font, bold, italic, underline } }, mobile: {...} }

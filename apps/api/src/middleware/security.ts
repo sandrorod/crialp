@@ -27,7 +27,8 @@ export const ADMIN_CSP = [
   "img-src 'self' https: data: blob:",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
-  "frame-src 'self'",
+  // Prévia do editor: mapa do Google na seção de contato
+  "frame-src 'self' https://www.google.com https://maps.google.com",
   "connect-src 'self'",
   "base-uri 'self'",
   "form-action 'self'",

@@ -66,6 +66,11 @@ export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
             );
           })}
         </ul>
+        {ctx.mapEmbed ? (
+          <div className="contact-map reveal">
+            <iframe src={ctx.mapEmbed} title={`Mapa: ${ctx.addressLine ?? ctx.displayName}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
+          </div>
+        ) : null}
         <SectionPhotos ctx={ctx} name="contact" />
       </div>
     </section>

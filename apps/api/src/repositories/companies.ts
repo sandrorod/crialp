@@ -334,7 +334,7 @@ export async function findDuplicateCompany(
  */
 const PLATFORM_HOST =
   /(^|\.)(instagram\.com|facebook\.com|fb\.com|fb\.me|wa\.me|whatsapp\.com|linktr\.ee|linktree\.com|bio\.link|beacons\.ai|taplink\.cc|youtube\.com|tiktok\.com|linkedin\.com|x\.com|twitter\.com|google\.[a-z.]+|goo\.gl|g\.page|g\.co|share\.google|business\.site|wixsite\.com|wix\.com|blogspot\.com|wordpress\.com|negocio\.site|ifood\.com\.br|doctoralia\.com\.br|bit\.ly|canva\.site)$/;
-const isPlatformKey = (k: string | null) => !!k && PLATFORM_HOST.test(k.split(/[/?]/)[0]);
+export const isPlatformKey = (k: string | null) => !!k && PLATFORM_HOST.test(k.split(/[/?]/)[0]);
 /** Link que identifica uma única empresa: perfil/página específica, ou domínio próprio. */
 const isIdentifyingKey = (k: string | null): k is string =>
   !!k &&
@@ -342,7 +342,7 @@ const isIdentifyingKey = (k: string | null): k is string =>
     // Google: só com o código do local (ou a ficha /maps/place/...); demais plataformas: com o perfil no caminho
     (/(^|\.)(google\.[a-z.]+|goo\.gl|g\.co|share\.google)$/.test(k.split(/[/?]/)[0]) ? /\?.|\/maps\/place\/./.test(k) : /[/?][^/?]/.test(k) && !/^[^/?]+\/(send|profile\.php|pages|people|groups)$/.test(k)));
 /** Domínio da chave (sem caminho), só quando é domínio próprio da empresa. */
-const ownDomain = (k: string | null) => (k && !isPlatformKey(k) ? k.split(/[/?]/)[0] : null);
+export const ownDomain = (k: string | null) => (k && !isPlatformKey(k) ? k.split(/[/?]/)[0] : null);
 
 export type RegisteredMatch = {
   id: string;

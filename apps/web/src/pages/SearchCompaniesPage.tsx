@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { AlertTriangle, Building2, CheckCircle2, ChevronDown, ExternalLink, Globe, History, Loader2, MapPin, PanelsTopLeft, Phone, Search, Sparkles, Star, Trash2 } from 'lucide-react';
+import { AlertTriangle, Building2, EyeOff, CheckCircle2, ChevronDown, ExternalLink, Globe, History, Loader2, MapPin, PanelsTopLeft, Phone, Search, Sparkles, Star, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card, ErrorBlock, Input, PageHeader } from '@/components/ui';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -72,7 +72,7 @@ function filterLabel(f: Filters) {
 
 const MATCH_REASON = { link: 'mesmo link', site: 'mesmo site e nome/telefone', nome_telefone: 'mesmo nome e telefone', nome_cep: 'mesmo nome e CEP' } as const;
 
-function ResultCard({ c, onGenerate }: { c: FoundCompany; onGenerate: () => void }) {
+function ResultCard({ c, onGenerate, onIgnore }: { c: FoundCompany; onGenerate: () => void; onIgnore: () => void }) {
   const lp = c.existing?.landing_page;
   // Erro ao gerar a LP: na geração (empresa cadastrada) ou na leitura dos dados do link (antes do cadastro).
   // Dá para tentar de novo
@@ -131,6 +131,9 @@ function ResultCard({ c, onGenerate }: { c: FoundCompany; onGenerate: () => void
         </div>
       ) : null}
       <div className="mt-auto flex flex-wrap items-center justify-end gap-2 pt-4">
+        <Button size="sm" variant="ghost" onClick={onIgnore} icon={<EyeOff className="size-3.5" />} title="Não mostrar mais esta empresa (nem em novas pesquisas)">
+          Ignorar
+        </Button>
         {c.google_url ? (
           <a href={c.google_url} target="_blank" rel="noreferrer">
             <Button size="sm" variant="secondary" icon={<ExternalLink className="size-3.5" />}>Ver no Google</Button>
@@ -274,6 +277,33 @@ export function SearchCompaniesPage() {
     if (items) store({ q: lastQ, items, center, page, hasMore, searchId, filter: nextFilter, phone: nextPhone, noLp: nextNoLp, noErr: nextNoErr });
   };
 
+  /** Tira o resultado da lista (e das próximas pesquisas); o aviso tem "Desfazer". */
+  const ignore = async (c: FoundCompany) => {
+    const before = items ?? [];
+    const next = before.filter((x) => x !== c);
+    setItems(next);
+    store({ q: lastQ, items: next, center, page, hasMore, searchId, filter, phone: phoneOnly, noLp, noErr });
+    try {
+      await searchService.ignore(c);
+      toast.success(`“${c.name}” não vai mais aparecer nas pesquisas.`, {
+        action: {
+          label: 'Desfazer',
+          onClick: () => {
+            void searchService.unignore(c).catch((err) => toast.error(errorMessage(err)));
+            setItems((cur) => {
+              const restored = cur ? [...cur.slice(0, before.indexOf(c)), c, ...cur.slice(before.indexOf(c))] : [c];
+              store({ q: lastQ, items: restored, center, page, hasMore, searchId, filter, phone: phoneOnly, noLp, noErr });
+              return restored;
+            });
+          },
+        },
+      });
+    } catch (err) {
+      setItems(before);
+      toast.error(errorMessage(err));
+    }
+  };
+
   const generate = (c: FoundCompany) => {
     // A análise usa os dados já trazidos pela pesquisa (sem consultar o Maps de novo)
     try {
@@ -363,7 +393,7 @@ export function SearchCompaniesPage() {
       ) : null}
       {shown.length ? (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {shown.map((c, i) => <ResultCard key={`${c.url}-${i}`} c={c} onGenerate={() => generate(c)} />)}
+          {shown.map((c, i) => <ResultCard key={`${c.url}-${i}`} c={c} onGenerate={() => generate(c)} onIgnore={() => void ignore(c)} />)}
         </div>
       ) : null}
       {warning && !loading ? (

@@ -64,6 +64,11 @@ export const searchService = {
   saved: (id: string) =>
     api.get<{ id: string; query: string; center: { latitude: number; longitude: number } | null; page: number; has_more: boolean; results: FoundCompany[]; updated_at: string }>(`/company-searches/${id}`),
   removeSaved: (id: string) => api.del(`/company-searches/${id}`),
+  /** "Ignorar" um resultado: some da lista e não aparece mais em novas pesquisas (unignore desfaz) */
+  ignore: (c: Pick<FoundCompany, 'url' | 'website' | 'google_url' | 'place_id' | 'name'>) =>
+    api.post('/company-search/ignore', { url: c.url, website: c.website, google_url: c.google_url, place_id: c.place_id ?? null, name: c.name }),
+  unignore: (c: Pick<FoundCompany, 'url' | 'website' | 'google_url' | 'place_id' | 'name'>) =>
+    api.post('/company-search/unignore', { url: c.url, website: c.website, google_url: c.google_url, place_id: c.place_id ?? null, name: c.name }),
 };
 
 export const companyService = {

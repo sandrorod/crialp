@@ -241,6 +241,19 @@ export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSe
         </span>
       </label>
 
+      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 p-3 hover:border-zinc-300">
+        <input
+          type="checkbox"
+          checked={!theme.hideMap}
+          onChange={(e) => onChange({ ...theme, hideMap: !e.target.checked })}
+          className="mt-0.5 size-4 accent-zinc-900"
+        />
+        <span>
+          <span className="block text-[13px] font-medium">Mostrar mapa do endereço</span>
+          <span className="block text-[11px] text-zinc-500">Na seção de contato, um mapa do Google com a localização (só quando o cadastro tem rua). Desmarque para tirar o mapa da página.</span>
+        </span>
+      </label>
+
       <SectionSpacingEditor theme={theme} onChange={onChange} />
 
       <ElementColorsSummary theme={theme} onChange={onChange} />

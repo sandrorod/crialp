@@ -13,6 +13,7 @@ import { findDuplicateCompany, getCompanyFull, matchRegisteredCompanies } from '
 import { searchCompanies, searchCompanySites, type FoundCompany } from '../services/search/companySearch.js';
 import { appendSearch, createSearch, deleteSearch, getSearch, listSearches } from '../repositories/companySearches.js';
 import { urlErrorsFor } from '../repositories/urlErrors.js';
+import { ignoreCompany, unignoreCompany, withoutIgnored } from '../repositories/ignoredCompanies.js';
 
 export const analyzeRouter = Router();
 
@@ -129,7 +130,8 @@ analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
   // "Buscar mais locais" de pesquisa com cidade continua ao redor do mesmo centro
   const saved = search_id && page > 0 ? await getSearch(user.organizationId, search_id) : null;
   const places = type === 'locais' ? await searchCompanies(q, filter, page, saved?.center ?? latLng ?? null) : null;
-  const items = places ? places.items : await searchCompanySites(q);
+  // Empresas ignoradas pelo usuário não aparecem (nem entram no histórico)
+  const items = await withoutIgnored(user.organizationId, places ? places.items : await searchCompanySites(q));
   const source = type === 'locais' ? 'maps' : 'web';
   const [registered, failures] = await Promise.all([matchRegisteredCompanies(user.organizationId, items), urlErrorsFor(user.organizationId, items.map((c) => c.url))]);
   const marked = items.map((c, i) => ({ ...c, existing: registered[i], analysis_error: registered[i] ? null : failures[i] }));
@@ -149,6 +151,29 @@ analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
   res.json({ items: marked, source, center: places?.center ?? null, has_more: places?.hasMore ?? false, warning, search_id: savedId });
 });
 
+const IgnoreSchema = z.object({
+  url: z.string().max(2048).nullish(),
+  website: z.string().max(2048).nullish(),
+  google_url: z.string().max(2048).nullish(),
+  place_id: z.string().max(300).nullish(),
+  name: z.string().max(300).nullish(),
+});
+
+/** "Ignorar" um resultado de Buscar empresas: some da lista e não aparece mais em novas pesquisas. */
+analyzeRouter.post('/company-search/ignore', async (req, res) => {
+  const user = authUser(req);
+  const item = parseBody(IgnoreSchema, req.body);
+  if (!(await ignoreCompany(user.organizationId, user.id, item))) throw new AppError(400, 'Não foi possível identificar esta empresa para ignorar.');
+  res.json({ ok: true });
+});
+
+/** Desfaz o "Ignorar". */
+analyzeRouter.post('/company-search/unignore', async (req, res) => {
+  const user = authUser(req);
+  await unignoreCompany(user.organizationId, parseBody(IgnoreSchema, req.body));
+  res.json({ ok: true });
+});
+
 /** Histórico de pesquisas de "Buscar empresas". */
 analyzeRouter.get('/company-searches', async (req, res) => {
   const user = authUser(req);
@@ -163,7 +188,7 @@ analyzeRouter.get('/company-searches/:id', async (req, res) => {
   const user = authUser(req);
   const search = await getSearch(user.organizationId, uuidParam.parse(req.params.id));
   if (!search) throw notFound('Pesquisa não encontrada.');
-  const items = search.results as FoundCompany[];
+  const items = await withoutIgnored(user.organizationId, search.results as FoundCompany[]);
   const [registered, failures] = await Promise.all([matchRegisteredCompanies(user.organizationId, items), urlErrorsFor(user.organizationId, items.map((c) => c.url))]);
   res.json({ ...search, results: items.map((c, i) => ({ ...c, existing: registered[i], analysis_error: registered[i] ? null : failures[i] })) });
 });

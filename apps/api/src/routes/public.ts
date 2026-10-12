@@ -14,6 +14,8 @@ export function landingPageHeaders(res: Response, opts: { preview?: boolean } = 
       "img-src 'self' https: data:",
       "style-src 'unsafe-inline' https://fonts.googleapis.com",
       'font-src https://fonts.gstatic.com',
+      // Mapa do endereço na seção de contato (Google Maps incorporado, sem chave)
+      'frame-src https://www.google.com https://maps.google.com',
       `script-src ${REVEAL_SCRIPT_HASH}`,
       "base-uri 'none'",
       "form-action 'none'",

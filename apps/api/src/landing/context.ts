@@ -37,6 +37,8 @@ export interface RenderContext {
     primaryIsExternal: boolean;
   };
   addressLine: string | null;
+  /** Mapa do Google (incorporado) do endereço, para a seção de contato; null = sem endereço ou desativado */
+  mapEmbed: string | null;
   socials: { network: string; url: string }[];
   pageUrl: string;
   seo: { title: string; description: string; keywords: string[]; ogImage: string | null };
@@ -201,6 +203,12 @@ export function buildContext(opts: {
     company.zip_code ? `CEP ${company.zip_code}` : null,
   ].filter((p) => p && p.trim());
   const addressLine = addressParts.length ? addressParts.join(' · ') : null;
+  // Mapa só com rua (só a cidade daria um mapa genérico); o editor pode desativar
+  const mapQuery = [[company.address, company.number].filter(Boolean).join(', '), company.neighborhood, company.city, company.state, company.zip_code]
+    .filter((p) => p && p.trim())
+    .join(', ');
+  const mapEmbed =
+    company.address?.trim() && !theme.hideMap ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=16&output=embed&hl=pt-BR` : null;
   const map =
     company.address || company.city
       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -253,6 +261,7 @@ export function buildContext(opts: {
       primaryIsExternal: primary.startsWith('http'),
     },
     addressLine,
+    mapEmbed,
     socials,
     pageUrl,
     seo: {
