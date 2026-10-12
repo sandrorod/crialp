@@ -251,7 +251,8 @@ export function setImageSizeCss(doc: Document, css: string) {
 type Edge = 'left' | 'right' | 'top' | 'bottom';
 
 /**
- * Modo "Fotos": alças nas quatro bordas das fotos (topo, "Sobre" e galeria). Laterais mudam a largura
+ * Modo "Fotos": alças nas quatro bordas e nos quatro cantos das fotos (cantos mudam largura e altura na mesma
+ * proporção). Laterais mudam a largura
  * (a foto fica centralizada, então cresce para os dois lados); topo e base mudam a altura.
  * Duplo clique numa alça volta aquela medida ao padrão do modelo. `onSize(url, null)` = tudo no padrão.
  */
@@ -366,7 +367,72 @@ export function attachImageResize(doc: Document, getSize: (url: string) => Image
       });
       return h;
     };
-    frame.append(make('left'), make('right'), make('top'), make('bottom'));
+    // Cantos: largura e altura juntas, mantendo a proporção atual da foto
+    const makeCorner = (corner: 'tl' | 'tr' | 'bl' | 'br') => {
+      const h = doc.createElement('div');
+      h.dataset.lpUi = 'resize';
+      const vertical = corner[0] === 't' ? 'top' : 'bottom';
+      const horizontal = corner[1] === 'l' ? 'left' : 'right';
+      h.setAttribute(
+        'style',
+        `position:absolute;${vertical}:${px(4)};${horizontal}:${px(4)};z-index:6;width:${px(18)};height:${px(18)};border-radius:50%;background:#2563eb;border:${px(2)} solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);cursor:${corner === 'tl' || corner === 'br' ? 'nwse-resize' : 'nesw-resize'};touch-action:none`,
+      );
+      h.title = 'Arraste o canto para aumentar ou diminuir a foto na mesma proporção (duplo clique: tamanho padrão)';
+      h.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onSize(url, null);
+      });
+      h.addEventListener('pointerdown', (e) => {
+        if (currentMode(doc) !== 'fotos' || e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const cur = sizeOf() ?? {};
+        const rect = frame.getBoundingClientRect();
+        const available = rect.width / ((cur.w ?? 100) / 100);
+        const ratio = rect.height / rect.width || 1;
+        const sx = e.clientX;
+        const sy = e.clientY;
+        let next: ImageBox = { ...cur };
+        h.setPointerCapture(e.pointerId);
+        label.style.display = 'block';
+        const show = () => (label.textContent = `Largura ${Math.round(next.w ?? 100)}% · Altura ${next.h ?? Math.round(rect.height)}px`);
+        show();
+        const move = (ev: PointerEvent) => {
+          frame.dataset.lpResized = '1';
+          // Foto centralizada: a largura muda o dobro do deslocamento lateral; a altura acompanha a proporção.
+          // Vale o movimento maior (de lado ou para cima/baixo), convertido em largura
+          const byX = (ev.clientX - sx) * (horizontal === 'right' ? 2 : -2);
+          const byY = ((ev.clientY - sy) * (vertical === 'bottom' ? 1 : -1)) / ratio;
+          const dw = Math.abs(byX) >= Math.abs(byY) ? byX : byY;
+          const minW = Math.max((available * IMG_W_MIN) / 100, IMG_H_MIN / ratio);
+          const maxW = Math.min(available, IMG_H_MAX / ratio);
+          const widthPx = Math.min(maxW, Math.max(minW, rect.width + dw));
+          next = { w: Math.round((widthPx / available) * 1000) / 10, h: Math.round(widthPx * ratio) };
+          frame.style.setProperty('width', `${next.w}%`, 'important');
+          frame.style.setProperty('max-width', '100%', 'important');
+          frame.style.setProperty('margin-left', 'auto', 'important');
+          frame.style.setProperty('margin-right', 'auto', 'important');
+          frame.style.setProperty('height', `${next.h}px`, 'important');
+          frame.style.setProperty('aspect-ratio', 'auto', 'important');
+          frame.style.setProperty('min-height', '0', 'important');
+          show();
+        };
+        const up = () => {
+          h.removeEventListener('pointermove', move);
+          h.removeEventListener('pointerup', up);
+          h.removeEventListener('pointercancel', up);
+          label.style.display = 'none';
+          if (next.w !== undefined && next.w >= 100) delete next.w;
+          if (next.w !== cur.w || next.h !== cur.h) onSize(url, next.w === undefined && next.h === undefined ? null : next);
+        };
+        h.addEventListener('pointermove', move);
+        h.addEventListener('pointerup', up);
+        h.addEventListener('pointercancel', up);
+      });
+      return h;
+    };
+    frame.append(make('left'), make('right'), make('top'), make('bottom'), makeCorner('tl'), makeCorner('tr'), makeCorner('bl'), makeCorner('br'));
   });
 }
 
