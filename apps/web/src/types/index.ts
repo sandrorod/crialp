@@ -321,6 +321,9 @@ export interface ElementColor {
   /** Deslocamento arrastado no modo "Mover" (px), por layout */
   mx?: number;
   my?: number;
+  /** Largura do bloco em % da área (arrastada na prévia), por layout; `wc` = centralizado */
+  w?: number;
+  wc?: boolean;
 }
 
 export type TextEffect =

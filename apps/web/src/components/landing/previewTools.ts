@@ -125,6 +125,7 @@ export function elementStyleDecl(c: ElementColor): string {
     c.hidden ? 'opacity:.3!important;outline:2px dashed #ef4444!important;outline-offset:2px' : '',
     c.fxSpeed ? `--fx-s:${c.fxSpeed}` : '',
     c.mx || c.my ? `translate:${c.mx ?? 0}px ${c.my ?? 0}px` : '',
+    c.w ? `max-width:${c.w}%!important${c.wc ? ';margin-left:auto!important;margin-right:auto!important' : ''}` : '',
   ]
     .filter(Boolean)
     .join(';');
@@ -1089,7 +1090,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     render();
   });
   const reset = mk('⟲', 'Voltar ao padrão (fonte, tamanho, estilo e cor do texto)', () => {
-    opts.setStyle(sel(), { text: null, bg: null, size: null, font: null, bold: null, italic: null, underline: null });
+    opts.setStyle(sel(), { text: null, bg: null, size: null, font: null, bold: null, italic: null, underline: null, w: null, wc: null });
     later(render);
   });
   // Efeito de movimento quando o texto aparece na tela: menu desenhado dentro da barra (uma lista nativa
@@ -1258,6 +1259,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     bar.style.left = `${Math.max(4, Math.min(r.left, win.innerWidth - bar.offsetWidth - 4))}px`;
   };
   place();
+  const widthUi = attachWidthHandles(doc, el, opts, sel, px);
   win.addEventListener('scroll', place, true);
   win.addEventListener('resize', place);
   // Rolagem da página do editor (fora da prévia)
@@ -1276,7 +1278,111 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
       win.removeEventListener('resize', place);
       parentWin?.removeEventListener('scroll', place, true);
       parentWin?.removeEventListener('resize', place);
+      widthUi?.close();
       bar.remove();
+    },
+  };
+}
+
+const TEXT_W_MIN = 10;
+
+/**
+ * Alças azuis nas laterais do texto selecionado: arrastar estreita (ou alarga) a faixa do texto, com a
+ * mesma letra. Texto centralizado encolhe pelos dois lados; alinhado à esquerda, só pela direita.
+ * Vale para o layout mostrado (celular ou computador). Duplo clique numa alça volta à largura do modelo.
+ */
+function attachWidthHandles(doc: Document, el: HTMLElement, opts: TextSizeOptions, sel: () => string, px: (n: number) => string) {
+  const win = doc.defaultView!;
+  const display = win.getComputedStyle(el).display;
+  // Só blocos (títulos, parágrafos, listas, cartões): texto dentro de botão/linha não tem faixa própria
+  if (!/^(block|flex|grid|list-item|flow-root)$/.test(display) || !el.parentElement) return null;
+  const centered = () => {
+    const ta = win.getComputedStyle(el).textAlign;
+    return ta === 'center' || ta === '-webkit-center';
+  };
+  const label = doc.createElement('div');
+  label.dataset.lpUi = 'width';
+  label.setAttribute('style', `position:fixed;z-index:9998;display:none;padding:${px(5)} ${px(9)};border-radius:999px;background:rgba(17,17,17,.85);color:#fff;font:600 ${px(12)}/1 system-ui,sans-serif;pointer-events:none;white-space:nowrap`);
+  doc.body.appendChild(label);
+  const sides: ('left' | 'right')[] = centered() ? ['left', 'right'] : ['right'];
+  const handles = sides.map((side) => {
+    const h = doc.createElement('div');
+    h.dataset.lpUi = 'width';
+    h.title = 'Arraste para diminuir ou aumentar a largura do texto (duplo clique: largura padrão)';
+    h.setAttribute(
+      'style',
+      `position:fixed;z-index:9998;width:${px(12)};height:${px(40)};margin-top:-${px(20)};margin-left:-${px(6)};border-radius:999px;background:#2563eb;border:${px(2)} solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);cursor:ew-resize;touch-action:none`,
+    );
+    // Não tira o foco do texto em edição (senão a edição e a barra fecham no meio do arrasto)
+    h.addEventListener('mousedown', (e) => e.preventDefault());
+    h.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      opts.setStyle(sel(), { w: null, wc: null });
+      win.requestAnimationFrame(() => win.requestAnimationFrame(placeHandles));
+    });
+    h.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      h.setPointerCapture(e.pointerId);
+      const parent = el.parentElement!;
+      const pcs = win.getComputedStyle(parent);
+      // Área disponível = largura útil do elemento de fora (100%)
+      const available = parent.getBoundingClientRect().width - parseFloat(pcs.paddingLeft) - parseFloat(pcs.paddingRight);
+      const startW = el.getBoundingClientRect().width;
+      const both = centered();
+      const sx = e.clientX;
+      let pct = Math.min(100, (startW / available) * 100);
+      label.style.display = 'block';
+      const move = (ev: PointerEvent) => {
+        const dx = (ev.clientX - sx) * (side === 'right' ? 1 : -1) * (both ? 2 : 1);
+        pct = Math.min(100, Math.max(TEXT_W_MIN, ((startW + dx) / available) * 100));
+        el.style.setProperty('max-width', `${pct}%`, 'important');
+        if (both) {
+          el.style.setProperty('margin-left', 'auto', 'important');
+          el.style.setProperty('margin-right', 'auto', 'important');
+        }
+        label.textContent = `Largura ${Math.round(pct)}%`;
+        placeHandles();
+      };
+      const up = () => {
+        h.removeEventListener('pointermove', move);
+        h.removeEventListener('pointerup', up);
+        h.removeEventListener('pointercancel', up);
+        label.style.display = 'none';
+        ['max-width', 'margin-left', 'margin-right'].forEach((p) => el.style.removeProperty(p));
+        const w = Math.round(pct * 10) / 10;
+        opts.setStyle(sel(), w >= 99.5 ? { w: null, wc: null } : { w, wc: both ? true : null });
+        win.requestAnimationFrame(() => win.requestAnimationFrame(placeHandles));
+      };
+      h.addEventListener('pointermove', move);
+      h.addEventListener('pointerup', up);
+      h.addEventListener('pointercancel', up);
+    });
+    doc.body.appendChild(h);
+    return { side, h };
+  });
+  function placeHandles() {
+    const r = el.getBoundingClientRect();
+    const y = r.top + Math.min(r.height, win.innerHeight) / 2;
+    for (const { side, h } of handles) {
+      h.style.left = `${side === 'left' ? r.left : r.right}px`;
+      h.style.top = `${y}px`;
+    }
+    label.style.left = `${r.left + r.width / 2}px`;
+    label.style.top = `${r.top - 14}px`;
+    label.style.transform = 'translate(-50%,-100%)';
+  }
+  placeHandles();
+  win.addEventListener('scroll', placeHandles, true);
+  win.addEventListener('resize', placeHandles);
+  return {
+    close: () => {
+      win.removeEventListener('scroll', placeHandles, true);
+      win.removeEventListener('resize', placeHandles);
+      handles.forEach(({ h }) => h.remove());
+      label.remove();
     },
   };
 }

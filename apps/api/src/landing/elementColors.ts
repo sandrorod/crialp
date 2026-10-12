@@ -23,6 +23,9 @@ export interface ElementColor {
   /** Deslocamento arrastado no modo "Mover" do editor, em px (horizontal e vertical), por layout */
   mx?: number;
   my?: number;
+  /** Largura do bloco em % da área (arrastada na prévia), por layout; `wc` = centralizado (margens automáticas) */
+  w?: number;
+  wc?: boolean;
 }
 
 /** Efeitos de movimento dos textos. Mantenha igual em apps/web/src/components/landing/previewTools.ts. */
@@ -98,6 +101,8 @@ function normalizeMap(input: unknown): Record<string, ElementColor> {
     };
     const mx = offset(value?.mx);
     const my = offset(value?.my);
+    const w = Number(value?.w);
+    const width = value?.w != null && Number.isFinite(w) && w < 100 ? Math.round(Math.max(10, w) * 10) / 10 : null;
     const entry: ElementColor = {
       ...(text ? { text } : {}),
       ...(bg ? { bg } : {}),
@@ -110,6 +115,7 @@ function normalizeMap(input: unknown): Record<string, ElementColor> {
       ...(value?.hidden === true ? { hidden: true } : {}),
       ...(mx !== null ? { mx } : {}),
       ...(my !== null ? { my } : {}),
+      ...(width !== null ? { w: width, ...(value?.wc === true ? { wc: true } : {}) } : {}),
       ...(Number.isFinite(Number(value?.fxSpeed)) && value?.fxSpeed != null && Number(value.fxSpeed) !== 1
         ? { fxSpeed: Math.round(Math.min(2, Math.max(0.1, Number(value.fxSpeed))) * 100) / 100 }
         : {}),
@@ -138,6 +144,8 @@ function rules(map: Record<string, ElementColor>) {
         c.hidden ? 'display:none!important' : '',
         // Posição arrastada no editor: "translate" não interfere nas animações (que usam transform)
         c.mx || c.my ? `translate:${c.mx ?? 0}px ${c.my ?? 0}px` : '',
+        // Largura arrastada no editor: faixa mais estreita (centralizada quando o texto é centralizado)
+        c.w ? `max-width:${c.w}%!important${c.wc ? ';margin-left:auto!important;margin-right:auto!important' : ''}` : '',
         // Velocidade do efeito: as durações das animações dividem por ela
         c.fxSpeed ? `--fx-s:${c.fxSpeed}` : '',
       ]

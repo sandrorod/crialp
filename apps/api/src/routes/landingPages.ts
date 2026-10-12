@@ -143,6 +143,9 @@ const ElementStyleSchema = z.object({
   // Posição arrastada no modo "Mover" (px)
   mx: z.number().min(-3000).max(3000).nullish(),
   my: z.number().min(-3000).max(3000).nullish(),
+  // Largura do bloco arrastada na prévia (% da área) e se fica centralizado
+  w: z.number().min(0).max(100).nullish(),
+  wc: z.boolean().nullish(),
 });
 
 const ContentUpdateSchema = z.object({
