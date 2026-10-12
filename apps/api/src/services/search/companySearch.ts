@@ -397,8 +397,39 @@ export async function searchCompanyPlaces(
 
   // Lista completa do RapidAPI, se a chave assinar a "Local Business Data" (região: Brasil): 50 por página
   const limit = PAGE_SIZE * (page + 1);
-  const maps = (await aiKeyStore.hasAny('rapidapi', env.rapidApiKey)) && limit <= 500 ? await searchMaps(query, limit).catch(() => null) : null;
-  if (maps) return { items: maps.slice(page * PAGE_SIZE).filter((c) => c.name), center: null, hasMore: maps.length >= limit && limit < 500, warning: null };
+  const hasRapid = await aiKeyStore.hasAny('rapidapi', env.rapidApiKey);
+  if (hasRapid && located && limit <= 500) {
+    const maps = await searchMaps(query, limit).catch(() => null);
+    if (maps) return { items: maps.slice(page * PAGE_SIZE).filter((c) => c.name), center: null, hasMore: maps.length >= limit && limit < 500, warning: null };
+  }
+  // Sem cidade na pesquisa a Local Business Data procura só perto de um ponto fixo (vinham 3 ou 4 locais de
+  // uma cidade só): percorre as maiores cidades do país, 7 por página, como na consulta pelo Gemini
+  if (hasRapid && !located) {
+    const cities = BRAZIL_CITIES.slice(page * CITIES_PER_PAGE, (page + 1) * CITIES_PER_PAGE);
+    const perCity = Math.ceil(PAGE_SIZE / CITIES_PER_PAGE) + 3;
+    const results = await pool(cities, 2, ([city]) => searchMaps(`${query} em ${city}`, perCity));
+    // null = nenhuma chave assina a Local Business Data: segue para o Gemini
+    if (results.some((r) => r.status === 'fulfilled' && r.value)) {
+      const items: FoundCompany[] = [];
+      const seenPlaces = new Set<string>();
+      for (const r of results) {
+        if (r.status !== 'fulfilled' || !r.value) continue;
+        for (const c of r.value) {
+          const key = c.place_id ?? c.google_url ?? `${c.name}|${c.address}`;
+          if (!c.name || seenPlaces.has(key)) continue;
+          seenPlaces.add(key);
+          items.push(c);
+        }
+      }
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      return {
+        items,
+        center: null,
+        hasMore: page < MAX_SEARCH_PAGE,
+        warning: failed ? `Só ${results.length - failed} de ${results.length} cidades foram consultadas (o RapidAPI não respondeu nas demais). Use "Buscar mais" ou tente de novo.` : null,
+      };
+    }
+  }
 
   // Com cidade na pesquisa: a cidade e arredores (anéis cada vez maiores em "Buscar mais locais")
   // Sem cidade: o Brasil todo, percorrendo as maiores cidades (7 por página)
