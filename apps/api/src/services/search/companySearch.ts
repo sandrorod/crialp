@@ -244,7 +244,11 @@ async function searchWeb(query: string, limit = 30): Promise<FoundCompany[]> {
     if (seen.has(key)) continue;
     seen.add(key);
     const description: string = item.description ?? '';
-    const phone = description.match(PHONE_RE)?.find((m) => toBrazilE164Digits(m)) ?? null;
+    // Telefone, celular ou WhatsApp: na descrição, no título ou no próprio link (wa.me/5511…)
+    const waDigits = /(^|\.)(wa\.me|whatsapp\.com)$/.test(host) ? (url.pathname.replace(/\D/g, '') || url.searchParams.get('phone')) : null;
+    const phone =
+      [description, item.title ?? ''].flatMap((t: string) => t.match(PHONE_RE) ?? []).find((m: string) => toBrazilE164Digits(m)) ??
+      (waDigits && toBrazilE164Digits(waDigits) ? waDigits : null);
     const site = /(^|\.)(instagram|facebook)\.com$/.test(host) ? url.toString() : url.origin;
     out.push({
       name: nameFromTitle(item.title ?? '', host),

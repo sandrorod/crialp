@@ -13,7 +13,7 @@ import type { FoundCompany, SavedSearchItem, SiteFilter } from '@/types';
 
 // A última pesquisa continua na tela ao voltar de outra página
 const STORE_KEY = 'lp:company-search';
-type Saved = { q: string; items: FoundCompany[]; center: { lat: number; lng: number } | null; page: number; hasMore: boolean; searchId?: string | null; filter?: SiteFilter; phone?: boolean };
+type Saved = { q: string; items: FoundCompany[]; center: { lat: number; lng: number } | null; page: number; hasMore: boolean; searchId?: string | null; filter?: SiteFilter; phone?: boolean; noLp?: boolean };
 function loadSaved(): Saved | null {
   try {
     return JSON.parse(sessionStorage.getItem(STORE_KEY) ?? 'null');
@@ -42,14 +42,28 @@ function hasOwnSite(c: FoundCompany) {
     return false;
   }
 }
+const PHONE_IN_TEXT = /(?:\+?55[\s.-]?)?\(?\b[1-9]\d\)?[\s.-]?9?\d{4}[\s.-]?\d{4}\b/;
+/** Qualquer contato por telefone: fixo, celular ou WhatsApp (inclusive link wa.me ou número no texto do resultado). */
+function hasAnyPhone(c: FoundCompany) {
+  if (c.phone?.trim()) return true;
+  try {
+    if (c.website && /(^|\.)(wa\.me|whatsapp\.com)$/i.test(new URL(c.website).hostname)) return true;
+  } catch {
+    /* link inválido */
+  }
+  return PHONE_IN_TEXT.test(c.description ?? '');
+}
+type Filters = { site: SiteFilter; phone: boolean; noLp: boolean };
 /** Todas as opções marcadas precisam valer (nenhuma marcada = todas as empresas). */
-const matchesFilter = (c: FoundCompany, f: SiteFilter, phone: boolean) =>
-  (f === 'todos' ? true : f === 'com_site' ? hasOwnSite(c) : !hasOwnSite(c)) && (!phone || !!c.phone?.trim());
-/** Resumo das opções marcadas, para os textos da lista ("com telefone e site"). */
-function filterLabel(f: SiteFilter, phone: boolean) {
-  const parts = [phone ? 'telefone' : null, f === 'com_site' ? 'site' : null].filter(Boolean);
-  const com = parts.length ? `com ${parts.join(' e ')}` : '';
-  return [com, f === 'sem_site' ? 'sem site' : ''].filter(Boolean).join(' e ');
+const matchesFilter = (c: FoundCompany, f: Filters) =>
+  (f.site === 'todos' ? true : f.site === 'com_site' ? hasOwnSite(c) : !hasOwnSite(c)) &&
+  (!f.phone || hasAnyPhone(c)) &&
+  (!f.noLp || !c.existing?.landing_page);
+/** Resumo das opções marcadas, para os textos da lista ("com telefone e site, sem LP gerada"). */
+function filterLabel(f: Filters) {
+  const com = [f.phone ? 'telefone' : null, f.site === 'com_site' ? 'site' : null].filter(Boolean);
+  const sem = [f.site === 'sem_site' ? 'site' : null, f.noLp ? 'LP gerada' : null].filter(Boolean);
+  return [com.length ? `com ${com.join(' e ')}` : '', sem.length ? `sem ${sem.join(' e sem ')}` : ''].filter(Boolean).join(', ');
 }
 
 const MATCH_REASON = { link: 'mesmo link', site: 'mesmo site e nome/telefone', nome_telefone: 'mesmo nome e telefone', nome_cep: 'mesmo nome e CEP' } as const;
@@ -139,6 +153,7 @@ export function SearchCompaniesPage() {
   const [lastQ, setLastQ] = useState(saved?.q ?? '');
   const [filter, setFilter] = useState<SiteFilter>(saved?.filter ?? 'todos');
   const [phoneOnly, setPhoneOnly] = useState(saved?.phone ?? false);
+  const [noLp, setNoLp] = useState(saved?.noLp ?? false);
   const [loading, setLoading] = useState<'new' | 'more' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -175,7 +190,7 @@ export function SearchCompaniesPage() {
       setHasMore(r.has_more);
       setWarning(null);
       setSearchId(r.id);
-      store({ q: r.query, items: r.results, center: c, page: r.page, hasMore: r.has_more, searchId: r.id, filter, phone: phoneOnly });
+      store({ q: r.query, items: r.results, center: c, page: r.page, hasMore: r.has_more, searchId: r.id, filter, phone: phoneOnly, noLp });
     } catch (err) {
       if (!quiet) toast.error(errorMessage(err));
     } finally {
@@ -215,7 +230,7 @@ export function SearchCompaniesPage() {
       setHasMore(r.has_more);
       setWarning(r.warning);
       setSearchId(r.search_id);
-      store({ q: term, items: merged, center: nextCenter, page: p, hasMore: r.has_more, searchId: r.search_id, filter, phone: phoneOnly });
+      store({ q: term, items: merged, center: nextCenter, page: p, hasMore: r.has_more, searchId: r.search_id, filter, phone: phoneOnly, noLp });
       void history.reload();
     } catch (err) {
       setError(errorMessage(err));
@@ -236,12 +251,14 @@ export function SearchCompaniesPage() {
 
   const more = () => void fetchPage(lastQ, center, page + 1, items ?? [], searchId);
   // Filtro aplicado na tela também: marcar/desmarcar as opções não refaz a pesquisa
-  const shown = (items ?? []).filter((c) => matchesFilter(c, filter, phoneOnly));
-  const filtering = filter !== 'todos' || phoneOnly;
-  const changeFilter = (nextFilter: SiteFilter, nextPhone: boolean) => {
+  const filters: Filters = { site: filter, phone: phoneOnly, noLp };
+  const shown = (items ?? []).filter((c) => matchesFilter(c, filters));
+  const filtering = filter !== 'todos' || phoneOnly || noLp;
+  const changeFilter = (nextFilter: SiteFilter, nextPhone: boolean, nextNoLp = noLp) => {
     setFilter(nextFilter);
     setPhoneOnly(nextPhone);
-    if (items) store({ q: lastQ, items, center, page, hasMore, searchId, filter: nextFilter, phone: nextPhone });
+    setNoLp(nextNoLp);
+    if (items) store({ q: lastQ, items, center, page, hasMore, searchId, filter: nextFilter, phone: nextPhone, noLp: nextNoLp });
   };
 
   const generate = (c: FoundCompany) => {
@@ -277,10 +294,11 @@ export function SearchCompaniesPage() {
           <span className="text-zinc-600">Trazer só empresas:</span>
           {(
             [
-              { label: 'Com telefone', icon: <Phone className="size-3.5" />, checked: phoneOnly, onChange: (v: boolean) => changeFilter(filter, v) },
+              { label: 'Com telefone ou WhatsApp', icon: <Phone className="size-3.5" />, checked: phoneOnly, onChange: (v: boolean) => changeFilter(filter, v) },
               // Com site e Sem site se excluem: marcar um desmarca o outro
               { label: 'Com site', icon: <Globe className="size-3.5" />, checked: filter === 'com_site', onChange: (v: boolean) => changeFilter(v ? 'com_site' : 'todos', phoneOnly) },
               { label: 'Sem site', icon: <Globe className="size-3.5 opacity-50" />, checked: filter === 'sem_site', onChange: (v: boolean) => changeFilter(v ? 'sem_site' : 'todos', phoneOnly) },
+              { label: 'Sem LP gerada', icon: <PanelsTopLeft className="size-3.5" />, checked: noLp, onChange: (v: boolean) => changeFilter(filter, phoneOnly, v) },
             ] as const
           ).map((o) => (
             <label
@@ -296,7 +314,7 @@ export function SearchCompaniesPage() {
             </label>
           ))}
           {filtering ? (
-            <button type="button" onClick={() => changeFilter('todos', false)} className="text-xs text-zinc-500 underline hover:text-zinc-800">
+            <button type="button" onClick={() => changeFilter('todos', false, false)} className="text-xs text-zinc-500 underline hover:text-zinc-800">
               Limpar
             </button>
           ) : null}
@@ -319,14 +337,14 @@ export function SearchCompaniesPage() {
         <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
           <h2 className="text-lg font-semibold">Empresas encontradas</h2>
           <span className="text-xs text-zinc-500">
-            {!filtering ? `${items.length} empresa(s)` : `${shown.length} de ${items.length} empresa(s) ${filterLabel(filter, phoneOnly)}`} para “{lastQ}”
+            {!filtering ? `${items.length} empresa(s)` : `${shown.length} de ${items.length} empresa(s) ${filterLabel(filters)}`} para “{lastQ}”
           </span>
         </div>
       ) : null}
       {loading === 'new' ? waiting : null}
       {items && !shown.length && !loading ? (
         <Card className="p-5 text-sm text-zinc-500">
-          {items.length ? `Nenhuma empresa ${filterLabel(filter, phoneOnly)} entre as encontradas até agora. Use "Buscar mais" ou desmarque alguma opção.` : 'Nenhuma empresa encontrada. Tente outras palavras ou inclua a cidade.'}
+          {items.length ? `Nenhuma empresa ${filterLabel(filters)} entre as encontradas até agora. Use "Buscar mais" ou desmarque alguma opção.` : 'Nenhuma empresa encontrada. Tente outras palavras ou inclua a cidade.'}
         </Card>
       ) : null}
       {shown.length ? (
