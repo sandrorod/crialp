@@ -110,7 +110,7 @@ landingPagesRouter.get('/:id/screenshot', async (req, res) => {
   const image = await getScreenshotImage(lp.id);
   if (!image) throw notFound('Imagem da página ainda não gerada.');
   res.setHeader('Content-Type', 'image/jpeg');
-  res.setHeader('Content-Disposition', `attachment; filename="${lp.slug}.jpg"`);
+  res.setHeader('Content-Disposition', `attachment; filename="${lp.company_id}.jpg"`);
   res.setHeader('Cache-Control', 'private, no-store');
   res.send(image);
 });

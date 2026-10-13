@@ -143,7 +143,10 @@ export function LandingPageEditorPage() {
       const { screenshot } = await landingPageService.regenerateScreenshot(id);
       setShotOverride(screenshot);
       if (thenDownload) downloadShot(screenshot.created_at);
-      else toast.success(dirty ? 'Imagem gerada a partir da versão salva da página.' : 'Imagem da página gerada.');
+      else {
+        const sent = screenshot.drive_file_id && !screenshot.drive_error ? ' e enviada ao Google Drive' : '';
+        toast.success(dirty ? `Imagem gerada a partir da versão salva da página${sent}.` : `Nova imagem gerada${sent}.`);
+      }
       if (screenshot.drive_error) toast.warning(screenshot.drive_error);
     } catch (err) {
       toast.error(errorMessage(err));
@@ -338,19 +341,19 @@ export function LandingPageEditorPage() {
             aria-label="Baixar imagem JPG"
             title={shot?.available ? `Baixar imagem JPG (topo e "Sobre nós"), gerada ${formatDate(shot.created_at, true)}` : 'Gerar e baixar imagem JPG (topo e "Sobre nós")'}
           />
-          {shot?.available ? (
-            <Button
-              variant="ghost"
-              disabled={shotBusy}
-              onClick={() => generateShot()}
-              icon={<RefreshCw className="size-4" />}
-              aria-label="Gerar a imagem novamente"
-              title="Gerar a imagem novamente (depois de editar a página)"
-            />
-          ) : null}
+          {/* Novo print da página; o envio ao Google Drive é automático */}
+          <Button
+            variant="secondary"
+            disabled={shotBusy}
+            onClick={() => generateShot()}
+            icon={<RefreshCw className={shotBusy ? 'size-4 animate-spin' : 'size-4'} />}
+            title="Gerar um novo print da página e enviar ao Google Drive"
+          >
+            {shotBusy ? 'Gerando…' : 'Novo print'}
+          </Button>
           {shot?.drive_file_id ? (
             <a href={`https://drive.google.com/file/d/${shot.drive_file_id}/view`} target="_blank" rel="noreferrer">
-              <Button variant="ghost" icon={<ExternalLink className="size-4" />} title={shot.drive_error ?? 'Abrir a imagem no Google Drive (pasta "lp")'}>Drive</Button>
+              <Button variant="ghost" icon={<ExternalLink className="size-4" />} title={shot.drive_error ?? 'Abrir a imagem no Google Drive'}>Drive</Button>
             </a>
           ) : null}
           <a href={landingPageService.exportUrl(lp.id)}><Button variant="ghost" icon={<Download className="size-4" />} aria-label="Exportar HTML" title="Exportar HTML" /></a>

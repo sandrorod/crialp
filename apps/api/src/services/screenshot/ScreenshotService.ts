@@ -116,7 +116,8 @@ export async function generateScreenshot(lp: LandingPageRow): Promise<Screenshot
 async function sendToDrive(lp: LandingPageRow, image: Buffer) {
   try {
     const row = await one<{ drive_file_id: string | null }>('select drive_file_id from lp_screenshots where landing_page_id = $1', [lp.id]);
-    const fileId = await uploadJpgToDrive(`${lp.slug}.jpg`, image, row?.drive_file_id ?? null);
+    // Nome do arquivo: id da empresa
+    const fileId = await uploadJpgToDrive(`${lp.company_id}.jpg`, image, row?.drive_file_id ?? null);
     await query('update lp_screenshots set drive_file_id = coalesce($2, drive_file_id), drive_error = null where landing_page_id = $1', [lp.id, fileId]);
   } catch (err) {
     console.error(`[screenshot ${lp.id}] Google Drive:`, err);
