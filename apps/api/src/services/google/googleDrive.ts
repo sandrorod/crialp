@@ -101,9 +101,10 @@ async function ensureFolder(accessToken: string) {
  * (a imagem gerada de novo não duplica). Devolve o id do arquivo, ou null sem Drive conectado.
  */
 export async function uploadJpgToDrive(name: string, image: Buffer, existingId: string | null): Promise<string | null> {
-  if (!driveConfigured()) return null;
+  // Sem configuração ou sem conta conectada: avisa o motivo (antes não enviava e não dizia nada)
+  if (!driveConfigured()) throw new Error('Google Drive não configurado no servidor: faltam GOOGLE_OAUTH_CLIENT_ID e GOOGLE_OAUTH_CLIENT_SECRET na Vercel.');
   const stored = await getSetting(KEYS.token);
-  if (!stored) return null;
+  if (!stored) throw new Error('Google Drive não conectado: conecte em Configurações → Google Drive.');
   const refreshToken = decrypt(stored);
   if (!refreshToken) throw new Error('Conexão com o Google Drive inválida: conecte de novo em Configurações.');
   const { access_token } = await tokenRequest({ refresh_token: refreshToken, grant_type: 'refresh_token' }).catch((err) => {

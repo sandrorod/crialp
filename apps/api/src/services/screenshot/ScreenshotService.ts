@@ -120,9 +120,19 @@ async function sendToDrive(lp: LandingPageRow, image: Buffer) {
     await query('update lp_screenshots set drive_file_id = coalesce($2, drive_file_id), drive_error = null where landing_page_id = $1', [lp.id, fileId]);
   } catch (err) {
     console.error(`[screenshot ${lp.id}] Google Drive:`, err);
-    const msg = err instanceof Error && err.message.includes('Configurações') ? err.message : 'Não foi possível enviar a imagem ao Google Drive.';
+    const msg = driveErrorMessage(err);
     await query('update lp_screenshots set drive_error = $2 where landing_page_id = $1', [lp.id, msg]).catch(() => {});
   }
+}
+
+/** Motivo da falha no envio ao Drive, em texto para o painel. */
+function driveErrorMessage(err: unknown) {
+  const raw = err instanceof Error ? err.message : String(err);
+  if (raw.startsWith('Google Drive não') || raw.includes('Configurações')) return raw;
+  if (/accessNotConfigured|has not been used|SERVICE_DISABLED/i.test(raw)) return 'A Google Drive API está desativada no projeto do Google Cloud: ative-a em APIs e serviços → Biblioteca → Google Drive API.';
+  if (/invalid_client|unauthorized_client/i.test(raw)) return 'ID ou chave secreta do OAuth do Google inválidos na Vercel (GOOGLE_OAUTH_CLIENT_ID / SECRET).';
+  if (/insufficient|403/i.test(raw)) return `O Google Drive recusou o envio (sem permissão): conecte de novo em Configurações. Detalhe: ${raw.slice(0, 160)}`;
+  return `Não foi possível enviar a imagem ao Google Drive. Detalhe: ${raw.slice(0, 160)}`;
 }
 
 export function getScreenshotInfo(landingPageId: string) {
