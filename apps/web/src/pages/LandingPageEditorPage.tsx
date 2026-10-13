@@ -522,7 +522,7 @@ export function LandingPageEditorPage() {
             ))}
           </div>
           <div ref={panelRef} className="xl:max-h-[calc(72vh+10px)] xl:overflow-y-auto xl:pr-1">
-            {tab === 'textos' ? <ContentTab content={content} onChange={change(setContent)} company={company} /> : null}
+            {tab === 'textos' ? <ContentTab content={content} onChange={change(setContent)} company={company} theme={theme} onThemeChange={change(setTheme)} /> : null}
             {tab === 'modelo' ? <Card className="p-5"><TemplateTab theme={theme} onChange={change(setTheme)} hasPhoto={!!company?.images.some((i) => i.usage_allowed && i.type !== 'logo')} /></Card> : null}
             {tab === 'fotos' ? <Card className="p-5"><PhotosTab theme={theme} onChange={change(setTheme)} images={company?.images ?? null} onAddPhotos={addPhotos} onRemovePhotos={removePhotos} sectionOrder={content.section_order} customSections={content.custom_sections} /></Card> : null}
             {tab === 'visual' ? <Card className="p-5"><DesignTab theme={theme} onChange={change(setTheme)} content={content} /></Card> : null}

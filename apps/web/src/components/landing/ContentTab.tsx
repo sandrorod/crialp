@@ -5,7 +5,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { cn, confirmDelete } from '@/lib/utils';
 import { companyService, landingPageService } from '@/services';
 import { BlocksEditor, NewSectionButton, newId } from './SectionBlocks';
-import type { Company, CustomSection, LandingContent, SectionKey, SectionOrderKey } from '@/types';
+import type { Company, CustomSection, LandingContent, SectionKey, SectionOrderKey, ThemeSettings } from '@/types';
 import { IconPickerButton } from './IconPicker';
 
 const SECTION_LABELS: Record<SectionKey, string> = {
@@ -245,7 +245,19 @@ function ItemList<T>({ items, onChange, create, addLabel, render, path }: { item
 }
 
 // ─── Editor ─────────────────────────────────────────────────────────
-export function ContentTab({ content, onChange, company }: { content: LandingContent; onChange: (c: LandingContent) => void; company?: Company | null }) {
+export function ContentTab({
+  content,
+  onChange,
+  company,
+  theme,
+  onThemeChange,
+}: {
+  content: LandingContent;
+  onChange: (c: LandingContent) => void;
+  company?: Company | null;
+  theme?: ThemeSettings;
+  onThemeChange?: (t: ThemeSettings) => void;
+}) {
   const { data: defaults } = useAsync(() => landingPageService.labels(), []);
   const set = <K extends keyof LandingContent>(key: K, v: LandingContent[K]) => onChange({ ...content, [key]: v });
   const order = content.section_order;
@@ -546,6 +558,20 @@ export function ContentTab({ content, onChange, company }: { content: LandingCon
         <p className="text-xs text-zinc-500">Telefone, WhatsApp, e-mail, endereço e horário vêm do cadastro da empresa.</p>
         <Txt field="contact.title" label="Título" value={content.contact.title} onChange={(v) => set('contact', { ...content.contact, title: v })} />
         <Txt field="contact.subtitle" label="Subtítulo" value={content.contact.subtitle} onChange={(v) => set('contact', { ...content.contact, subtitle: v || null })} />
+        {theme && onThemeChange ? (
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 p-3 hover:border-zinc-300">
+            <input
+              type="checkbox"
+              checked={!theme.hideMap}
+              onChange={(e) => onThemeChange({ ...theme, hideMap: !e.target.checked })}
+              className="mt-0.5 size-4 accent-zinc-900"
+            />
+            <span>
+              <span className="block text-[13px] font-medium">Mostrar mapa do endereço</span>
+              <span className="block text-[11px] text-zinc-500">Mapa do Google com a localização (só quando o cadastro tem rua). Desmarque para tirar o mapa da página.</span>
+            </span>
+          </label>
+        ) : null}
       </Group>
 
       <Group id="final_cta" title="CTA final">
