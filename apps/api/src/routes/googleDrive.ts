@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { AppError } from '../lib/errors.js';
 import { authUser } from '../middleware/auth.js';
-import { connectDrive, disconnectDrive, driveAuthUrl, driveConfigured, driveStatus } from '../services/google/googleDrive.js';
+import { connectDrive, disconnectDrive, driveAuthUrl, driveConfigured, driveStatus, setTargetFolder } from '../services/google/googleDrive.js';
 
 /** Conexão com o Google Drive (imagem das LPs vai para a pasta "lp"). Só administradores. */
 export const googleDriveRouter = Router();
@@ -37,6 +37,17 @@ googleDriveRouter.get('/callback', async (req, res) => {
     console.error('[google-drive] conexão:', err);
     res.redirect(`${SETTINGS_PAGE}?drive=erro`);
   }
+});
+
+/** Pasta de destino das imagens (link ou id do Drive; vazio volta à pasta "lp" criada pelo sistema). */
+googleDriveRouter.put('/folder', async (req, res) => {
+  const folder = typeof req.body?.folder === 'string' ? req.body.folder : null;
+  try {
+    await setTargetFolder(folder);
+  } catch (err) {
+    throw new AppError(400, err instanceof Error ? err.message : 'Pasta inválida.');
+  }
+  res.json(await driveStatus());
 });
 
 googleDriveRouter.delete('/', async (_req, res) => {

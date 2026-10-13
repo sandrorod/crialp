@@ -2,12 +2,37 @@ import { env } from '../../config/env.js';
 import { one, query } from '../../db/pool.js';
 import { decrypt, encrypt } from '../ai/keyStore.js';
 
-// drive.file: o sistema só enxerga os arquivos e pastas que ele mesmo criou
-export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+// drive (completo): necessário para gravar numa pasta criada pelo usuário (drive.file só enxerga o que o app criou)
+export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
 const FOLDER_NAME = 'lp';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 
 const KEYS = { token: 'google_drive_refresh_token', email: 'google_drive_email', folder: 'google_drive_folder_id' } as const;
+/** Pasta escolhida pelo usuário (fica mesmo ao desconectar/trocar de conta) */
+const TARGET_KEY = 'google_drive_target_folder';
+
+/** Id da pasta a partir do link do Drive (…/folders/<id>) ou do próprio id. */
+export function parseFolderId(input: string | null | undefined): string | null {
+  const v = input?.trim();
+  if (!v) return null;
+  const m = v.match(/\/folders\/([\w-]{10,})/) ?? v.match(/[?&]id=([\w-]{10,})/);
+  if (m) return m[1];
+  return /^[\w-]{10,}$/.test(v) ? v : null;
+}
+
+async function targetFolder() {
+  return (await getSetting(TARGET_KEY)) ?? parseFolderId(env.googleOAuth.folder);
+}
+
+export async function setTargetFolder(input: string | null) {
+  if (!input?.trim()) {
+    await query('delete from lp_settings where key = $1', [TARGET_KEY]);
+    return;
+  }
+  const id = parseFolderId(input);
+  if (!id) throw new Error('Link da pasta do Google Drive inválido.');
+  await setSetting(TARGET_KEY, id);
+}
 
 export const driveRedirectUri = () => `${env.appUrl}/api/google-drive/callback`;
 export const driveConfigured = () => !!(env.googleOAuth.clientId && env.googleOAuth.clientSecret);
@@ -25,7 +50,15 @@ async function setSetting(key: string, value: string) {
 
 export async function driveStatus() {
   const token = await getSetting(KEYS.token);
-  return { configured: driveConfigured(), connected: !!token, email: token ? await getSetting(KEYS.email) : null, redirect_uri: driveRedirectUri() };
+  const folder = await targetFolder();
+  return {
+    configured: driveConfigured(),
+    connected: !!token,
+    email: token ? await getSetting(KEYS.email) : null,
+    redirect_uri: driveRedirectUri(),
+    target_folder: folder,
+    target_folder_url: folder ? `https://drive.google.com/drive/folders/${folder}` : null,
+  };
 }
 
 export function driveAuthUrl(state: string) {
@@ -74,8 +107,16 @@ export async function disconnectDrive() {
   await query('delete from lp_settings where key = any($1)', [Object.values(KEYS)]);
 }
 
-/** Pasta "lp" criada pelo sistema na raiz do Drive (criada no primeiro envio). */
+/** Pasta escolhida em Configurações; sem ela, a pasta "lp" criada pelo sistema na raiz do Drive. */
 async function ensureFolder(accessToken: string) {
+  const target = await targetFolder();
+  if (target) {
+    const f = await driveFetch<{ trashed?: boolean; mimeType?: string }>(accessToken, `https://www.googleapis.com/drive/v3/files/${target}?fields=trashed,mimeType&supportsAllDrives=true`).catch((err) => {
+      throw new Error(`Sem acesso à pasta escolhida do Google Drive: confira o link e conecte de novo em Configurações (a conta precisa poder editar a pasta). Detalhe: ${String(err.message).slice(0, 120)}`);
+    });
+    if (f.trashed || f.mimeType !== FOLDER_MIME) throw new Error('A pasta escolhida do Google Drive está na lixeira ou não é uma pasta: escolha outra em Configurações.');
+    return target;
+  }
   const saved = await getSetting(KEYS.folder);
   if (saved) {
     const f = await driveFetch<{ trashed?: boolean }>(accessToken, `https://www.googleapis.com/drive/v3/files/${saved}?fields=trashed`).catch(() => null);
@@ -111,14 +152,20 @@ export async function uploadJpgToDrive(name: string, image: Buffer, existingId: 
     throw new Error(String(err.message).includes('invalid_grant') ? 'Acesso ao Google Drive expirou ou foi revogado: conecte de novo em Configurações.' : err.message);
   });
 
+  const folderId = await ensureFolder(access_token!);
+  // Arquivo já enviado e ainda na pasta de destino: substitui o conteúdo (não duplica).
+  // Apagado, na lixeira ou em outra pasta (ex.: pasta de destino trocada): cria outro na pasta atual.
   if (existingId) {
-    const updated = await driveFetch<{ id: string }>(access_token!, `https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=media&fields=id`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'image/jpeg' },
-      body: new Uint8Array(image),
-    }).catch(() => null); // arquivo apagado no Drive: cria outro
+    const current = await driveFetch<{ parents?: string[]; trashed?: boolean }>(access_token!, `https://www.googleapis.com/drive/v3/files/${existingId}?fields=parents,trashed&supportsAllDrives=true`).catch(() => null);
+    const updated = current && !current.trashed && current.parents?.includes(folderId)
+      ? await driveFetch<{ id: string }>(access_token!, `https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=media&fields=id&supportsAllDrives=true`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'image/jpeg' },
+          body: new Uint8Array(image),
+        }).catch(() => null)
+      : null;
     if (updated) {
-      await driveFetch(access_token!, `https://www.googleapis.com/drive/v3/files/${existingId}?fields=id`, {
+      await driveFetch(access_token!, `https://www.googleapis.com/drive/v3/files/${existingId}?fields=id&supportsAllDrives=true`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
@@ -127,14 +174,13 @@ export async function uploadJpgToDrive(name: string, image: Buffer, existingId: 
     }
   }
 
-  const folderId = await ensureFolder(access_token!);
   const boundary = `lp${Date.now()}`;
   const body = Buffer.concat([
     Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({ name, parents: [folderId] })}\r\n--${boundary}\r\nContent-Type: image/jpeg\r\n\r\n`),
     image,
     Buffer.from(`\r\n--${boundary}--`),
   ]);
-  const created = await driveFetch<{ id: string }>(access_token!, 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+  const created = await driveFetch<{ id: string }>(access_token!, 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id&supportsAllDrives=true', {
     method: 'POST',
     headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
     body: new Uint8Array(body),

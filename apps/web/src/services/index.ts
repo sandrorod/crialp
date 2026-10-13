@@ -139,6 +139,9 @@ export interface DriveStatus {
   connected: boolean;
   email: string | null;
   redirect_uri: string;
+  /** Pasta escolhida para as imagens (sem ela, a pasta "lp" criada pelo sistema) */
+  target_folder: string | null;
+  target_folder_url: string | null;
 }
 
 export const miscService = {
@@ -157,6 +160,7 @@ export const miscService = {
   /** Google Drive (imagem das LPs vai para a pasta "lp") */
   driveStatus: () => api.get<DriveStatus>('/google-drive/status'),
   disconnectDrive: () => api.del<DriveStatus>('/google-drive'),
+  setDriveFolder: (folder: string | null) => api.put<DriveStatus>('/google-drive/folder', { folder }),
   /** Navegação direta: abre o login do Google */
   driveConnectUrl: '/api/google-drive/connect',
   /** Tira do rodízio a chave da variável de ambiente (GEMINI_API_KEY / RAPIDAPI_KEY) */

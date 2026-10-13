@@ -97,6 +97,8 @@ export const env = {
   googleOAuth: {
     clientId: process.env.GOOGLE_OAUTH_CLIENT_ID || undefined,
     clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || undefined,
+    /** Pasta do Drive para as imagens (id ou link); a escolhida em Configurações tem prioridade */
+    folder: process.env.GOOGLE_DRIVE_FOLDER_ID || undefined,
   },
   /** Chave do RapidAPI usada na pesquisa de empresas (área "Buscar empresas") */
   rapidApiKey: process.env.RAPIDAPI_KEY || undefined,
