@@ -1378,11 +1378,18 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     place();
   });
 
+  // Só mostra o que vale para o elemento: sem texto dentro, nada de fonte, tamanho e cor do texto
+  const hasText = !!el.innerText?.trim();
   const top = row();
-  top.append(handle, font, mk('A−', 'Diminuir fonte', () => setSize(Math.max(8, size() - step()))), value, mk('A+', 'Aumentar fonte', () => setSize(Math.min(160, size() + step()))), reset);
   const bottom = row();
-  bottom.append(bold, italic, underline, color, scopeBtn, tag);
-  bar.append(top, bottom);
+  if (hasText) {
+    top.append(handle, font, mk('A−', 'Diminuir fonte', () => setSize(Math.max(8, size() - step()))), value, mk('A+', 'Aumentar fonte', () => setSize(Math.min(160, size() + step()))), reset);
+    bottom.append(bold, italic, underline, color, scopeBtn, tag);
+    bar.append(top, bottom);
+  } else {
+    top.append(handle, scopeBtn, tag);
+    bar.append(top);
+  }
   if (opts.setEffect) {
     const fxRow = row();
     fxRow.append(effect, bgLabel, bg);
@@ -1656,6 +1663,31 @@ function notifySelect(doc: Document, el: HTMLElement) {
   });
 }
 
+// ─── Foto clicada ──────────────────────────────────────────
+/** Foto clicada na prévia (em qualquer modo): o editor abre o quadro com as opções da foto. */
+export interface ImagePick {
+  url: string;
+  /** Seletor da moldura da foto (efeito e exclusão) */
+  selector: string;
+  section?: string;
+  x: number;
+  y: number;
+}
+const imagePickers = new WeakMap<Document, (p: ImagePick) => void>();
+export function onImagePick(doc: Document, fn: (p: ImagePick) => void) {
+  imagePickers.set(doc, fn);
+}
+/** Foto (com data-lp-img) clicada: a própria <img> ou a moldura dela. */
+function clickedImage(t: Element): HTMLImageElement | null {
+  return t.closest<HTMLImageElement>('img[data-lp-img]') ?? t.querySelector<HTMLImageElement>(':scope > img[data-lp-img]');
+}
+export function imagePickFor(img: HTMLImageElement, x: number, y: number): ImagePick | null {
+  const frame = img.parentElement;
+  const url = img.dataset.lpImg;
+  if (!frame || !url) return null;
+  return { url, selector: selectorFor(frame, true), section: img.closest<HTMLElement>('[data-section]')?.dataset.section, x, y };
+}
+
 export function attachIconPick(doc: Document, onPick: (path: string) => void) {
   iconPickers.set(doc, onPick);
   if (doc.body.dataset.lpIcons) return;
@@ -1791,37 +1823,93 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
     };
   };
 
-  // No mousedown (antes do navegador posicionar o cursor) para o cursor cair onde foi clicado
+  /**
+   * Elemento clicado: abre as opções dele — texto (edita ali mesmo), foto, ícone, fundo da seção ou
+   * outro elemento. Devolve false quando o clique não é em nada editável.
+   */
+  const choose = (t: Element | null, x: number, y: number, viaClick: boolean): boolean => {
+    if (!t || t.closest('[data-lp-ui]')) return false;
+    const el = t.closest<HTMLElement>('[data-lp-text]');
+    if (el) {
+      const fresh = editing?.el !== el;
+      start(el);
+      // Pelo clique (modos de arrastar), o cursor vai para o ponto clicado
+      if (viaClick && fresh) {
+        el.focus();
+        const range = doc.caretRangeFromPoint?.(x, y);
+        if (range && el.contains(range.startContainer)) {
+          const sel = win.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        }
+      }
+      return true;
+    }
+    // Foto: quadro só com as opções de foto (zoom, corte, borda, sombra, efeito, excluir)
+    const img = clickedImage(t);
+    const onImage = imagePickers.get(doc);
+    if (img && onImage) {
+      const pickInfo = imagePickFor(img, x, y);
+      if (pickInfo) {
+        finish();
+        unpick();
+        notifySelect(doc, img);
+        onImage(pickInfo);
+        return true;
+      }
+    }
+    // Ícone trocável: abre a barra do ícone (efeito, cores, excluir e "Trocar ícone")
+    const icon = t.closest<HTMLElement>('[data-lp-icon]') ?? t.closest('.icon-box')?.querySelector<HTMLElement>('[data-lp-icon]');
+    if (icon) {
+      if (!sizes) return false;
+      finish();
+      pick(icon, icon.dataset.lpIcon);
+      return true;
+    }
+    // Desenho de ícone: seleciona o ícone inteiro, não um traço dele
+    const svg = t.closest('svg');
+    const node = (svg ? (svg.parentElement?.classList.contains('ico') ? svg.parentElement : svg) : t) as HTMLElement;
+    if (node === doc.body || node === doc.documentElement) {
+      unpick();
+      return false;
+    }
+    finish();
+    // Fundo da seção: abre a escolha da cor de fundo da seção inteira
+    const sectionKey = sectionAreaKey(node);
+    const onSection = sectionPickers.get(doc);
+    if (sectionKey && onSection) {
+      unpick();
+      notifySelect(doc, node);
+      onSection({ key: sectionKey, label: sectionLabel(doc, sectionKey), x, y });
+      return true;
+    }
+    pick(node);
+    return true;
+  };
+
+  // Modo Textos: no mousedown (antes do navegador posicionar o cursor) para o cursor cair onde foi clicado
   doc.addEventListener(
     'mousedown',
     (e) => {
-      if (currentMode(doc) !== 'textos') return unpick();
+      if (currentMode(doc) !== 'textos') return;
+      choose(e.target as Element | null, e.clientX, e.clientY, false);
+    },
+    true,
+  );
+  // Nos outros modos (menos Cores, que tem o quadro próprio), o clique também abre as opções do elemento.
+  // Pelo clique e só sem arrasto: arrastar continua enquadrando a foto, movendo o elemento etc.
+  let down: { x: number; y: number } | null = null;
+  win.addEventListener('pointerdown', (e) => (down = { x: e.clientX, y: e.clientY }), true);
+  doc.addEventListener(
+    'click',
+    (e) => {
+      const mode = currentMode(doc);
+      if (mode === 'textos' || mode === 'cores') return;
+      if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
       const t = e.target as Element | null;
-      const el = t?.closest?.<HTMLElement>('[data-lp-text]');
-      if (el) return start(el);
-      if (!t || t.closest('[data-lp-ui]')) return;
-      // Ícone trocável: abre a barra do ícone (efeito, cores, excluir e "Trocar ícone")
-      const icon = t.closest<HTMLElement>('[data-lp-icon]') ?? t.closest('.icon-box')?.querySelector<HTMLElement>('[data-lp-icon]');
-      if (icon) {
-        if (!sizes) return;
-        finish();
-        return pick(icon, icon.dataset.lpIcon);
-      }
-      // Desenho de ícone: seleciona o ícone inteiro, não um traço dele
-      const svg = t.closest('svg');
-      const node = (svg ? (svg.parentElement?.classList.contains('ico') ? svg.parentElement : svg) : t) as HTMLElement;
-      if (node === doc.body || node === doc.documentElement) return unpick();
-      finish();
-      // Fundo da seção: abre a escolha da cor de fundo da seção inteira
-      const sectionKey = sectionAreaKey(node);
-      const onSection = sectionPickers.get(doc);
-      if (sectionKey && onSection) {
-        unpick();
-        notifySelect(doc, node);
-        onSection({ key: sectionKey, label: sectionLabel(doc, sectionKey), x: e.clientX, y: e.clientY });
-        return;
-      }
-      pick(node);
+      if (t?.closest?.('[data-lp-ui]')) return;
+      // Links e perguntas não abrem: o clique é para editar
+      if (choose(t, e.clientX, e.clientY, true)) e.preventDefault();
     },
     true,
   );

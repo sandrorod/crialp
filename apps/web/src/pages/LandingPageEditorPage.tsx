@@ -35,8 +35,8 @@ const TABS: { key: Tab; label: string }[] = [
 const STAFF_TABS: Tab[] = ['publicacao', 'cliente'];
 
 const MODES: { key: PreviewMode; label: string; icon: typeof Monitor; hint: string }[] = [
-  { key: 'textos', label: 'Textos', icon: PenLine, hint: 'Clique em qualquer texto contornado para editar ali mesmo; clique em qualquer outro elemento (foto, botão, cartão…) para mudar cores, efeito ou excluir. Enter ou clicar fora confirma; Esc desfaz. Clique num ícone para trocá-lo.' },
-  { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste qualquer foto (topo, "Sobre" e galeria) para ajustar o enquadramento; use − / + para o zoom e ◧ para borda, cantos, sombra e filtro. Arraste as alças azuis das bordas para cortar a foto (duplo clique tira o corte).' },
+  { key: 'textos', label: 'Textos', icon: PenLine, hint: 'Textos contornados para editar ali mesmo (Enter ou clicar fora confirma; Esc desfaz). Em qualquer modo, clicar num elemento abre as opções dele.' },
+  { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste a foto para ajustar o enquadramento e as alças azuis das bordas para cortar (duplo clique tira o corte). Clique na foto para zoom, borda, sombra e as demais opções.' },
   { key: 'mover', label: 'Mover', icon: Move, hint: 'Arraste qualquer foto ou texto para o ponto da seção onde quer deixá-lo (no celular, com o dedo). Ele não sai da área da seção. Duplo clique volta à posição original.' },
   { key: 'secoes', label: 'Seções', icon: Rows3, hint: 'Arraste as seções pelo botão ⠿ (ou use ↑ ↓) para mudar a ordem.' },
   { key: 'espacos', label: 'Espaços', icon: MoveVertical, hint: 'Arraste a alça azul "↕ Espaço" na borda de baixo de cada seção: para cima diminui a margem interna, para baixo aumenta. Duplo clique volta ao padrão.' },
@@ -304,29 +304,33 @@ export function LandingPageEditorPage() {
     setDirty(true);
   };
   const generating = !!jobId;
+  // Mesmo nome do topo da página (cabeçalho da LP): o editado na prévia, senão o nome fantasia, senão a razão
+  const headerName = content.overrides?.['company.name']?.trim() || company?.trade_name || company?.name || lp.company?.name || lp.title;
   const shot = shotOverride ?? lp.screenshot;
 
   return (
     <div>
-      {isClient ? null : (
-        <Link to="/landing-pages" className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-ink">
-          <ArrowLeft className="size-4" /> Landing Pages
-        </Link>
-      )}
+      {/* Voltar, endereço da página e versão na mesma linha */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-500">
+        {isClient ? null : (
+          <Link to="/landing-pages" className="inline-flex items-center gap-1.5 hover:text-ink">
+            <ArrowLeft className="size-4" /> Landing Pages
+          </Link>
+        )}
+        {isClient ? null : <span className="text-zinc-300" aria-hidden>|</span>}
+        <a href={lp.public_url} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1 break-all text-brand-600 hover:underline">
+          {lp.public_url.replace(/^https?:\/\//, '')} <ExternalLink className="size-3.5" />
+        </a>
+        <button onClick={() => actions.copyUrl(lp.public_url)} className="inline-flex items-center gap-1 hover:text-ink"><Copy className="size-3.5" /> Copiar</button>
+        <span>v{lp.current_version} · atualizada {formatDate(lp.updated_at, true)}</span>
+      </div>
 
       {/* Cabeçalho */}
       <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="truncate text-2xl font-semibold tracking-tight">{lp.company?.name ?? lp.title}</h1>
+            <h1 className="truncate text-2xl font-semibold tracking-tight">{headerName}</h1>
             {isClient ? null : <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />}
-          </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-500">
-            <a href={lp.public_url} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1 break-all text-brand-600 hover:underline">
-              {lp.public_url.replace(/^https?:\/\//, '')} <ExternalLink className="size-3.5" />
-            </a>
-            <button onClick={() => actions.copyUrl(lp.public_url)} className="inline-flex items-center gap-1 hover:text-ink"><Copy className="size-3.5" /> Copiar</button>
-            <span>v{lp.current_version} · atualizada {formatDate(lp.updated_at, true)}</span>
           </div>
         </div>
         {isClient ? null : <div className="flex flex-wrap gap-2">
@@ -393,7 +397,7 @@ export function LandingPageEditorPage() {
               {/* No celular os modos quebram em mais de uma linha (sem rolagem lateral) */}
               <div className="flex max-w-full flex-wrap justify-center gap-0.5 rounded-lg bg-white p-0.5 shadow-sm ring-1 ring-black/5">
                 {MODES.map((m) => (
-                  <button key={m.key} onClick={() => setMode(m.key)} className={cn('inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium', mode === m.key ? 'bg-ink text-white' : 'text-zinc-600 hover:text-ink')}>
+                  <button key={m.key} onClick={() => setMode(m.key)} title={m.hint} className={cn('inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium', mode === m.key ? 'bg-ink text-white' : 'text-zinc-600 hover:text-ink')}>
                     <m.icon className="size-3.5" /> {m.label}
                   </button>
                 ))}
@@ -411,10 +415,6 @@ export function LandingPageEditorPage() {
                 </button>
               ) : null}
             </div>
-            <p className="mb-2 text-center text-xs text-zinc-500">
-              {MODES.find((m) => m.key === mode)?.hint}
-              {` ${mode === 'textos' || mode === 'fotos' ? 'O tamanho vale' : 'Vale'} só para o layout de ${device === 'mobile' ? 'celular' : 'computador'}.`}
-            </p>
             {dirty ? <p className="mb-2 text-center text-xs text-amber-700">Há alterações não salvas. Clique em Salvar para publicá-las nesta versão.</p> : null}
             <div className="relative">
             {previewLoading ? (

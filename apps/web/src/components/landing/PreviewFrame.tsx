@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import type { ElementColor, ElementColors, ImageBox, ImageFocus, ImageLook, ImageSizes, SectionColors, SectionSpacing } from '@/types';
+import type { ElementColor, ElementColors, ImageBox, ImageFocus, ImageLook, ImageSizes, SectionColors, SectionSpacing, TextEffect } from '@/types';
 import { imageStylesCss, setImageStyleCss } from './imageStyle';
-import { ImageStylePopup } from './ImageStylePopup';
+import { ImagePopup } from './ImagePopup';
 import { ElementColorPopup, SectionColorPopup } from './ElementColorPopup';
 import { readIconStyle, type IconPageStyle } from './IconPicker';
 import {
   attachColorPick,
   attachIconPick,
   attachImageResize,
+  imagePickFor,
+  imageSizeKey,
+  onImagePick,
+  type ImagePick,
   attachMoveDrag,
   cssColorToHex,
   onSectionPick,
@@ -61,7 +65,7 @@ function attachFocusDrag(
   getFocus: () => FocusMap,
   onFocus: (url: string, focus: ImageFocus) => void,
   uiScale = 1,
-  onStyle?: (url: string, at: { x: number; y: number }) => void,
+  onStyle?: (img: HTMLImageElement, at: { x: number; y: number }) => void,
 ) {
   // A prévia desktop é reduzida para caber no painel: os controles crescem na mesma proporção
   const px = (n: number) => `${Math.round(n * uiScale)}px`;
@@ -146,9 +150,9 @@ function attachFocusDrag(
     if (onStyle) {
       // Borda, cantos, sombra e filtro da foto
       bar.append(
-        mkButton('◧', 'Estilo da foto: borda, cantos, sombra e filtro', () => {
+        mkButton('◧', 'Opções da foto: zoom, borda, cantos, sombra, filtro, efeito', () => {
           const r = bar.getBoundingClientRect();
-          onStyle(url, { x: r.left, y: r.bottom });
+          onStyle(img, { x: r.left, y: r.bottom });
         }),
       );
     }
@@ -296,7 +300,8 @@ export function PreviewFrame({
   orderRef.current = sectionOrder;
   const colorsRef = useRef(elementColors);
   colorsRef.current = elementColors;
-  const [stylePick, setStylePick] = useState<{ url: string; x: number; y: number } | null>(null);
+  // Foto clicada (em qualquer modo): quadro com as opções da foto
+  const [imagePick, setImagePick] = useState<ImagePick | null>(null);
   const imageStyleRef = useRef(imageStyle);
   imageStyleRef.current = imageStyle;
   const onImageStyleRef = useRef(onImageStyle);
@@ -327,10 +332,6 @@ export function PreviewFrame({
     if (d?.documentElement) setPreviewMode(d, mode);
     if (mode !== 'cores') setPicked(null);
     if (mode !== 'textos') setSectionPick(null);
-    if (mode !== 'fotos') {
-      setStylePick(null);
-      if (d?.head) setImageStyleCss(d, imageStylesCss(imageStyleRef.current, focusRef.current));
-    }
   }, [mode]);
 
   // Cores salvas no editor aparecem na hora, sem esperar salvar a página
@@ -384,7 +385,9 @@ export function PreviewFrame({
     setPreviewMode(d, modeRef.current);
     setImageStyleCss(d, imageStylesCss(imageStyleRef.current, focusRef.current));
     if (onFocusRef.current) {
-      attachFocusDrag(d, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), uiScale, onImageStyleRef.current ? (url, at) => setStylePick({ url, ...at }) : undefined);
+      const openImage = (img: HTMLImageElement, at: { x: number; y: number }) => setImagePick(imagePickFor(img, at.x, at.y));
+      attachFocusDrag(d, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), uiScale, openImage);
+      onImagePick(d, setImagePick);
     }
     setColorsCss(d, elementColorsCss(colorsRef.current));
     loadElementFonts(d, colorsRef.current);
@@ -537,37 +540,71 @@ export function PreviewFrame({
       />
     ) : null;
 
-  const restoreStyle = () => {
-    const d = doc();
-    if (d?.head) setImageStyleCss(d, imageStylesCss(imageStyleRef.current, focusRef.current));
+  // Efeito e exclusão da foto: valem no celular e no computador (junto das cores do elemento)
+  const writeBoth = (sel: string, patch: (e: ElementColor) => void) => {
+    const all = colorsRef.current ?? { desktop: {}, mobile: {} };
+    const next = { ...all };
+    for (const layout of ['desktop', 'mobile'] as const) {
+      const map = { ...all[layout] };
+      const entry: ElementColor = { ...(map[sel] ?? {}) };
+      patch(entry);
+      if (Object.keys(entry).length) map[sel] = entry;
+      else delete map[sel];
+      next[layout] = map;
+    }
+    colorsRef.current = next;
+    onColorsRef.current?.(next);
   };
-  const stylePopup =
-    stylePick && onImageStyle && frame.current ? (
-      <ImageStylePopup
-        key={stylePick.url}
-        saved={imageStyle?.[stylePick.url]}
+  const imagePopup = (() => {
+    if (!imagePick || !frame.current || !onFocus) return null;
+    const { url, selector } = imagePick;
+    const f = focus?.[url] ?? { x: 50, y: 50 };
+    const sizes = imageSize?.[device] ?? {};
+    const sizeKey = imageSizeKey(imagePick.section, url);
+    const sizeOwner = sizes[sizeKey] ? sizeKey : sizes[url] ? url : null;
+    const saved = elementColors?.[device]?.[selector];
+    const setFocusLive = (next: ImageFocus) => {
+      doc()?.querySelectorAll<HTMLImageElement>('img[data-lp-img]').forEach((img) => img.dataset.lpImg === url && applyFocus(img, next));
+      focusRef.current = { ...focusRef.current, [url]: next };
+      onFocus(url, next);
+    };
+    return (
+      <ImagePopup
+        key={`${url}|${selector}`}
         anchor={(() => {
           const r = frame.current.getBoundingClientRect();
-          return { x: r.left + stylePick.x * scale, y: r.top + stylePick.y * scale };
+          return { x: r.left + imagePick.x * scale, y: r.top + imagePick.y * scale };
         })()}
-        onDraft={(look) => {
-          const d = doc();
-          if (!d?.head) return;
-          const all = { ...(imageStyleRef.current ?? {}) };
-          if (look) all[stylePick.url] = look;
-          else delete all[stylePick.url];
-          setImageStyleCss(d, imageStylesCss(all, focusRef.current));
+        deviceLabel={device === 'mobile' ? 'Celular' : 'Computador'}
+        zoom={f.z ?? 1}
+        onZoom={(z) => {
+          const cur = focusRef.current[url] ?? { x: 50, y: 50 };
+          const next: ImageFocus = { x: cur.x, y: cur.y, ...(Math.abs(z - 1) > 0.001 ? { z: Math.round(z * 100) / 100 } : {}) };
+          setFocusLive(next);
         }}
-        onSave={(look) => {
-          onImageStyle(stylePick.url, look);
-          setStylePick(null);
-        }}
-        onClose={() => {
-          restoreStyle();
-          setStylePick(null);
-        }}
+        onResetFocus={() => setFocusLive({ x: 50, y: 50 })}
+        hasSize={!!sizeOwner}
+        onResetSize={() => sizeOwner && onImageSize?.({ [sizeOwner]: null })}
+        look={imageStyle?.[url]}
+        onLook={(look) => onImageStyle?.(url, look)}
+        effect={(saved?.fx as TextEffect | undefined) ?? null}
+        onEffect={(fx) =>
+          writeBoth(selector, (e) => {
+            if (fx) e.fx = fx;
+            else delete e.fx;
+          })
+        }
+        hidden={!!saved?.hidden}
+        onHidden={(hidden) =>
+          writeBoth(selector, (e) => {
+            if (hidden) e.hidden = true;
+            else delete e.hidden;
+          })
+        }
+        onClose={() => setImagePick(null)}
       />
-    ) : null;
+    );
+  })();
 
   const popup =
     picked && onElementColors && frame.current ? (
@@ -602,7 +639,7 @@ export function PreviewFrame({
     return (
       <div ref={box} className="mx-auto w-[390px] max-w-full overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-black/5">
         <iframe ref={frame} title="Prévia da Landing Page" src={src} srcDoc={html ?? undefined} onLoad={onLoad} className="w-full border-0" style={{ height }} />
-        {popup}{sectionPopup}{stylePopup}
+        {popup}{sectionPopup}{imagePopup}
       </div>
     );
   }
@@ -620,7 +657,7 @@ export function PreviewFrame({
           style={{ width: DESKTOP_WIDTH, height: height / scale, transform: `scale(${scale})` }}
         />
       ) : null}
-      {popup}{sectionPopup}{stylePopup}
+      {popup}{sectionPopup}{imagePopup}
     </div>
   );
 }
