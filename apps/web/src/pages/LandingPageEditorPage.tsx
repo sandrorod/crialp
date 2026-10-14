@@ -323,6 +323,19 @@ export function LandingPageEditorPage() {
         </a>
         <button onClick={() => actions.copyUrl(lp.public_url)} className="inline-flex items-center gap-1 hover:text-ink"><Copy className="size-3.5" /> Copiar</button>
         <span>v{lp.current_version} · atualizada {formatDate(lp.updated_at, true)}</span>
+        <span className="text-zinc-300" aria-hidden>|</span>
+        {/* Prévia: computador/celular, recarregar e abrir em nova aba */}
+        <div className="flex items-center gap-1">
+          <div className="flex rounded-lg bg-zinc-100 p-0.5">
+            {(['desktop', 'mobile'] as const).map((d) => (
+              <button key={d} onClick={() => setDevice(d)} className={cn('rounded-md p-1.5', device === d ? 'bg-white shadow-sm' : 'text-zinc-500')} aria-label={d === 'desktop' ? 'Prévia no computador' : 'Prévia no celular'} title={d === 'desktop' ? 'Prévia no computador' : 'Prévia no celular'}>
+                {d === 'desktop' ? <Monitor className="size-4" /> : <Smartphone className="size-4" />}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setFrameKey((k) => k + 1)} className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100" aria-label="Recarregar prévia" title="Recarregar prévia"><RefreshCw className="size-4" /></button>
+          <a href={landingPageService.previewUrl(lp.id)} target="_blank" rel="noreferrer" className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100" aria-label="Abrir prévia em nova aba" title="Abrir prévia em nova aba"><ExternalLink className="size-4" /></a>
+        </div>
       </div>
 
       {/* Cabeçalho */}
@@ -378,20 +391,6 @@ export function LandingPageEditorPage() {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_440px]">
         {/* Prévia */}
         <Card className="overflow-hidden">
-          <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-2.5">
-            <span className="text-sm font-medium">Visualizar Landing Page</span>
-            <div className="flex items-center gap-1">
-              <div className="flex rounded-lg bg-zinc-100 p-0.5">
-                {(['desktop', 'mobile'] as const).map((d) => (
-                  <button key={d} onClick={() => setDevice(d)} className={cn('rounded-md p-1.5', device === d ? 'bg-white shadow-sm' : 'text-zinc-500')} aria-label={d}>
-                    {d === 'desktop' ? <Monitor className="size-4" /> : <Smartphone className="size-4" />}
-                  </button>
-                ))}
-              </div>
-              <button onClick={() => setFrameKey((k) => k + 1)} className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100" aria-label="Recarregar prévia"><RefreshCw className="size-4" /></button>
-              <a href={landingPageService.previewUrl(lp.id)} target="_blank" rel="noreferrer" className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100" aria-label="Abrir prévia em nova aba"><ExternalLink className="size-4" /></a>
-            </div>
-          </div>
           <div className="bg-zinc-100 p-3 sm:p-4">
             <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
               {/* No celular os modos quebram em mais de uma linha (sem rolagem lateral) */}
