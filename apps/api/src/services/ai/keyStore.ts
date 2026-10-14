@@ -133,6 +133,17 @@ export const aiKeyStore = {
     });
   },
 
+  /** Chave cadastrada já decifrada (para testar de novo pelo painel). */
+  async get(id: string, provider: string): Promise<AIKey | null> {
+    const r = await one<{ id: string; label: string | null; last4: string; key_encrypted: string }>(
+      'select id, label, last4, key_encrypted from ai_api_keys where id = $1 and provider = $2',
+      [id, provider],
+    );
+    if (!r) return null;
+    const key = decrypt(r.key_encrypted);
+    return key ? { id: r.id, key, label: r.label || `•••• ${r.last4}` } : null;
+  },
+
   async exists(key: string) {
     return !!(await one('select 1 from ai_api_keys where key_hash = $1', [hashKey(key)]));
   },

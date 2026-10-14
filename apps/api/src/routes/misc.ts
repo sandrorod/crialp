@@ -151,6 +151,24 @@ miscRouter.patch('/settings/keys/:provider/:id', requireRole(...MANAGER_ROLES), 
   res.json({ ok: true });
 });
 
+// Testa de novo uma chave cadastrada (ex.: depois de renovar a assinatura): se responder, o último erro sai da lista
+miscRouter.post('/settings/keys/:provider/:id/test', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const provider = ProviderParam.parse(req.params.provider);
+  const key = await aiKeyStore.get(uuidParam.parse(req.params.id), provider);
+  if (!key) throw notFound('Chave não encontrada (ou ilegível: cadastre-a novamente).');
+  try {
+    if (provider === 'gemini') await aiService.testGeminiKey(key.key);
+    else if (provider === 'rapidapi_gemini') await rapidGemini.testKey(key.key);
+    else await testRapidApiKey(key.key);
+  } catch (err) {
+    const msg = err instanceof AIProviderError ? err.userMessage ?? err.message : err instanceof Error ? err.message : 'Não foi possível validar a chave.';
+    await aiKeyStore.recordError(key.id, err instanceof Error ? err.message : String(err));
+    throw new AppError(400, `A chave ainda não responde: ${msg}`);
+  }
+  await aiKeyStore.clearError(key.id);
+  res.json({ ok: true });
+});
+
 // Chave da variável de ambiente: sai do rodízio (a variável continua no servidor, mas é ignorada)
 miscRouter.delete('/settings/keys/:provider/env', requireRole(...MANAGER_ROLES), async (req, res) => {
   const provider = ProviderParam.parse(req.params.provider);

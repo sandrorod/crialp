@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { AlertTriangle, KeyRound, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, KeyRound, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, CardSection, ConfirmDialog, ErrorBlock, Field, Input, LoadingBlock, Select, StatusToggle, Textarea } from '@/components/ui';
 import { parseRapidSnippet } from '@/lib/rapidSnippet';
@@ -220,6 +220,20 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
     }
   };
 
+  /** Testa a chave de novo (ex.: assinatura renovada): se responder, o último erro some. */
+  const test = async (k: AIKeyInfo) => {
+    setBusyId(k.id);
+    try {
+      await miscService.testApiKey(provider, k.id);
+      toast.success('A chave respondeu e está pronta para uso.');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setBusyId(null);
+      reload();
+    }
+  };
+
   const remove = async () => {
     if (!toDelete) return;
     setBusyId(toDelete.id);
@@ -291,6 +305,9 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
                     </div>
                   ) : null}
                 </div>
+                <button onClick={() => void test(k)} disabled={busyId === k.id} title="Testar a chave agora" aria-label="Testar chave" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50">
+                  <RefreshCw className={cn('size-4', busyId === k.id && 'animate-spin')} />
+                </button>
                 <StatusToggle status={k.active ? 'ativa' : 'inativa'} loading={busyId === k.id} onToggle={() => void toggle(k)} />
                 <button onClick={() => setToDelete(k)} title="Remover chave" aria-label="Remover chave" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
                   <Trash2 className="size-4" />

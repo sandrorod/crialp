@@ -211,6 +211,13 @@ export class GeminiProvider implements AIProvider {
       if (!overloaded || round === OVERLOAD_ROUND_DELAYS.length) break;
       await new Promise((r) => setTimeout(r, OVERLOAD_ROUND_DELAYS[round]));
     }
+    // Todas as chaves do Gemini sem cota (ou inválidas): as "Chaves do RapidAPI — Gemini" assumem
+    // (antes só eram usadas com as do Gemini desativadas, e o erro de limite aparecia mesmo com o RapidAPI pago)
+    const raw = (lastError as { cause?: unknown } | undefined)?.cause ?? lastError;
+    if ((isKeyError(raw) || isOverloaded(raw)) && (await rapidGemini.hasAny())) {
+      console.warn('[ia] chaves do Gemini indisponíveis; usando as chaves do RapidAPI — Gemini');
+      return rapidGemini.generateStructured(req);
+    }
     throw lastError instanceof AIProviderError ? lastError : this.mapError(lastError);
   }
 

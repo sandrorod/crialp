@@ -153,6 +153,7 @@ export const miscService = {
     api.get<{ keys: AIKeyInfo[]; env_key: { last4: string } | null; provider_active: boolean }>(`/settings/keys/${provider}`),
   addApiKey: (provider: KeyProvider, key: string, label?: string) => api.post<AIKeyInfo & { moved_from?: string }>(`/settings/keys/${provider}`, { key, label: label || null }),
   updateApiKey: (provider: KeyProvider, id: string, body: { active?: boolean; label?: string | null }) => api.patch(`/settings/keys/${provider}/${id}`, body),
+  testApiKey: (provider: KeyProvider, id: string) => api.post<{ ok: true }>(`/settings/keys/${provider}/${id}/test`, {}),
   removeApiKey: (provider: KeyProvider, id: string) => api.del(`/settings/keys/${provider}/${id}`),
   /** API de Gemini do RapidAPI usada quando as chaves do Gemini estão todas desativadas */
   rapidGeminiConfig: () => api.get<RapidGeminiConfig>('/settings/rapidapi-gemini'),
