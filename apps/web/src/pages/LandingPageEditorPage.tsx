@@ -338,8 +338,8 @@ export function LandingPageEditorPage() {
         </div>
         {/* Ações da página, alinhadas à direita */}
         {isClient ? null : <div className="ml-auto flex flex-wrap justify-end gap-2">
-          <Link to={`/empresas/${lp.company_id}`}><Button size="sm" variant="secondary" icon={<Building2 className="size-4" />}>Editar empresa</Button></Link>
-          <Button size="sm" variant="secondary" onClick={() => setRegenOpen(true)} loading={generating} icon={<Sparkles className="size-4" />}>Regenerar</Button>
+          <Link to={`/empresas/${lp.company_id}`}><Button size="sm" variant="secondary" icon={<Building2 className="size-4" />} aria-label="Editar empresa" title="Editar empresa" /></Link>
+          <Button size="sm" variant="secondary" onClick={() => setRegenOpen(true)} loading={generating} icon={<Sparkles className="size-4" />} aria-label="Regenerar" title="Regenerar a Landing Page" />
           {/* Sempre visível: sem imagem ainda (LP antiga ou falha), gera e já baixa */}
           <Button
             variant="ghost"
@@ -355,13 +355,12 @@ export function LandingPageEditorPage() {
             disabled={shotBusy}
             onClick={() => generateShot()}
             icon={<RefreshCw className={shotBusy ? 'size-4 animate-spin' : 'size-4'} />}
-            title="Gerar um novo print da página e enviar ao Google Drive"
-          >
-            {shotBusy ? 'Gerando…' : 'Novo print'}
-          </Button>
+            aria-label="Novo print"
+            title={shotBusy ? 'Gerando o print…' : 'Novo print: gerar um novo print da página e enviar ao Google Drive'}
+          />
           {shot?.drive_file_id ? (
             <a href={`https://drive.google.com/file/d/${shot.drive_file_id}/view`} target="_blank" rel="noreferrer">
-              <Button size="sm" variant="ghost" icon={<ExternalLink className="size-4" />} title={shot.drive_error ?? 'Abrir a imagem no Google Drive'}>Drive</Button>
+              <Button size="sm" variant="ghost" icon={<ExternalLink className="size-4" />} aria-label="Drive" title={shot.drive_error ?? 'Abrir a imagem no Google Drive'} />
             </a>
           ) : null}
           <a href={landingPageService.exportUrl(lp.id)}><Button size="sm" variant="ghost" icon={<Download className="size-4" />} aria-label="Exportar HTML" title="Exportar HTML" /></a>
