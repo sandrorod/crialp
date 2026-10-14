@@ -6,7 +6,8 @@ import type { ImageLook, TextEffect } from '@/types';
 import { PopupHeader, useDraggablePopup } from './ElementColorPopup';
 import { TEXT_EFFECT_GROUPS } from './previewTools';
 
-const WIDTH = 312;
+// Largo o bastante para cada grupo de opções (filtros, sombras, links) caber numa linha só
+const WIDTH = 440;
 const HEX = /^#[0-9a-f]{6}$/i;
 
 const SHADOWS: { value: ImageLook['sh']; label: string }[] = [
@@ -32,7 +33,7 @@ function Chips<T>({ items, value, onChange }: { items: { value: T; label: string
           key={i.label}
           type="button"
           onClick={() => onChange(i.value)}
-          className={cn('rounded-md border px-2 py-1 text-xs', value === i.value ? 'border-ink bg-ink text-white' : 'border-zinc-200 text-zinc-600 hover:border-zinc-400')}
+          className={cn('whitespace-nowrap rounded-md border px-2 py-1 text-xs', value === i.value ? 'border-ink bg-ink text-white' : 'border-zinc-200 text-zinc-600 hover:border-zinc-400')}
         >
           {i.label}
         </button>
@@ -147,9 +148,9 @@ export function ImagePopup({
             <span className="w-11 flex-none text-right text-xs tabular-nums text-zinc-500">{pct}%</span>
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-1">
-            <button type="button" onClick={onResetFocus} className="text-[11px] text-zinc-500 hover:text-ink">⟲ Restaurar enquadramento</button>
+            <button type="button" onClick={onResetFocus} className="whitespace-nowrap text-[11px] text-zinc-500 hover:text-ink">⟲ Restaurar enquadramento</button>
             {hasSize ? (
-              <button type="button" onClick={onResetSize} className="text-[11px] text-zinc-500 hover:text-ink">Tirar corte e tamanho ({deviceLabel.toLowerCase()})</button>
+              <button type="button" onClick={onResetSize} className="whitespace-nowrap text-[11px] text-zinc-500 hover:text-ink">Tirar corte e tamanho ({deviceLabel.toLowerCase()})</button>
             ) : null}
           </div>
           <p className="text-[11px] text-zinc-400">Para enquadrar ou cortar, use o modo Fotos: arraste a foto ou as alças azuis das bordas.</p>
