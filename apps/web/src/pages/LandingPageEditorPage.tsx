@@ -310,7 +310,7 @@ export function LandingPageEditorPage() {
 
   return (
     <div>
-      {/* Voltar, endereço da página e versão na mesma linha */}
+      {/* Voltar, endereço da página, versão, botões da prévia e ações na mesma linha */}
       <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-500">
         {isClient ? null : (
           <Link to="/landing-pages" className="inline-flex items-center gap-1.5 hover:text-ink">
@@ -336,19 +336,10 @@ export function LandingPageEditorPage() {
           <button onClick={() => setFrameKey((k) => k + 1)} className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100" aria-label="Recarregar prévia" title="Recarregar prévia"><RefreshCw className="size-4" /></button>
           <a href={landingPageService.previewUrl(lp.id)} target="_blank" rel="noreferrer" className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100" aria-label="Abrir prévia em nova aba" title="Abrir prévia em nova aba"><ExternalLink className="size-4" /></a>
         </div>
-      </div>
-
-      {/* Cabeçalho */}
-      <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="truncate text-2xl font-semibold tracking-tight">{headerName}</h1>
-            {isClient ? null : <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />}
-          </div>
-        </div>
-        {isClient ? null : <div className="flex flex-wrap gap-2">
-          <Link to={`/empresas/${lp.company_id}`}><Button variant="secondary" icon={<Building2 className="size-4" />}>Editar empresa</Button></Link>
-          <Button variant="secondary" onClick={() => setRegenOpen(true)} loading={generating} icon={<Sparkles className="size-4" />}>Regenerar</Button>
+        {/* Ações da página, alinhadas à direita */}
+        {isClient ? null : <div className="ml-auto flex flex-wrap justify-end gap-2">
+          <Link to={`/empresas/${lp.company_id}`}><Button size="sm" variant="secondary" icon={<Building2 className="size-4" />}>Editar empresa</Button></Link>
+          <Button size="sm" variant="secondary" onClick={() => setRegenOpen(true)} loading={generating} icon={<Sparkles className="size-4" />}>Regenerar</Button>
           {/* Sempre visível: sem imagem ainda (LP antiga ou falha), gera e já baixa */}
           <Button
             variant="ghost"
@@ -370,11 +361,11 @@ export function LandingPageEditorPage() {
           </Button>
           {shot?.drive_file_id ? (
             <a href={`https://drive.google.com/file/d/${shot.drive_file_id}/view`} target="_blank" rel="noreferrer">
-              <Button variant="ghost" icon={<ExternalLink className="size-4" />} title={shot.drive_error ?? 'Abrir a imagem no Google Drive'}>Drive</Button>
+              <Button size="sm" variant="ghost" icon={<ExternalLink className="size-4" />} title={shot.drive_error ?? 'Abrir a imagem no Google Drive'}>Drive</Button>
             </a>
           ) : null}
-          <a href={landingPageService.exportUrl(lp.id)}><Button variant="ghost" icon={<Download className="size-4" />} aria-label="Exportar HTML" title="Exportar HTML" /></a>
-          <Button variant="ghost" onClick={() => setDeleteOpen(true)} icon={<Trash2 className="size-4" />} aria-label="Excluir" title="Excluir" />
+          <a href={landingPageService.exportUrl(lp.id)}><Button size="sm" variant="ghost" icon={<Download className="size-4" />} aria-label="Exportar HTML" title="Exportar HTML" /></a>
+          <Button size="sm" variant="ghost" onClick={() => setDeleteOpen(true)} icon={<Trash2 className="size-4" />} aria-label="Excluir" title="Excluir" />
         </div>}
       </div>
 
@@ -392,7 +383,13 @@ export function LandingPageEditorPage() {
         {/* Prévia */}
         <Card className="overflow-hidden">
           <div className="bg-zinc-100 p-3 sm:p-4">
-            <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
+            {/* Nome à esquerda, modos no centro (telas largas); em telas estreitas um abaixo do outro */}
+            <div className="mb-2 flex flex-wrap items-center justify-center gap-2 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+              {/* Nome da página (o mesmo do topo da LP) e ativar/desativar, na linha dos modos */}
+              <div className="flex min-w-0 items-center gap-3">
+                <h1 className="truncate text-lg font-semibold tracking-tight">{headerName}</h1>
+                {isClient ? null : <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />}
+              </div>
               {/* No celular os modos quebram em mais de uma linha (sem rolagem lateral) */}
               <div className="flex max-w-full flex-wrap justify-center gap-0.5 rounded-lg bg-white p-0.5 shadow-sm ring-1 ring-black/5">
                 {MODES.map((m) => (
@@ -408,7 +405,7 @@ export function LandingPageEditorPage() {
                     setDirty(true);
                     setFrameKey((k) => k + 1);
                   }}
-                  className="text-xs text-zinc-500 underline hover:text-ink"
+                  className="justify-self-end text-xs text-zinc-500 underline hover:text-ink"
                 >
                   Usar a mesma ordem do computador
                 </button>
