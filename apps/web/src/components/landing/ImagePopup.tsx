@@ -27,7 +27,7 @@ const FILTERS: { value: ImageLook['fx']; label: string }[] = [
 
 function Chips<T>({ items, value, onChange }: { items: { value: T; label: string }[]; value: T; onChange: (v: T) => void }) {
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex flex-nowrap gap-1">
       {items.map((i) => (
         <button
           key={i.label}
@@ -147,7 +147,7 @@ export function ImagePopup({
             <button type="button" onClick={() => zoomTo(pct + (pct < 100 ? 10 : 20))} className="size-8 flex-none rounded-md border border-zinc-200 text-sm hover:border-zinc-400" aria-label="Aumentar zoom">+</button>
             <span className="w-11 flex-none text-right text-xs tabular-nums text-zinc-500">{pct}%</span>
           </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-1">
+          <div className="flex flex-col items-start gap-1">
             <button type="button" onClick={onResetFocus} className="whitespace-nowrap text-[11px] text-zinc-500 hover:text-ink">⟲ Restaurar enquadramento</button>
             {hasSize ? (
               <button type="button" onClick={onResetSize} className="whitespace-nowrap text-[11px] text-zinc-500 hover:text-ink">Tirar corte e tamanho ({deviceLabel.toLowerCase()})</button>
@@ -210,17 +210,19 @@ export function ImagePopup({
           </select>
         </Section>
       </div>
-      <div className="mt-4 flex items-center justify-between gap-2">
+      <div className="mt-3 border-t border-zinc-100 pt-3">
         <button
           type="button"
           onClick={() => {
             if (!hidden && !window.confirm('Tem certeza de que deseja apagar esta foto da página? (dá para restaurar depois)')) return;
             onHidden(!hidden);
           }}
-          className={cn('text-xs', hidden ? 'text-green-700 hover:underline' : 'text-zinc-500 hover:text-red-600')}
+          className={cn('whitespace-nowrap text-xs', hidden ? 'text-green-700 hover:underline' : 'text-zinc-500 hover:text-red-600')}
         >
           {hidden ? '↺ Restaurar foto' : '🗑 Excluir foto'}
         </button>
+      </div>
+      <div className="mt-3 flex justify-end">
         <Button size="sm" onClick={onClose}>Pronto</Button>
       </div>
     </div>,

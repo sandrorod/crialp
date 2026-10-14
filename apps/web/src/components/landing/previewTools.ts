@@ -1378,28 +1378,36 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     place();
   });
 
+  // Uma linha para cada função (com o nome na frente) e sem quebrar: os botões de uma função ficam juntos.
   // Só mostra o que vale para o elemento: sem texto dentro, nada de fonte, tamanho e cor do texto
   const hasText = !!el.innerText?.trim();
-  const top = row();
-  const bottom = row();
+  const line = (label: string, ...items: HTMLElement[]) => {
+    const r = doc.createElement('div');
+    r.setAttribute('style', `display:flex;flex-wrap:nowrap;align-items:center;gap:${px(2)}`);
+    const name = doc.createElement('span');
+    name.textContent = label;
+    name.setAttribute('style', `flex:none;min-width:${px(64)};padding:0 ${px(6)};opacity:.6;font-size:${px(11)}`);
+    r.append(name, ...items);
+    return r;
+  };
+  bgLabel.remove();
+  const head = row();
+  head.style.flexWrap = 'nowrap';
+  head.append(handle, tag);
+  bar.append(head);
   if (hasText) {
-    top.append(handle, font, mk('A−', 'Diminuir fonte', () => setSize(Math.max(8, size() - step()))), value, mk('A+', 'Aumentar fonte', () => setSize(Math.min(160, size() + step()))), reset);
-    bottom.append(bold, italic, underline, color, scopeBtn, tag);
-    bar.append(top, bottom);
-  } else {
-    top.append(handle, scopeBtn, tag);
-    bar.append(top);
+    bar.append(
+      line('Fonte', font, reset),
+      line('Tamanho', mk('A−', 'Diminuir fonte', () => setSize(Math.max(8, size() - step()))), value, mk('A+', 'Aumentar fonte', () => setSize(Math.min(160, size() + step())))),
+      line('Estilo', bold, italic, underline),
+      line('Cor do texto', color),
+    );
   }
-  if (opts.setEffect) {
-    const fxRow = row();
-    fxRow.append(effect, bgLabel, bg);
-    bar.append(fxRow, menu);
-  }
-  const actions = row();
-  if (iconBtn) actions.append(iconBtn);
-  if (parent) actions.append(parent);
-  if (opts.setHidden) actions.append(remove);
-  if (actions.children.length) bar.append(actions);
+  bar.append(line('Fundo', bg), line('Aplicar em', scopeBtn));
+  if (opts.setEffect) bar.append(line('Efeito', effect), menu);
+  if (iconBtn) bar.append(line('Ícone', iconBtn));
+  if (parent) bar.append(line('Selecionar', parent));
+  if (opts.setHidden) bar.append(line('Excluir', remove));
   render();
   doc.body.appendChild(bar);
 
