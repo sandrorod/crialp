@@ -203,8 +203,8 @@ p{margin:0;text-wrap:pretty}
 .contact-row{display:grid;grid-template-columns:122px minmax(0,1fr);gap:4px 0;align-items:baseline;padding:15px 0;border-top:1px solid var(--border)}
 .contact-row dt{color:var(--muted);font-size:.92rem}
 .contact-row dd{margin:0;font-size:1.06rem;font-weight:400;line-height:1.5;color:var(--text);word-break:break-word;white-space:pre-line;min-width:0}
-.contact-row dd a{color:var(--primary-ink);text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px}
-.contact-row dd a:hover{text-decoration-thickness:2px}
+.contact-row dd a{color:var(--primary-ink);text-decoration:none}
+.contact-row dd a:hover{opacity:.8}
 .contact-row.is-tel dd{white-space:nowrap;word-break:normal}
 @media(max-width:479px){.contact-row{grid-template-columns:minmax(0,1fr);gap:4px}}
 .contact-map{position:relative;width:100%;min-height:320px;aspect-ratio:1/1;border-radius:clamp(14px,var(--radius),18px);overflow:hidden;background:var(--surface);box-shadow:0 18px 40px -20px rgba(0,0,0,.3)}.contact-map iframe{position:absolute;inset:0;display:block;width:100%;height:100%;border:0}@media(min-width:960px){.contact-map{aspect-ratio:auto;height:100%;min-height:420px}}
