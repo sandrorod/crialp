@@ -90,6 +90,11 @@ export function LandingPageEditorPage() {
   // Grupo (e campo exato) do painel da direita a mostrar depois de clicar num elemento da prévia (n força repetir)
   const [focusGroup, setFocusGroup] = useState<{ id: string; n: number; fields: string[] } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  // Altura da prévia: em telas largas acompanha o painel de edição ao lado (os dois terminam na mesma linha)
+  const sideRef = useRef<HTMLDivElement>(null);
+  const previewAreaRef = useRef<HTMLDivElement>(null);
+  const previewBoxRef = useRef<HTMLDivElement>(null);
+  const [previewHeight, setPreviewHeight] = useState(() => Math.round(window.innerHeight * 0.72));
   /** Elemento clicado na prévia: mostra à direita a área com os campos daquela parte da página. */
   const showFieldsFor = (s: PreviewSelection) => {
     if (s.image && !s.path) {
@@ -180,6 +185,31 @@ export function LandingPageEditorPage() {
     setDraftHtml(null);
     setShotOverride(null);
   }, [lp]);
+
+  useEffect(() => {
+    const side = sideRef.current;
+    const area = previewAreaRef.current;
+    const box = previewBoxRef.current;
+    if (!side || !area || !box) return;
+    const wide = window.matchMedia('(min-width: 1280px)');
+    const fit = () => {
+      if (!wide.matches) return setPreviewHeight(Math.round(window.innerHeight * 0.72));
+      // O que a prévia tem além do quadro da página (modos, margens e borda do cartão)
+      const chrome = area.offsetHeight - box.offsetHeight + 2;
+      const next = Math.max(360, Math.round(side.offsetHeight - chrome));
+      setPreviewHeight((h) => (Math.abs(h - next) > 1 ? next : h));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(side);
+    window.addEventListener('resize', fit);
+    wide.addEventListener('change', fit);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', fit);
+      wide.removeEventListener('change', fit);
+    };
+  }, [!!lp && !!content]);
 
   const draftKey = renderedThemeKey(theme, content);
   const savedKey = renderedThemeKey(lp?.theme, lp?.content);
@@ -391,7 +421,7 @@ export function LandingPageEditorPage() {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_440px]">
         {/* Prévia: só da altura do conteúdo (sem esticar até a altura do painel ao lado); margem de baixo igual às laterais */}
         <Card className="self-start overflow-hidden">
-          <div className="bg-zinc-100 p-3 sm:p-4">
+          <div ref={previewAreaRef} className="bg-zinc-100 p-3 sm:p-4">
             {/* Nome à esquerda, modos no centro (telas largas); em telas estreitas um abaixo do outro */}
             <div className="mb-2 flex flex-wrap items-center justify-center gap-2 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
               {/* Nome da página (o mesmo do topo da LP) e ativar/desativar, na linha dos modos */}
@@ -424,7 +454,7 @@ export function LandingPageEditorPage() {
                 ) : null}
               </div>
             </div>
-            <div className="relative">
+            <div ref={previewBoxRef} className="relative">
             {previewLoading ? (
               <div className="absolute inset-0 z-10 grid place-items-center rounded-lg bg-white/60 backdrop-blur-[2px]" role="status" aria-live="polite">
                 <div className="flex flex-col items-center gap-3 rounded-xl bg-white px-6 py-5 shadow-lg ring-1 ring-black/5">
@@ -438,7 +468,7 @@ export function LandingPageEditorPage() {
               src={landingPageService.previewUrl(lp.id)}
               html={draftHtml}
               device={device}
-              height={Math.round(window.innerHeight * 0.72)}
+              height={previewHeight}
               focus={theme.focus}
               onFocus={(url, f) => {
                 setTheme((t) => (t ? { ...t, focus: { ...t.focus, [url]: f } } : t));
@@ -532,7 +562,7 @@ export function LandingPageEditorPage() {
         </Card>
 
         {/* Painel de edição */}
-        <div className="min-w-0">
+        <div ref={sideRef} className="min-w-0">
           <div className="mb-3 flex flex-wrap gap-1 rounded-lg bg-zinc-100 p-1">
             {TABS.filter((t) => !STAFF_TABS.includes(t.key) || (t.key === 'cliente' ? canManageAccess || isClient : !isClient)).map((t) => (
               <button key={t.key} onClick={() => setTab(t.key)} className={cn('shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition', tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink')}>
@@ -540,7 +570,7 @@ export function LandingPageEditorPage() {
               </button>
             ))}
           </div>
-          <div ref={panelRef} className="xl:max-h-[calc(72vh+10px)] xl:overflow-y-auto xl:pr-1">
+          <div ref={panelRef} className="xl:h-[max(420px,calc(100vh-300px))] xl:overflow-y-auto xl:pr-1">
             {tab === 'textos' ? <ContentTab content={content} onChange={change(setContent)} company={company} theme={theme} onThemeChange={change(setTheme)} /> : null}
             {tab === 'modelo' ? <Card className="p-5"><TemplateTab theme={theme} onChange={change(setTheme)} hasPhoto={!!company?.images.some((i) => i.usage_allowed && i.type !== 'logo')} /></Card> : null}
             {tab === 'fotos' ? <Card className="p-5"><PhotosTab theme={theme} onChange={change(setTheme)} images={company?.images ?? null} onAddPhotos={addPhotos} onRemovePhotos={removePhotos} sectionOrder={content.section_order} customSections={content.custom_sections} /></Card> : null}
