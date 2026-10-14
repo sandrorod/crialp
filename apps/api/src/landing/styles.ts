@@ -188,7 +188,15 @@ p{margin:0;text-wrap:pretty}
 .contact{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(20px,2.5vw,30px);align-items:stretch}
 @media(min-width:960px){.contact.has-map{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 .contact-card{background:var(--bg);border:1px solid var(--border);border-radius:clamp(14px,var(--radius),18px);padding:clamp(26px,3.7vw,46px) clamp(24px,3.7vw,44px);min-width:0}
-.contact:not(.has-map) .contact-card{max-width:860px;width:100%;margin:0 auto}
+.contact.contact-classic{gap:clamp(36px,5vw,72px)}
+@media(min-width:960px){.contact.contact-classic{grid-template-columns:1fr 1fr;align-items:start}}
+.contact-list{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.contact-list a,.contact-list div{display:flex;gap:16px;align-items:flex-start;padding:20px 22px;border-radius:var(--radius-sm);border:1px solid var(--border);text-decoration:none;background:var(--bg);transition:border-color .2s}
+.contact-list a:hover{border-color:var(--primary-ink)}
+.contact-list .ico{color:var(--primary-ink);margin-top:2px;flex:none}
+.contact-list span{min-width:0}
+.contact-list small{display:block;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.contact-list strong{font-weight:600;word-break:break-word;white-space:pre-line}
 .contact-card .section-head{margin-bottom:24px;max-width:none}.contact-card .section-head h2{font-size:calc(clamp(1.9rem,1rem + 2.6vw,2.6rem) * var(--title-scale));line-height:1.13;letter-spacing:-.03em;max-width:none;text-wrap:pretty}.contact-card .section-head p{font-size:clamp(1rem,.95rem + .2vw,1.06rem);line-height:1.65;color:var(--muted)}
 .contact-card .contact-actions .btn{min-height:64px;padding:0 34px;font-size:1.06rem;border-radius:999px;gap:12px;box-shadow:0 14px 30px -14px var(--primary)}
 .contact-rows{margin:32px 0 0;padding:0}
@@ -418,6 +426,7 @@ p{margin:0;text-wrap:pretty}
 .tpl-blocos .section.band{background:var(--band)}
 .tpl-blocos .hero-media{box-shadow:none}
 .tpl-blocos .card,.tpl-blocos .quote{border:0;background:var(--bg)}
+.tpl-blocos .contact-list a,.tpl-blocos .contact-list div{border:0}
 .tpl-blocos .section-alt .card,.tpl-blocos .section-alt .quote{background:var(--bg)}
 .tpl-blocos .grid>.card:first-child:not(:only-child){background:var(--band);color:var(--band-text)}
 .tpl-blocos .grid>.card:first-child:not(:only-child) p,.tpl-blocos .grid>.card:first-child:not(:only-child) li{color:var(--band-muted)}
@@ -443,7 +452,7 @@ p{margin:0;text-wrap:pretty}
 .tpl-noturno .hero h1{background:linear-gradient(180deg,#fff 30%,color-mix(in srgb,#fff 55%,var(--primary)));-webkit-background-clip:text;background-clip:text;color:transparent}
 .tpl-noturno .section{border-top:1px solid rgba(255,255,255,.05)}
 .tpl-noturno .section-alt{background:var(--surface)}
-.tpl-noturno .card,.tpl-noturno .quote,.tpl-noturno .contact-card{background:rgba(255,255,255,.035)!important;border-color:rgba(255,255,255,.08)}
+.tpl-noturno .card,.tpl-noturno .quote,.tpl-noturno .contact-card,.tpl-noturno .contact-list a,.tpl-noturno .contact-list div{background:rgba(255,255,255,.035)!important;border-color:rgba(255,255,255,.08)}
 .tpl-noturno .card:hover{border-color:color-mix(in srgb,var(--primary) 60%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--primary) 35%,transparent),0 24px 60px -24px color-mix(in srgb,var(--primary) 55%,transparent)}
 .tpl-noturno .btn-primary{box-shadow:0 0 32px -6px var(--primary)}
 .tpl-noturno .btn-ghost{border-color:rgba(255,255,255,.22)}
@@ -499,6 +508,7 @@ p{margin:0;text-wrap:pretty}
 .tpl-organico .card,.tpl-organico .quote{border:0;background:var(--surface);box-shadow:0 12px 30px -20px rgba(0,0,0,.2)}
 .tpl-organico .section-alt .card,.tpl-organico .section-alt .quote{background:var(--bg)}
 .tpl-organico .card{text-align:center}
+.tpl-organico .contact-list a,.tpl-organico .contact-list div{border-radius:22px}
 .tpl-organico .card .icon-box{width:72px;height:72px;border-radius:50%;margin:0 auto 8px}
 .tpl-organico .card .benefit{justify-content:center;text-align:left}
 .tpl-organico .quote{border-radius:32px 32px 32px 6px}
@@ -573,7 +583,7 @@ p{margin:0;text-wrap:pretty}
 .tpl-suave .site-header{border-bottom:0;background:color-mix(in srgb,color-mix(in srgb,var(--primary) 5%,var(--bg)) 86%,transparent)}
 .tpl-suave .hero-pattern{display:none}
 .tpl-suave .section-alt{background:color-mix(in srgb,var(--primary) 10%,var(--bg))}
-.tpl-suave .card,.tpl-suave .quote,.tpl-suave .contact-card,.tpl-suave .section-alt .card,.tpl-suave .section-alt .quote{background:var(--bg);border:0;box-shadow:0 1px 2px rgba(0,0,0,.04),0 14px 34px -18px color-mix(in srgb,var(--primary) 35%,rgba(0,0,0,.2))}
+.tpl-suave .card,.tpl-suave .quote,.tpl-suave .contact-card,.tpl-suave .contact-list a,.tpl-suave .contact-list div,.tpl-suave .section-alt .card,.tpl-suave .section-alt .quote{background:var(--bg);border:0;box-shadow:0 1px 2px rgba(0,0,0,.04),0 14px 34px -18px color-mix(in srgb,var(--primary) 35%,rgba(0,0,0,.2))}
 .tpl-suave .card:hover{transform:translateY(-4px)}
 .tpl-suave .card .icon-box{width:56px;height:56px;border-radius:50%;background:var(--primary);color:var(--on-primary)}
 .tpl-suave .hero-media,.tpl-suave .about-media{border-radius:32px;border:8px solid var(--bg);box-shadow:0 30px 60px -30px rgba(0,0,0,.28)}

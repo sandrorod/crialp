@@ -12,13 +12,70 @@ const SOCIAL_ICON: Record<string, string> = {
 
 export function ContactSection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {
   const { company, links } = ctx;
-  const items: { label: string; value: string; href?: string | null; key: string; data: string; tel?: boolean }[] = [];
-  if (links.whatsapp) items.push({ key: 'contact_whatsapp', data: 'contact.whatsapp', label: ctx.labels.contact_whatsapp, value: formatBrazilPhone(company.whatsapp || company.mobile), href: links.whatsapp, tel: true });
-  if (links.phoneLabel && links.phone) items.push({ key: 'contact_phone', data: 'contact.phone', label: ctx.labels.contact_phone, value: links.phoneLabel, href: links.phone, tel: true });
-  if (company.email) items.push({ key: 'contact_email', data: 'contact.email', label: ctx.labels.contact_email, value: company.email, href: links.email });
-  if (ctx.addressLine) items.push({ key: 'contact_address', data: 'contact.address', label: ctx.labels.contact_address, value: ctx.addressLine, href: links.map });
-  if (company.opening_hours) items.push({ key: 'contact_hours', data: 'contact.hours', label: ctx.labels.contact_hours, value: company.opening_hours });
+  const items: { icon: string; label: string; value: string; href?: string | null; key: string; data: string; tel?: boolean }[] = [];
+  if (links.whatsapp) items.push({ key: 'contact_whatsapp', data: 'contact.whatsapp', icon: 'message', label: ctx.labels.contact_whatsapp, value: formatBrazilPhone(company.whatsapp || company.mobile), href: links.whatsapp, tel: true });
+  if (links.phoneLabel && links.phone) items.push({ key: 'contact_phone', data: 'contact.phone', icon: 'phone', label: ctx.labels.contact_phone, value: links.phoneLabel, href: links.phone, tel: true });
+  if (company.email) items.push({ key: 'contact_email', data: 'contact.email', icon: 'mail', label: ctx.labels.contact_email, value: company.email, href: links.email });
+  if (ctx.addressLine) items.push({ key: 'contact_address', data: 'contact.address', icon: 'map-pin', label: ctx.labels.contact_address, value: ctx.addressLine, href: links.map });
+  if (company.opening_hours) items.push({ key: 'contact_hours', data: 'contact.hours', icon: 'clock', label: ctx.labels.contact_hours, value: company.opening_hours });
   if (!items.length && !ctx.socials.length) return null;
+
+  // Sem mapa: layout clássico — título, botão e redes à esquerda; cartões de contato à direita
+  if (!ctx.mapEmbed) {
+    return (
+      <section id="contato" className={`section${alt ? ' section-alt' : ''}`}>
+        <div className="container contact contact-classic">
+          <div>
+            <SectionHead eyebrow={ctx.labels.eyebrow_contact} title={ctx.content.contact.title} lead={ctx.content.contact.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_contact'), title: ed(ctx, 'contact.title'), lead: edOptional(ctx, 'contact.subtitle', 'Texto de apoio (opcional)') }} />
+            <div className="reveal">
+              <CtaButton ctx={ctx} label={ctx.content.final_cta.cta} path="final_cta.cta" />
+            </div>
+            {ctx.socials.length ? (
+              <div className="socials reveal">
+                {ctx.socials.map((s) => (
+                  <a key={s.url} href={s.url} target="_blank" rel="noopener" aria-label={s.network}>
+                    <Icon name={SOCIAL_ICON[s.network.toLowerCase()] ?? 'globe'} size={26} />
+                  </a>
+                ))}
+              </div>
+            ) : ctx.editable ? (
+              // Só na prévia do editor: indica onde preencher as redes (a página publicada não mostra nada)
+              <p className="lp-social-hint">+ Redes sociais: preencha em Textos → “Redes sociais”</p>
+            ) : null}
+          </div>
+          {items.length ? (
+            <ul className="contact-list reveal">
+              {items.map((i) => {
+                const v = cad(ctx, i.data, i.value);
+                const text = i.tel ? v.text.split(/\s*\n+\s*/).filter(Boolean).join(' · ') : v.text;
+                const inner = (
+                  <>
+                    <Icon name={i.icon} />
+                    <span>
+                      <small {...ed(ctx, `labels.${i.key}`)}>{i.label}</small>
+                      <strong {...v.attrs}>{text}</strong>
+                    </span>
+                  </>
+                );
+                return (
+                  <li key={i.key}>
+                    {i.href ? (
+                      <a href={i.href} {...(i.href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {})}>
+                        {inner}
+                      </a>
+                    ) : (
+                      <div>{inner}</div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+          <SectionPhotos ctx={ctx} name="contact" />
+        </div>
+      </section>
+    );
+  }
 
   // Cartão com título, botão e linhas "rótulo | valor"; mapa ao lado, da mesma altura
   return (
