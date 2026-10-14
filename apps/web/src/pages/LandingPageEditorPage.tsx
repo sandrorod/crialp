@@ -389,8 +389,8 @@ export function LandingPageEditorPage() {
 
       {/* grid-cols-1 (minmax 0): no celular a coluna não cresce além da tela com as barras de botões */}
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_440px]">
-        {/* Prévia */}
-        <Card className="overflow-hidden">
+        {/* Prévia: só da altura do conteúdo (sem esticar até a altura do painel ao lado); margem de baixo igual às laterais */}
+        <Card className="self-start overflow-hidden">
           <div className="bg-zinc-100 p-3 sm:p-4">
             {/* Nome à esquerda, modos no centro (telas largas); em telas estreitas um abaixo do outro */}
             <div className="mb-2 flex flex-wrap items-center justify-center gap-2 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
