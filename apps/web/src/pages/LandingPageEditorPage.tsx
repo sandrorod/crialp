@@ -398,20 +398,23 @@ export function LandingPageEditorPage() {
                   </button>
                 ))}
               </div>
-              {mode === 'secoes' && device === 'mobile' && theme.mobileOrder?.length ? (
-                <button
-                  onClick={() => {
-                    setTheme((t) => (t ? { ...t, mobileOrder: [] } : t));
-                    setDirty(true);
-                    setFrameKey((k) => k + 1);
-                  }}
-                  className="justify-self-end text-xs text-zinc-500 underline hover:text-ink"
-                >
-                  Usar a mesma ordem do computador
-                </button>
-              ) : null}
+              {/* À direita: aviso de alterações não salvas (e a ordem do celular no modo Seções) */}
+              <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 lg:justify-self-end">
+                {dirty ? <span className="text-xs font-medium text-amber-700">Há alterações não salvas.</span> : null}
+                {mode === 'secoes' && device === 'mobile' && theme.mobileOrder?.length ? (
+                  <button
+                    onClick={() => {
+                      setTheme((t) => (t ? { ...t, mobileOrder: [] } : t));
+                      setDirty(true);
+                      setFrameKey((k) => k + 1);
+                    }}
+                    className="text-xs text-zinc-500 underline hover:text-ink"
+                  >
+                    Usar a mesma ordem do computador
+                  </button>
+                ) : null}
+              </div>
             </div>
-            {dirty ? <p className="mb-2 text-center text-xs text-amber-700">Há alterações não salvas. Clique em Salvar para publicá-las nesta versão.</p> : null}
             <div className="relative">
             {previewLoading ? (
               <div className="absolute inset-0 z-10 grid place-items-center rounded-lg bg-white/60 backdrop-blur-[2px]" role="status" aria-live="polite">
