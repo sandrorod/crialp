@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import type { ElementColor, ElementColors, ImageBox, ImageFocus, ImageSizes, SectionColors, SectionSpacing } from '@/types';
+import type { ElementColor, ElementColors, ImageBox, ImageFocus, ImageLook, ImageSizes, SectionColors, SectionSpacing } from '@/types';
+import { imageStylesCss, setImageStyleCss } from './imageStyle';
+import { ImageStylePopup } from './ImageStylePopup';
 import { ElementColorPopup, SectionColorPopup } from './ElementColorPopup';
 import { readIconStyle, type IconPageStyle } from './IconPicker';
 import {
@@ -54,7 +56,13 @@ const zoomStep = (z: number) => (z <= 1 ? 0.1 : 0.2);
  * podem ser arrastadas dentro do espaço delas e ampliadas (botões − / + ou pinça no trackpad).
  * A prévia é do mesmo domínio, então o editor acessa o documento do iframe.
  */
-function attachFocusDrag(doc: Document, getFocus: () => FocusMap, onFocus: (url: string, focus: ImageFocus) => void, uiScale = 1) {
+function attachFocusDrag(
+  doc: Document,
+  getFocus: () => FocusMap,
+  onFocus: (url: string, focus: ImageFocus) => void,
+  uiScale = 1,
+  onStyle?: (url: string, at: { x: number; y: number }) => void,
+) {
   // A prévia desktop é reduzida para caber no painel: os controles crescem na mesma proporção
   const px = (n: number) => `${Math.round(n * uiScale)}px`;
   const clamp = (v: number, min = 0, max = 100) => Math.min(max, Math.max(min, v));
@@ -135,6 +143,15 @@ function attachFocusDrag(doc: Document, getFocus: () => FocusMap, onFocus: (url:
         onFocus(url, reset);
       }),
     );
+    if (onStyle) {
+      // Borda, cantos, sombra e filtro da foto
+      bar.append(
+        mkButton('◧', 'Estilo da foto: borda, cantos, sombra e filtro', () => {
+          const r = bar.getBoundingClientRect();
+          onStyle(url, { x: r.left, y: r.bottom });
+        }),
+      );
+    }
     handle.appendChild(bar);
 
     // Pinça no trackpad (o navegador envia wheel com ctrlKey); rolagem comum continua rolando a página
@@ -209,6 +226,8 @@ export function PreviewFrame({
   onSpacing,
   imageSize,
   onImageSize,
+  imageStyle,
+  onImageStyle,
   sectionColors,
   onSectionBg,
 }: {
@@ -244,6 +263,9 @@ export function PreviewFrame({
   onSectionBg?: (key: string, bg: string | null) => void;
   /** Fotos redimensionadas na prévia (modo Fotos), no layout atual: chave "<seção>|<url>"; null = volta ao padrão */
   onImageSize?: (changes: Record<string, ImageBox | null>) => void;
+  /** Borda, cantos, sombra e filtro de cada foto (por URL) */
+  imageStyle?: Record<string, ImageLook>;
+  onImageStyle?: (url: string, look: ImageLook | null) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -274,6 +296,11 @@ export function PreviewFrame({
   orderRef.current = sectionOrder;
   const colorsRef = useRef(elementColors);
   colorsRef.current = elementColors;
+  const [stylePick, setStylePick] = useState<{ url: string; x: number; y: number } | null>(null);
+  const imageStyleRef = useRef(imageStyle);
+  imageStyleRef.current = imageStyle;
+  const onImageStyleRef = useRef(onImageStyle);
+  onImageStyleRef.current = onImageStyle;
   const imageSizeRef = useRef(imageSize);
   imageSizeRef.current = imageSize;
   const onImageSizeRef = useRef(onImageSize);
@@ -300,6 +327,10 @@ export function PreviewFrame({
     if (d?.documentElement) setPreviewMode(d, mode);
     if (mode !== 'cores') setPicked(null);
     if (mode !== 'textos') setSectionPick(null);
+    if (mode !== 'fotos') {
+      setStylePick(null);
+      if (d?.head) setImageStyleCss(d, imageStylesCss(imageStyleRef.current, focusRef.current));
+    }
   }, [mode]);
 
   // Cores salvas no editor aparecem na hora, sem esperar salvar a página
@@ -321,6 +352,12 @@ export function PreviewFrame({
     const d = doc();
     if (d?.head) setImageSizeCss(d, imageSizesCss(imageSize));
   }, [imageSize]);
+
+  // O estilo depende do zoom (foto afastada: estilo na própria foto)
+  useEffect(() => {
+    const d = doc();
+    if (d?.head) setImageStyleCss(d, imageStylesCss(imageStyle, focus));
+  }, [imageStyle, focus]);
 
   const scale = device === 'desktop' && width ? Math.min(1, width / DESKTOP_WIDTH) : 1;
   const uiScale = device === 'desktop' && width ? Math.max(1, DESKTOP_WIDTH / width) : 1;
@@ -345,7 +382,10 @@ export function PreviewFrame({
       setSectionPick({ ...p, original });
     });
     setPreviewMode(d, modeRef.current);
-    if (onFocusRef.current) attachFocusDrag(d, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), uiScale);
+    setImageStyleCss(d, imageStylesCss(imageStyleRef.current, focusRef.current));
+    if (onFocusRef.current) {
+      attachFocusDrag(d, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), uiScale, onImageStyleRef.current ? (url, at) => setStylePick({ url, ...at }) : undefined);
+    }
     setColorsCss(d, elementColorsCss(colorsRef.current));
     loadElementFonts(d, colorsRef.current);
     applyTextEffects(d, colorsRef.current, device);
@@ -497,6 +537,38 @@ export function PreviewFrame({
       />
     ) : null;
 
+  const restoreStyle = () => {
+    const d = doc();
+    if (d?.head) setImageStyleCss(d, imageStylesCss(imageStyleRef.current, focusRef.current));
+  };
+  const stylePopup =
+    stylePick && onImageStyle && frame.current ? (
+      <ImageStylePopup
+        key={stylePick.url}
+        saved={imageStyle?.[stylePick.url]}
+        anchor={(() => {
+          const r = frame.current.getBoundingClientRect();
+          return { x: r.left + stylePick.x * scale, y: r.top + stylePick.y * scale };
+        })()}
+        onDraft={(look) => {
+          const d = doc();
+          if (!d?.head) return;
+          const all = { ...(imageStyleRef.current ?? {}) };
+          if (look) all[stylePick.url] = look;
+          else delete all[stylePick.url];
+          setImageStyleCss(d, imageStylesCss(all, focusRef.current));
+        }}
+        onSave={(look) => {
+          onImageStyle(stylePick.url, look);
+          setStylePick(null);
+        }}
+        onClose={() => {
+          restoreStyle();
+          setStylePick(null);
+        }}
+      />
+    ) : null;
+
   const popup =
     picked && onElementColors && frame.current ? (
       <ElementColorPopup
@@ -530,7 +602,7 @@ export function PreviewFrame({
     return (
       <div ref={box} className="mx-auto w-[390px] max-w-full overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-black/5">
         <iframe ref={frame} title="Prévia da Landing Page" src={src} srcDoc={html ?? undefined} onLoad={onLoad} className="w-full border-0" style={{ height }} />
-        {popup}{sectionPopup}
+        {popup}{sectionPopup}{stylePopup}
       </div>
     );
   }
@@ -548,7 +620,7 @@ export function PreviewFrame({
           style={{ width: DESKTOP_WIDTH, height: height / scale, transform: `scale(${scale})` }}
         />
       ) : null}
-      {popup}{sectionPopup}
+      {popup}{sectionPopup}{stylePopup}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { normalizeSectionColors, type SectionColors } from './sectionColors.js';
 import { normalizeElementColors, type ElementColors } from './elementColors.js';
 import { normalizeSectionSpacing, type SectionSpacing } from './spacing.js';
 import { normalizeImageSizes, type ImageSizes } from './imageSize.js';
+import { normalizeImageStyles, type ImageLook } from './imageStyle.js';
 
 export interface ThemeSettings {
   preset: DesignPreset;
@@ -28,6 +29,8 @@ export interface ThemeSettings {
   sectionSpacing?: SectionSpacing;
   /** Largura (%) e altura (px) das fotos arrastadas na prévia, por layout (celular / computador). */
   imageSize?: ImageSizes;
+  /** Borda, cantos, sombra e filtro de cada foto (por URL) */
+  imageStyle?: Record<string, ImageLook>;
   /** Onde o logotipo aparece: cabeçalho (padrão), início do conteúdo (acima do título) ou seção "Sobre". */
   logoPlacement?: LogoPlacement;
   /** Tira os emojis de todos os textos da página. */
@@ -412,6 +415,7 @@ export interface ResolvedTheme {
   elementColors: ElementColors;
   sectionSpacing: SectionSpacing;
   imageSize: ImageSizes;
+  imageStyle: Record<string, ImageLook>;
   logoPlacement: LogoPlacement;
   removeEmojis: boolean;
   hideMap: boolean;
@@ -441,6 +445,7 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
     elementColors: normalizeElementColors(input?.elementColors),
     sectionSpacing: normalizeSectionSpacing(input?.sectionSpacing),
     imageSize: normalizeImageSizes(input?.imageSize),
+    imageStyle: normalizeImageStyles(input?.imageStyle),
     logoPlacement: input?.logoPlacement === 'hero' || input?.logoPlacement === 'about' ? input.logoPlacement : 'header',
     removeEmojis: input?.removeEmojis === true,
     hideMap: input?.hideMap === true,
@@ -498,6 +503,7 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
     elementColors: settings.elementColors ?? { desktop: {}, mobile: {} },
     sectionSpacing: settings.sectionSpacing ?? {},
     imageSize: settings.imageSize ?? {},
+    imageStyle: settings.imageStyle ?? {},
     logoPlacement: settings.logoPlacement ?? 'header',
     removeEmojis: settings.removeEmojis === true,
     hideMap: settings.hideMap === true,

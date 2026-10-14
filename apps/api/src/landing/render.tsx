@@ -6,6 +6,7 @@ import { finalCtaVars, sectionVars } from './sectionColors.js';
 import { elementColorsCss, elementFontsHref, MOBILE_MAX, textEffectsJson } from './elementColors.js';
 import { sectionSpacingCss } from './spacing.js';
 import { imageSizesCss } from './imageSize.js';
+import { imageStylesCss } from './imageStyle.js';
 import type { CSSProperties, ReactNode } from 'react';
 
 /** Envolve a seção num contêiner que redefine as variáveis de cor (quando houver cores próprias). */
@@ -197,6 +198,7 @@ export function renderLandingPage(ctx: RenderContext): string {
         <style id="lp-colors" dangerouslySetInnerHTML={{ __html: elementColorsCss(theme.elementColors) }} />
         <style id="lp-spacing" dangerouslySetInnerHTML={{ __html: sectionSpacingCss(theme.sectionSpacing) }} />
         <style id="lp-image-size" dangerouslySetInnerHTML={{ __html: imageSizesCss(theme.imageSize) }} />
+        <style id="lp-image-style" dangerouslySetInnerHTML={{ __html: imageStylesCss(theme.imageStyle, theme.focus) }} />
         {/* Efeitos de movimento dos textos (lidos pelo script abaixo) */}
         {textEffectsJson(theme.elementColors) ? <script type="application/json" id="lp-fx" dangerouslySetInnerHTML={{ __html: textEffectsJson(theme.elementColors)! }} /> : null}
         <script dangerouslySetInnerHTML={{ __html: REVEAL_SCRIPT }} />

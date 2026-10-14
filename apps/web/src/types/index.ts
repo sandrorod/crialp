@@ -275,6 +275,8 @@ export interface ThemeSettings {
   sectionSpacing?: SectionSpacing;
   /** Tamanho das fotos (topo, "Sobre" e galeria) por URL, por layout */
   imageSize?: ImageSizes;
+  /** Borda, cantos, sombra e filtro de cada foto (por URL) */
+  imageStyle?: Record<string, ImageLook>;
   /** Onde o logotipo aparece: cabeçalho (padrão), início do conteúdo ou seção "Sobre" */
   logoPlacement?: 'header' | 'hero' | 'about';
   /** Tira os emojis de todos os textos da página */
@@ -295,6 +297,14 @@ export interface ImageBox {
   /** Corte em cima/embaixo: altura da foto e parte escondida em cima (px) */
   ih?: number;
   it?: number;
+}
+/** Estilo da foto: borda (px, cor), cantos (px), sombra e filtro. Ausente = como o modelo. */
+export interface ImageLook {
+  bw?: number;
+  bc?: string;
+  r?: number;
+  sh?: 'none' | 'sm' | 'md' | 'lg';
+  fx?: 'gray' | 'sepia' | 'bright' | 'contrast';
 }
 export interface ImageSizes {
   desktop?: Record<string, ImageBox>;

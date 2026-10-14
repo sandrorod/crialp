@@ -36,7 +36,7 @@ const STAFF_TABS: Tab[] = ['publicacao', 'cliente'];
 
 const MODES: { key: PreviewMode; label: string; icon: typeof Monitor; hint: string }[] = [
   { key: 'textos', label: 'Textos', icon: PenLine, hint: 'Clique em qualquer texto contornado para editar ali mesmo; clique em qualquer outro elemento (foto, botão, cartão…) para mudar cores, efeito ou excluir. Enter ou clicar fora confirma; Esc desfaz. Clique num ícone para trocá-lo.' },
-  { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste qualquer foto (topo, "Sobre" e galeria) para ajustar o enquadramento; use − / + para o zoom. Arraste as alças azuis das bordas para mudar a largura e a altura (duplo clique volta ao padrão).' },
+  { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste qualquer foto (topo, "Sobre" e galeria) para ajustar o enquadramento; use − / + para o zoom e ◧ para borda, cantos, sombra e filtro. Arraste as alças azuis das bordas para cortar a foto (duplo clique tira o corte).' },
   { key: 'mover', label: 'Mover', icon: Move, hint: 'Arraste qualquer foto ou texto para o ponto da seção onde quer deixá-lo (no celular, com o dedo). Ele não sai da área da seção. Duplo clique volta à posição original.' },
   { key: 'secoes', label: 'Seções', icon: Rows3, hint: 'Arraste as seções pelo botão ⠿ (ou use ↑ ↓) para mudar a ordem.' },
   { key: 'espacos', label: 'Espaços', icon: MoveVertical, hint: 'Arraste a alça azul "↕ Espaço" na borda de baixo de cada seção: para cima diminui a margem interna, para baixo aumenta. Duplo clique volta ao padrão.' },
@@ -500,6 +500,17 @@ export function LandingPageEditorPage() {
                     else delete map[key];
                   }
                   return { ...t, imageSize: { ...all, [device]: map } };
+                });
+                setDirty(true);
+              }}
+              imageStyle={theme.imageStyle}
+              onImageStyle={(url, look) => {
+                setTheme((t) => {
+                  if (!t) return t;
+                  const all = { ...(t.imageStyle ?? {}) };
+                  if (look) all[url] = look;
+                  else delete all[url];
+                  return { ...t, imageStyle: all };
                 });
                 setDirty(true);
               }}

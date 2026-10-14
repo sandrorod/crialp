@@ -17,6 +17,7 @@ import { TEXT_EFFECTS } from '../landing/elementColors.js';
 import { CUSTOM_PLACEMENT, HEADING_FAMILY, IMAGE_PLACEMENTS, normalizeThemeSettings, PRESETS, SECTION_PLACEMENT, TEMPLATE_KEYS, TEMPLATES } from '../landing/theme.js';
 import { publicUrl, refreshSnapshot, renderFromData } from '../landing/publish.js';
 import { renderUnavailablePage } from '../landing/render.js';
+import { IMAGE_FILTERS, IMAGE_SHADOWS } from '../landing/imageStyle.js';
 import { landingPageHeaders } from './public.js';
 import { generateScreenshot, getScreenshotImage, getScreenshotInfo } from '../services/screenshot/ScreenshotService.js';
 
@@ -207,6 +208,19 @@ const ContentUpdateSchema = z.object({
       })
       .optional(),
     // Tamanho das fotos arrastado na prévia: { desktop: { "<url>": { w: 20-100 (%), h: 80-1400 (px) } }, mobile: {...} }
+    // Borda, cantos, sombra e filtro de cada foto: { "<url>": { bw, bc, r, sh, fx } }
+    imageStyle: z
+      .record(
+        z.string().max(2048),
+        z.object({
+          bw: z.number().min(0).max(40).optional(),
+          bc: z.string().max(9).optional(),
+          r: z.number().min(0).max(300).optional(),
+          sh: z.enum(IMAGE_SHADOWS).optional(),
+          fx: z.enum(IMAGE_FILTERS).optional(),
+        }),
+      )
+      .optional(),
     imageSize: z
       .object({
         desktop: z.record(z.string().max(2120), ImageBoxSchema).optional(),

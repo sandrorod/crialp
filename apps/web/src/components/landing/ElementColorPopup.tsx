@@ -14,7 +14,7 @@ const WIDTH = 312;
  * Quadro flutuante arrastável pelo topo. Fica fixo na tela (rolar a página não o tira de vista) e nunca
  * passa das bordas, nem ao arrastar nem quando a janela muda de tamanho.
  */
-function useDraggablePopup(initial: { left: number; top: number }, width: number) {
+export function useDraggablePopup(initial: { left: number; top: number }, width: number) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState(initial);
   const clamp = (left: number, top: number) => {
@@ -66,7 +66,7 @@ function useDraggablePopup(initial: { left: number; top: number }, width: number
 }
 
 /** Topo do quadro: alça de arrastar, título e fechar. */
-function PopupHeader({ onGrab, onClose, children }: { onGrab: (e: ReactPointerEvent<HTMLElement>) => void; onClose: () => void; children: React.ReactNode }) {
+export function PopupHeader({ onGrab, onClose, children }: { onGrab: (e: ReactPointerEvent<HTMLElement>) => void; onClose: () => void; children: React.ReactNode }) {
   return (
     <div onPointerDown={onGrab} className="-mx-4 -mt-4 mb-3 flex cursor-move touch-none select-none items-start justify-between gap-2 rounded-t-xl px-4 pb-1 pt-2" title="Arraste para mudar o quadro de lugar">
       <div className="min-w-0">
