@@ -43,6 +43,10 @@ const MODES: { key: PreviewMode; label: string; icon: typeof Monitor; hint: stri
   { key: 'cores', label: 'Cores', icon: Palette, hint: 'Clique em qualquer elemento (título, texto, botão, fundo…) para escolher a cor da fonte, do fundo e o tamanho.' },
 ];
 
+/** Botões só com ícone da linha de ações: mesmo tamanho, fundo, borda e cor em todos. */
+const ICON_ACTION =
+  'inline-flex size-8 flex-none items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 shadow-xs transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50';
+
 /** Aplica a nova ordem das seções visíveis mantendo as demais (sem dados ou fixas) na lista. */
 function mergeSectionOrder(order: SectionOrderKey[], keys: string[]): SectionOrderKey[] {
   const moved = keys as SectionOrderKey[];
@@ -337,34 +341,40 @@ export function LandingPageEditorPage() {
           <a href={landingPageService.previewUrl(lp.id)} target="_blank" rel="noreferrer" className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100" aria-label="Abrir prévia em nova aba" title="Abrir prévia em nova aba"><ExternalLink className="size-4" /></a>
         </div>
         {/* Ações da página, alinhadas à direita */}
-        {isClient ? null : <div className="ml-auto flex flex-wrap justify-end gap-2">
-          <Link to={`/empresas/${lp.company_id}`}><Button size="sm" variant="secondary" icon={<Building2 className="size-4" />} aria-label="Editar empresa" title="Editar empresa" /></Link>
-          <Button size="sm" variant="secondary" onClick={() => setRegenOpen(true)} loading={generating} icon={<Sparkles className="size-4" />} aria-label="Regenerar" title="Regenerar a Landing Page" />
+        {isClient ? null : <div className="ml-auto flex flex-wrap justify-end gap-1.5">
+          <Link to={`/empresas/${lp.company_id}`} className={ICON_ACTION} aria-label="Editar empresa" title="Editar empresa"><Building2 className="size-4" /></Link>
+          <button type="button" onClick={() => setRegenOpen(true)} disabled={generating} className={ICON_ACTION} aria-label="Regenerar" title="Regenerar a Landing Page">
+            {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+          </button>
           {/* Sempre visível: sem imagem ainda (LP antiga ou falha), gera e já baixa */}
-          <Button
-            variant="ghost"
-            loading={shotBusy}
+          <button
+            type="button"
+            disabled={shotBusy}
             onClick={() => (shot?.available ? downloadShot(shot.created_at) : generateShot(true))}
-            icon={<ImageIcon className="size-4" />}
+            className={ICON_ACTION}
             aria-label="Baixar imagem JPG"
             title={shot?.available ? `Baixar imagem JPG (topo e "Sobre nós"), gerada ${formatDate(shot.created_at, true)}` : 'Gerar e baixar imagem JPG (topo e "Sobre nós")'}
-          />
+          >
+            <ImageIcon className="size-4" />
+          </button>
           {/* Novo print da página; o envio ao Google Drive é automático */}
-          <Button
-            variant="secondary"
+          <button
+            type="button"
             disabled={shotBusy}
             onClick={() => generateShot()}
-            icon={<RefreshCw className={shotBusy ? 'size-4 animate-spin' : 'size-4'} />}
+            className={ICON_ACTION}
             aria-label="Novo print"
             title={shotBusy ? 'Gerando o print…' : 'Novo print: gerar um novo print da página e enviar ao Google Drive'}
-          />
+          >
+            <RefreshCw className={shotBusy ? 'size-4 animate-spin' : 'size-4'} />
+          </button>
           {shot?.drive_file_id ? (
-            <a href={`https://drive.google.com/file/d/${shot.drive_file_id}/view`} target="_blank" rel="noreferrer">
-              <Button size="sm" variant="ghost" icon={<ExternalLink className="size-4" />} aria-label="Drive" title={shot.drive_error ?? 'Abrir a imagem no Google Drive'} />
+            <a href={`https://drive.google.com/file/d/${shot.drive_file_id}/view`} target="_blank" rel="noreferrer" className={ICON_ACTION} aria-label="Drive" title={shot.drive_error ?? 'Abrir a imagem no Google Drive'}>
+              <ExternalLink className="size-4" />
             </a>
           ) : null}
-          <a href={landingPageService.exportUrl(lp.id)}><Button size="sm" variant="ghost" icon={<Download className="size-4" />} aria-label="Exportar HTML" title="Exportar HTML" /></a>
-          <Button size="sm" variant="ghost" onClick={() => setDeleteOpen(true)} icon={<Trash2 className="size-4" />} aria-label="Excluir" title="Excluir" />
+          <a href={landingPageService.exportUrl(lp.id)} className={ICON_ACTION} aria-label="Exportar HTML" title="Exportar HTML"><Download className="size-4" /></a>
+          <button type="button" onClick={() => setDeleteOpen(true)} className={cn(ICON_ACTION, 'hover:border-red-200 hover:text-red-600')} aria-label="Excluir" title="Excluir"><Trash2 className="size-4" /></button>
         </div>}
       </div>
 
