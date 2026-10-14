@@ -289,6 +289,12 @@ export interface ThemeSettings {
 export interface ImageBox {
   w?: number;
   h?: number;
+  /** Corte pelas laterais: largura da foto e parte escondida à esquerda (% do espaço disponível) */
+  iw?: number;
+  il?: number;
+  /** Corte em cima/embaixo: altura da foto e parte escondida em cima (px) */
+  ih?: number;
+  it?: number;
 }
 export interface ImageSizes {
   desktop?: Record<string, ImageBox>;

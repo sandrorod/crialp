@@ -41,8 +41,7 @@ function applyFocus(img: HTMLImageElement, f: ImageFocus) {
   img.style.objectPosition = pos;
   img.style.transformOrigin = pos;
   img.style.transform = f.z && f.z !== 1 ? `scale(${f.z})` : '';
-  // Abaixo de 100% a foto inteira aparece (sem corte) e encolhe dentro do espaço
-  img.style.objectFit = f.z && f.z < 1 ? 'contain' : '';
+  // Abaixo de 100% a foto encolhe na mesma proporção do zoom (sem salto), deixando espaço livre em volta
 }
 
 /** Zoom de 10% (foto inteira, bem pequena dentro do espaço) até 300% */
@@ -85,11 +84,12 @@ function attachFocusDrag(doc: Document, getFocus: () => FocusMap, onFocus: (url:
      * O deslocamento visível é linear no ponto (0–100%) com amplitude igual a essa sobra.
      */
     const overflow = (z: number) => {
-      const box = handle.getBoundingClientRect();
+      // Caixa da própria foto, sem o zoom (maior que a moldura quando a foto foi cortada)
+      const box = { width: img.offsetWidth, height: img.offsetHeight };
       const nw = img.naturalWidth;
       const nh = img.naturalHeight;
-      // Abaixo de 100%: foto inteira (contain) reduzida; a sobra fica negativa (espaço livre em volta)
-      const fit = z < 1 ? Math.min(box.width / nw, box.height / nh) : Math.max(box.width / nw, box.height / nh);
+      // Abaixo de 100% a foto fica menor que o espaço: a sobra fica negativa (espaço livre em volta)
+      const fit = Math.max(box.width / nw, box.height / nh);
       return { x: nw * fit * z - box.width, y: nh * fit * z - box.height };
     };
 

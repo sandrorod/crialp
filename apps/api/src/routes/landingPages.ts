@@ -125,7 +125,15 @@ landingPagesRouter.post('/:id/screenshot', async (req, res) => {
 });
 
 // Cor, tamanho e estilo do texto de um elemento clicado na prévia
-const ImageBoxSchema = z.object({ w: z.number().min(0).max(100).optional(), h: z.number().min(0).max(5000).optional() });
+const ImageBoxSchema = z.object({
+  w: z.number().min(0).max(100).optional(),
+  h: z.number().min(0).max(5000).optional(),
+  // Corte pelas laterais: tamanho da foto e parte escondida à esquerda / em cima
+  iw: z.number().min(0).max(1000).optional(),
+  il: z.number().min(0).max(1000).optional(),
+  ih: z.number().min(0).max(20000).optional(),
+  it: z.number().min(0).max(20000).optional(),
+});
 const ElementStyleSchema = z.object({
   text: z.string().max(9).nullish(),
   bg: z.string().max(9).nullish(),

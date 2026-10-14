@@ -216,6 +216,22 @@ function frameSelector(key: string) {
   return m ? `[data-section="${m[1]}"] ${img(m[2])}` : img(key);
 }
 
+/** Foto cortada: mantém o tamanho de antes do corte, deslocada dentro da moldura (igual a apps/api/src/landing/imageSize.ts). */
+function cropDecl(b: ImageBox): string {
+  const r = (n: number) => Math.round(n * 1000) / 1000;
+  const bw = b.w ?? 100;
+  return [
+    b.iw !== undefined ? `width:${r((b.iw / bw) * 100)}%!important;max-width:none!important;margin-left:-${r(((b.il ?? 0) / bw) * 100)}%!important;flex:none` : '',
+    b.ih !== undefined ? `height:${b.ih}px!important;max-height:none!important;margin-top:-${b.it ?? 0}px!important` : '',
+  ].filter(Boolean).join(';');
+}
+function cropCss(frame: string, key: string, b: ImageBox): string {
+  const decl = cropDecl(b);
+  if (!decl) return '';
+  const m = SECTION_KEY.exec(key);
+  return `${frame}>img[data-lp-img="${cssString(m ? m[2] : key)}"]{${decl}}`;
+}
+
 /** Mesmo CSS gerado na página publicada (apps/api/src/landing/imageSize.ts). */
 export function imageSizesCss(s: ImageSizes | undefined): string {
   const rules = (map: Record<string, ImageBox> = {}) =>
@@ -225,7 +241,8 @@ export function imageSizesCss(s: ImageSizes | undefined): string {
           b.w !== undefined ? `width:${b.w}%!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important` : '',
           b.h !== undefined ? `height:${b.h}px!important;aspect-ratio:auto!important;min-height:0!important;align-self:start` : '',
         ].filter(Boolean).join(';');
-        return decl ? `${frameSelector(url)}{${decl}}` : '';
+        const frame = frameSelector(url);
+        return (decl ? `${frame}{${decl}}` : '') + cropCss(frame, url, b);
       })
       .join('');
   const desktop = rules(s?.desktop);
@@ -243,17 +260,58 @@ export function setImageSizeCss(doc: Document, css: string) {
   style.textContent = css;
   // O tamanho aplicado durante o arrasto sai do estilo em linha: passa a valer o CSS do editor
   doc.querySelectorAll<HTMLElement>('[data-lp-resized]').forEach((el) => {
-    ['width', 'max-width', 'height', 'aspect-ratio', 'min-height', 'margin-left', 'margin-right'].forEach((p) => el.style.removeProperty(p));
+    ['width', 'max-width', 'height', 'max-height', 'aspect-ratio', 'min-height', 'margin-left', 'margin-right', 'margin-top', 'flex'].forEach((p) => el.style.removeProperty(p));
     delete el.dataset.lpResized;
   });
 }
 
 type Edge = 'left' | 'right' | 'top' | 'bottom';
 
+/** Aplica o tamanho (e o corte) direto na moldura e na foto durante o arrasto. */
+function applyBoxInline(frame: HTMLElement, img: HTMLElement, b: ImageBox) {
+  frame.dataset.lpResized = '1';
+  img.dataset.lpResized = '1';
+  const set = (el: HTMLElement, p: string, v: string | null) => (v === null ? el.style.removeProperty(p) : el.style.setProperty(p, v, 'important'));
+  const hasW = b.w !== undefined;
+  set(frame, 'width', hasW ? `${b.w}%` : null);
+  set(frame, 'max-width', hasW ? '100%' : null);
+  set(frame, 'margin-left', hasW ? 'auto' : null);
+  set(frame, 'margin-right', hasW ? 'auto' : null);
+  const hasH = b.h !== undefined;
+  set(frame, 'height', hasH ? `${b.h}px` : null);
+  set(frame, 'aspect-ratio', hasH ? 'auto' : null);
+  set(frame, 'min-height', hasH ? '0' : null);
+  const bw = b.w ?? 100;
+  set(img, 'width', b.iw !== undefined ? `${(b.iw / bw) * 100}%` : null);
+  set(img, 'max-width', b.iw !== undefined ? 'none' : null);
+  set(img, 'margin-left', b.iw !== undefined ? `-${((b.il ?? 0) / bw) * 100}%` : null);
+  set(img, 'flex', b.iw !== undefined ? 'none' : null);
+  set(img, 'height', b.ih !== undefined ? `${b.ih}px` : null);
+  set(img, 'max-height', b.ih !== undefined ? 'none' : null);
+  set(img, 'margin-top', b.ih !== undefined ? `-${b.it ?? 0}px` : null);
+}
+
+/** Tira do tamanho o que ficou igual ao padrão (largura 100%, foto do tamanho da moldura). */
+function cleanBox(b: ImageBox): ImageBox | null {
+  const out: ImageBox = { ...b };
+  const bw = out.w ?? 100;
+  if (out.iw !== undefined && out.iw <= bw + 0.05) {
+    delete out.iw;
+    delete out.il;
+  } else if (out.il !== undefined && out.il < 0.05) delete out.il;
+  if (out.ih !== undefined && (out.h === undefined || out.ih <= out.h)) {
+    delete out.ih;
+    delete out.it;
+  } else if (out.it !== undefined && out.it < 1) delete out.it;
+  if (out.w !== undefined && out.w >= 100 && out.iw === undefined) delete out.w;
+  return Object.keys(out).length ? out : null;
+}
+const sameBox = (a: ImageBox | null, b: ImageBox | null) => JSON.stringify(a ?? {}) === JSON.stringify(b ?? {});
+
 /**
  * Modo "Fotos": alças nas quatro bordas e nos quatro cantos das fotos (cantos mudam largura e altura na mesma
- * proporção). Laterais mudam a largura
- * (a foto fica centralizada, então cresce para os dois lados); topo e base mudam a altura.
+ * proporção). Bordas cortam a foto: ela mantém o tamanho e a parte arrastada fica escondida
+ * (arrastar para fora mostra de novo o que foi cortado; além disso, a foto cresce para preencher).
  * Duplo clique numa alça volta aquela medida ao padrão do modelo. `onSize(url, null)` = tudo no padrão.
  */
 export function attachImageResize(doc: Document, getSize: (url: string) => ImageBox | undefined, onSizes: (changes: Record<string, ImageBox | null>) => void, uiScale = 1) {
@@ -304,15 +362,22 @@ export function attachImageResize(doc: Document, getSize: (url: string) => Image
         'style',
         `position:absolute;${pos};z-index:6;width:${horizontal ? thick : long};height:${horizontal ? long : thick};border-radius:999px;background:#2563eb;border:${px(2)} solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);cursor:${horizontal ? 'ew-resize' : 'ns-resize'};touch-action:none`,
       );
-      h.title = horizontal ? 'Arraste para mudar a largura (duplo clique: padrão)' : 'Arraste para mudar a altura (duplo clique: padrão)';
+      h.title = horizontal ? 'Arraste para cortar a foto pela lateral (duplo clique: sem corte)' : 'Arraste para cortar a foto em cima/embaixo (duplo clique: sem corte)';
 
       h.addEventListener('dblclick', (e) => {
         e.preventDefault();
         e.stopPropagation();
         const cur = { ...(sizeOf() ?? {}) };
-        if (horizontal) delete cur.w;
-        else delete cur.h;
-        onSize(url, cur.w === undefined && cur.h === undefined ? null : cur);
+        if (horizontal) {
+          delete cur.w;
+          delete cur.iw;
+          delete cur.il;
+        } else {
+          delete cur.h;
+          delete cur.ih;
+          delete cur.it;
+        }
+        onSize(url, cleanBox(cur));
       });
 
       h.addEventListener('pointerdown', (e) => {
@@ -323,34 +388,58 @@ export function attachImageResize(doc: Document, getSize: (url: string) => Image
         const rect = frame.getBoundingClientRect();
         // Largura total disponível (100%) a partir da largura atual e do % aplicado
         const available = rect.width / ((cur.w ?? 100) / 100);
+        // Medidas de partida: moldura e foto (sem corte, a foto tem o tamanho da moldura)
+        const w0 = cur.w ?? 100;
+        const iw0 = cur.iw ?? w0;
+        const il0 = cur.il ?? 0;
+        const h0 = cur.h ?? Math.round(rect.height);
+        const ih0 = cur.ih ?? h0;
+        const it0 = cur.it ?? 0;
         const sx = e.clientX;
         const sy = e.clientY;
-        let next: ImageBox = { ...cur };
+        let next: ImageBox | null = { ...cur };
         h.setPointerCapture(e.pointerId);
         label.style.display = 'block';
         const show = () => {
-          const w = next.w ?? 100;
-          label.textContent = horizontal ? `Largura ${Math.round(w)}%` : `Altura ${Math.round(next.h ?? rect.height)}px`;
+          label.textContent = horizontal ? `Largura ${Math.round(next?.w ?? 100)}%` : `Altura ${Math.round(next?.h ?? rect.height)}px`;
         };
         show();
         const move = (ev: PointerEvent) => {
-          frame.dataset.lpResized = '1';
           if (horizontal) {
-            // Centralizada: a borda acompanha o ponteiro, então a largura muda o dobro do deslocamento
-            const dx = (ev.clientX - sx) * (edge === 'right' ? 2 : -2);
-            const w = Math.min(100, Math.max(IMG_W_MIN, ((rect.width + dx) / available) * 100));
-            next = { ...next, w: Math.round(w * 10) / 10 };
-            frame.style.setProperty('width', `${next.w}%`, 'important');
-            frame.style.setProperty('max-width', '100%', 'important');
-            frame.style.setProperty('margin-left', 'auto', 'important');
-            frame.style.setProperty('margin-right', 'auto', 'important');
+            // A largura muda o mesmo tanto que o ponteiro andou: essa faixa da foto fica escondida.
+            // O lado oposto continua igual; arrastar para fora mostra o que foi cortado
+            const dx = ((ev.clientX - sx) / available) * 100 * (edge === 'right' ? 1 : -1);
+            const w = Math.min(100, Math.max(IMG_W_MIN, w0 + dx));
+            let iw = iw0;
+            let il = il0;
+            if (edge === 'right') iw = Math.max(iw0, il0 + w);
+            else {
+              il = il0 - (w - w0);
+              // Passou do que foi cortado: a foto cresce para continuar preenchendo
+              if (il < 0) {
+                iw = iw0 - il;
+                il = 0;
+              }
+            }
+            const r = (n: number) => Math.round(n * 10) / 10;
+            // A altura fica fixa (senão a proporção do modelo encolheria a foto junto)
+            next = { ...cur, w: r(w), h: h0, iw: r(iw), il: r(il), ...(cur.ih !== undefined ? {} : { ih: h0 }) };
           } else {
             const dy = (ev.clientY - sy) * (edge === 'bottom' ? 1 : -1);
-            next = { ...next, h: Math.round(Math.min(IMG_H_MAX, Math.max(IMG_H_MIN, rect.height + dy))) };
-            frame.style.setProperty('height', `${next.h}px`, 'important');
-            frame.style.setProperty('aspect-ratio', 'auto', 'important');
-            frame.style.setProperty('min-height', '0', 'important');
+            const hh = Math.round(Math.min(IMG_H_MAX, Math.max(IMG_H_MIN, h0 + dy)));
+            let ih = ih0;
+            let it = it0;
+            if (edge === 'bottom') ih = Math.max(ih0, it0 + hh);
+            else {
+              it = it0 - (hh - h0);
+              if (it < 0) {
+                ih = ih0 - it;
+                it = 0;
+              }
+            }
+            next = { ...cur, h: hh, ih: Math.round(ih), it: Math.round(it) };
           }
+          applyBoxInline(frame, img, next);
           show();
         };
         const up = () => {
@@ -358,8 +447,13 @@ export function attachImageResize(doc: Document, getSize: (url: string) => Image
           h.removeEventListener('pointerup', up);
           h.removeEventListener('pointercancel', up);
           label.style.display = 'none';
-          if (next.w !== undefined && next.w >= 100) delete next.w;
-          if (next.w !== cur.w || next.h !== cur.h) onSize(url, next.w === undefined && next.h === undefined ? null : next);
+          let done = cleanBox(next ?? {});
+          // Lateral de volta a 100% sem corte: a altura fixada só para o corte também sai
+          if (horizontal && done && done.w === undefined && done.iw === undefined && cur.h === undefined) {
+            delete done.h;
+            done = cleanBox(done);
+          }
+          if (!sameBox(done, cleanBox(cur))) onSize(url, done);
         };
         h.addEventListener('pointermove', move);
         h.addEventListener('pointerup', up);
@@ -409,13 +503,11 @@ export function attachImageResize(doc: Document, getSize: (url: string) => Image
           const maxW = Math.min(available, IMG_H_MAX / ratio);
           const widthPx = Math.min(maxW, Math.max(minW, rect.width + dw));
           next = { w: Math.round((widthPx / available) * 1000) / 10, h: Math.round(widthPx * ratio) };
-          frame.style.setProperty('width', `${next.w}%`, 'important');
-          frame.style.setProperty('max-width', '100%', 'important');
-          frame.style.setProperty('margin-left', 'auto', 'important');
-          frame.style.setProperty('margin-right', 'auto', 'important');
-          frame.style.setProperty('height', `${next.h}px`, 'important');
-          frame.style.setProperty('aspect-ratio', 'auto', 'important');
-          frame.style.setProperty('min-height', '0', 'important');
+          // Foto cortada: o corte cresce/encolhe junto, na mesma proporção
+          const k = widthPx / rect.width;
+          if (cur.iw !== undefined) next = { ...next, iw: Math.round(cur.iw * k * 10) / 10, il: Math.round((cur.il ?? 0) * k * 10) / 10 };
+          if (cur.ih !== undefined) next = { ...next, ih: Math.round(cur.ih * k), it: Math.round((cur.it ?? 0) * k) };
+          applyBoxInline(frame, img, next);
           show();
         };
         const up = () => {
@@ -423,8 +515,8 @@ export function attachImageResize(doc: Document, getSize: (url: string) => Image
           h.removeEventListener('pointerup', up);
           h.removeEventListener('pointercancel', up);
           label.style.display = 'none';
-          if (next.w !== undefined && next.w >= 100) delete next.w;
-          if (next.w !== cur.w || next.h !== cur.h) onSize(url, next.w === undefined && next.h === undefined ? null : next);
+          const done = cleanBox(next);
+          if (!sameBox(done, cleanBox(cur))) onSize(url, done);
         };
         h.addEventListener('pointermove', move);
         h.addEventListener('pointerup', up);
