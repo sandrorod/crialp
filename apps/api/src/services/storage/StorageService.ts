@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { env } from '../../config/env.js';
+import { one } from '../../db/pool.js';
 
 export interface StorageService {
   /** Salva o arquivo e devolve a URL pública. */
@@ -31,7 +32,27 @@ class VercelBlobStorage implements StorageService {
   }
 }
 
-export const storage: StorageService = env.storage.driver === 'vercel-blob' ? new VercelBlobStorage() : new LocalStorage();
+const MIME: Record<string, string> = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' };
+
+/**
+ * No próprio banco (tabela lp_uploads): no Vercel sem Blob Store o disco é somente leitura.
+ * Servido em /uploads/db/<id>.<ext> (ver app.ts), caminho aceito como as demais imagens enviadas.
+ */
+class DatabaseStorage implements StorageService {
+  async save(buffer: Buffer, ext: string) {
+    const row = await one<{ id: string }>('insert into lp_uploads (content_type, data, size) values ($1, $2, $3) returning id', [MIME[ext] ?? 'application/octet-stream', buffer, buffer.length]);
+    return `/uploads/db/${row!.id}.${ext}`;
+  }
+}
+
+export const storage: StorageService =
+  env.storage.driver === 'vercel-blob' ? new VercelBlobStorage() : env.storage.driver === 'database' ? new DatabaseStorage() : new LocalStorage();
+
+/** Imagem guardada no banco (DatabaseStorage). */
+export async function readDbUpload(id: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  return one<{ content_type: string; data: Buffer }>('select content_type, data from lp_uploads where id = $1', [id]);
+}
 
 /** Confere a assinatura binária do arquivo (não confia na extensão enviada). */
 export function detectImageType(buf: Buffer): 'jpg' | 'png' | 'webp' | 'gif' | null {

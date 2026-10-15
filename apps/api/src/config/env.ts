@@ -89,8 +89,8 @@ export const env = {
       .filter(Boolean))],
   },
   storage: {
-    // No Vercel o disco é somente leitura: usa Vercel Blob quando o token existe
-    driver: process.env.STORAGE_DRIVER ?? (process.env.BLOB_READ_WRITE_TOKEN ? 'vercel-blob' : 'local'),
+    // No Vercel o disco é somente leitura: usa Vercel Blob quando o token existe; sem ele, o banco
+    driver: process.env.STORAGE_DRIVER ?? (process.env.BLOB_READ_WRITE_TOKEN ? 'vercel-blob' : process.env.VERCEL ? 'database' : 'local'),
     uploadDir: path.resolve(process.env.UPLOAD_DIR ?? './uploads'),
   },
   /** Login OAuth do Google (cliente "Aplicativo da Web") para enviar a imagem das LPs ao Google Drive */

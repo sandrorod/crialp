@@ -55,7 +55,7 @@ export function SettingsPage() {
               </div>
               <div>
                 <dt className="text-xs text-zinc-500">Armazenamento de arquivos</dt>
-                <dd className="mt-1 font-medium">{data.storage === 'local' ? 'Disco local (/uploads)' : data.storage}</dd>
+                <dd className="mt-1 font-medium">{data.storage === 'local' ? 'Disco local (/uploads)' : data.storage === 'database' ? 'Banco de dados' : data.storage === 'vercel-blob' ? 'Vercel Blob' : data.storage}</dd>
               </div>
               <div>
                 <dt className="text-xs text-zinc-500">Ambiente</dt>

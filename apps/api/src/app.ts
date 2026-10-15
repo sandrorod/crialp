@@ -15,6 +15,7 @@ import { googleDriveRouter } from './routes/googleDrive.js';
 import { salesRouter } from './routes/sales.js';
 import { usersRouter } from './routes/users.js';
 import { customDomainMiddleware, publicRouter } from './routes/public.js';
+import { readDbUpload } from './services/storage/StorageService.js';
 
 export function createApp() {
   const app = express();
@@ -24,7 +25,17 @@ export function createApp() {
   // 1) Domínios personalizados → LP correspondente
   app.use(customDomainMiddleware);
 
-  // 2) Arquivos enviados (imagens)
+  // 2) Arquivos enviados (imagens): no banco (sem Blob Store no Vercel) ou no disco
+  app.get('/uploads/db/:file', async (req, res, next) => {
+    try {
+      const file = await readDbUpload(req.params.file.replace(/\.[a-z0-9]+$/i, ''));
+      if (!file) return res.status(404).end();
+      res.set({ 'Content-Type': file.content_type, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' });
+      res.send(file.data);
+    } catch (err) {
+      next(err);
+    }
+  });
   app.use('/uploads', express.static(env.storage.uploadDir, { maxAge: '30d', immutable: true, index: false }));
 
   // 3) Landing Pages públicas (/lp/:slug) e verificação de domínio
