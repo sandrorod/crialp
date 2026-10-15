@@ -174,7 +174,7 @@ export async function getLandingPageByDomain(domain: string) {
   );
 }
 
-export async function listLandingPages(orgId: string, f: { search?: string; status?: string }) {
+export async function listLandingPages(orgId: string, f: { search?: string; status?: string; segment?: string }) {
   const where = ['lp.organization_id = $1'];
   const params: unknown[] = [orgId];
   if (f.search) {
@@ -184,6 +184,10 @@ export async function listLandingPages(orgId: string, f: { search?: string; stat
   if (f.status === 'ativa' || f.status === 'inativa') {
     params.push(f.status);
     where.push(`lp.status = $${params.length}`);
+  }
+  if (f.segment) {
+    params.push(f.segment);
+    where.push(`c.segment = $${params.length}`);
   }
   const { rows } = await query(
     `select lp.id, lp.title, lp.slug, lp.status, lp.custom_domain, lp.domain_status, lp.current_version,
@@ -196,6 +200,16 @@ export async function listLandingPages(orgId: string, f: { search?: string; stat
     params,
   );
   return rows;
+}
+
+/** Categorias (segmento da empresa) que têm Landing Page: opções do filtro da lista. */
+export async function landingPageSegments(orgId: string): Promise<string[]> {
+  const { rows } = await query<{ segment: string }>(
+    `select distinct c.segment from landing_pages lp join companies c on c.id = lp.company_id
+      where lp.organization_id = $1 and coalesce(trim(c.segment), '') <> '' order by 1`,
+    [orgId],
+  );
+  return rows.map((r) => r.segment);
 }
 
 export async function setStatus(orgId: string, id: string, status: 'ativa' | 'inativa') {

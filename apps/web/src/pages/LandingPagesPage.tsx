@@ -14,13 +14,14 @@ export function LandingPagesPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [segment, setSegment] = useState('');
   const deferred = useDeferredValue(search);
   const { data, error, loading, reload } = useAsync(
-    () => landingPageService.list({ search: deferred || undefined, status: status || undefined }),
-    [deferred, status],
+    () => landingPageService.list({ search: deferred || undefined, status: status || undefined, segment: segment || undefined }),
+    [deferred, status, segment],
   );
   // 10 por página; volta para a primeira ao mudar os filtros
-  const pager = usePagination(data?.items, 10, [deferred, status].join('|'));
+  const pager = usePagination(data?.items, 10, [deferred, status, segment].join('|'));
   const actions = useLandingPageActions(reload);
   const { sellers, canAssign } = useSellers();
   const [toDelete, setToDelete] = useState<LandingPageListItem | null>(null);
@@ -37,11 +38,18 @@ export function LandingPagesPage() {
         }
       />
       <Card>
-        <div className="grid gap-2 border-b border-zinc-100 p-4 sm:grid-cols-[1fr_180px]">
+        <div className="grid gap-2 border-b border-zinc-100 p-4 sm:grid-cols-[1fr_200px_180px]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
             <Input placeholder="Buscar por empresa ou endereço…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
+          <Select value={segment} onChange={(e) => setSegment(e.target.value)} aria-label="Categoria">
+            <option value="">Todas as categorias</option>
+            {/* Categoria escolhida continua na lista mesmo que deixe de existir */}
+            {[...new Set([...(data?.facets.segments ?? []), ...(segment ? [segment] : [])])].map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </Select>
           <Select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
             <option value="">Todos os status</option>
             <option value="ativa">Ativas</option>
@@ -57,8 +65,8 @@ export function LandingPagesPage() {
           <EmptyState
             icon={<PanelsTopLeft className="size-5" />}
             title="Nenhuma Landing Page encontrada"
-            description={search || status ? 'Ajuste a busca ou o filtro.' : 'Gere a primeira Landing Page a partir de uma URL.'}
-            action={!search && !status ? <Link to="/nova"><Button icon={<Plus className="size-4" />}>Criar Landing Page</Button></Link> : undefined}
+            description={search || status || segment ? 'Ajuste a busca ou o filtro.' : 'Gere a primeira Landing Page a partir de uma URL.'}
+            action={!search && !status && !segment ? <Link to="/nova"><Button icon={<Plus className="size-4" />}>Criar Landing Page</Button></Link> : undefined}
           />
         ) : (
           <>
