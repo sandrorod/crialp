@@ -34,7 +34,7 @@ async function launchBrowser() {
   return puppeteer.launch({ executablePath: LOCAL_CHROME, headless: true });
 }
 
-/** Tira a foto (JPG) da página inteira a partir do HTML renderizado. */
+/** Tira a foto (JPG) das 3 primeiras seções da página a partir do HTML renderizado. */
 export async function captureHtml(html: string) {
   const browser = await launchBrowser();
   try {
@@ -60,8 +60,20 @@ export async function captureHtml(html: string) {
         new Promise((r) => setTimeout(r, 20_000)),
       ]);
     });
-    // Página inteira, do topo ao rodapé
-    const height = Math.ceil(await page.evaluate(() => document.documentElement.scrollHeight));
+    // Só as 3 primeiras seções, com o menu do cabeçalho
+    const bottom = await page.evaluate(() => {
+      const sections = Array.from(document.querySelectorAll('section')).filter(
+        (el) => !el.parentElement?.closest('section') && getComputedStyle(el).display !== 'none',
+      );
+      const keep = sections.slice(0, 3);
+      document.querySelectorAll('section, footer').forEach((el) => {
+        if (!keep.some((k) => k === el || k.contains(el))) (el as HTMLElement).style.setProperty('display', 'none', 'important');
+      });
+      // Fim da última seção mantida: a imagem termina ali (sem faixa vazia embaixo)
+      return Math.max(0, ...keep.map((k) => k.getBoundingClientRect().bottom + window.scrollY));
+    });
+    const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+    const height = Math.ceil(Math.min(bottom || pageHeight, pageHeight));
     const image = Buffer.from(
       await page.screenshot({ type: 'jpeg', quality: JPEG_QUALITY, clip: { x: 0, y: 0, width: VIEWPORT.width, height }, captureBeyondViewport: true }),
     );

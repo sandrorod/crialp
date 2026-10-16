@@ -104,7 +104,7 @@ landingPagesRouter.get('/:id/export', async (req, res) => {
   res.send(html);
 });
 
-/** Baixa a imagem (JPG) da página inteira. */
+/** Baixa a imagem (JPG) da página (3 primeiras seções). */
 landingPagesRouter.get('/:id/screenshot', async (req, res) => {
   const user = authUser(req);
   const lp = await loadOr404(user.organizationId, req.params.id);
@@ -291,7 +291,7 @@ landingPagesRouter.patch('/:id/status', async (req, res) => {
   const lp = await loadOr404(user.organizationId, req.params.id);
   const { status } = parseBody(z.object({ status: z.enum(['ativa', 'inativa']) }), req.body);
   const updated = (await repo.setStatus(user.organizationId, lp.id, status))!;
-  // Ao ativar: print da página inteira (enviado ao Google Drive)
+  // Ao ativar: print das 3 primeiras seções (enviado ao Google Drive)
   const screenshot = status === 'ativa' && lp.status !== 'ativa' ? await generateScreenshot(updated) : null;
   res.json({ ...serialize(updated), screenshot });
 });
