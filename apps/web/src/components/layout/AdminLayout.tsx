@@ -22,8 +22,9 @@ const NAV: { to: string; label: string; icon: typeof Building2; end?: boolean; r
   { to: '/configuracoes', label: 'Configurações', icon: Settings, roles: STAFF },
 ];
 
-/** Endereço do editor do site do cliente. */
-const clientHome = (user: User) => `/landing-pages/${user.landing_page_id ?? ''}`;
+/** Cliente com um site: o editor dele; com vários (mesmo e-mail em várias LPs): a lista para escolher. */
+const clientSites = (user: User) => user.landing_page_ids ?? [];
+const clientHome = (user: User) => (clientSites(user).length === 1 ? `/landing-pages/${clientSites(user)[0]}` : '/meus-sites');
 
 /** Rota inicial de cada tipo de conta. */
 export function homeFor(user: User) {
@@ -33,8 +34,8 @@ export function homeFor(user: User) {
 
 /** A rota atual é permitida para a conta? (subrotas como /empresas/:id seguem o item do menu) */
 function canAccess(user: User, pathname: string) {
-  // Cliente só abre o editor do próprio site
-  if (user.role === 'client') return !!user.landing_page_id && pathname === clientHome(user);
+  // Cliente só abre a lista dos seus sites e o editor de cada um deles
+  if (user.role === 'client') return pathname === '/meus-sites' || clientSites(user).some((id) => pathname === `/landing-pages/${id}`);
   const role = user.role;
   const item = NAV.filter((n) => (n.end ? pathname === n.to : pathname === n.to || pathname.startsWith(`${n.to}/`)))
     .sort((a, b) => b.to.length - a.to.length)[0];
@@ -53,7 +54,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
       <nav className="flex-1 space-y-0.5 px-3 py-2">
-        {(user?.role === 'client' ? [{ to: clientHome(user), label: 'Meu site', icon: PanelsTopLeft, end: true }] : NAV.filter((n) => user && n.roles.includes(user.role))).map(({ to, label, icon: Icon, end }) => (
+        {(user?.role === 'client' ? [{ to: clientHome(user), label: clientSites(user).length > 1 ? 'Meus sites' : 'Meu site', icon: PanelsTopLeft, end: true }] : NAV.filter((n) => user && n.roles.includes(user.role))).map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
@@ -104,7 +105,7 @@ export function AdminLayout() {
     );
   }
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  if (user.role === 'client' && !user.landing_page_id) {
+  if (user.role === 'client' && !clientSites(user).length) {
     return <div className="grid min-h-screen place-items-center p-6 text-center text-sm text-zinc-500">Esta conta não está ligada a nenhum site. Fale com o administrador.</div>;
   }
   if (!canAccess(user, location.pathname)) return <Navigate to={homeFor(user)} replace />;

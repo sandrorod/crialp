@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
-import { one } from '../db/pool.js';
+import { one, query } from '../db/pool.js';
 import { AppError, Messages } from '../lib/errors.js';
 
 export const SESSION_COOKIE = 'lp_session';
@@ -13,9 +13,9 @@ export interface AuthUser {
   role: string;
   name: string;
   email: string;
-  /** Conta de cliente: a única Landing Page (e a empresa dela) que pode editar */
-  landingPageId: string | null;
-  companyId: string | null;
+  /** Conta de cliente: as Landing Pages (e as empresas delas) que pode editar */
+  landingPageIds: string[];
+  companyIds: string[];
 }
 
 declare module 'express-serve-static-core' {
@@ -44,18 +44,42 @@ async function loadUser(req: Request): Promise<AuthUser | null> {
   if (!token) return null;
   try {
     const payload = jwt.verify(token, env.jwtSecret) as { sub: string };
-    const user = await one<{ id: string; organization_id: string; role: string; name: string; email: string; landing_page_id: string | null; company_id: string | null }>(
-      `select u.id, u.organization_id, u.role, u.name, u.email, u.landing_page_id, lp.company_id
-         from users u left join landing_pages lp on lp.id = u.landing_page_id
-        where u.id = $1`,
+    const user = await one<{ id: string; organization_id: string; role: string; name: string; email: string }>(
+      'select id, organization_id, role, name, email from users where id = $1',
       [payload.sub],
     );
-    return user
-      ? { id: user.id, organizationId: user.organization_id, role: user.role, name: user.name, email: user.email, landingPageId: user.landing_page_id, companyId: user.company_id }
-      : null;
+    if (!user) return null;
+    const pages = user.role === 'client' ? await clientPages(user.id) : [];
+    return {
+      id: user.id,
+      organizationId: user.organization_id,
+      role: user.role,
+      name: user.name,
+      email: user.email,
+      landingPageIds: pages.map((p) => p.id),
+      companyIds: [...new Set(pages.map((p) => p.company_id))],
+    };
   } catch {
     return null;
   }
+}
+
+/** Sites (Landing Pages) que a conta de cliente pode editar, do mais recente para o mais antigo. */
+export async function clientPages(userId: string) {
+  const { rows } = await query<{
+    id: string; company_id: string; company_name: string | null; title: string; slug: string; status: string;
+    custom_domain: string | null; domain_status: string; updated_at: string;
+  }>(
+    `select lp.id, lp.company_id, coalesce(c.trade_name, c.name) as company_name, lp.title, lp.slug, lp.status,
+            lp.custom_domain, lp.domain_status, lp.updated_at
+       from lp_client_pages cp
+       join landing_pages lp on lp.id = cp.landing_page_id
+       left join companies c on c.id = lp.company_id
+      where cp.user_id = $1
+      order by lp.updated_at desc`,
+    [userId],
+  );
+  return rows;
 }
 
 export async function requireAuth(req: Request, _res: Response, next: NextFunction) {
@@ -107,15 +131,16 @@ export function blockSellers(req: Request, _res: Response, next: NextFunction) {
 }
 
 /**
- * Contas de cliente só editam o próprio site: abrem e salvam a sua Landing Page, enviam fotos e
- * leem a empresa dela. Publicar, excluir, trocar endereço/domínio e regenerar ficam com a equipe.
+ * Contas de cliente só editam os próprios sites: abrem e salvam as suas Landing Pages, enviam fotos e
+ * leem as empresas delas. Publicar, excluir, trocar endereço/domínio e regenerar ficam com a equipe.
  */
 export function restrictClients(req: Request, _res: Response, next: NextFunction) {
   const u = req.user;
   if (u?.role !== 'client') return next();
-  const lp = u.landingPageId;
-  const co = u.companyId;
-  const allowed: [string, RegExp][] = lp && co
+  // Ids (uuid) das páginas e empresas da conta, como alternativas da expressão
+  const lp = `(?:${u.landingPageIds.join('|')})`;
+  const co = `(?:${u.companyIds.join('|')})`;
+  const allowed: [string, RegExp][] = u.landingPageIds.length
     ? [
         ['GET', /^\/landing-pages\/(labels|templates|presets|icons|icon-categories)$/],
         ['GET', new RegExp(`^/landing-pages/${lp}(/preview|/export)?$`)],

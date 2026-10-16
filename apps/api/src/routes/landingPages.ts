@@ -318,6 +318,18 @@ landingPagesRouter.post('/:id/publish', async (req, res) => {
 
 const DOMAIN_RE = /^(?=.{4,253}$)(?!-)(?:[a-z0-9-]{1,63}\.)+[a-z]{2,63}$/;
 
+/** Aba Publicação: o endereço digitado está livre? (validação enquanto o usuário digita) */
+landingPagesRouter.get('/:id/slug-check', async (req, res) => {
+  const user = authUser(req);
+  const lp = await loadOr404(user.organizationId, req.params.id);
+  const slug = z.string().trim().toLowerCase().max(200).catch('').parse(req.query.slug);
+  if (slug === lp.slug) return res.json({ available: true, error: null });
+  if (!slug) return res.json({ available: false, error: 'Informe o endereço da página.' });
+  if (!isValidSlug(slug)) return res.json({ available: false, error: 'Endereço inválido: use apenas letras minúsculas, números e hífens.' });
+  const other = await repo.getLandingPageBySlug(slug);
+  res.json({ available: !other, error: other ? 'Este endereço já está em uso por outro site.' : null });
+});
+
 landingPagesRouter.patch('/:id/settings', async (req, res) => {
   const user = authUser(req);
   const lp = await loadOr404(user.organizationId, req.params.id);
@@ -378,18 +390,33 @@ landingPagesRouter.delete('/:id', async (req, res) => {
   const user = authUser(req);
   const lp = await loadOr404(user.organizationId, req.params.id);
   await repo.deleteLandingPage(user.organizationId, lp.id);
+  // Cliente que só tinha esta página perde a conta
+  await deleteOrphanClients();
   res.json({ ok: true });
 });
 
-// ─── Acesso do cliente (login que só edita esta Landing Page) ──────
-const CLIENT_COLUMNS = 'id, name, email, last_login_at, created_at';
+// ─── Acesso do cliente (login que edita esta e as outras Landing Pages do mesmo e-mail) ──────
+const CLIENT_COLUMNS = 'u.id, u.name, u.email, u.last_login_at, u.created_at';
 
 async function findClient(lpId: string) {
-  return one<{ id: string; name: string; email: string; last_login_at: string | null; created_at: string }>(
-    `select ${CLIENT_COLUMNS} from users where landing_page_id = $1 and role = 'client' order by created_at limit 1`,
+  const client = await one<{ id: string; name: string; email: string; last_login_at: string | null; created_at: string }>(
+    `select ${CLIENT_COLUMNS} from lp_client_pages cp join users u on u.id = cp.user_id
+      where cp.landing_page_id = $1 and u.role = 'client' order by cp.created_at limit 1`,
     [lpId],
   );
+  if (!client) return null;
+  // Outros sites que o mesmo e-mail acessa (o cliente escolhe qual editar ao entrar)
+  const { rows: others } = await query<{ id: string; title: string }>(
+    `select lp.id, lp.title from lp_client_pages cp join landing_pages lp on lp.id = cp.landing_page_id
+      where cp.user_id = $1 and cp.landing_page_id <> $2 order by lp.title`,
+    [client.id, lpId],
+  );
+  return { ...client, other_sites: others };
 }
+
+/** Conta de cliente sem nenhum site ligado não tem mais o que acessar: é excluída. */
+const deleteOrphanClients = () =>
+  query(`delete from users u where u.role = 'client' and not exists (select 1 from lp_client_pages cp where cp.user_id = u.id)`);
 
 landingPagesRouter.get('/:id/client-access', requireRole(...MANAGER_ROLES), async (req, res) => {
   const user = authUser(req);
@@ -400,34 +427,54 @@ landingPagesRouter.get('/:id/client-access', requireRole(...MANAGER_ROLES), asyn
 const ClientAccessSchema = z.object({
   name: z.string().trim().max(120).optional(),
   email: z.string().trim().toLowerCase().email('E-mail inválido.').max(200),
-  // Obrigatória ao criar; ao editar, vazia mantém a senha atual
+  // Obrigatória ao criar a conta; ao editar ou ligar a uma conta existente, vazia mantém a senha atual
   password: z.string().min(8, 'A senha deve ter pelo menos 8 caracteres.').max(200).optional(),
 });
 
+/**
+ * Cria ou altera o acesso do cliente. E-mail que já é de uma conta de cliente: o site é ligado a ela
+ * (o mesmo login passa a editar os dois; a senha é a da conta). E-mail novo: altera a conta deste site
+ * se ela só tiver este site; senão cria outra conta (as demais páginas continuam com o e-mail antigo).
+ */
 landingPagesRouter.put('/:id/client-access', requireRole(...MANAGER_ROLES), async (req, res) => {
   const user = authUser(req);
   const lp = await loadOr404(user.organizationId, String(req.params.id));
   const body = parseBody(ClientAccessSchema, req.body);
   const current = await findClient(lp.id);
-  const taken = await one<{ id: string }>('select id from users where lower(email) = $1', [body.email]);
-  if (taken && taken.id !== current?.id) throw new AppError(409, 'Já existe uma conta com este e-mail.', 'CONFLICT');
+  const taken = await one<{ id: string; role: string; organization_id: string }>('select id, role, organization_id from users where lower(email) = $1', [body.email]);
+  if (taken && (taken.role !== 'client' || taken.organization_id !== user.organizationId)) {
+    throw new AppError(409, 'Este e-mail já é de uma conta da equipe (não de cliente). Use outro e-mail.', 'CONFLICT');
+  }
   const hash = body.password ? await bcrypt.hash(body.password, 12) : null;
-  const name = body.name || lp.title;
-  if (!current) {
-    if (!hash) throw new AppError(400, 'Defina uma senha para o cliente.');
-    await query(
-      `insert into users (organization_id, name, email, password_hash, role, landing_page_id) values ($1, $2, $3, $4, 'client', $5)`,
-      [user.organizationId, name, body.email, hash, lp.id],
-    );
+
+  if (taken) {
+    // Conta de cliente existente (deste ou de outro site): liga este site a ela
+    await query('insert into lp_client_pages (user_id, landing_page_id) values ($1, $2) on conflict do nothing', [taken.id, lp.id]);
+    await query('update users set name = coalesce($2, name), password_hash = coalesce($3, password_hash) where id = $1', [taken.id, body.name || null, hash]);
+    if (current && current.id !== taken.id) {
+      await query('delete from lp_client_pages where user_id = $1 and landing_page_id = $2', [current.id, lp.id]);
+      await deleteOrphanClients();
+    }
+  } else if (current && !current.other_sites.length) {
+    // E-mail novo e a conta só tem este site: troca o e-mail dela
+    await query('update users set name = coalesce($2, name), email = $3, password_hash = coalesce($4, password_hash) where id = $1', [current.id, body.name || null, body.email, hash]);
   } else {
-    await query('update users set name = $2, email = $3, password_hash = coalesce($4, password_hash) where id = $1', [current.id, name, body.email, hash]);
+    if (!hash) throw new AppError(400, 'Defina uma senha para o cliente.');
+    const created = await one<{ id: string }>(
+      `insert into users (organization_id, name, email, password_hash, role) values ($1, $2, $3, $4, 'client') returning id`,
+      [user.organizationId, body.name || lp.title, body.email, hash],
+    );
+    await query('insert into lp_client_pages (user_id, landing_page_id) values ($1, $2)', [created!.id, lp.id]);
+    if (current) await query('delete from lp_client_pages where user_id = $1 and landing_page_id = $2', [current.id, lp.id]);
   }
   res.json({ client: await findClient(lp.id) });
 });
 
+/** Tira o acesso do cliente a este site (a conta continua se tiver outros sites). */
 landingPagesRouter.delete('/:id/client-access', requireRole(...MANAGER_ROLES), async (req, res) => {
   const user = authUser(req);
   const lp = await loadOr404(user.organizationId, String(req.params.id));
-  await query(`delete from users where landing_page_id = $1 and role = 'client'`, [lp.id]);
+  await query('delete from lp_client_pages where landing_page_id = $1', [lp.id]);
+  await deleteOrphanClients();
   res.json({ client: null });
 });

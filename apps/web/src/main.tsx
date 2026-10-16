@@ -15,6 +15,7 @@ import { SettingsPage } from '@/pages/SettingsPage';
 import { SalesPage } from '@/pages/SalesPage';
 import { UsersPage } from '@/pages/UsersPage';
 import { SearchCompaniesPage } from '@/pages/SearchCompaniesPage';
+import { MySitesPage } from '@/pages/MySitesPage';
 import './index.css';
 
 const router = createBrowserRouter(
@@ -33,6 +34,7 @@ const router = createBrowserRouter(
         { path: '/configuracoes', element: <SettingsPage /> },
         { path: '/vendas', element: <SalesPage /> },
         { path: '/subusuarios', element: <UsersPage /> },
+        { path: '/meus-sites', element: <MySitesPage /> },
       ],
     },
   ],

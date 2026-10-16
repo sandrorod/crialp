@@ -3,6 +3,7 @@ import type {
   AIKeyInfo,
   AnalysisResult,
   ClientAccess,
+  ClientSite,
   Company,
   CompanyDraft,
   CompanyImage,
@@ -36,6 +37,8 @@ const qs = (params: Record<string, string | undefined>) => {
 
 export const authService = {
   me: () => api.get<{ user: User }>('/auth/me'),
+  /** Conta de cliente: sites que pode editar */
+  mySites: () => api.get<{ items: ClientSite[] }>('/auth/my-sites'),
   login: (email: string, password: string) => api.post<{ user: User }>('/auth/login', { email, password }),
   logout: () => api.post('/auth/logout'),
   changePassword: (current_password: string, new_password: string) => api.post('/auth/password', { current_password, new_password }),
@@ -103,6 +106,8 @@ export const landingPageService = {
     body: { content: LandingContent; theme: ThemeSettings; seo: { seo_title: string | null; seo_description: string | null; seo_keywords: string[]; og_image: string | null }; note?: string },
   ) => api.put<LandingPage>(`/landing-pages/${id}/content`, body),
   /** Ao ativar, a resposta traz o print da página gerado (e enviado ao Google Drive) */
+  /** Aba Publicação: o endereço está livre? */
+  checkSlug: (id: string, slug: string) => api.get<{ available: boolean; error: string | null }>(`/landing-pages/${id}/slug-check?slug=${encodeURIComponent(slug)}`),
   setStatus: (id: string, status: LpStatus) => api.patch<LandingPage & { screenshot: LandingScreenshot | null }>(`/landing-pages/${id}/status`, { status }),
   publish: (id: string) => api.post<LandingPage>(`/landing-pages/${id}/publish`),
   updateSettings: (id: string, body: { slug?: string; custom_domain?: string | null }) => api.patch<LandingPage>(`/landing-pages/${id}/settings`, body),

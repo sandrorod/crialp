@@ -1,6 +1,6 @@
-import { Fragment, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { TEXT_WIDTH_MIN } from './previewTools';
-import { Check, CheckCircle2, Clock, Copy, Globe, GripVertical, ImageOff, Link2, RotateCcw, ShieldAlert, Trash2, Upload, XCircle } from 'lucide-react';
+import { Check, CheckCircle2, Clock, Copy, Globe, GripVertical, ImageOff, Link2, Loader2, RotateCcw, ShieldAlert, Trash2, Upload, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, ConfirmDialog, Field, Input, ListEditor, Select, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
@@ -1038,6 +1038,25 @@ export function PublishTab({ lp, onUpdated }: { lp: LandingPageDetail; onUpdated
   const [verification, setVerification] = useState<{ ok: boolean; expected: { cname: string; a: string[] }; found: { cname: string[]; a: string[] } } | null>(null);
   const base = lp.path_url.replace(/\/lp\/[^/]+$/, '');
   const st = DOMAIN_STATUS[lp.domain_status] ?? DOMAIN_STATUS.none;
+  // Endereço livre? Confere enquanto digita (espera uma pausa na digitação)
+  const [slugCheck, setSlugCheck] = useState<{ slug: string; available: boolean; error: string | null } | null>(null);
+  useEffect(() => {
+    if (slug === lp.slug) return;
+    let cancelled = false;
+    const t = setTimeout(() => {
+      landingPageService
+        .checkSlug(lp.id, slug)
+        .then((r) => !cancelled && setSlugCheck({ slug, ...r }))
+        .catch(() => !cancelled && setSlugCheck(null));
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [slug, lp.id, lp.slug]);
+  const checked = slugCheck?.slug === slug ? slugCheck : null;
+  const slugChecking = slug !== lp.slug && !checked;
+  const slugTaken = slug !== lp.slug && !!checked && !checked.available;
 
   const run = async (key: string, fn: () => Promise<unknown>, ok: string) => {
     setBusy(key);
@@ -1058,14 +1077,20 @@ export function PublishTab({ lp, onUpdated }: { lp: LandingPageDetail; onUpdated
         <h4 className="mb-1 text-sm font-semibold">Endereço da página</h4>
         <p className="mb-3 text-xs text-zinc-500">Único, sem acentos e sem caracteres especiais.</p>
         <div className="flex gap-2">
-          <div className="flex h-10 flex-1 items-center overflow-hidden rounded-lg border border-zinc-200 bg-white focus-within:border-brand-500 focus-within:ring-3 focus-within:ring-brand-100">
+          <div className={cn('flex h-10 flex-1 items-center overflow-hidden rounded-lg border bg-white focus-within:ring-3', slugTaken ? 'border-red-400 focus-within:border-red-500 focus-within:ring-red-100' : 'border-zinc-200 focus-within:border-brand-500 focus-within:ring-brand-100')}>
             <span className="hidden whitespace-nowrap border-r border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-500 sm:block">/lp/</span>
             <input className="h-full min-w-0 flex-1 px-3 text-sm outline-none" value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))} />
           </div>
-          <Button variant="secondary" disabled={slug === lp.slug} loading={busy === 'slug'} onClick={() => run('slug', () => landingPageService.updateSettings(lp.id, { slug }), 'Endereço atualizado.')}>
+          <Button variant="secondary" disabled={slug === lp.slug || slugChecking || slugTaken} loading={busy === 'slug'} onClick={() => run('slug', () => landingPageService.updateSettings(lp.id, { slug }), 'Endereço atualizado.')}>
             Salvar
           </Button>
         </div>
+        {slug !== lp.slug ? (
+          <p className={cn('mt-2 flex items-center gap-1.5 text-xs', slugChecking ? 'text-zinc-500' : slugTaken ? 'text-red-600' : 'text-emerald-600')}>
+            {slugChecking ? <Loader2 className="size-3.5 animate-spin" /> : slugTaken ? <XCircle className="size-3.5" /> : <CheckCircle2 className="size-3.5" />}
+            {slugChecking ? 'Verificando se o endereço está livre…' : slugTaken ? checked?.error : 'Endereço disponível.'}
+          </p>
+        ) : null}
         <button type="button" onClick={async () => (await copyToClipboard(lp.path_url)) && toast.success('URL copiada.')} className="mt-2 inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-ink">
           <Copy className="size-3.5" /> {lp.path_url}
         </button>

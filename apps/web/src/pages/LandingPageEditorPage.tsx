@@ -84,6 +84,7 @@ export function LandingPageEditorPage() {
   const { user } = useAuth();
   // Conta de cliente: edita o conteúdo, mas não publica, exclui, regenera nem mexe no cadastro
   const isClient = user?.role === 'client';
+  const clientSiteCount = user?.landing_page_ids?.length ?? 0;
   const canManageAccess = user?.role === 'owner' || user?.role === 'admin';
   const { data: lp, error, loading, reload } = useAsync(() => landingPageService.get(id), [id]);
   const { data: company, reload: reloadCompany } = useAsync(async () => (lp ? companyService.get(lp.company_id) : null), [lp?.company_id]);
@@ -350,12 +351,15 @@ export function LandingPageEditorPage() {
     <div>
       {/* Voltar, endereço da página, versão, botões da prévia e ações na mesma linha */}
       <div className="mb-[3px] flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-500">
-        {isClient ? null : (
-          <Link to="/landing-pages" className="inline-flex items-center gap-1.5 hover:text-ink">
-            <ArrowLeft className="size-4" /> Landing Pages
-          </Link>
-        )}
-        {isClient ? null : <span className="text-zinc-300" aria-hidden>|</span>}
+        {/* Cliente com vários sites: volta à lista para escolher outro */}
+        {!isClient || clientSiteCount > 1 ? (
+          <>
+            <Link to={isClient ? '/meus-sites' : '/landing-pages'} className="inline-flex items-center gap-1.5 hover:text-ink">
+              <ArrowLeft className="size-4" /> {isClient ? 'Meus sites' : 'Landing Pages'}
+            </Link>
+            <span className="text-zinc-300" aria-hidden>|</span>
+          </>
+        ) : null}
         <a href={lp.public_url} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1 break-all text-brand-600 hover:underline">
           {lp.public_url.replace(/^https?:\/\//, '')} <ExternalLink className="size-3.5" />
         </a>

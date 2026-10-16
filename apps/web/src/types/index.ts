@@ -7,8 +7,17 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  /** Conta de cliente: a Landing Page que ela edita */
-  landing_page_id?: string | null;
+  /** Conta de cliente: as Landing Pages que ela edita (mesmo e-mail em vários sites) */
+  landing_page_ids?: string[];
+}
+
+/** Site que a conta de cliente pode editar (tela "Meus sites"). */
+export interface ClientSite {
+  id: string;
+  title: string;
+  status: LpStatus;
+  updated_at: string;
+  public_url: string;
 }
 
 /** Login do cliente para editar só a própria Landing Page. */
@@ -18,6 +27,8 @@ export interface ClientAccess {
   email: string;
   last_login_at: string | null;
   created_at: string;
+  /** Outros sites que o mesmo e-mail acessa */
+  other_sites: { id: string; title: string }[];
 }
 
 export interface SubUser extends User {

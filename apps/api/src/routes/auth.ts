@@ -5,7 +5,8 @@ import { z } from 'zod';
 import { one, query } from '../db/pool.js';
 import { AppError } from '../lib/errors.js';
 import { parseBody } from '../lib/validation.js';
-import { authUser, clearSession, issueSession, requireAuth } from '../middleware/auth.js';
+import { authUser, clearSession, clientPages, issueSession, requireAuth } from '../middleware/auth.js';
+import { publicUrl } from '../landing/publish.js';
 
 export const authRouter = Router();
 
@@ -21,8 +22,8 @@ const LoginSchema = z.object({ email: z.string().trim().toLowerCase().email('E-m
 
 authRouter.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = parseBody(LoginSchema, req.body);
-  const user = await one<{ id: string; password_hash: string; name: string; email: string; role: string; landing_page_id: string | null }>(
-    'select id, password_hash, name, email, role, landing_page_id from users where lower(email) = $1',
+  const user = await one<{ id: string; password_hash: string; name: string; email: string; role: string }>(
+    'select id, password_hash, name, email, role from users where lower(email) = $1',
     [email],
   );
   // Compara mesmo quando o usuário não existe (tempo constante contra enumeração)
@@ -30,7 +31,8 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
   if (!user || !ok) throw new AppError(401, 'E-mail ou senha incorretos.', 'INVALID_CREDENTIALS');
   await query('update users set last_login_at = now() where id = $1', [user.id]);
   issueSession(res, user.id);
-  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, landing_page_id: user.landing_page_id } });
+  const pages = user.role === 'client' ? await clientPages(user.id) : [];
+  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, landing_page_ids: pages.map((p) => p.id) } });
 });
 
 authRouter.post('/logout', (_req, res) => {
@@ -40,7 +42,14 @@ authRouter.post('/logout', (_req, res) => {
 
 authRouter.get('/me', requireAuth, (req, res) => {
   const u = authUser(req);
-  res.json({ user: { id: u.id, name: u.name, email: u.email, role: u.role, landing_page_id: u.landingPageId } });
+  res.json({ user: { id: u.id, name: u.name, email: u.email, role: u.role, landing_page_ids: u.landingPageIds } });
+});
+
+/** Conta de cliente: os sites que pode editar (tela "Meus sites", para escolher qual editar). */
+authRouter.get('/my-sites', requireAuth, async (req, res) => {
+  const u = authUser(req);
+  const pages = u.role === 'client' ? await clientPages(u.id) : [];
+  res.json({ items: pages.map((p) => ({ id: p.id, title: p.company_name || p.title, status: p.status, updated_at: p.updated_at, public_url: publicUrl(p) })) });
 });
 
 const PasswordSchema = z.object({
@@ -64,5 +73,5 @@ authRouter.patch('/me', requireAuth, async (req, res) => {
   const u = authUser(req);
   const { name } = parseBody(z.object({ name: z.string().trim().min(1, 'Informe o nome.').max(120) }), req.body);
   await query('update users set name = $2 where id = $1', [u.id, name]);
-  res.json({ user: { id: u.id, name, email: u.email, role: u.role, landing_page_id: u.landingPageId } });
+  res.json({ user: { id: u.id, name, email: u.email, role: u.role, landing_page_ids: u.landingPageIds } });
 });
