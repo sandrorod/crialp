@@ -167,13 +167,13 @@ export function ImagePopup({
           </div>
           <p className="text-[11px] text-zinc-400">Para enquadrar ou cortar, use o modo Fotos: arraste a foto ou as alças azuis das bordas.</p>
         </Section>
-        <Section title="Girar e espelhar">
+        <Section title="Girar e flip">
           <div className="flex flex-wrap gap-1">
             {[
               { label: '⟲ Girar 90°', title: 'Girar 90° para a esquerda', onClick: () => rotate(-90), active: false },
               { label: '⟳ Girar 90°', title: 'Girar 90° para a direita', onClick: () => rotate(90), active: false },
-              { label: '⇆ Espelhar horizontal', title: 'Espelhar na horizontal', onClick: () => set({ fh: draft.fh ? undefined : true }), active: !!draft.fh },
-              { label: '⇅ Espelhar vertical', title: 'Espelhar na vertical', onClick: () => set({ fv: draft.fv ? undefined : true }), active: !!draft.fv },
+              { label: '⇆ Flip horizontal', title: 'Flip horizontal', onClick: () => set({ fh: draft.fh ? undefined : true }), active: !!draft.fh },
+              { label: '⇅ Flip vertical', title: 'Flip vertical', onClick: () => set({ fv: draft.fv ? undefined : true }), active: !!draft.fv },
             ].map((b) => (
               <button
                 key={b.title}
@@ -188,7 +188,7 @@ export function ImagePopup({
           </div>
           {draft.rot || draft.fh || draft.fv ? (
             <p className="flex items-center gap-3 text-[11px] text-zinc-500">
-              <span>{[draft.rot ? `Girada ${draft.rot}°` : '', draft.fh ? 'espelhada na horizontal' : '', draft.fv ? 'espelhada na vertical' : ''].filter(Boolean).join(' · ')}</span>
+              <span>{[draft.rot ? `Girada ${draft.rot}°` : '', draft.fh ? 'flip horizontal' : '', draft.fv ? 'flip vertical' : ''].filter(Boolean).join(' · ')}</span>
               <button type="button" onClick={() => set({ rot: undefined, fh: undefined, fv: undefined })} className="text-zinc-500 hover:text-ink">⟲ Desfazer</button>
             </p>
           ) : null}
