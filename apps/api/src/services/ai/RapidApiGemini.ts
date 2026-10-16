@@ -108,7 +108,19 @@ class RapidStatusError extends Error {
   }
 }
 
-async function call(cfg: RapidGeminiConfig, key: string, input: { system?: string; prompt: string; json?: boolean; maps?: boolean }): Promise<RapidGeminiResponse> {
+/** Recusa do serviço por trás do RapidAPI (não da chave): algum campo do corpo não é aceito. */
+const isInvalidProperty = (status: number, message: string) => (status === 400 || status === 403) && /invalid request or property/i.test(message);
+
+/** Recusa da própria chave pelo RapidAPI (inválida ou sem assinatura da API). */
+const isKeyRejected = (status: number, message: string) => status === 401 || /invalid api key|not subscribed/i.test(message);
+
+async function call(
+  cfg: RapidGeminiConfig,
+  key: string,
+  input: { system?: string; prompt: string; json?: boolean; maps?: boolean },
+  /** Só as mensagens: sem modelo, campos extras nem formato de resposta (APIs que recusam campos a mais) */
+  minimal = false,
+): Promise<RapidGeminiResponse> {
   const path = cfg.path.startsWith('/') ? cfg.path : `/${cfg.path}`;
   const extra = (() => {
     try {
@@ -121,6 +133,8 @@ async function call(cfg: RapidGeminiConfig, key: string, input: { system?: strin
   const body =
     cfg.format === 'template'
       ? JSON.parse((cfg.template ?? '"{{prompt}}"').split('"{{prompt}}"').join(JSON.stringify(fullPrompt)))
+      : cfg.format === 'openai' && minimal
+      ? { messages: [{ role: 'user', content: fullPrompt }] }
       : cfg.format === 'openai'
       ? {
           ...extra,
@@ -182,6 +196,12 @@ async function callAdaptive(cfg: RapidGeminiConfig, key: string, input: Paramete
   try {
     return await callWithBurstRetry(cfg, key, input);
   } catch (err) {
+    // "Invalid request or property": o serviço recusou um campo (modelo, response_format…) — tenta só com as mensagens
+    if (err instanceof RapidStatusError && cfg.format === 'openai' && isInvalidProperty(err.status, err.message)) {
+      const r = await call(cfg, key, input, true);
+      console.warn(`[rapidapi-gemini] ${cfg.host}: pedido aceito só com as mensagens (sem modelo/response_format)`);
+      return r;
+    }
     if (!(err instanceof RapidStatusError) || err.status !== 400 || cfg.format === 'template') throw err;
     const wanted: RapidGeminiConfig['format'] | null =
       /\bmessages\b/i.test(err.message) && cfg.format !== 'openai' ? 'openai' : /\bcontents\b/i.test(err.message) && cfg.format !== 'google' ? 'google' : null;
@@ -198,8 +218,12 @@ function toUserError(err: unknown): AIProviderError {
   if (err instanceof AIProviderError) return err;
   const msg = err instanceof Error ? err.message : String(err);
   const status = err instanceof RapidStatusError ? err.status : 0;
-  if (status === 401 || status === 403 || /invalid api key|not subscribed/i.test(msg)) {
+  if (isKeyRejected(status, msg)) {
     return new AIProviderError(msg, false, 'A chave do RapidAPI (Gemini) é inválida ou não assina a API configurada. Verifique em Configurações.');
+  }
+  // 403 sem ser da chave: o serviço do Gemini por trás do RapidAPI recusou o pedido — mostra o motivo real
+  if (status === 403 || isInvalidProperty(status, msg)) {
+    return new AIProviderError(msg, true, `A API do Gemini no RapidAPI recusou o pedido (${msg}). A chave é aceita pelo RapidAPI; o problema é no serviço da API. Tente de novo em alguns minutos ou veja o Playground da API no RapidAPI.`);
   }
   if (status === 429 || /quota|exceeded|rate limit/i.test(msg)) {
     return new AIProviderError(msg, true, 'Limite de uso do RapidAPI (Gemini) atingido em todas as chaves. Aguarde ou cadastre outra chave em Configurações.');
