@@ -578,7 +578,8 @@ export function LandingPageEditorPage() {
         {/* Painel de edição */}
         <div ref={sideRef} className="min-w-0">
           <div className="mb-3 flex flex-wrap gap-1 rounded-lg bg-zinc-100 p-1">
-            {TABS.filter((t) => !STAFF_TABS.includes(t.key) || (t.key === 'cliente' ? canManageAccess || isClient : !isClient)).map((t) => (
+            {/* Cliente: vê "Publicação" só para escolher o endereço da página */}
+            {TABS.filter((t) => !STAFF_TABS.includes(t.key) || t.key === 'publicacao' || (t.key === 'cliente' ? canManageAccess || isClient : !isClient)).map((t) => (
               <button key={t.key} onClick={() => setTab(t.key)} className={cn('shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition', tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink')}>
                 {t.label}
               </button>
@@ -590,7 +591,7 @@ export function LandingPageEditorPage() {
             {tab === 'fotos' ? <Card className="p-5"><PhotosTab theme={theme} onChange={change(setTheme)} images={company?.images ?? null} onAddPhotos={addPhotos} onRemovePhotos={removePhotos} sectionOrder={content.section_order} customSections={content.custom_sections} /></Card> : null}
             {tab === 'visual' ? <Card className="p-5"><DesignTab theme={theme} onChange={change(setTheme)} content={content} /></Card> : null}
             {tab === 'seo' ? <Card className="p-5"><SeoTab seo={seo} onChange={change(setSeo)} slug={lp.slug} /></Card> : null}
-            {tab === 'publicacao' ? <Card className="p-5"><PublishTab lp={lp} onUpdated={refresh} /></Card> : null}
+            {tab === 'publicacao' ? <Card className="p-5"><PublishTab lp={lp} onUpdated={refresh} slugOnly={isClient} /></Card> : null}
             {tab === 'cliente' && canManageAccess ? <Card className="p-5"><ClientAccessTab lpId={lp.id} /></Card> : null}
             {tab === 'cliente' && isClient ? <Card className="p-5"><OwnAccessTab /></Card> : null}
             {tab === 'versoes' ? <VersionsTab lp={lp} onRestored={refresh} /> : null}

@@ -62,7 +62,7 @@ export function ClientAccessTab({ lpId }: { lpId: string }) {
         <h4 className="mb-1 text-sm font-semibold">Acesso do cliente</h4>
         <p className="text-xs text-zinc-500">
           Com este e-mail e senha o cliente entra em <strong>{window.location.origin}/admin</strong> e vê apenas este site: edita textos, fotos, cores e
-          seções e salva. Usando o mesmo e-mail em outras páginas, o cliente vê a lista dos seus sites e escolhe qual editar. Publicar, desativar, excluir, trocar o endereço e regenerar continuam só com a sua equipe.
+          seções, escolhe o endereço da página e salva. Usando o mesmo e-mail em outras páginas, o cliente vê a lista dos seus sites e escolhe qual editar. Publicar, desativar, excluir, domínio personalizado e regenerar continuam só com a sua equipe.
         </p>
       </div>
       {client ? (

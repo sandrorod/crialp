@@ -132,7 +132,7 @@ export function blockSellers(req: Request, _res: Response, next: NextFunction) {
 
 /**
  * Contas de cliente só editam os próprios sites: abrem e salvam as suas Landing Pages, enviam fotos e
- * leem as empresas delas. Publicar, excluir, trocar endereço/domínio e regenerar ficam com a equipe.
+ * leem as empresas delas, e escolhem o endereço da página. Publicar, excluir, domínio e regenerar ficam com a equipe.
  */
 export function restrictClients(req: Request, _res: Response, next: NextFunction) {
   const u = req.user;
@@ -146,6 +146,9 @@ export function restrictClients(req: Request, _res: Response, next: NextFunction
         ['GET', new RegExp(`^/landing-pages/${lp}(/preview|/export)?$`)],
         ['POST', new RegExp(`^/landing-pages/${lp}/(preview|versions/\\d+/restore)$`)],
         ['PUT', new RegExp(`^/landing-pages/${lp}/content$`)],
+        // Aba Publicação: o cliente escolhe o endereço da página (o domínio personalizado é barrado na rota)
+        ['GET', new RegExp(`^/landing-pages/${lp}/slug-check$`)],
+        ['PATCH', new RegExp(`^/landing-pages/${lp}/settings$`)],
         ['GET', new RegExp(`^/companies/${co}(/sources)?$`)],
         ['POST', new RegExp(`^/companies/${co}/images(/remove)?$`)],
         ['POST', /^\/uploads$/],

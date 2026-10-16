@@ -1031,7 +1031,8 @@ const DOMAIN_STATUS: Record<string, { label: string; icon: typeof Check; cls: st
   error: { label: 'DNS não aponta para o servidor', icon: XCircle, cls: 'text-red-600' },
 };
 
-export function PublishTab({ lp, onUpdated }: { lp: LandingPageDetail; onUpdated: () => void }) {
+/** `slugOnly`: conta de cliente — escolhe só o endereço da página (domínio personalizado fica com a equipe). */
+export function PublishTab({ lp, onUpdated, slugOnly = false }: { lp: LandingPageDetail; onUpdated: () => void; slugOnly?: boolean }) {
   const [slug, setSlug] = useState(lp.slug);
   const [domain, setDomain] = useState(lp.custom_domain ?? '');
   const [busy, setBusy] = useState<string | null>(null);
@@ -1096,7 +1097,7 @@ export function PublishTab({ lp, onUpdated }: { lp: LandingPageDetail; onUpdated
         </button>
       </div>
 
-      <div className="border-t border-zinc-100 pt-6">
+      {slugOnly ? null : <div className="border-t border-zinc-100 pt-6">
         <h4 className="mb-1 text-sm font-semibold">Domínio personalizado</h4>
         <p className="mb-3 text-xs text-zinc-500">Ex.: www.empresa.com.br passa a exibir esta Landing Page diretamente.</p>
         <div className="flex gap-2">
@@ -1149,7 +1150,7 @@ export function PublishTab({ lp, onUpdated }: { lp: LandingPageDetail; onUpdated
             ) : null}
           </div>
         ) : null}
-      </div>
+      </div>}
     </div>
   );
 }
