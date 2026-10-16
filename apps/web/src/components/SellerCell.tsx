@@ -4,6 +4,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/lib/api';
 import { landingPageService, userService } from '@/services';
+import { Select } from '@/components/ui';
 
 export type Seller = { id: string | null; name: string | null };
 
@@ -65,5 +66,22 @@ export function SellerCell({
         <option key={s.id} value={s.id!}>{s.name}</option>
       ))}
     </select>
+  );
+}
+
+/** Vendedor da LP que vai ser gerada ("" = sem vendedor). Só aparece para administradores com vendedores cadastrados. */
+export function SellerPicker({ value, onChange, disabled }: { value: string; onChange: (id: string) => void; disabled?: boolean }) {
+  const { sellers, canAssign } = useSellers();
+  if (!canAssign || !sellers.length) return null;
+  return (
+    <label className="flex items-center gap-2 text-sm text-zinc-600">
+      Vendedor
+      <Select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="w-auto min-w-[180px]">
+        <option value="" />
+        {sellers.map((s) => (
+          <option key={s.id} value={s.id!}>{s.name}</option>
+        ))}
+      </Select>
+    </label>
   );
 }

@@ -3,10 +3,10 @@ import { Link, useNavigate, useSearchParams } from 'react-router';
 import { AlertTriangle, ArrowRight, Check, CircleSlash, FileSearch, Globe, PencilLine, RotateCcw, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { CompanyForm, emptyDraft } from '@/components/company/CompanyForm';
-import { useSellers } from '@/components/SellerCell';
+import { SellerPicker } from '@/components/SellerCell';
 import { ProgressSteps } from '@/components/ProgressSteps';
 import { StopJobButton } from '@/components/StopJobButton';
-import { Button, Card, Input, Select } from '@/components/ui';
+import { Button, Card, Input } from '@/components/ui';
 import { useJob } from '@/hooks/useJob';
 import { errorMessage } from '@/lib/api';
 import { shortUrl } from '@/lib/utils';
@@ -41,8 +41,7 @@ export function NewLandingPagePage() {
   const [meta, setMeta] = useState<AnalysisMeta | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  // Vendedor da página ("" = sem vendedor)
-  const { sellers, canAssign } = useSellers();
+  // Vendedor da página ("" = sem vendedor): escolhido em qualquer etapa (link, análise ou revisão)
   const [sellerId, setSellerId] = useState('');
 
   const analyze = useJob<AnalysisResult>(analyzeJobId);
@@ -169,6 +168,9 @@ export function NewLandingPagePage() {
               </Button>
             </div>
             {urlError ? <p className="mt-3 flex items-center gap-2 text-sm text-red-600"><AlertTriangle className="size-4" /> {urlError}</p> : null}
+            <div className="mt-4">
+              <SellerPicker value={sellerId} onChange={setSellerId} />
+            </div>
             <p className="mt-3 text-xs text-zinc-500">
               Empresa sem site? No Google Maps, abra o perfil da empresa, toque em <strong>Compartilhar</strong> → <strong>Copiar link</strong> e cole aqui. Os dados (endereço, telefone, horário, site) e as fotos vêm do perfil no Google (fotos exigem a “Local Business Data” assinada na chave do RapidAPI); depoimentos do Google não são copiados.
             </p>
@@ -211,6 +213,9 @@ export function NewLandingPagePage() {
         <p className="mt-1 truncate text-sm text-zinc-500" title={url}>{shortUrl(url, 70)}</p>
         <Card className="mt-6 p-5 sm:p-6">
           <ProgressSteps current={Math.max(j?.step ?? 1, 1)} range={[1, 6]} failed={failed} />
+          <div className="mt-5 border-t border-zinc-100 pt-4">
+            <SellerPicker value={sellerId} onChange={setSellerId} />
+          </div>
           {!failed ? (
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2.5">
               <p className="text-xs leading-relaxed text-zinc-500">A leitura e interpretação pela IA costuma levar de 30 segundos a 2 minutos. Você pode acompanhar por aqui.</p>
@@ -338,17 +343,7 @@ export function NewLandingPagePage() {
         <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-10">
           <Button variant="ghost" onClick={() => setStage('url')} disabled={saving}>Voltar</Button>
           <div className="flex flex-wrap items-center justify-end gap-3">
-            {canAssign && sellers.length ? (
-              <label className="flex items-center gap-2 text-sm text-zinc-600">
-                Vendedor
-                <Select value={sellerId} onChange={(e) => setSellerId(e.target.value)} disabled={saving} className="w-auto min-w-[160px]">
-                  <option value="" />
-                  {sellers.map((s) => (
-                    <option key={s.id} value={s.id!}>{s.name}</option>
-                  ))}
-                </Select>
-              </label>
-            ) : null}
+            <SellerPicker value={sellerId} onChange={setSellerId} disabled={saving} />
             <Button variant="brand" size="lg" loading={saving} onClick={confirmAndGenerate} icon={<Sparkles className="size-4" />}>
               CONFIRMAR E GERAR LANDING PAGE
             </Button>
