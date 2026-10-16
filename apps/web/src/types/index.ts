@@ -316,6 +316,11 @@ export interface ImageLook {
   r?: number;
   sh?: 'none' | 'sm' | 'md' | 'lg';
   fx?: 'gray' | 'sepia' | 'bright' | 'contrast';
+  /** Giro em graus (90° em 90°) */
+  rot?: 90 | 180 | 270;
+  /** Espelhada na horizontal / vertical */
+  fh?: true;
+  fv?: true;
 }
 export interface ImageSizes {
   desktop?: Record<string, ImageBox>;

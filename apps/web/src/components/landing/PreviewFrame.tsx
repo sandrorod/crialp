@@ -594,6 +594,13 @@ export function PreviewFrame({
             else delete e.fx;
           })
         }
+        speed={saved?.fxSpeed ?? 1}
+        onSpeed={(speed) =>
+          writeBoth(selector, (e) => {
+            if (speed) e.fxSpeed = speed;
+            else delete e.fxSpeed;
+          })
+        }
         hidden={!!saved?.hidden}
         onHidden={(hidden) =>
           writeBoth(selector, (e) => {

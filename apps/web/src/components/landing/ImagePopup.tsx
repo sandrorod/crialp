@@ -67,7 +67,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 /**
  * Quadro aberto ao clicar numa foto da prévia (em qualquer modo): só as opções da foto —
- * enquadramento e zoom, corte, borda, cantos, sombra, filtro, efeito e excluir. Tudo vale na hora.
+ * enquadramento e zoom, corte, giro e espelhamento, borda, cantos, sombra, filtro, efeito (e a velocidade dele)
+ * e excluir. Tudo vale na hora.
  */
 export function ImagePopup({
   anchor,
@@ -81,6 +82,8 @@ export function ImagePopup({
   onLook,
   effect,
   onEffect,
+  speed,
+  onSpeed,
   hidden,
   onHidden,
   onClose,
@@ -98,12 +101,21 @@ export function ImagePopup({
   onLook: (look: ImageLook | null) => void;
   effect: TextEffect | null;
   onEffect: (fx: TextEffect | null) => void;
+  /** Velocidade do efeito (1 = normal) */
+  speed: number;
+  onSpeed: (speed: number | null) => void;
   hidden: boolean;
   onHidden: (hidden: boolean) => void;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState<ImageLook>(look ?? {});
   const [pct, setPct] = useState(Math.round(zoom * 100));
+  const [fxSpeed, setFxSpeed] = useState(speed);
+  // Giro de 90° em 90° (360° = sem giro)
+  const rotate = (deg: 90 | -90) => {
+    const r = (((draft.rot ?? 0) + deg) % 360 + 360) % 360;
+    set({ rot: r ? (r as 90 | 180 | 270) : undefined });
+  };
   useEffect(() => setPct(Math.round(zoom * 100)), [zoom]);
   const set = (patch: Partial<ImageLook>) => {
     const next = Object.fromEntries(Object.entries({ ...draft, ...patch }).filter(([, v]) => v !== undefined)) as ImageLook;
@@ -154,6 +166,32 @@ export function ImagePopup({
             ) : null}
           </div>
           <p className="text-[11px] text-zinc-400">Para enquadrar ou cortar, use o modo Fotos: arraste a foto ou as alças azuis das bordas.</p>
+        </Section>
+        <Section title="Girar e espelhar">
+          <div className="flex flex-wrap gap-1">
+            {[
+              { label: '⟲ Girar 90°', title: 'Girar 90° para a esquerda', onClick: () => rotate(-90), active: false },
+              { label: '⟳ Girar 90°', title: 'Girar 90° para a direita', onClick: () => rotate(90), active: false },
+              { label: '⇆ Espelhar horizontal', title: 'Espelhar na horizontal', onClick: () => set({ fh: draft.fh ? undefined : true }), active: !!draft.fh },
+              { label: '⇅ Espelhar vertical', title: 'Espelhar na vertical', onClick: () => set({ fv: draft.fv ? undefined : true }), active: !!draft.fv },
+            ].map((b) => (
+              <button
+                key={b.title}
+                type="button"
+                title={b.title}
+                onClick={b.onClick}
+                className={cn('whitespace-nowrap rounded-md border px-2 py-1 text-xs', b.active ? 'border-ink bg-ink text-white' : 'border-zinc-200 text-zinc-600 hover:border-zinc-400')}
+              >
+                {b.label}
+              </button>
+            ))}
+          </div>
+          {draft.rot || draft.fh || draft.fv ? (
+            <p className="flex items-center gap-3 text-[11px] text-zinc-500">
+              <span>{[draft.rot ? `Girada ${draft.rot}°` : '', draft.fh ? 'espelhada na horizontal' : '', draft.fv ? 'espelhada na vertical' : ''].filter(Boolean).join(' · ')}</span>
+              <button type="button" onClick={() => set({ rot: undefined, fh: undefined, fv: undefined })} className="text-zinc-500 hover:text-ink">⟲ Desfazer</button>
+            </p>
+          ) : null}
         </Section>
         <Section title="Estilo">
           <Slider label="Borda" value={draft.bw ?? 0} max={40} onChange={(v) => set({ bw: v || undefined })} />
@@ -208,6 +246,28 @@ export function ImagePopup({
               </optgroup>
             ))}
           </select>
+          {effect ? (
+            <label className="block">
+              <span className="mb-1 flex items-center justify-between text-xs font-medium text-zinc-600">
+                Velocidade do efeito <span className="font-normal tabular-nums text-zinc-400">{fxSpeed.toFixed(2).replace(/0$/, '')}x</span>
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={2}
+                step={0.05}
+                value={fxSpeed}
+                onChange={(e) => {
+                  const v = Math.max(0.1, Number(e.target.value) || 0.1);
+                  setFxSpeed(v);
+                  onSpeed(Math.abs(v - 1) < 0.001 ? null : v);
+                }}
+                className="w-full"
+                aria-label="Velocidade do efeito"
+              />
+              <span className="flex justify-between text-[10px] text-zinc-400"><span>Mais lento</span><span>1x</span><span>Mais rápido</span></span>
+            </label>
+          ) : null}
         </Section>
       </div>
       <div className="mt-3 border-t border-zinc-100 pt-3">

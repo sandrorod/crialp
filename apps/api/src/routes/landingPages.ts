@@ -209,7 +209,7 @@ const ContentUpdateSchema = z.object({
       })
       .optional(),
     // Tamanho das fotos arrastado na prévia: { desktop: { "<url>": { w: 20-100 (%), h: 80-1400 (px) } }, mobile: {...} }
-    // Borda, cantos, sombra e filtro de cada foto: { "<url>": { bw, bc, r, sh, fx } }
+    // Borda, cantos, sombra, filtro, giro e espelhamento de cada foto: { "<url>": { bw, bc, r, sh, fx, rot, fh, fv } }
     imageStyle: z
       .record(
         z.string().max(2048),
@@ -219,6 +219,10 @@ const ContentUpdateSchema = z.object({
           r: z.number().min(0).max(300).optional(),
           sh: z.enum(IMAGE_SHADOWS).optional(),
           fx: z.enum(IMAGE_FILTERS).optional(),
+          // Giro (90° em 90°) e espelhamento horizontal/vertical
+          rot: z.union([z.literal(90), z.literal(180), z.literal(270)]).optional(),
+          fh: z.literal(true).optional(),
+          fv: z.literal(true).optional(),
         }),
       )
       .optional(),

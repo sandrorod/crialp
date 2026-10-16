@@ -11,6 +11,22 @@ const FILTER: Record<NonNullable<ImageLook['fx']>, string> = {
   bright: 'brightness(1.12) saturate(1.15)',
   contrast: 'contrast(1.2)',
 };
+/**
+ * Mesmo CSS da página publicada (apps/api/src/landing/imageStyle.ts).
+ * Giro (90° em 90°) e espelhamento da foto: transform na própria <img>, a partir do centro, somado ao zoom
+ * do enquadramento (que vai junto, pois o !important substitui o transform do zoom no atributo style).
+ * Girada de lado (90°/270°), a foto é ampliada por --lp-rk (maior lado ÷ menor lado do espaço, calculado
+ * pelo script da página) para continuar cobrindo o espaço todo, sem faixas vazias.
+ */
+function orientCss(img: string, l: ImageLook, f: ImageFocus | undefined): string {
+  if (!l.rot && !l.fh && !l.fv) return '';
+  const k = l.rot === 90 || l.rot === 270 ? 'var(--lp-rk,1)' : '1';
+  const sx = l.fh ? `calc(${k} * -1)` : k;
+  const sy = l.fv ? `calc(${k} * -1)` : k;
+  const zoom = f?.z && f.z !== 1 ? ` translate(${f.x}%,${f.y}%) scale(${f.z}) translate(-${f.x}%,-${f.y}%)` : '';
+  return `${img}{transform-origin:0 0!important;transform:translate(50%,50%) rotate(${l.rot ?? 0}deg) scale(${sx},${sy}) translate(-50%,-50%)${zoom}!important}`;
+}
+
 const cssString = (v: string) => v.replace(/[\\"]/g, (c) => `\\${c}`).replace(/[\n\r<>]/g, '');
 
 /**
@@ -32,7 +48,7 @@ export function imageStylesCss(styles: Record<string, ImageLook> | undefined, fo
       ].filter(Boolean);
       const img = `img[data-lp-img="${cssString(url)}"]`;
       const frame = `:has(>${img})`;
-      const filter = l.fx ? `${img}{filter:${FILTER[l.fx]}}` : '';
+      const filter = (l.fx ? `${img}{filter:${FILTER[l.fx]}}` : '') + orientCss(img, l, focus?.[url]);
       if (!decl.length) return filter;
       return onImg
         ? `${frame}{background:transparent!important;box-shadow:none!important}${img}{${decl.join(';')}}${filter}`
