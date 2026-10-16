@@ -290,8 +290,10 @@ landingPagesRouter.patch('/:id/status', async (req, res) => {
   const user = authUser(req);
   const lp = await loadOr404(user.organizationId, req.params.id);
   const { status } = parseBody(z.object({ status: z.enum(['ativa', 'inativa']) }), req.body);
-  const updated = await repo.setStatus(user.organizationId, lp.id, status);
-  res.json(serialize(updated!));
+  const updated = (await repo.setStatus(user.organizationId, lp.id, status))!;
+  // Ao ativar: print da página inteira (enviado ao Google Drive)
+  const screenshot = status === 'ativa' && lp.status !== 'ativa' ? await generateScreenshot(updated) : null;
+  res.json({ ...serialize(updated), screenshot });
 });
 
 /** Troca manual do vendedor responsável (só administradores). */
@@ -309,7 +311,8 @@ landingPagesRouter.post('/:id/publish', async (req, res) => {
   const lp = await loadOr404(user.organizationId, req.params.id);
   const updated = (await repo.setStatus(user.organizationId, lp.id, 'ativa'))!;
   await refreshSnapshot(updated);
-  res.json(serialize(updated));
+  const screenshot = lp.status !== 'ativa' ? await generateScreenshot(updated) : null;
+  res.json({ ...serialize(updated), screenshot });
 });
 
 const DOMAIN_RE = /^(?=.{4,253}$)(?!-)(?:[a-z0-9-]{1,63}\.)+[a-z]{2,63}$/;

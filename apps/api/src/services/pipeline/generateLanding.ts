@@ -3,7 +3,6 @@ import { getCompanyFull, type CompanyFull } from '../../repositories/companies.j
 import { createLandingPage, getLandingPage, saveVersion } from '../../repositories/landingPages.js';
 import { normalizeThemeSettings, type ThemeSettings } from '../../landing/theme.js';
 import { refreshSnapshot } from '../../landing/publish.js';
-import { generateScreenshot } from '../screenshot/ScreenshotService.js';
 import { aiService, AIProviderError } from '../ai/index.js';
 import { SECTION_KEYS, type LandingContent, type SectionKey } from '../ai/schemas.js';
 import type { JobHandle } from '../jobs/JobService.js';
@@ -131,10 +130,7 @@ export async function generateLanding(
     });
   }
   const saved = await getLandingPage(opts.orgId, landingPageId);
-  if (saved) {
-    await refreshSnapshot(saved);
-    // Imagem (JPG) da página inteira, para download no painel
-    await generateScreenshot(saved);
-  }
+  // O print da página é gerado ao ativar a LP (não mais na geração)
+  if (saved) await refreshSnapshot(saved);
   return { landingPageId };
 }

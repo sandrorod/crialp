@@ -138,7 +138,7 @@ async function ensureFolder(accessToken: string) {
 }
 
 /**
- * Envia o JPG para a pasta "lp". Com `existingId`, substitui o conteúdo do mesmo arquivo
+ * Envia o JPG para a pasta "lp". Com `existingId` ou com um arquivo de mesmo nome na pasta, substitui o conteúdo
  * (a imagem gerada de novo não duplica). Devolve o id do arquivo, ou null sem Drive conectado.
  */
 export async function uploadJpgToDrive(name: string, image: Buffer, existingId: string | null): Promise<string | null> {
@@ -153,17 +153,17 @@ export async function uploadJpgToDrive(name: string, image: Buffer, existingId: 
   });
 
   const folderId = await ensureFolder(access_token!);
-  // Arquivo já enviado e ainda na pasta de destino: substitui o conteúdo (não duplica).
-  // Apagado, na lixeira ou em outra pasta (ex.: pasta de destino trocada): cria outro na pasta atual.
+  // Substitui o conteúdo de um arquivo que está na pasta de destino (não duplica)
+  const replace = (id: string) =>
+    driveFetch<{ id: string }>(access_token!, `https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media&fields=id&supportsAllDrives=true`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'image/jpeg' },
+      body: new Uint8Array(image),
+    }).catch(() => null);
+  // Arquivo já enviado e ainda na pasta de destino: substitui o conteúdo (e acerta o nome).
   if (existingId) {
     const current = await driveFetch<{ parents?: string[]; trashed?: boolean }>(access_token!, `https://www.googleapis.com/drive/v3/files/${existingId}?fields=parents,trashed&supportsAllDrives=true`).catch(() => null);
-    const updated = current && !current.trashed && current.parents?.includes(folderId)
-      ? await driveFetch<{ id: string }>(access_token!, `https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=media&fields=id&supportsAllDrives=true`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'image/jpeg' },
-          body: new Uint8Array(image),
-        }).catch(() => null)
-      : null;
+    const updated = current && !current.trashed && current.parents?.includes(folderId) ? await replace(existingId) : null;
     if (updated) {
       await driveFetch(access_token!, `https://www.googleapis.com/drive/v3/files/${existingId}?fields=id&supportsAllDrives=true`, {
         method: 'PATCH',
@@ -173,7 +173,18 @@ export async function uploadJpgToDrive(name: string, image: Buffer, existingId: 
       return updated.id;
     }
   }
+  // Já existe na pasta um arquivo com o mesmo nome (ex.: enviado antes ou por outra LP da empresa): sobrescreve
+  const q = `name = '${name.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}' and '${folderId}' in parents and trashed = false`;
+  const same = await driveFetch<{ files: { id: string }[] }>(
+    access_token!,
+    `https://www.googleapis.com/drive/v3/files?${new URLSearchParams({ q, fields: 'files(id)', pageSize: '1', supportsAllDrives: 'true', includeItemsFromAllDrives: 'true' })}`,
+  ).catch(() => null);
+  if (same?.files[0]) {
+    const updated = await replace(same.files[0].id);
+    if (updated) return updated.id;
+  }
 
+  // Apagado, na lixeira, em outra pasta ou sem arquivo com o mesmo nome: cria na pasta atual.
   const boundary = `lp${Date.now()}`;
   const body = Buffer.concat([
     Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({ name, parents: [folderId] })}\r\n--${boundary}\r\nContent-Type: image/jpeg\r\n\r\n`),

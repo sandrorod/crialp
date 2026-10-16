@@ -101,7 +101,8 @@ export const landingPageService = {
     id: string,
     body: { content: LandingContent; theme: ThemeSettings; seo: { seo_title: string | null; seo_description: string | null; seo_keywords: string[]; og_image: string | null }; note?: string },
   ) => api.put<LandingPage>(`/landing-pages/${id}/content`, body),
-  setStatus: (id: string, status: LpStatus) => api.patch<LandingPage>(`/landing-pages/${id}/status`, { status }),
+  /** Ao ativar, a resposta traz o print da página gerado (e enviado ao Google Drive) */
+  setStatus: (id: string, status: LpStatus) => api.patch<LandingPage & { screenshot: LandingScreenshot | null }>(`/landing-pages/${id}/status`, { status }),
   publish: (id: string) => api.post<LandingPage>(`/landing-pages/${id}/publish`),
   updateSettings: (id: string, body: { slug?: string; custom_domain?: string | null }) => api.patch<LandingPage>(`/landing-pages/${id}/settings`, body),
   verifyDomain: (id: string) =>

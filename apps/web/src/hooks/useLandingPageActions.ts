@@ -13,8 +13,11 @@ export function useLandingPageActions(onChange: () => void) {
     setBusyId(id);
     try {
       const next = current === 'ativa' ? 'inativa' : 'ativa';
-      await landingPageService.setStatus(id, next);
+      const { screenshot } = await landingPageService.setStatus(id, next);
       toast.success(next === 'ativa' ? 'Landing Page ativada.' : 'Landing Page desativada.');
+      // Ao ativar é gerado o print da página: avisa se ele ou o envio ao Google Drive falharam
+      if (screenshot?.error) toast.warning(screenshot.error);
+      else if (screenshot?.drive_error) toast.warning(screenshot.drive_error);
       onChange();
     } catch (err) {
       toast.error(errorMessage(err));
