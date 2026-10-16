@@ -157,6 +157,8 @@ async function call(
   }).catch((err) => {
     throw new RapidStatusError(504, err?.name === 'TimeoutError' ? 'O RapidAPI demorou demais para responder.' : 'Falha de conexão com o RapidAPI.');
   });
+  // Cota do plano (requests, tokens) vem em toda resposta: atualiza o uso mostrado em Configurações
+  void aiKeyStore.recordQuota(key, res.headers);
   const raw = await res.text();
   let parsed: any = raw;
   try {

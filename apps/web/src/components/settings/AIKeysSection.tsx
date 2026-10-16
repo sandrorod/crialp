@@ -156,9 +156,48 @@ function RapidGeminiConfigForm({ onKeyAdded }: { onKeyAdded: () => void }) {
 }
 
 /** Chaves de API com rodízio: cada uso passa para a próxima chave. */
+const QUOTA_NAMES: Record<string, string> = { requests: 'Pedidos', tokens: 'Tokens' };
+const fmtInt = (n: number) => n.toLocaleString('pt-BR');
+
+/** Uso da cota do plano no RapidAPI (atualizado a cada uso da chave): % usado, quanto sobra e quando renova. */
+function QuotaBars({ quota, at }: { quota: NonNullable<AIKeyInfo['quota']>; at: string | null | undefined }) {
+  return (
+    <div className="mt-1.5 space-y-1.5">
+      {Object.entries(quota).map(([name, q]) => {
+        const used = Math.max(0, q.limit - q.remaining);
+        const pct = Math.min(100, (used / q.limit) * 100);
+        const label = name.replace(/(^|· )(\w+)$/, (_, p: string, w: string) => p + (QUOTA_NAMES[w] ?? w));
+        return (
+          <div key={name} className="max-w-md">
+            <div className="flex items-baseline justify-between gap-2 text-xs">
+              <span className="font-medium text-zinc-700">{label}</span>
+              <span className={cn('tabular-nums font-semibold', pct >= 90 ? 'text-red-600' : pct >= 70 ? 'text-amber-600' : 'text-emerald-700')}>
+                {pct.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% usado
+              </span>
+            </div>
+            <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-zinc-100">
+              <div className={cn('h-full rounded-full', pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500')} style={{ width: `${pct}%` }} />
+            </div>
+            <div className="mt-0.5 text-[11px] text-zinc-500">
+              {fmtInt(used)} de {fmtInt(q.limit)} · restam {fmtInt(q.remaining)}
+              {q.reset_at ? ` · renova em ${formatDate(q.reset_at, true)}` : ''}
+            </div>
+          </div>
+        );
+      })}
+      {at ? <div className="text-[11px] text-zinc-400">Atualizado no último uso da chave ({formatDate(at, true)})</div> : null}
+    </div>
+  );
+}
+
 export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider }) {
   const cfg = PROVIDERS[provider];
   const { data, error, loading, reload } = useAsync(() => miscService.apiKeys(provider), [provider]);
+  // Uso das chaves muda a cada geração/pesquisa: atualiza a lista enquanto a tela está aberta
+  useEffect(() => {
+    const t = setInterval(() => void reload(), 30_000);
+    return () => clearInterval(t);
+  }, [reload]);
   // Chave movida de uma lista para a outra: as duas seções recarregam
   useEffect(() => {
     const h = () => void reload();
@@ -295,6 +334,7 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
                   <div className="text-xs text-zinc-500">
                     Cadastrada em {formatDate(k.created_at, true)} · {k.uses} {k.uses === 1 ? 'uso' : 'usos'} · {k.last_used_at ? `último uso ${formatDate(k.last_used_at, true)}` : 'ainda não usada'}
                   </div>
+                  {k.quota ? <QuotaBars quota={k.quota} at={k.quota_at} /> : null}
                   {k.quota_until ? (
                     <div className="mt-0.5 text-xs text-amber-700" title={k.last_error ?? undefined}>
                       Limite diário do Google atingido ({formatDate(k.last_error_at, true)}). Libera em {formatDate(k.quota_until, true)}.

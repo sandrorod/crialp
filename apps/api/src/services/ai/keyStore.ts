@@ -27,6 +27,32 @@ export interface AIKeyInfo {
   created_at: string;
   /** Limite diário atingido: quando a cota do Google renova (ISO); null = sem limite atingido */
   quota_until?: string | null;
+  /** Cota informada pelo RapidAPI na última resposta (ex.: requests, tokens) e quando foi lida */
+  quota: Record<string, KeyQuota> | null;
+  quota_at: string | null;
+}
+
+export interface KeyQuota {
+  limit: number;
+  remaining: number;
+  /** Quando a cota renova (ISO) */
+  reset_at: string | null;
+}
+
+/** Cota nos cabeçalhos x-ratelimit-<nome>-limit / -remaining / -reset (segundos até renovar) do RapidAPI. */
+export function quotaFromHeaders(headers: Headers): Record<string, KeyQuota> | null {
+  const out: Record<string, KeyQuota> = {};
+  for (const [h, v] of headers.entries()) {
+    const m = /^x-ratelimit-(.+)-limit$/i.exec(h);
+    if (!m) continue;
+    const name = m[1].toLowerCase();
+    const limit = Number(v);
+    const remaining = Number(headers.get(`x-ratelimit-${name}-remaining`));
+    const reset = Number(headers.get(`x-ratelimit-${name}-reset`));
+    if (!Number.isFinite(limit) || limit <= 0 || !Number.isFinite(remaining)) continue;
+    out[name] = { limit, remaining, reset_at: Number.isFinite(reset) && reset > 0 ? new Date(Date.now() + reset * 1000).toISOString() : null };
+  }
+  return Object.keys(out).length ? out : null;
 }
 
 // Criptografia simétrica derivada do segredo do servidor
@@ -117,7 +143,7 @@ export const aiKeyStore = {
 
   async list(provider = 'gemini'): Promise<AIKeyInfo[]> {
     const { rows } = await query<AIKeyInfo>(
-      `select id, label, last4, active, uses::int as uses, last_used_at, last_error, last_error_at, created_at
+      `select id, label, last4, active, uses::int as uses, last_used_at, last_error, last_error_at, created_at, quota, quota_at
          from ai_api_keys where provider = $1 order by active desc, created_at`, // ativas primeiro
       [provider],
     );
@@ -233,6 +259,20 @@ export const aiKeyStore = {
   async recordError(id: string | null, message: string) {
     if (!id) return;
     await query('update ai_api_keys set last_error = $2, last_error_at = now() where id = $1', [id, shortError(message)]).catch(() => {});
+  },
+
+  /**
+   * Guarda a cota que o RapidAPI informou na resposta (a cada uso da chave, com sucesso ou erro).
+   * `api`: chave usada em mais de uma API (pesquisa) — a cota de cada API fica separada ("<api> · tokens").
+   */
+  async recordQuota(key: string, headers: Headers, api?: string) {
+    const quota = quotaFromHeaders(headers);
+    if (!quota) return;
+    const named = api ? Object.fromEntries(Object.entries(quota).map(([k, v]) => [`${api} · ${k}`, v])) : quota;
+    await query(
+      `update ai_api_keys set quota = ${api ? "coalesce(quota, '{}'::jsonb) || $2::jsonb" : '$2::jsonb'}, quota_at = now() where key_hash = $1`,
+      [hashKey(key), JSON.stringify(named)],
+    ).catch(() => {});
   },
 
   async clearError(id: string | null) {

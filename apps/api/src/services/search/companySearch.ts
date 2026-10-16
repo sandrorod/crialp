@@ -96,6 +96,8 @@ async function rapid(host: string, path: string): Promise<{ status: number; body
         signal: AbortSignal.timeout(TIMEOUT_MS),
       }).catch(() => null);
       if (!res) break;
+      // Cota desta API nesta chave (mostrada em Configurações)
+      void aiKeyStore.recordQuota(key.key, res.headers, host.replace(/\.p\.rapidapi\.com$/, ''));
       r = { status: res.status, body: await res.json().catch(() => null) };
       if (!isBurstLimit(r.status, String(r.body?.message ?? '')) || attempt >= BURST_RETRY_DELAYS.length) break;
       await sleep(BURST_RETRY_DELAYS[attempt] + Math.random() * 500);

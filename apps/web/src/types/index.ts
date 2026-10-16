@@ -488,6 +488,9 @@ export interface AIKeyInfo {
   created_at: string;
   /** Limite diário atingido: quando a cota do Google renova */
   quota_until?: string | null;
+  /** Cota do plano no RapidAPI (última resposta): ex.: requests, tokens */
+  quota?: Record<string, { limit: number; remaining: number; reset_at: string | null }> | null;
+  quota_at?: string | null;
 }
 
 /** Empresa encontrada em "Buscar empresas". */
