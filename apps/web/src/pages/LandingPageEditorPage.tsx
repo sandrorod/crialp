@@ -349,7 +349,7 @@ export function LandingPageEditorPage() {
   return (
     <div>
       {/* Voltar, endereço da página, versão, botões da prévia e ações na mesma linha */}
-      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-500">
+      <div className="mb-[3px] flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-500">
         {isClient ? null : (
           <Link to="/landing-pages" className="inline-flex items-center gap-1.5 hover:text-ink">
             <ArrowLeft className="size-4" /> Landing Pages

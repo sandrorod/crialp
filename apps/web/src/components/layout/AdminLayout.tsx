@@ -134,7 +134,8 @@ export function AdminLayout() {
       ) : null}
 
       {/* Editor de Landing Page: largura total da tela; demais páginas com largura de leitura */}
-      <main className={cn('mx-auto px-4 py-6 sm:px-6 lg:py-8', /^\/landing-pages\/[^/]+/.test(location.pathname) ? 'max-w-none lg:px-8' : 'max-w-[1280px] lg:px-10')}>
+      {/* Editor da LP: margem de cima 80% menor (linha da versão colada no topo) */}
+      <main className={cn('mx-auto px-4 pb-6 sm:px-6 lg:pb-8', /^\/landing-pages\/[^/]+/.test(location.pathname) ? 'max-w-none pt-[5px] lg:px-8 lg:pt-[6px]' : 'max-w-[1280px] pt-6 lg:px-10 lg:pt-8')}>
         <Outlet />
       </main>
     </div>
