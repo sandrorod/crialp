@@ -1,4 +1,3 @@
-import type pg from 'pg';
 import { one, query, transaction } from '../db/pool.js';
 import { uniqueSlug } from '../lib/slug.js';
 import type { LandingContent } from '../services/ai/schemas.js';
@@ -44,15 +43,14 @@ export async function createLandingPage(opts: {
   content: LandingContent;
   theme: ThemeSettings;
   seo: SeoFields;
-  /** Vendedor escolhido na geração; sem ele, o próximo do rodízio */
+  /** Vendedor escolhido na geração; sem ele, a página fica sem vendedor */
   sellerId?: string | null;
 }) {
   const slug = await uniqueSlug(opts.title);
   return transaction(async (db) => {
-    const chosen = opts.sellerId
-      ? (await db.query<{ id: string }>(`select id from users where id = $1 and organization_id = $2 and role = 'seller'`, [opts.sellerId, opts.orgId])).rows[0]?.id
+    const sellerId = opts.sellerId
+      ? ((await db.query<{ id: string }>(`select id from users where id = $1 and organization_id = $2 and role = 'seller'`, [opts.sellerId, opts.orgId])).rows[0]?.id ?? null)
       : null;
-    const [sellerId = null] = chosen ? [chosen] : await pickSellers(db, opts.orgId, 1);
     const { rows } = await db.query<{ id: string }>(
       `insert into landing_pages (organization_id, company_id, title, slug, status, content, theme, seo_title, seo_description, seo_keywords, og_image, current_version, seller_id)
        values ($1,$2,$3,$4,'inativa',$5,$6,$7,$8,$9,$10,1,$11) returning id`,
@@ -68,51 +66,9 @@ export async function createLandingPage(opts: {
 }
 
 // ─── Vendedor responsável ───────────────────────────────────────────
-/**
- * Rodízio de vendedores: vê o vendedor da última página gerada e entrega as próximas `count`
- * páginas ao vendedor seguinte, na ordem de cadastro, voltando ao primeiro depois do último.
- * Trava a organização para que gerações simultâneas não repitam o vendedor. Sem vendedores, lista vazia.
- */
-async function pickSellers(db: pg.PoolClient, orgId: string, count: number) {
-  await db.query('select pg_advisory_xact_lock(727275, hashtext($1))', [orgId]);
-  const { rows: sellers } = await db.query<{ id: string }>(
-    `select id from users where organization_id = $1 and role = 'seller' order by created_at, id`,
-    [orgId],
-  );
-  if (!sellers.length) return [];
-  const last = await db.query<{ seller_id: string }>(
-    `select seller_id from landing_pages
-      where organization_id = $1 and seller_id is not null
-      order by created_at desc, id desc limit 1`,
-    [orgId],
-  );
-  // Vendedor da última página não existe mais (ou nenhuma página ainda): começa pelo primeiro
-  let i = sellers.findIndex((u) => u.id === last.rows[0]?.seller_id);
-  const picks: string[] = [];
-  for (let n = 0; n < count; n++) {
-    i = (i + 1) % sellers.length;
-    picks.push(sellers[i].id);
-  }
-  return picks;
-}
-
-/** Atribui as páginas sem vendedor (sem vendedores antes, vendedor excluído…) seguindo o rodízio. */
-export async function distributeUnassignedPages(orgId: string) {
-  return transaction(async (db) => {
-    const { rows } = await db.query<{ id: string }>(
-      'select id from landing_pages where organization_id = $1 and seller_id is null order by created_at, id',
-      [orgId],
-    );
-    const sellers = await pickSellers(db, orgId, rows.length);
-    for (const [i, sellerId] of sellers.entries()) {
-      await db.query('update landing_pages set seller_id = $2 where id = $1', [rows[i].id, sellerId]);
-    }
-    return sellers.length;
-  });
-}
-
-/** Troca manual do vendedor de uma página (só vendedores da mesma organização). */
-export async function setSeller(orgId: string, id: string, sellerId: string) {
+/** Troca manual do vendedor de uma página (só vendedores da mesma organização); null deixa sem vendedor. */
+export async function setSeller(orgId: string, id: string, sellerId: string | null) {
+  if (!sellerId) return one<{ id: string }>('update landing_pages set seller_id = null where id = $1 and organization_id = $2 returning id', [id, orgId]);
   return one<{ id: string }>(
     `update landing_pages lp set seller_id = u.id
        from users u

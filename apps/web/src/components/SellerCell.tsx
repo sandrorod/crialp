@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/lib/api';
 import { landingPageService, userService } from '@/services';
 
-export type Seller = { id: string; name: string };
+export type Seller = { id: string | null; name: string | null };
 
 /** Vendedores da organização (só administradores conseguem listar; os demais recebem lista vazia). */
 export function useSellers() {
@@ -36,14 +36,14 @@ export function SellerCell({
 }) {
   const [saving, setSaving] = useState(false);
   if (!landingPageId) return <span className="text-zinc-400">—</span>;
-  if (!canAssign || !sellers.length) return <span className={sellerName ? 'text-zinc-600' : 'text-zinc-400'}>{sellerName ?? 'Sem vendedor'}</span>;
+  if (!canAssign || !sellers.length) return <span className="text-zinc-600">{sellerName ?? ''}</span>;
 
-  const change = async (id: string) => {
+  const change = async (id: string | null) => {
     setSaving(true);
     try {
       await landingPageService.setSeller(landingPageId, id);
       toast.success('Vendedor responsável alterado.');
-      onChanged(sellers.find((s) => s.id === id) ?? { id, name: '' });
+      onChanged(sellers.find((s) => s.id === id) ?? { id: null, name: null });
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -55,13 +55,14 @@ export function SellerCell({
     <select
       value={sellerId ?? ''}
       disabled={saving}
-      onChange={(e) => e.target.value && void change(e.target.value)}
+      onChange={(e) => void change(e.target.value || null)}
       aria-label="Vendedor responsável"
       className="max-w-[160px] rounded-md border border-zinc-200 bg-white px-2 py-1 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-60"
     >
-      {sellerId ? null : <option value="">Sem vendedor</option>}
+      {/* Sem vendedor salvo: opção vazia (escolhê-la de novo limpa o vendedor) */}
+      <option value="" />
       {sellers.map((s) => (
-        <option key={s.id} value={s.id}>{s.name}</option>
+        <option key={s.id} value={s.id!}>{s.name}</option>
       ))}
     </select>
   );

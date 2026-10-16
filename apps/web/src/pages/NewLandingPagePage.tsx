@@ -41,7 +41,7 @@ export function NewLandingPagePage() {
   const [meta, setMeta] = useState<AnalysisMeta | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  // Vendedor da página ("" = próximo do rodízio)
+  // Vendedor da página ("" = sem vendedor)
   const { sellers, canAssign } = useSellers();
   const [sellerId, setSellerId] = useState('');
 
@@ -339,12 +339,15 @@ export function NewLandingPagePage() {
           <Button variant="ghost" onClick={() => setStage('url')} disabled={saving}>Voltar</Button>
           <div className="flex flex-wrap items-center justify-end gap-3">
             {canAssign && sellers.length ? (
-              <Select value={sellerId} onChange={(e) => setSellerId(e.target.value)} disabled={saving} aria-label="Vendedor" className="w-auto">
-                <option value="">Vendedor: rodízio automático</option>
-                {sellers.map((s) => (
-                  <option key={s.id} value={s.id}>Vendedor: {s.name}</option>
-                ))}
-              </Select>
+              <label className="flex items-center gap-2 text-sm text-zinc-600">
+                Vendedor
+                <Select value={sellerId} onChange={(e) => setSellerId(e.target.value)} disabled={saving} className="w-auto min-w-[160px]">
+                  <option value="" />
+                  {sellers.map((s) => (
+                    <option key={s.id} value={s.id!}>{s.name}</option>
+                  ))}
+                </Select>
+              </label>
             ) : null}
             <Button variant="brand" size="lg" loading={saving} onClick={confirmAndGenerate} icon={<Sparkles className="size-4" />}>
               CONFIRMAR E GERAR LANDING PAGE

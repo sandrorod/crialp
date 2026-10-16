@@ -93,7 +93,7 @@ export const companyService = {
 export const landingPageService = {
   list: (f: { search?: string; status?: string; segment?: string }) =>
     api.get<{ items: LandingPageListItem[]; facets: { segments: string[] } }>(`/landing-pages${qs(f)}`),
-  setSeller: (id: string, sellerId: string) => api.patch<{ ok: true }>(`/landing-pages/${id}/seller`, { seller_id: sellerId }),
+  setSeller: (id: string, sellerId: string | null) => api.patch<{ ok: true }>(`/landing-pages/${id}/seller`, { seller_id: sellerId }),
   get: (id: string) => api.get<LandingPageDetail>(`/landing-pages/${id}`),
   presets: () => api.get<Preset[]>('/landing-pages/presets'),
   templates: () => api.get<TemplateInfo[]>('/landing-pages/templates'),
