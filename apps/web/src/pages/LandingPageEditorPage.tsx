@@ -136,7 +136,7 @@ export function LandingPageEditorPage() {
   const [shotBusy, setShotBusy] = useState(false);
   // Estado próprio: recarregar a LP reiniciaria o rascunho do editor
   const [shotOverride, setShotOverride] = useState<LandingScreenshot | null>(null);
-  // Imagem (JPG) da página inteira: gerada sozinha ao gerar a LP; aqui gera de novo depois de editar
+  // Imagem (JPG) das 3 primeiras seções: gerada sozinha ao ativar a LP; aqui gera de novo depois de editar
   const downloadShot = (createdAt: string) => {
     const a = document.createElement('a');
     a.href = `${landingPageService.screenshotUrl(id)}?v=${encodeURIComponent(createdAt)}`;

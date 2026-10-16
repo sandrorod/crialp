@@ -115,7 +115,7 @@ export const landingPageService = {
   /** HTML da prévia com conteúdo e tema ainda não salvos. */
   previewDraft: (id: string, body: { content: LandingContent; theme: ThemeSettings }) => api.post<{ html: string }>(`/landing-pages/${id}/preview`, body),
   exportUrl: (id: string) => `/api/landing-pages/${id}/export`,
-  /** Imagem (JPG) da página inteira, para download */
+  /** Imagem (JPG) das 3 primeiras seções da página, para download */
   screenshotUrl: (id: string) => `/api/landing-pages/${id}/screenshot`,
   regenerateScreenshot: (id: string) => api.post<{ screenshot: LandingScreenshot }>(`/landing-pages/${id}/screenshot`),
   /** Ícones dos elementos: { nome: svg } */
