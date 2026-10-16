@@ -64,13 +64,14 @@ analyzeRouter.post('/analyze-url', aiLimiter, async (req, res) => {
 });
 
 /**
- * POST /api/generate-landing-page { companyId, landingPageId?, keepTheme? }
+ * POST /api/generate-landing-page { companyId, landingPageId?, keepTheme?, sellerId? }
  * Gera (ou regenera, criando nova versão) a Landing Page a partir dos dados estruturados.
  */
 analyzeRouter.post('/generate-landing-page', aiLimiter, async (req, res) => {
   const user = authUser(req);
   const body = parseBody(
-    z.object({ companyId: uuidParam, landingPageId: uuidParam.optional(), keepTheme: z.boolean().optional() }),
+    // sellerId: vendedor escolhido para a página nova (sem ele, rodízio)
+    z.object({ companyId: uuidParam, landingPageId: uuidParam.optional(), keepTheme: z.boolean().optional(), sellerId: uuidParam.optional() }),
     req.body,
   );
   if (!(await aiService.isConfigured())) throw new AppError(503, Messages.aiNotConfigured);

@@ -18,7 +18,7 @@ export function useSellers() {
   return { sellers: data ?? [], canAssign: isManager };
 }
 
-/** Vendedor responsável pela Landing Page; administradores podem trocar ali mesmo. */
+/** Vendedor responsável pela Landing Page (editor da página); administradores trocam pelo select. */
 export function SellerCell({
   landingPageId,
   sellerId,
@@ -32,7 +32,7 @@ export function SellerCell({
   sellerName: string | null;
   sellers: Seller[];
   canAssign: boolean;
-  onChanged: () => void;
+  onChanged: (seller: Seller) => void;
 }) {
   const [saving, setSaving] = useState(false);
   if (!landingPageId) return <span className="text-zinc-400">—</span>;
@@ -43,7 +43,7 @@ export function SellerCell({
     try {
       await landingPageService.setSeller(landingPageId, id);
       toast.success('Vendedor responsável alterado.');
-      onChanged();
+      onChanged(sellers.find((s) => s.id === id) ?? { id, name: '' });
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {

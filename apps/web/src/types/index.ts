@@ -405,6 +405,9 @@ export interface LandingPage {
 export interface LandingPageDetail extends LandingPage {
   company: { id: string; name: string; segment: string | null; testimonials: number; images_allowed: number } | null;
   versions: { version: number; note: string | null; created_at: string; author: string | null }[];
+  /** Vendedor responsável pela página */
+  seller_id: string | null;
+  seller_name: string | null;
   /** Imagem (JPG) das 3 primeiras seções da página; null = ainda não gerada */
   screenshot: LandingScreenshot | null;
 }

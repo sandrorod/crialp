@@ -44,11 +44,15 @@ export async function createLandingPage(opts: {
   content: LandingContent;
   theme: ThemeSettings;
   seo: SeoFields;
+  /** Vendedor escolhido na geração; sem ele, o próximo do rodízio */
+  sellerId?: string | null;
 }) {
   const slug = await uniqueSlug(opts.title);
   return transaction(async (db) => {
-    // Toda página nova vai para o próximo vendedor do rodízio
-    const [sellerId = null] = await pickSellers(db, opts.orgId, 1);
+    const chosen = opts.sellerId
+      ? (await db.query<{ id: string }>(`select id from users where id = $1 and organization_id = $2 and role = 'seller'`, [opts.sellerId, opts.orgId])).rows[0]?.id
+      : null;
+    const [sellerId = null] = chosen ? [chosen] : await pickSellers(db, opts.orgId, 1);
     const { rows } = await db.query<{ id: string }>(
       `insert into landing_pages (organization_id, company_id, title, slug, status, content, theme, seo_title, seo_description, seo_keywords, og_image, current_version, seller_id)
        values ($1,$2,$3,$4,'inativa',$5,$6,$7,$8,$9,$10,1,$11) returning id`,

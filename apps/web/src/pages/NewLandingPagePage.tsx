@@ -3,9 +3,10 @@ import { Link, useNavigate, useSearchParams } from 'react-router';
 import { AlertTriangle, ArrowRight, Check, CircleSlash, FileSearch, Globe, PencilLine, RotateCcw, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { CompanyForm, emptyDraft } from '@/components/company/CompanyForm';
+import { useSellers } from '@/components/SellerCell';
 import { ProgressSteps } from '@/components/ProgressSteps';
 import { StopJobButton } from '@/components/StopJobButton';
-import { Button, Card, Input } from '@/components/ui';
+import { Button, Card, Input, Select } from '@/components/ui';
 import { useJob } from '@/hooks/useJob';
 import { errorMessage } from '@/lib/api';
 import { shortUrl } from '@/lib/utils';
@@ -40,6 +41,9 @@ export function NewLandingPagePage() {
   const [meta, setMeta] = useState<AnalysisMeta | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Vendedor da página ("" = próximo do rodízio)
+  const { sellers, canAssign } = useSellers();
+  const [sellerId, setSellerId] = useState('');
 
   const analyze = useJob<AnalysisResult>(analyzeJobId);
   const generate = useJob<{ landingPageId: string }>(generateJobId);
@@ -119,7 +123,7 @@ export function NewLandingPagePage() {
         id = (await companyService.create({ ...cleaned, source_meta: meta ?? {}, analysis_job_id: analyzeJobId ?? undefined })).id;
         setCompanyId(id);
       }
-      const { jobId } = await analysisService.generate(id);
+      const { jobId } = await analysisService.generate(id, sellerId ? { sellerId } : {});
       setGenerateJobId(jobId);
       setStage('generating');
       window.scrollTo({ top: 0 });
@@ -333,9 +337,19 @@ export function NewLandingPagePage() {
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/90 backdrop-blur lg:left-64">
         <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-10">
           <Button variant="ghost" onClick={() => setStage('url')} disabled={saving}>Voltar</Button>
-          <Button variant="brand" size="lg" loading={saving} onClick={confirmAndGenerate} icon={<Sparkles className="size-4" />}>
-            CONFIRMAR E GERAR LANDING PAGE
-          </Button>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {canAssign && sellers.length ? (
+              <Select value={sellerId} onChange={(e) => setSellerId(e.target.value)} disabled={saving} aria-label="Vendedor" className="w-auto">
+                <option value="">Vendedor: rodízio automático</option>
+                {sellers.map((s) => (
+                  <option key={s.id} value={s.id}>Vendedor: {s.name}</option>
+                ))}
+              </Select>
+            ) : null}
+            <Button variant="brand" size="lg" loading={saving} onClick={confirmAndGenerate} icon={<Sparkles className="size-4" />}>
+              CONFIRMAR E GERAR LANDING PAGE
+            </Button>
+          </div>
         </div>
       </div>
     </div>

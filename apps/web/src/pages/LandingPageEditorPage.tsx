@@ -9,6 +9,7 @@ import { PreviewFrame } from '@/components/landing/PreviewFrame';
 import { applyTextEdit, type PreviewMode, type PreviewSelection } from '@/components/landing/previewTools';
 import { DesignTab, PhotosTab, TemplateTab, PublishTab, SeoTab, VersionsTab, type NewPhoto, type SeoState } from '@/components/landing/SettingsTabs';
 import { ProgressSteps } from '@/components/ProgressSteps';
+import { SellerCell, useSellers, type Seller } from '@/components/SellerCell';
 import { StopJobButton } from '@/components/StopJobButton';
 import { Button, Card, ConfirmDialog, ErrorBlock, LoadingBlock, StatusToggle } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
@@ -136,6 +137,8 @@ export function LandingPageEditorPage() {
   const [shotBusy, setShotBusy] = useState(false);
   // Estado próprio: recarregar a LP reiniciaria o rascunho do editor
   const [shotOverride, setShotOverride] = useState<LandingScreenshot | null>(null);
+  const { sellers, canAssign } = useSellers();
+  const [sellerOverride, setSellerOverride] = useState<Seller | null>(null);
   // Imagem (JPG) das 3 primeiras seções: gerada sozinha ao ativar a LP; aqui gera de novo depois de editar
   const downloadShot = (createdAt: string) => {
     const a = document.createElement('a');
@@ -341,6 +344,7 @@ export function LandingPageEditorPage() {
   // Mesmo nome do topo da página (cabeçalho da LP): o editado na prévia, senão o nome fantasia, senão a razão
   const headerName = content.overrides?.['company.name']?.trim() || company?.trade_name || company?.name || lp.company?.name || lp.title;
   const shot = shotOverride ?? lp.screenshot;
+  const seller = sellerOverride ?? { id: lp.seller_id, name: lp.seller_name };
 
   return (
     <div>
@@ -357,6 +361,12 @@ export function LandingPageEditorPage() {
         </a>
         <button onClick={() => actions.copyUrl(lp.public_url)} className="inline-flex items-center gap-1 hover:text-ink"><Copy className="size-3.5" /> Copiar</button>
         <span>v{lp.current_version} · atualizada {formatDate(lp.updated_at, true)}</span>
+        {isClient ? null : (
+          <span className="inline-flex items-center gap-1.5">
+            · Vendedor
+            <SellerCell landingPageId={lp.id} sellerId={seller.id} sellerName={seller.name} sellers={sellers} canAssign={canAssign} onChanged={(s) => setSellerOverride(s)} />
+          </span>
+        )}
         <span className="text-zinc-300" aria-hidden>|</span>
         {/* Prévia: computador/celular, recarregar e abrir em nova aba */}
         <div className="flex items-center gap-1">

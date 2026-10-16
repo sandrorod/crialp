@@ -82,6 +82,7 @@ landingPagesRouter.get('/:id', async (req, res) => {
     company: company && { id: company.id, name: company.name, segment: company.segment, testimonials: company.testimonials.length, images_allowed: company.images.filter((i) => i.usage_allowed).length },
     versions: await repo.listVersions(lp.id),
     screenshot: await getScreenshotInfo(lp.id),
+    seller_name: lp.seller_id ? ((await one<{ name: string }>('select name from users where id = $1', [lp.seller_id]))?.name ?? null) : null,
   });
 });
 

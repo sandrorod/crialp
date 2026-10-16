@@ -1,7 +1,6 @@
 import { useDeferredValue, useState, type FormEvent } from 'react';
 import { Building2, ChevronDown, Eye, MessageSquarePlus, Search, Share2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { SellerCell, useSellers } from '@/components/SellerCell';
 import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBlock, Modal, PageHeader, Pagination, Select, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { usePagination } from '@/hooks/usePagination';
@@ -23,7 +22,6 @@ export function SalesPage() {
   // 10 por página; volta para a primeira ao mudar os filtros
   const pager = usePagination(data?.items, 10, [deferredSearch, segment, city].join('|'));
   const [prospecting, setProspecting] = useState<SalesCompany | null>(null);
-  const { sellers, canAssign } = useSellers();
   const { user } = useAuth();
   const isSeller = user?.role === 'seller';
   const filtered = !!(search || segment || city);
@@ -73,7 +71,6 @@ export function SalesPage() {
                   <th className="px-3 py-3">Segmento</th>
                   <th className="px-3 py-3">Cidade</th>
                   <th className="px-3 py-3">Contato</th>
-                  <th className="px-3 py-3">Vendedor</th>
                   <th className="px-3 py-3">Última prospecção</th>
                   <th className="px-5 py-3 text-right">Ações</th>
                 </tr>
@@ -85,9 +82,6 @@ export function SalesPage() {
                     <td data-label="Segmento" className="px-3 py-3.5 text-zinc-600">{c.segment ?? '—'}</td>
                     <td data-label="Cidade" className="px-3 py-3.5 text-zinc-600">{c.city ? `${c.city}${c.state ? ` – ${c.state}` : ''}` : '—'}</td>
                     <td data-label="Contato" className="px-3 py-3.5 text-zinc-600">{c.whatsapp || c.phone || c.email || '—'}</td>
-                    <td data-label="Vendedor" className="px-3 py-3.5">
-                      <SellerCell landingPageId={c.landing_page_id} sellerId={c.seller_id} sellerName={c.seller_name} sellers={sellers} canAssign={canAssign} onChanged={reload} />
-                    </td>
                     <td data-label="Última prospecção" className="px-3 py-3.5 text-zinc-500">
                       {c.last_note_at ? `${formatDate(c.last_note_at)} · ${c.notes_count} ${c.notes_count === 1 ? 'lançamento' : 'lançamentos'}` : '—'}
                     </td>
