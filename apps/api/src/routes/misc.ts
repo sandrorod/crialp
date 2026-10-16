@@ -166,6 +166,47 @@ miscRouter.post('/settings/keys/:provider/:id/test', requireRole(...MANAGER_ROLE
   res.json({ ok: true });
 });
 
+/**
+ * Diagnóstico da API de Gemini do RapidAPI (temporário): manda pedidos mínimos em vários formatos com a primeira
+ * chave cadastrada e devolve a resposta completa de cada um (status, corpo e cabeçalhos de limite do RapidAPI).
+ * A chave não aparece na resposta. Abrir no navegador logado: /api/settings/rapid-gemini/diagnose
+ */
+miscRouter.get('/settings/rapid-gemini/diagnose', requireRole(...MANAGER_ROLES), async (_req, res) => {
+  const [key] = await aiKeyStore.rotation('rapidapi_gemini');
+  if (!key) throw notFound('Nenhuma chave do RapidAPI (Gemini) cadastrada.');
+  const cfg = await getRapidGeminiConfig();
+  const msg = [{ role: 'user', content: 'Responda apenas: ok' }];
+  const variants: { name: string; method?: string; path?: string; body?: unknown }[] = [
+    { name: 'config atual (openai + modelo da config)', body: { model: cfg.model, messages: msg } },
+    { name: 'openai sem modelo', body: { messages: msg } },
+    { name: 'openai modelo gemini-2.5-flash', body: { model: 'gemini-2.5-flash', messages: msg } },
+    { name: 'openai modelo gemini-1.5-flash-latest', body: { model: 'gemini-1.5-flash-latest', messages: msg } },
+    { name: 'openai papel system + user', body: { model: cfg.model, messages: [{ role: 'system', content: 'Seja breve.' }, ...msg] } },
+    { name: 'google contents', body: { contents: [{ role: 'user', parts: [{ text: 'Responda apenas: ok' }] }] } },
+    { name: 'campo prompt', body: { prompt: 'Responda apenas: ok' } },
+    { name: 'campo text', body: { text: 'Responda apenas: ok' } },
+    { name: 'GET no caminho da config', method: 'GET' },
+  ];
+  const results = [];
+  for (const v of variants) {
+    const path = v.path ?? (cfg.path.startsWith('/') ? cfg.path : `/${cfg.path}`);
+    const started = Date.now();
+    const r = await fetch(`https://${cfg.host}${path}`, {
+      method: v.method ?? 'POST',
+      headers: { 'x-rapidapi-key': key.key, 'x-rapidapi-host': cfg.host, ...(v.body ? { 'Content-Type': 'application/json' } : {}) },
+      body: v.body ? JSON.stringify(v.body) : undefined,
+      signal: AbortSignal.timeout(60_000),
+    }).catch((err: Error) => err);
+    if (r instanceof Error) {
+      results.push({ variant: v.name, error: r.message });
+      continue;
+    }
+    const headers = Object.fromEntries([...r.headers.entries()].filter(([h]) => /ratelimit|rapidapi|server|content-type|x-request|date/i.test(h)));
+    results.push({ variant: v.name, method: v.method ?? 'POST', path, status: r.status, ms: Date.now() - started, body: (await r.text()).slice(0, 1500), headers });
+  }
+  res.json({ host: cfg.host, path: cfg.path, format: cfg.format, model: cfg.model, key_last4: key.key.slice(-4), results });
+});
+
 // Chave da variável de ambiente: sai do rodízio (a variável continua no servidor, mas é ignorada)
 miscRouter.delete('/settings/keys/:provider/env', requireRole(...MANAGER_ROLES), async (req, res) => {
   const provider = ProviderParam.parse(req.params.provider);
