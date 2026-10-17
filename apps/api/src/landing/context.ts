@@ -112,8 +112,6 @@ export function absoluteAsset(url: string, origin: string) {
   return url.startsWith('/') ? `${origin}${url}` : url;
 }
 
-const MAX_GALLERY = 9;
-
 export function buildContext(opts: {
   company: CompanyFull;
   content: LandingContent;
@@ -181,13 +179,13 @@ export function buildContext(opts: {
   const heroImage = visible.find((p) => place(p.url) === 'hero') ?? visible.find((p) => !place(p.url)) ?? null;
   const aboutImage =
     visible.find((p) => p !== heroImage && place(p.url) === 'about') ?? visible.find((p) => p !== heroImage && !place(p.url)) ?? null;
-  // Galeria: até 9 fotos, como no editor (as demais aparecem lá em "Fora da página")
+  // Galeria: todas as fotos; a página mostra 9 e as demais ficam atrás do botão "Exibir mais"
   let galleryPool = visible.filter((p) => p !== heroImage && p !== aboutImage && (place(p.url) === 'gallery' || !place(p.url)));
   // Modelo Ofício: topo em mosaico de 3 fotos (as 2 seguintes em "Automático"), se a galeria ainda ficar com 2 ou mais
   const autoExtras = galleryPool.filter((p) => !place(p.url)).slice(0, 2);
   const heroExtras = theme.template === 'oficio' && heroImage && autoExtras.length === 2 && galleryPool.length >= 4 ? autoExtras : [];
   if (heroExtras.length) galleryPool = galleryPool.filter((p) => !heroExtras.includes(p));
-  const gallery = galleryPool.slice(0, MAX_GALLERY);
+  const gallery = galleryPool;
   const customPhotos: Record<string, LpImage[]> = {};
   const sectionPhotos: Record<string, LpImage[]> = {};
   for (const p of visible) {

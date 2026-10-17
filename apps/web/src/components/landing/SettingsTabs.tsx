@@ -753,10 +753,10 @@ export function PhotosTab({
   const sectionName = (p: `custom:${string}`) => customSections.find((s) => `custom:${s.id}` === p)?.title.trim() || 'Seção personalizada';
   const placementLabel = (p: ImagePlacement) =>
     isCustom(p) ? `Seção "${sectionName(p)}"` : isSection(p) ? `Seção "${SECTION_NAMES[p.slice(8)] ?? p.slice(8)}"` : PLACEMENT_LABELS[p];
-  // Ativas = as que aparecem na página: topo, "sobre" e as 9 primeiras da galeria (se tiver 2 ou mais),
+  // Ativas = as que aparecem na página: topo, "sobre" e a galeria (se tiver 2 ou mais; acima de 9, atrás de "Exibir mais"),
   // listadas na ordem em que aparecem na página (topo, depois "sobre" e galeria conforme a ordem das seções)
   const galleryUrls = allowed.map((i) => i.url).filter((u) => resolved[u] === 'gallery');
-  const shownGallery = galleryUrls.length >= 2 ? galleryUrls.slice(0, 9) : [];
+  const shownGallery = galleryUrls.length >= 2 ? galleryUrls : [];
   const heroUrl = allowed.find((i) => resolved[i.url] === 'hero')?.url;
   const aboutUrl = allowed.find((i) => resolved[i.url] === 'about')?.url;
   const sectionPos = (k: string) => {

@@ -158,6 +158,27 @@ export function ProductsSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
   );
 }
 
+/** Fotos visíveis na galeria; as demais aparecem com "Exibir mais". */
+const GALLERY_VISIBLE = 9;
+
+function chunk<T>(list: T[], size: number) {
+  const out: T[][] = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+}
+
+function GalleryGrid({ photos }: { photos: RenderContext['gallery'] }) {
+  return (
+    <div className={`gallery g-n${photos.length}`}>
+      {photos.map((img) => (
+        <figure key={img.url} className="reveal">
+          <img referrerPolicy="no-referrer" src={img.url} alt={img.alt} loading="lazy" decoding="async" data-lp-img={img.url} style={img.style} />
+        </figure>
+      ))}
+    </div>
+  );
+}
+
 export function GallerySection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {
   const g = ctx.content.gallery;
   // ctx.gallery já exclui as fotos usadas no topo e em "sobre"
@@ -168,13 +189,24 @@ export function GallerySection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
       <div className="container">
         <SectionHead eyebrow={ctx.labels.eyebrow_gallery} title={g.title} lead={g.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_gallery'), title: ed(ctx, 'gallery.title'), lead: edOptional(ctx, 'gallery.subtitle', 'Texto de apoio (opcional)') }} />
         {/* g-nN: a grade se ajusta à quantidade de fotos para nunca sobrar buraco (ver styles.ts) */}
-        <div className={`gallery g-n${photos.length}`}>
-          {photos.map((img) => (
-            <figure key={img.url} className="reveal">
-              <img referrerPolicy="no-referrer" src={img.url} alt={img.alt} loading="lazy" decoding="async" data-lp-img={img.url} style={img.style} />
-            </figure>
-          ))}
-        </div>
+        <GalleryGrid photos={photos.slice(0, GALLERY_VISIBLE)} />
+        {photos.length > GALLERY_VISIBLE ? (
+          // Mais de 9 fotos: as demais ficam escondidas até clicar em "Exibir mais" (sem JavaScript),
+          // em grades de até 9 para manter o mesmo arranjo de cada modelo
+          <div className="gallery-more">
+            <input type="checkbox" id="gallery-more" className="gallery-more-toggle" />
+            <div className="gallery-more-panel">
+              {chunk(photos.slice(GALLERY_VISIBLE), GALLERY_VISIBLE).map((group) => (
+                <GalleryGrid key={group[0].url} photos={group} />
+              ))}
+            </div>
+            <div className="gallery-more-action">
+              <label htmlFor="gallery-more" className="btn btn-ghost btn-sm gallery-more-btn">
+                {ctx.labels.gallery_more}
+              </label>
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
   );

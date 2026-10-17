@@ -53,6 +53,7 @@ const LABEL_FIELDS: { key: string; label: string }[] = [
   { key: 'fact_audience', label: 'Ficha — Público' },
   { key: 'testimonial_more', label: 'Depoimentos — "Ler mais"' },
   { key: 'testimonial_less', label: 'Depoimentos — "Ler menos"' },
+  { key: 'gallery_more', label: 'Galeria — botão "Exibir mais"' },
   { key: 'footer_note', label: 'Rodapé — texto (vazio = endereço)' },
   { key: 'skip_link', label: 'Acessibilidade — link "pular para o conteúdo"' },
 ];

@@ -32,6 +32,7 @@ export const DEFAULT_LABELS = {
   fact_audience: 'Para quem',
   testimonial_more: 'Ler mais',
   testimonial_less: 'Ler menos',
+  gallery_more: 'Exibir mais',
   footer_note: '',
   skip_link: 'Pular para o conteúdo',
 } as const;
