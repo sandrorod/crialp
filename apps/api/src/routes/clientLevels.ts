@@ -8,12 +8,14 @@ import { authUser, MANAGER_ROLES, requireRole } from '../middleware/auth.js';
 /** Níveis de cliente: a equipe lista (select na geração da LP); administradores criam, editam e excluem. */
 export const clientLevelsRouter = Router();
 
-const COLUMNS = `id, name, description, created_at, updated_at,
+const COLUMNS = `id, name, description, price::float8 as price, created_at, updated_at,
   (select count(*)::int from landing_pages lp where lp.client_level_id = lp_client_levels.id) as landing_pages`;
 
 const LevelSchema = z.object({
   name: z.string().trim().min(1, 'Informe o nome do nível.').max(80),
   description: z.string().trim().max(300).nullish().transform((v) => v || null),
+  // Valor cobrado dos clientes do nível (R$); null = sem valor definido
+  price: z.number({ message: 'Valor inválido.' }).min(0, 'O valor não pode ser negativo.').max(9_999_999_999).nullish().transform((v) => (v == null ? null : Math.round(v * 100) / 100)),
 });
 
 clientLevelsRouter.get('/', async (req, res) => {
@@ -27,8 +29,8 @@ clientLevelsRouter.post('/', requireRole(...MANAGER_ROLES), async (req, res) => 
   const body = parseBody(LevelSchema, req.body);
   await ensureNameFree(user.organizationId, body.name);
   const created = await one(
-    `insert into lp_client_levels (organization_id, name, description) values ($1, $2, $3) returning ${COLUMNS}`,
-    [user.organizationId, body.name, body.description],
+    `insert into lp_client_levels (organization_id, name, description, price) values ($1, $2, $3, $4) returning ${COLUMNS}`,
+    [user.organizationId, body.name, body.description, body.price],
   );
   res.status(201).json(created);
 });
@@ -39,9 +41,9 @@ clientLevelsRouter.patch('/:id', requireRole(...MANAGER_ROLES), async (req, res)
   const body = parseBody(LevelSchema, req.body);
   await ensureNameFree(user.organizationId, body.name, id);
   const updated = await one(
-    `update lp_client_levels set name = $3, description = $4, updated_at = now()
+    `update lp_client_levels set name = $3, description = $4, price = $5, updated_at = now()
       where id = $1 and organization_id = $2 returning ${COLUMNS}`,
-    [id, user.organizationId, body.name, body.description],
+    [id, user.organizationId, body.name, body.description, body.price],
   );
   if (!updated) throw notFound('Nível não encontrado.');
   res.json(updated);

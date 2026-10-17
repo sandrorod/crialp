@@ -8,6 +8,17 @@ import { formatDate } from '@/lib/utils';
 import { clientLevelService } from '@/services';
 import type { ClientLevel } from '@/types';
 
+const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+export const formatPrice = (v: number | null) => (v == null ? null : brl.format(v));
+
+/** "1.234,56" / "1234.56" / "R$ 99,90" → número; "" → null; inválido → NaN */
+function parsePrice(text: string): number | null {
+  const t = text.replace(/R\$|\s/g, '');
+  if (!t) return null;
+  const normalized = t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t;
+  return /^\d+(\.\d{1,2})?$/.test(normalized) ? Number(normalized) : NaN;
+}
+
 /** Menu "Nível cliente": cadastro dos níveis escolhidos na geração da Landing Page. */
 export function ClientLevelsPage() {
   const { data, error, loading, reload } = useAsync(() => clientLevelService.list(), []);
@@ -52,10 +63,11 @@ export function ClientLevelsPage() {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="table-cards w-full min-w-[640px] text-sm">
+            <table className="table-cards w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
                   <th className="px-5 py-3">Nível</th>
+                  <th className="px-3 py-3">Valor</th>
                   <th className="px-3 py-3">Landing Pages</th>
                   <th className="px-3 py-3">Criação</th>
                   <th className="px-5 py-3 text-right">Ações</th>
@@ -68,6 +80,7 @@ export function ClientLevelsPage() {
                       <div className="font-medium text-ink">{l.name}</div>
                       {l.description ? <div className="text-xs text-zinc-500">{l.description}</div> : null}
                     </td>
+                    <td data-label="Valor" className="px-3 py-3.5 font-medium text-ink">{formatPrice(l.price) ?? <span className="font-normal text-zinc-400">—</span>}</td>
                     <td data-label="Landing Pages" className="px-3 py-3.5 text-zinc-600">{l.landing_pages}</td>
                     <td data-label="Criação" className="px-3 py-3.5 text-zinc-500">{formatDate(l.created_at)}</td>
                     <td className="px-5 py-3.5">
@@ -121,13 +134,19 @@ function LevelFormModal({ target, onClose, onSaved }: { target: ClientLevel | 'n
   const existing = target && target !== 'new' ? target : null;
   const [name, setName] = useState(existing?.name ?? '');
   const [description, setDescription] = useState(existing?.description ?? '');
+  const [price, setPrice] = useState(existing?.price != null ? existing.price.toFixed(2).replace('.', ',') : '');
   const [saving, setSaving] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    const value = parsePrice(price);
+    if (Number.isNaN(value)) {
+      toast.error('Valor inválido. Use o formato 99,90.');
+      return;
+    }
     setSaving(true);
     try {
-      const body = { name, description: description.trim() || null };
+      const body = { name, description: description.trim() || null, price: value };
       if (existing) {
         await clientLevelService.update(existing.id, body);
         toast.success('Nível atualizado.');
@@ -159,6 +178,9 @@ function LevelFormModal({ target, onClose, onSaved }: { target: ClientLevel | 'n
       <form id="level-form" onSubmit={submit} className="space-y-4">
         <Field label="Nome">
           <Input value={name} onChange={(e) => setName(e.target.value)} required maxLength={80} autoFocus autoComplete="off" />
+        </Field>
+        <Field label="Valor cobrado (R$)" hint="Valor cobrado dos clientes deste nível. Opcional.">
+          <Input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" placeholder="0,00" maxLength={20} autoComplete="off" />
         </Field>
         <Field label="Descrição" hint="Opcional.">
           <Textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={300} rows={3} />

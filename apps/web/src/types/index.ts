@@ -41,6 +41,8 @@ export interface ClientLevel {
   id: string;
   name: string;
   description: string | null;
+  /** Valor cobrado dos clientes do nível (R$) */
+  price: number | null;
   /** Quantidade de Landing Pages com esse nível */
   landing_pages: number;
   created_at: string;

@@ -6,12 +6,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/lib/api';
 import { clientLevelService, landingPageService } from '@/services';
 import { Select } from '@/components/ui';
+import { formatPrice } from '@/pages/ClientLevelsPage';
 
 /** Níveis de cliente da organização; só administradores trocam o nível de uma página. */
 export function useClientLevels() {
   const { user } = useAuth();
   const canAssign = user?.role === 'owner' || user?.role === 'admin';
-  const { data } = useAsync(async () => (await clientLevelService.list()).map(({ id, name }) => ({ id, name })), []);
+  const { data } = useAsync(async () => (await clientLevelService.list()).map(({ id, name, price }) => ({ id, name, price })), []);
   return { levels: data ?? [], canAssign };
 }
 
@@ -79,7 +80,7 @@ export function ClientLevelPicker({ value, onChange, disabled }: { value: string
       <Select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="mt-1">
         <option value="">Sem nível</option>
         {levels.map((l) => (
-          <option key={l.id} value={l.id}>{l.name}</option>
+          <option key={l.id} value={l.id}>{l.price != null ? `${l.name} — ${formatPrice(l.price)}` : l.name}</option>
         ))}
       </Select>
     </label>

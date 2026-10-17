@@ -200,7 +200,7 @@ export const salesService = {
 
 export const clientLevelService = {
   list: () => api.get<ClientLevel[]>('/client-levels'),
-  create: (body: { name: string; description?: string | null }) => api.post<ClientLevel>('/client-levels', body),
-  update: (id: string, body: { name: string; description?: string | null }) => api.patch<ClientLevel>(`/client-levels/${id}`, body),
+  create: (body: { name: string; description?: string | null; price?: number | null }) => api.post<ClientLevel>('/client-levels', body),
+  update: (id: string, body: { name: string; description?: string | null; price?: number | null }) => api.patch<ClientLevel>(`/client-levels/${id}`, body),
   remove: (id: string) => api.del(`/client-levels/${id}`),
 };
