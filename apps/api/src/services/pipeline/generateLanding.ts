@@ -70,7 +70,7 @@ function themeFromContent(content: LandingContent): ThemeSettings {
 
 export async function generateLanding(
   job: JobHandle,
-  opts: { orgId: string; userId: string; companyId: string; landingPageId?: string; keepTheme?: boolean; sellerId?: string },
+  opts: { orgId: string; userId: string; companyId: string; landingPageId?: string; keepTheme?: boolean; sellerId?: string; clientLevelId?: string },
 ) {
   if (!(await aiService.isConfigured())) throw new AppError(503, Messages.aiNotConfigured);
 
@@ -128,6 +128,7 @@ export async function generateLanding(
       theme,
       seo,
       sellerId: opts.sellerId,
+      clientLevelId: opts.clientLevelId,
     });
   }
   const saved = await getLandingPage(opts.orgId, landingPageId);

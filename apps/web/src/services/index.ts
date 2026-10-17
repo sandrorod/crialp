@@ -3,6 +3,7 @@ import type {
   AIKeyInfo,
   AnalysisResult,
   ClientAccess,
+  ClientLevel,
   ClientSite,
   Company,
   CompanyDraft,
@@ -48,8 +49,8 @@ export const authService = {
 export const analysisService = {
   /** `place`: local do Google Maps escolhido em "Buscar empresas" (dados já obtidos na pesquisa) */
   analyzeUrl: (url: string, allowImages = false, place?: PlaceListing) => api.post<{ jobId: string }>('/analyze-url', { url, allowImages, place }),
-  /** `sellerId`: vendedor da página nova (sem ele, o próximo do rodízio) */
-  generate: (companyId: string, opts: { landingPageId?: string; keepTheme?: boolean; sellerId?: string } = {}) =>
+  /** `sellerId` / `clientLevelId`: vendedor e nível de cliente da página nova */
+  generate: (companyId: string, opts: { landingPageId?: string; keepTheme?: boolean; sellerId?: string; clientLevelId?: string } = {}) =>
     api.post<{ jobId: string }>('/generate-landing-page', { companyId, ...opts }),
   job: <T>(id: string) => api.get<Job<T>>(`/jobs/${id}`),
   /** Interrompe a análise ou a geração em andamento */
@@ -97,6 +98,7 @@ export const landingPageService = {
   list: (f: { search?: string; status?: string; segment?: string }) =>
     api.get<{ items: LandingPageListItem[]; facets: { segments: string[] } }>(`/landing-pages${qs(f)}`),
   setSeller: (id: string, sellerId: string | null) => api.patch<{ ok: true }>(`/landing-pages/${id}/seller`, { seller_id: sellerId }),
+  setClientLevel: (id: string, levelId: string | null) => api.patch<{ ok: true }>(`/landing-pages/${id}/client-level`, { client_level_id: levelId }),
   get: (id: string) => api.get<LandingPageDetail>(`/landing-pages/${id}`),
   presets: () => api.get<Preset[]>('/landing-pages/presets'),
   templates: () => api.get<TemplateInfo[]>('/landing-pages/templates'),
@@ -194,4 +196,11 @@ export const salesService = {
   notes: (companyId: string) => api.get<ProspectingNote[]>(`/sales/companies/${companyId}/notes`),
   addNote: (companyId: string, note: string) => api.post<ProspectingNote>(`/sales/companies/${companyId}/notes`, { note }),
   removeNote: (companyId: string, noteId: string) => api.del(`/sales/companies/${companyId}/notes/${noteId}`),
+};
+
+export const clientLevelService = {
+  list: () => api.get<ClientLevel[]>('/client-levels'),
+  create: (body: { name: string; description?: string | null }) => api.post<ClientLevel>('/client-levels', body),
+  update: (id: string, body: { name: string; description?: string | null }) => api.patch<ClientLevel>(`/client-levels/${id}`, body),
+  remove: (id: string) => api.del(`/client-levels/${id}`),
 };

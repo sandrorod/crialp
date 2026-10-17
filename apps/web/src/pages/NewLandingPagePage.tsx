@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowRight, Check, CircleSlash, FileSearch, Globe, Penci
 import { toast } from 'sonner';
 import { CompanyForm, emptyDraft } from '@/components/company/CompanyForm';
 import { SellerPicker } from '@/components/SellerCell';
+import { ClientLevelPicker } from '@/components/ClientLevelCell';
 import { ProgressSteps } from '@/components/ProgressSteps';
 import { StopJobButton } from '@/components/StopJobButton';
 import { Button, Card, Input } from '@/components/ui';
@@ -41,8 +42,9 @@ export function NewLandingPagePage() {
   const [meta, setMeta] = useState<AnalysisMeta | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  // Vendedor da página ("" = sem vendedor): escolhido em qualquer etapa (link, análise ou revisão)
+  // Vendedor e nível do cliente da página ("" = nenhum): escolhidos na revisão dos dados da empresa
   const [sellerId, setSellerId] = useState('');
+  const [clientLevelId, setClientLevelId] = useState('');
 
   const analyze = useJob<AnalysisResult>(analyzeJobId);
   const generate = useJob<{ landingPageId: string }>(generateJobId);
@@ -122,7 +124,10 @@ export function NewLandingPagePage() {
         id = (await companyService.create({ ...cleaned, source_meta: meta ?? {}, analysis_job_id: analyzeJobId ?? undefined })).id;
         setCompanyId(id);
       }
-      const { jobId } = await analysisService.generate(id, sellerId ? { sellerId } : {});
+      const { jobId } = await analysisService.generate(id, {
+        ...(sellerId ? { sellerId } : {}),
+        ...(clientLevelId ? { clientLevelId } : {}),
+      });
       setGenerateJobId(jobId);
       setStage('generating');
       window.scrollTo({ top: 0 });
@@ -168,9 +173,6 @@ export function NewLandingPagePage() {
               </Button>
             </div>
             {urlError ? <p className="mt-3 flex items-center gap-2 text-sm text-red-600"><AlertTriangle className="size-4" /> {urlError}</p> : null}
-            <div className="mt-4">
-              <SellerPicker value={sellerId} onChange={setSellerId} />
-            </div>
             <p className="mt-3 text-xs text-zinc-500">
               Empresa sem site? No Google Maps, abra o perfil da empresa, toque em <strong>Compartilhar</strong> → <strong>Copiar link</strong> e cole aqui. Os dados (endereço, telefone, horário, site) e as fotos vêm do perfil no Google (fotos exigem a “Local Business Data” assinada na chave do RapidAPI); depoimentos do Google não são copiados.
             </p>
@@ -213,9 +215,6 @@ export function NewLandingPagePage() {
         <p className="mt-1 truncate text-sm text-zinc-500" title={url}>{shortUrl(url, 70)}</p>
         <Card className="mt-6 p-5 sm:p-6">
           <ProgressSteps current={Math.max(j?.step ?? 1, 1)} range={[1, 6]} failed={failed} />
-          <div className="mt-5 border-t border-zinc-100 pt-4">
-            <SellerPicker value={sellerId} onChange={setSellerId} />
-          </div>
           {!failed ? (
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2.5">
               <p className="text-xs leading-relaxed text-zinc-500">A leitura e interpretação pela IA costuma levar de 30 segundos a 2 minutos. Você pode acompanhar por aqui.</p>
@@ -283,6 +282,14 @@ export function NewLandingPagePage() {
     ['Cidade', draft.city ? `${draft.city}${draft.state ? ` – ${draft.state}` : ''}` : null],
   ];
 
+  // Vendedor e nível do cliente: escolhidos junto com a confirmação dos dados da empresa
+  const assignment = (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <SellerPicker value={sellerId} onChange={setSellerId} disabled={saving} />
+      <ClientLevelPicker value={clientLevelId} onChange={setClientLevelId} disabled={saving} />
+    </div>
+  );
+
   return (
     <div className="pb-28">
       <div className="mb-6">
@@ -312,6 +319,7 @@ export function NewLandingPagePage() {
                 </ul>
               </div>
             ) : null}
+            <div className="mt-5 border-t border-zinc-100 pt-4">{assignment}</div>
           </Card>
           <Card className="p-5">
             <div className="mb-3 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wider text-zinc-500"><FileSearch className="size-4" /> Fonte</div>
@@ -335,7 +343,12 @@ export function NewLandingPagePage() {
             ) : null}
           </Card>
         </div>
-      ) : null}
+      ) : (
+        <Card className="mb-4 p-5">
+          <div className="mb-4 text-[12px] font-semibold uppercase tracking-wider text-zinc-500">Empresa</div>
+          {assignment}
+        </Card>
+      )}
 
       <CompanyForm value={draft} onChange={setDraft} />
 
@@ -343,7 +356,6 @@ export function NewLandingPagePage() {
         <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-10">
           <Button variant="ghost" onClick={() => setStage('url')} disabled={saving}>Voltar</Button>
           <div className="flex flex-wrap items-center justify-end gap-3">
-            <SellerPicker value={sellerId} onChange={setSellerId} disabled={saving} />
             <Button variant="brand" size="lg" loading={saving} onClick={confirmAndGenerate} icon={<Sparkles className="size-4" />}>
               CONFIRMAR E GERAR LANDING PAGE
             </Button>

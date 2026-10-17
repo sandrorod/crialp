@@ -310,6 +310,15 @@ landingPagesRouter.patch('/:id/seller', requireRole(...MANAGER_ROLES), async (re
   res.json({ ok: true });
 });
 
+/** Troca do nível de cliente da página (só administradores). */
+landingPagesRouter.patch('/:id/client-level', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const user = authUser(req);
+  const lp = await loadOr404(user.organizationId, uuidParam.parse(req.params.id));
+  const { client_level_id } = parseBody(z.object({ client_level_id: uuidParam.nullable() }), req.body);
+  if (!(await repo.setClientLevel(user.organizationId, lp.id, client_level_id))) throw new AppError(400, 'Escolha um nível válido.');
+  res.json({ ok: true });
+});
+
 /** Publicar = ativar a página e gerar o snapshot final. */
 landingPagesRouter.post('/:id/publish', async (req, res) => {
   const user = authUser(req);

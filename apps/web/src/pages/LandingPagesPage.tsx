@@ -2,6 +2,7 @@ import { useDeferredValue, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Eye, PanelsTopLeft, Pencil, Plus, Search, Share2, Trash2 } from 'lucide-react';
 import { SellerCell, useSellers } from '@/components/SellerCell';
+import { ClientLevelCell, useClientLevels } from '@/components/ClientLevelCell';
 import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBlock, PageHeader, Pagination, Select, StatusToggle } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { usePagination } from '@/hooks/usePagination';
@@ -24,6 +25,7 @@ export function LandingPagesPage() {
   const pager = usePagination(data?.items, 10, [deferred, status, segment].join('|'));
   const actions = useLandingPageActions(reload);
   const { sellers, canAssign } = useSellers();
+  const clientLevels = useClientLevels();
   const [toDelete, setToDelete] = useState<LandingPageListItem | null>(null);
 
   return (
@@ -71,11 +73,12 @@ export function LandingPagesPage() {
         ) : (
           <>
           <div className="overflow-x-auto">
-            <table className="table-cards w-full min-w-[880px] text-sm">
+            <table className="table-cards w-full min-w-[980px] text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
                   <th className="px-5 py-3">Empresa</th>
                   <th className="px-3 py-3">Vendedor</th>
+                  <th className="px-3 py-3">Nível</th>
                   <th className="px-3 py-3">Status</th>
                   <th className="px-3 py-3">Criação</th>
                   <th className="px-3 py-3">Última atualização</th>
@@ -91,6 +94,9 @@ export function LandingPagesPage() {
                     </td>
                     <td data-label="Vendedor" className="px-3 py-3.5">
                       <SellerCell landingPageId={lp.id} sellerId={lp.seller_id} sellerName={lp.seller_name} sellers={sellers} canAssign={canAssign} onChanged={reload} />
+                    </td>
+                    <td data-label="Nível" className="px-3 py-3.5">
+                      <ClientLevelCell landingPageId={lp.id} levelId={lp.client_level_id} levelName={lp.client_level_name} levels={clientLevels.levels} canAssign={clientLevels.canAssign} onChanged={reload} />
                     </td>
                     <td data-label="Status" className="px-3 py-3.5">
                       <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />

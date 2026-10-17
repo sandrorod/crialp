@@ -36,6 +36,17 @@ export interface SubUser extends User {
   created_at: string;
 }
 
+/** Nível de cliente (menu "Nível cliente"), escolhido na geração da LP */
+export interface ClientLevel {
+  id: string;
+  name: string;
+  description: string | null;
+  /** Quantidade de Landing Pages com esse nível */
+  landing_pages: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface SalesCompany {
   id: string;
   name: string;
@@ -455,6 +466,8 @@ export interface LandingPageListItem {
   segment: string | null;
   seller_id: string | null;
   seller_name: string | null;
+  client_level_id: string | null;
+  client_level_name: string | null;
   public_url: string;
 }
 

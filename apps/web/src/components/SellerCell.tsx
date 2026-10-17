@@ -74,10 +74,10 @@ export function SellerPicker({ value, onChange, disabled }: { value: string; onC
   const { sellers, canAssign } = useSellers();
   if (!canAssign || !sellers.length) return null;
   return (
-    <label className="flex items-center gap-2 text-sm text-zinc-600">
-      Vendedor
-      <Select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="w-auto min-w-[180px]">
-        <option value="" />
+    <label className="block">
+      <span className="text-xs text-zinc-500">Vendedor</span>
+      <Select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="mt-1">
+        <option value="">Sem vendedor</option>
         {sellers.map((s) => (
           <option key={s.id} value={s.id!}>{s.name}</option>
         ))}
