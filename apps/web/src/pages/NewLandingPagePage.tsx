@@ -42,8 +42,9 @@ export function NewLandingPagePage() {
   const [meta, setMeta] = useState<AnalysisMeta | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  // Vendedor e nível do cliente da página ("" = nenhum): escolhidos na revisão dos dados da empresa
-  const [sellerId, setSellerId] = useState('');
+  // Vendedor e nível do cliente da página ("" = nenhum): escolhidos na revisão dos dados da empresa.
+  // Vendedor "auto" (Aleatório, padrão) = rodízio: o próximo depois do último que recebeu LP
+  const [sellerId, setSellerId] = useState('auto');
   const [clientLevelId, setClientLevelId] = useState('');
 
   const analyze = useJob<AnalysisResult>(analyzeJobId);

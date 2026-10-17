@@ -69,7 +69,7 @@ export function SellerCell({
   );
 }
 
-/** Vendedor da LP que vai ser gerada ("" = sem vendedor). Só aparece para administradores com vendedores cadastrados. */
+/** Vendedor da LP que vai ser gerada ("auto" = rodízio, "" = sem vendedor). Só aparece para administradores com vendedores cadastrados. */
 export function SellerPicker({ value, onChange, disabled }: { value: string; onChange: (id: string) => void; disabled?: boolean }) {
   const { sellers, canAssign } = useSellers();
   if (!canAssign || !sellers.length) return null;
@@ -77,6 +77,7 @@ export function SellerPicker({ value, onChange, disabled }: { value: string; onC
     <label className="block">
       <span className="text-xs text-zinc-500">Vendedor</span>
       <Select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="mt-1">
+        <option value="auto">Aleatório</option>
         <option value="">Sem vendedor</option>
         {sellers.map((s) => (
           <option key={s.id} value={s.id!}>{s.name}</option>

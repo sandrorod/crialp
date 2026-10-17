@@ -75,7 +75,7 @@ analyzeRouter.post('/generate-landing-page', aiLimiter, async (req, res) => {
       companyId: uuidParam,
       landingPageId: uuidParam.optional(),
       keepTheme: z.boolean().optional(),
-      sellerId: uuidParam.optional(),
+      sellerId: z.union([uuidParam, z.literal('auto')]).optional(),
       clientLevelId: uuidParam.optional(),
     }),
     req.body,

@@ -49,7 +49,7 @@ export const authService = {
 export const analysisService = {
   /** `place`: local do Google Maps escolhido em "Buscar empresas" (dados já obtidos na pesquisa) */
   analyzeUrl: (url: string, allowImages = false, place?: PlaceListing) => api.post<{ jobId: string }>('/analyze-url', { url, allowImages, place }),
-  /** `sellerId` / `clientLevelId`: vendedor e nível de cliente da página nova */
+  /** `sellerId` / `clientLevelId`: vendedor ('auto' = rodízio) e nível de cliente da página nova */
   generate: (companyId: string, opts: { landingPageId?: string; keepTheme?: boolean; sellerId?: string; clientLevelId?: string } = {}) =>
     api.post<{ jobId: string }>('/generate-landing-page', { companyId, ...opts }),
   job: <T>(id: string) => api.get<Job<T>>(`/jobs/${id}`),

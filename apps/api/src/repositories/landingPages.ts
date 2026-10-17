@@ -1,3 +1,4 @@
+import type { PoolClient } from 'pg';
 import { one, query, transaction } from '../db/pool.js';
 import { uniqueSlug } from '../lib/slug.js';
 import type { LandingContent } from '../services/ai/schemas.js';
@@ -44,16 +45,19 @@ export async function createLandingPage(opts: {
   content: LandingContent;
   theme: ThemeSettings;
   seo: SeoFields;
-  /** Vendedor escolhido na geração; sem ele, a página fica sem vendedor */
+  /** Vendedor escolhido na geração; 'auto' = rodízio (próximo após o último que recebeu LP); sem ele, sem vendedor */
   sellerId?: string | null;
   /** Nível de cliente escolhido na geração (da mesma organização) */
   clientLevelId?: string | null;
 }) {
   const slug = await uniqueSlug(opts.title);
   return transaction(async (db) => {
-    const sellerId = opts.sellerId
-      ? ((await db.query<{ id: string }>(`select id from users where id = $1 and organization_id = $2 and role = 'seller'`, [opts.sellerId, opts.orgId])).rows[0]?.id ?? null)
-      : null;
+    const sellerId =
+      opts.sellerId === 'auto'
+        ? await nextSellerInRotation(db, opts.orgId)
+        : opts.sellerId
+          ? ((await db.query<{ id: string }>(`select id from users where id = $1 and organization_id = $2 and role = 'seller'`, [opts.sellerId, opts.orgId])).rows[0]?.id ?? null)
+          : null;
     const clientLevelId = opts.clientLevelId
       ? ((await db.query<{ id: string }>('select id from lp_client_levels where id = $1 and organization_id = $2', [opts.clientLevelId, opts.orgId])).rows[0]?.id ?? null)
       : null;
@@ -69,6 +73,29 @@ export async function createLandingPage(opts: {
     );
     return rows[0].id;
   });
+}
+
+/**
+ * Rodízio ("Aleatório"): o vendedor seguinte (ordem de cadastro) ao que recebeu a última LP;
+ * depois do último, volta ao primeiro. Trava por organização para gerações simultâneas não pegarem o mesmo.
+ */
+async function nextSellerInRotation(db: PoolClient, orgId: string) {
+  await db.query('select pg_advisory_xact_lock(hashtext($1))', [`lp_seller_rotation:${orgId}`]);
+  const { rows } = await db.query<{ id: string }>(
+    `with s as (
+       select id, row_number() over (order by created_at, id) as n
+         from users where organization_id = $1 and role = 'seller'
+     ), last as (
+       select seller_id from landing_pages
+        where organization_id = $1 and seller_id is not null
+        order by created_at desc, id desc limit 1
+     )
+     select id from s
+      order by (n <= coalesce((select s.n from s join last on last.seller_id = s.id), 0)), n
+      limit 1`,
+    [orgId],
+  );
+  return rows[0]?.id ?? null;
 }
 
 // ─── Nível de cliente ───────────────────────────────────────────────
