@@ -40,6 +40,8 @@ export interface CompanyRow {
   opening_hours: string | null;
   commercial_info: Record<string, any>;
   source_meta: Record<string, any>;
+  wp_verificado: string | null;
+  wp_testado: string | null;
   created_at: string;
   updated_at: string;
 }
