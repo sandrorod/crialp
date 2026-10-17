@@ -23,6 +23,8 @@ export interface LandingPageRow {
   custom_domain: string | null;
   seller_id: string | null;
   client_level_id: string | null;
+  wp_verificado: boolean;
+  wp_testado: boolean;
   domain_status: string;
   ssl_status: string;
   created_at: string;
