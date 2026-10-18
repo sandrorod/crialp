@@ -190,7 +190,14 @@ export function GallerySection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
         <SectionHead eyebrow={ctx.labels.eyebrow_gallery} title={g.title} lead={g.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_gallery'), title: ed(ctx, 'gallery.title'), lead: edOptional(ctx, 'gallery.subtitle', 'Texto de apoio (opcional)') }} />
         {/* g-nN: a grade se ajusta à quantidade de fotos para nunca sobrar buraco (ver styles.ts) */}
         <GalleryGrid photos={photos.slice(0, GALLERY_VISIBLE)} />
-        {photos.length > GALLERY_VISIBLE ? (
+        {/* No editor todas as fotos aparecem abertas, sem o botão "Exibir mais" */}
+        {photos.length > GALLERY_VISIBLE && ctx.editable ? (
+          <div className="gallery-more-panel gallery-more-open">
+            {chunk(photos.slice(GALLERY_VISIBLE), GALLERY_VISIBLE).map((group) => (
+              <GalleryGrid key={group[0].url} photos={group} />
+            ))}
+          </div>
+        ) : photos.length > GALLERY_VISIBLE ? (
           // Mais de 9 fotos: as demais ficam escondidas até clicar em "Exibir mais" (sem JavaScript),
           // em grades de até 9 para manter o mesmo arranjo de cada modelo
           <div className="gallery-more">

@@ -163,7 +163,7 @@ p{margin:0;text-wrap:pretty}
 .gallery-more{position:relative}
 .gallery-more-toggle{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
 .gallery-more-panel{display:none}
-.gallery-more-toggle:checked~.gallery-more-panel{display:grid;gap:12px;margin-top:12px}
+.gallery-more-toggle:checked~.gallery-more-panel,.gallery-more-panel.gallery-more-open{display:grid;gap:12px;margin-top:12px}
 .gallery-more-toggle:checked~.gallery-more-action{display:none}
 .gallery-more-action{display:flex;justify-content:center;margin-top:28px}
 .gallery-more-btn{background:transparent;color:var(--text);opacity:.85}
