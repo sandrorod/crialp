@@ -781,6 +781,12 @@ img,video,iframe,svg{max-width:100%}
 @keyframes lpfx-blink{0%,50%,100%{opacity:1}25%,75%{opacity:.2}}
 @keyframes lpfx-caret{50%{opacity:0}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.js .reveal{opacity:1;transform:none;transition:none}*{transition:none!important}.js [data-fx]{opacity:1!important;animation:none!important}}
+/* Formato das fotos escolhido no editor (galeria e fotos das seções). :where() deixa a especificidade baixa:
+   o tamanho arrastado de cada foto e os modelos de layout próprio (Revista, Capa) continuam valendo */
+:where(.photos-square,.photos-landscape) .gallery{grid-auto-rows:auto!important;grid-template-rows:none!important}
+:where(.photos-square) .gallery figure{aspect-ratio:1!important;height:auto!important;max-height:none!important;grid-row:auto!important}
+:where(.photos-landscape) .gallery figure{aspect-ratio:3/2!important;height:auto!important;max-height:none!important;grid-row:auto!important}
+:where(.photos-square,.photos-landscape) .gallery figure img{width:100%;height:100%;object-fit:cover}
 `.replace(/\n\s*/g, '');
 }
 

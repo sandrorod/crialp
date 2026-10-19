@@ -309,6 +309,8 @@ export interface ThemeSettings {
   blend?: boolean;
   /** Esconde o mapa do endereço na seção de contato */
   hideMap?: boolean;
+  /** Formato das fotos (galeria e seções); ausente = o do modelo */
+  photoShape?: 'square' | 'landscape';
   /** Cabeçalho: logotipo, nome da empresa ou os dois */
   brand?: 'logo' | 'name' | 'both';
 }

@@ -908,6 +908,32 @@ export function PhotosTab({
 
       <AddPhotos onAdd={addPhotos} />
 
+      <div>
+        <div className="mb-1.5 text-[13px] font-medium text-zinc-700">Formato das fotos</div>
+        <div className="grid grid-cols-3 gap-1 rounded-lg bg-zinc-100 p-1 text-xs font-medium">
+          {([
+            [undefined, 'Do modelo'],
+            ['square', '◼ Quadradas'],
+            ['landscape', '▬ Horizontais'],
+          ] as const).map(([value, label]) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => {
+                const next = { ...theme };
+                if (value) next.photoShape = value;
+                else delete next.photoShape;
+                onChange(next);
+              }}
+              className={cn('rounded-md px-2 py-1.5 transition', theme.photoShape === value ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink')}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-[11px] text-zinc-500">Vale para a galeria e as fotos das seções. Fotos com tamanho ajustado à mão continuam como estão.</p>
+      </div>
+
       <ul className="space-y-2">
         {listed.map((img, i) => (
           <Fragment key={img.url}>

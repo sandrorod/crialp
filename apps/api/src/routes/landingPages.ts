@@ -14,7 +14,7 @@ import * as repo from '../repositories/landingPages.js';
 import { LandingContentEditSchema, type LandingContent } from '../services/ai/schemas.js';
 import { DEFAULT_LABELS } from '../landing/labels.js';
 import { TEXT_EFFECTS } from '../landing/elementColors.js';
-import { CUSTOM_PLACEMENT, HEADING_FAMILY, IMAGE_PLACEMENTS, normalizeThemeSettings, PRESETS, SECTION_PLACEMENT, TEMPLATE_KEYS, TEMPLATES } from '../landing/theme.js';
+import { CUSTOM_PLACEMENT, HEADING_FAMILY, PHOTO_SHAPES, IMAGE_PLACEMENTS, normalizeThemeSettings, PRESETS, SECTION_PLACEMENT, TEMPLATE_KEYS, TEMPLATES } from '../landing/theme.js';
 import { publicUrl, refreshSnapshot, renderFromData } from '../landing/publish.js';
 import { renderUnavailablePage } from '../landing/render.js';
 import { IMAGE_FILTERS, IMAGE_SHADOWS } from '../landing/imageStyle.js';
@@ -187,6 +187,8 @@ const ContentUpdateSchema = z.object({
     // Tons das duas cores (gravado ao escolher as cores no editor)
     blend: z.boolean().optional(),
     hideMap: z.boolean().optional(),
+    // Formato das fotos: quadradas ou horizontais (ausente = do modelo)
+    photoShape: z.enum(PHOTO_SHAPES).optional(),
     // Ordem das seções só no celular (vazia = igual ao computador)
     mobileOrder: z.array(z.string().max(60)).max(60).optional(),
     // Cores e estilo do texto de elementos clicados na prévia: { desktop: { "<seletor>": { text, bg, size, font, bold, italic, underline } }, mobile: {...} }

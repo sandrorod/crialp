@@ -5,6 +5,9 @@ import { normalizeSectionSpacing, type SectionSpacing } from './spacing.js';
 import { normalizeImageSizes, type ImageSizes } from './imageSize.js';
 import { normalizeImageStyles, type ImageLook } from './imageStyle.js';
 
+export const PHOTO_SHAPES = ['square', 'landscape'] as const;
+export type PhotoShape = (typeof PHOTO_SHAPES)[number];
+
 export interface ThemeSettings {
   preset: DesignPreset;
   primary?: string | null;
@@ -43,6 +46,8 @@ export interface ThemeSettings {
   blend?: boolean;
   /** Esconde o mapa do endereço na seção de contato (padrão: mostra quando há endereço). */
   hideMap?: boolean;
+  /** Formato das fotos (galeria e fotos das seções): quadradas ou horizontais; ausente = o do modelo */
+  photoShape?: PhotoShape;
   /** Cabeçalho: logotipo (padrão), nome da empresa ou os dois. */
   brand?: BrandDisplay;
 }
@@ -425,6 +430,7 @@ export interface ResolvedTheme {
   logoPlacement: LogoPlacement;
   removeEmojis: boolean;
   hideMap: boolean;
+  photoShape: PhotoShape | null;
   brand: BrandDisplay;
   fontsHref: string;
   vars: Record<string, string>;
@@ -456,6 +462,7 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
     removeEmojis: input?.removeEmojis === true,
     blend: input?.blend === true,
     hideMap: input?.hideMap === true,
+    ...(PHOTO_SHAPES.includes(input?.photoShape) ? { photoShape: input.photoShape } : {}),
     brand: input?.brand === 'name' || input?.brand === 'both' ? input.brand : 'logo',
   };
 }
@@ -531,6 +538,7 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
     logoPlacement: settings.logoPlacement ?? 'header',
     removeEmojis: settings.removeEmojis === true,
     hideMap: settings.hideMap === true,
+    photoShape: settings.photoShape ?? null,
     brand: settings.brand ?? 'logo',
     fontsHref: `https://fonts.googleapis.com/css2?${families}&display=swap`,
     vars: {
