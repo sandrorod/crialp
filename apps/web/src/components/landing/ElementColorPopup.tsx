@@ -5,6 +5,7 @@ import { Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import type { ElementColor, ElementColors } from '@/types';
 import type { PickedElement } from './previewTools';
+import type { ToneRow } from '@/lib/colorTones';
 
 type Device = 'desktop' | 'mobile';
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -78,7 +79,7 @@ export function PopupHeader({ onGrab, onClose, children }: { onGrab: (e: ReactPo
   );
 }
 
-function ColorRow({ label, value, original, changed, onChange, onReset }: { label: string; value: string; original: string; changed: boolean; onChange: (v: string) => void; onReset: () => void }) {
+function ColorRow({ label, value, original, changed, onChange, onReset, tones }: { label: string; value: string; original: string; changed: boolean; onChange: (v: string) => void; onReset: () => void; tones?: ToneRow[] }) {
   const [text, setText] = useState(value);
   useEffect(() => setText(value), [value]);
   return (
@@ -106,6 +107,34 @@ function ColorRow({ label, value, original, changed, onChange, onReset }: { labe
         />
         <span className="size-9 flex-none rounded border border-zinc-200" style={{ background: original }} title={`Original: ${original}`} />
       </div>
+      <ToneSwatches rows={tones} value={value} onPick={onChange} />
+    </div>
+  );
+}
+
+/** Amostras com os tons das cores da página (principal e destaque): do claro ao escuro. */
+export function ToneSwatches({ rows, value, onPick }: { rows?: ToneRow[]; value?: string | null; onPick: (color: string) => void }) {
+  if (!rows?.length) return null;
+  return (
+    <div className="mt-1.5 space-y-1">
+      {rows.map((row) => (
+        <div key={row.label} className="flex items-center gap-1.5">
+          <span className="w-14 flex-none text-[10px] text-zinc-400">{row.label}</span>
+          <div className="flex flex-1 gap-0.5">
+            {row.colors.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => onPick(c)}
+                className={cn('h-5 flex-1 rounded-sm ring-1 ring-black/10', value?.toLowerCase() === c && 'ring-2 ring-ink')}
+                style={{ background: c }}
+                title={c}
+                aria-label={`${row.label} ${c}`}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -152,6 +181,7 @@ export function ElementColorPopup({
   onDraft,
   onSave,
   onClose,
+  tones,
 }: {
   picked: PickedElement;
   device: Device;
@@ -160,6 +190,8 @@ export function ElementColorPopup({
   onDraft: (css: string) => void;
   onSave: (colors: ElementColors) => void;
   onClose: () => void;
+  /** Tons das cores da página para as amostras */
+  tones?: ToneRow[];
 }) {
   const other: Device = device === 'mobile' ? 'desktop' : 'mobile';
   const [scope, setScope] = useState<'exact' | 'similar'>(() => (colors[device][picked.similar] && !colors[device][picked.exact] ? 'similar' : 'exact'));
@@ -233,8 +265,8 @@ export function ElementColorPopup({
       ) : null}
 
       <div className="space-y-3">
-        <ColorRow label="Cor da fonte (texto)" value={text ?? picked.text} original={picked.text} changed={!!text} onChange={setText} onReset={() => setText(null)} />
-        <ColorRow label={picked.bgTransparent ? 'Cor de fundo (hoje transparente)' : 'Cor de fundo'} value={bg ?? picked.bg} original={picked.bg} changed={!!bg} onChange={setBg} onReset={() => setBg(null)} />
+        <ColorRow label="Cor da fonte (texto)" value={text ?? picked.text} original={picked.text} changed={!!text} onChange={setText} onReset={() => setText(null)} tones={tones} />
+        <ColorRow label={picked.bgTransparent ? 'Cor de fundo (hoje transparente)' : 'Cor de fundo'} value={bg ?? picked.bg} original={picked.bg} changed={!!bg} onChange={setBg} onReset={() => setBg(null)} tones={tones} />
         <SizeRow value={size ?? picked.size} changed={!!size} onChange={setSize} onReset={() => setSize(null)} />
       </div>
 
@@ -269,6 +301,7 @@ export function SectionColorPopup({
   onDraft,
   onSave,
   onClose,
+  tones,
 }: {
   label: string;
   /** Cor de fundo própria já salva para a seção (null = cor do modelo) */
@@ -279,6 +312,8 @@ export function SectionColorPopup({
   onDraft: (bg: string | null) => void;
   onSave: (bg: string | null) => void;
   onClose: () => void;
+  /** Tons das cores da página para as amostras */
+  tones?: ToneRow[];
 }) {
   const [bg, setBg] = useState<string | null>(saved);
 
@@ -305,7 +340,7 @@ export function SectionColorPopup({
         <p className="text-sm font-semibold">Seção {label}</p>
         <p className="mt-0.5 text-[11px] text-zinc-500">Cor de fundo da seção inteira (celular e computador)</p>
       </PopupHeader>
-      <ColorRow label="Cor de fundo" value={bg ?? original} original={original} changed={!!bg && bg !== saved} onChange={setBg} onReset={() => setBg(saved)} />
+      <ColorRow label="Cor de fundo" value={bg ?? original} original={original} changed={!!bg && bg !== saved} onChange={setBg} onReset={() => setBg(saved)} tones={tones} />
       <p className="mt-2 text-[11px] text-zinc-500">A cor dos textos da seção se ajusta para continuar legível.</p>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         {saved ? (

@@ -6,6 +6,7 @@ import { Button, ConfirmDialog, Field, Input, ListEditor, Select, Textarea } fro
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { cn, copyToClipboard, formatDate } from '@/lib/utils';
+import { brandTones, type ToneRow } from '@/lib/colorTones';
 import { landingPageService, miscService } from '@/services';
 import type { CompanyImage, ElementColor, HeroVariant, ImagePlacement, LandingContent, TemplateKey, LandingPageDetail, SectionColors, SectionOrderKey, ThemeSettings } from '@/types';
 
@@ -29,7 +30,7 @@ const SECTION_NAMES: Record<string, string> = {
   footer: 'Rodapé',
 };
 
-function ColorSlot({ label, value, fallback, onChange, palette }: { label: string; value?: string | null; fallback: string; onChange: (v: string | null) => void; palette: string[] }) {
+function ColorSlot({ label, value, fallback, onChange, palette, tones }: { label: string; value?: string | null; fallback: string; onChange: (v: string | null) => void; palette: string[]; tones: ToneRow[] }) {
   return (
     <div className="min-w-0">
       <div className="mb-1 flex items-center justify-between text-[11px] text-zinc-500">
@@ -47,12 +48,30 @@ function ColorSlot({ label, value, fallback, onChange, palette }: { label: strin
           ))}
         </div>
       </div>
+      {/* Tons da cor principal e da de destaque, do claro ao escuro */}
+      <div className="mt-1.5 space-y-0.5">
+        {tones.map((row) => (
+          <div key={row.label} className="flex gap-px" title={`Tons da cor ${row.label.toLowerCase()}`}>
+            {row.colors.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => onChange(c)}
+                className={cn('h-3.5 flex-1 first:rounded-l last:rounded-r ring-black/10', value === c ? 'relative z-10 ring-2 ring-ink' : 'ring-1')}
+                style={{ background: c }}
+                title={`${row.label}: ${c}`}
+                aria-label={`${row.label} ${c}`}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
 /** Cores individuais de cada seção (sobrepõem as cores do projeto). */
-function SectionColorsEditor({ theme, onChange, content, palette, defaults }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; content: LandingContent; palette: string[]; defaults: { bg: string; text: string; accent: string } }) {
+function SectionColorsEditor({ theme, onChange, content, palette, tones, defaults }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; content: LandingContent; palette: string[]; tones: ToneRow[]; defaults: { bg: string; text: string; accent: string } }) {
   const sections = theme.sections ?? {};
   const customs = content.custom_sections ?? [];
   const keys: string[] = ['hero', ...content.section_order.filter((k: SectionOrderKey) => k !== 'final_cta'), 'final_cta', 'footer'];
@@ -87,9 +106,9 @@ function SectionColorsEditor({ theme, onChange, content, palette, defaults }: { 
                 {on ? <button type="button" className="text-[11px] text-zinc-400 hover:text-ink" onClick={() => update(k, { bg: null, text: null, accent: null })}>restaurar</button> : null}
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <ColorSlot label="Fundo" value={c.bg} fallback={defaults.bg} palette={palette} onChange={(v) => update(k, { bg: v })} />
-                <ColorSlot label="Texto" value={c.text} fallback={defaults.text} palette={palette} onChange={(v) => update(k, { text: v })} />
-                <ColorSlot label="Destaque" value={c.accent} fallback={defaults.accent} palette={palette} onChange={(v) => update(k, { accent: v })} />
+                <ColorSlot label="Fundo" value={c.bg} fallback={defaults.bg} palette={palette} tones={tones} onChange={(v) => update(k, { bg: v })} />
+                <ColorSlot label="Texto" value={c.text} fallback={defaults.text} palette={palette} tones={tones} onChange={(v) => update(k, { text: v })} />
+                <ColorSlot label="Destaque" value={c.accent} fallback={defaults.accent} palette={palette} tones={tones} onChange={(v) => update(k, { accent: v })} />
               </div>
             </li>
           );
@@ -264,14 +283,9 @@ export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSe
           onChange={onChange}
           content={content}
           defaults={{ bg: current?.bg ?? '#ffffff', text: '#111111', accent: theme.primary ?? current?.primary ?? '#1d4ed8' }}
-          palette={[...new Set([
-            current?.bg ?? '#ffffff',
-            '#ffffff',
-            '#f5f5f4',
-            '#111111',
-            theme.primary ?? current?.primary ?? '#1d4ed8',
-            theme.accent ?? current?.accent ?? '#0f172a',
-          ].map((c) => c.toLowerCase()))]}
+          // Branco e o fundo do estilo; abaixo, os tons das duas cores escolhidas (do claro ao escuro)
+          palette={[...new Set(['#ffffff', current?.bg ?? '#ffffff', '#111111'].map((c) => c.toLowerCase()))]}
+          tones={brandTones(theme.primary ?? current?.primary, theme.accent ?? current?.accent)}
         />
       </div>
     </div>

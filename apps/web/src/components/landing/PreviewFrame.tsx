@@ -3,6 +3,7 @@ import type { ElementColor, ElementColors, ImageBox, ImageFocus, ImageLook, Imag
 import { imageStylesCss, setImageStyleCss } from './imageStyle';
 import { ImagePopup } from './ImagePopup';
 import { ElementColorPopup, SectionColorPopup } from './ElementColorPopup';
+import { brandTones, readBrandColors } from '@/lib/colorTones';
 import { readIconStyle, type IconPageStyle } from './IconPicker';
 import {
   attachColorPick,
@@ -512,6 +513,10 @@ export function PreviewFrame({
     sectionPick && onSectionBg && frame.current ? (
       <SectionColorPopup
         key={sectionPick.key}
+        tones={(() => {
+          const c = readBrandColors(doc());
+          return brandTones(c.primary, c.accent);
+        })()}
         label={sectionPick.label}
         saved={sectionColors?.[sectionPick.key]?.bg ?? null}
         original={sectionPick.original}
@@ -617,6 +622,10 @@ export function PreviewFrame({
     picked && onElementColors && frame.current ? (
       <ElementColorPopup
         key={picked.exact}
+        tones={(() => {
+          const c = readBrandColors(doc());
+          return brandTones(c.primary, c.accent);
+        })()}
         picked={picked}
         device={device}
         colors={elementColors ?? { desktop: {}, mobile: {} }}
