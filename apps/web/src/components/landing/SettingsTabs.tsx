@@ -931,10 +931,11 @@ export function PhotosTab({
             </button>
           ))}
         </div>
-        <div className="mt-2 flex items-center gap-2">
+        <label className="mt-2 flex items-center gap-2">
           <span className="text-[13px] font-medium text-zinc-700">Fotos por linha</span>
-          <Select
-            className="h-8 w-auto text-[13px]"
+          {/* Select compacto (o Select padrão ocupa a largura toda) */}
+          <select
+            className="h-8 rounded-md border border-zinc-200 bg-white pl-2 pr-7 text-[13px] text-ink focus:border-brand-500 focus:outline-none"
             value={theme.photoCols ? String(theme.photoCols) : ''}
             onChange={(e) => {
               const next = { ...theme };
@@ -945,12 +946,10 @@ export function PhotosTab({
           >
             <option value="">Do modelo</option>
             {[2, 3, 4, 5].map((n) => (
-              <option key={n} value={n}>{n} por linha</option>
+              <option key={n} value={n}>{n}</option>
             ))}
-          </Select>
-          <span className="text-[11px] text-zinc-500">no computador</span>
-        </div>
-        <p className="mt-1 text-[11px] text-zinc-500">Vale para a galeria e as fotos das seções. Fotos com tamanho ajustado à mão continuam como estão.</p>
+          </select>
+        </label>
       </div>
 
       <ul className="space-y-2">

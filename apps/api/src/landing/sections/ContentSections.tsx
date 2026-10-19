@@ -1,6 +1,6 @@
 import type { RenderContext } from '../context.js';
 import { SectionPhotos } from './SectionPhotos.js';
-import { lastRowClass } from '../photoGrid.js';
+import { PhotoGrid } from './PhotoGrid.js';
 import { TEMPLATES } from '../theme.js';
 import { cad, ed, edIcon, edOptional } from '../context.js';
 import { Icon } from './Icon.js';
@@ -169,15 +169,7 @@ function chunk<T>(list: T[], size: number) {
 }
 
 function GalleryGrid({ photos, cols }: { photos: RenderContext['gallery']; cols?: number | null }) {
-  return (
-    <div className={`gallery g-n${photos.length}`}>
-      {photos.map((img, i) => (
-        <figure key={img.url} className={`reveal${lastRowClass(i, photos.length, cols)}`}>
-          <img referrerPolicy="no-referrer" src={img.url} alt={img.alt} loading="lazy" decoding="async" data-lp-img={img.url} style={img.style} />
-        </figure>
-      ))}
-    </div>
-  );
+  return <PhotoGrid photos={photos} cols={cols} className="gallery" />;
 }
 
 export function GallerySection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {

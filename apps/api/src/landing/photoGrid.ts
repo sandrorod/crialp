@@ -1,9 +1,19 @@
 /**
- * Com "Fotos por linha" (N) escolhido no editor: as fotos da última linha incompleta recebem "gl-rR"
- * (R = quantas sobraram) e dividem a linha inteira entre si, sem deixar buraco (CSS em styles.ts).
+ * "Fotos por linha" (N) escolhido no editor: linhas justificadas. As fotos de cada linha ficam com a mesma
+ * altura e larguras proporcionais ao formato de cada uma (proporção lida no navegador, ver REVEAL_SCRIPT),
+ * preenchendo a linha inteira. As linhas são equilibradas: 9 fotos com até 4 por linha = 3 + 3 + 3.
  */
-export function lastRowClass(index: number, count: number, cols: number | null | undefined): string {
-  if (!cols || cols < 2) return '';
-  const rest = count % cols;
-  return rest && index >= count - rest ? ` gl-r${rest}` : '';
+export function balancedRows<T>(items: T[], cols: number): T[][] {
+  if (items.length === 0) return [];
+  const rows = Math.ceil(items.length / cols);
+  const base = Math.floor(items.length / rows);
+  const extra = items.length % rows; // as primeiras linhas recebem uma foto a mais
+  const out: T[][] = [];
+  let at = 0;
+  for (let r = 0; r < rows; r++) {
+    const size = base + (r < extra ? 1 : 0);
+    out.push(items.slice(at, at + size));
+    at += size;
+  }
+  return out;
 }
