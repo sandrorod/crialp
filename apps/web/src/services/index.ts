@@ -1,4 +1,5 @@
 import { api } from '@/lib/api';
+import { prepareImageForUpload } from '@/lib/compressImage';
 import type {
   AIKeyInfo,
   AnalysisResult,
@@ -176,9 +177,10 @@ export const miscService = {
   driveConnectUrl: '/api/google-drive/connect',
   /** Tira do rodízio a chave da variável de ambiente (GEMINI_API_KEY / RAPIDAPI_KEY) */
   removeEnvApiKey: (provider: KeyProvider) => api.del(`/settings/keys/${provider}/env`),
+  /** Compacta no navegador (WebP, até 1920px) e recusa o que passar de 2 MB antes de enviar */
   upload: async (file: File) => {
     const form = new FormData();
-    form.append('file', file);
+    form.append('file', await prepareImageForUpload(file));
     return api.post<{ url: string }>('/uploads', form);
   },
 };

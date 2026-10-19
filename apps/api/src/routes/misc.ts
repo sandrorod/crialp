@@ -30,7 +30,8 @@ miscRouter.get('/settings', async (req, res) => {
   });
 });
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
+// 2 MB — o painel já compacta antes de enviar (apps/web/src/lib/compressImage.ts)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1 } });
 
 /** Upload de imagens fornecidas pelo administrador (logotipo, fotos). */
 miscRouter.post('/uploads', upload.single('file'), async (req, res) => {

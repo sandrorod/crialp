@@ -13,7 +13,7 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return res.status(400).json({ error: 'JSON inválido.', code: 'BAD_JSON' });
   }
   if ((err as any)?.code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({ error: 'Arquivo muito grande (máximo 5 MB).', code: 'FILE_TOO_LARGE' });
+    return res.status(413).json({ error: 'Arquivo muito grande (máximo 2 MB).', code: 'FILE_TOO_LARGE' });
   }
   if ((err as any)?.code === '23505') {
     return res.status(409).json({ error: 'Já existe um registro com esse valor.', code: 'CONFLICT' });
