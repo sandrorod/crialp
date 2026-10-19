@@ -73,9 +73,10 @@ function readIconAt(content: LandingContent, path: string): string | null {
  */
 function renderedThemeKey(t: ThemeSettings | null | undefined, c: LandingContent | null | undefined) {
   if (!t) return '';
-  const { preset, primary, accent, heroVariant, sections, images, template, imageOrder, logoPlacement, removeEmojis, brand, hideMap } = t;
+  const { preset, primary, accent, heroVariant, sections, images, template, imageOrder, logoPlacement, removeEmojis, brand, hideMap, blend, photoShape } = t;
   // Todo o conteúdo (textos, seções desativadas, ordem, seções personalizadas) também é renderizado no servidor
-  return JSON.stringify({ preset, primary, accent, heroVariant, sections, images, template, imageOrder, logoPlacement, removeEmojis, brand, hideMap: hideMap === true, content: c ?? null });
+  // (blend = tons das duas cores; photoShape = formato das fotos)
+  return JSON.stringify({ preset, primary, accent, heroVariant, sections, images, template, imageOrder, logoPlacement, removeEmojis, brand, hideMap: hideMap === true, blend: blend === true, photoShape: photoShape ?? null, content: c ?? null });
 }
 
 export function LandingPageEditorPage() {

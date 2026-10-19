@@ -323,7 +323,10 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
                 </button>
               </li>
             ) : null}
-            {data.keys.map((k) => (
+            {/* Ativas primeiro (também logo depois de ativar/desativar), depois as desativadas; na ordem de cadastro */}
+            {[...data.keys]
+              .sort((a, b) => Number(b.active) - Number(a.active) || String(a.created_at).localeCompare(String(b.created_at)))
+              .map((k) => (
               <li key={k.id} id={`key-${k.id}`} className={cn('flex items-center gap-3 px-3 py-2.5 text-sm', k.id === newId && 'bg-emerald-50')}>
                 <KeyRound className="size-4 flex-none text-zinc-400" />
                 <div className="min-w-0 flex-1">

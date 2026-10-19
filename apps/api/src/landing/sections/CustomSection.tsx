@@ -9,8 +9,12 @@ export function CustomSectionView({ ctx, section, alt }: { ctx: RenderContext; s
   // Páginas salvas antes dos elementos não têm "blocks" nem "align"
   const blocks = section.blocks ?? [];
   const center = section.align === 'center';
-  // Fotos escolhidas para esta seção na aba "Fotos" (mesma grade da galeria do modelo)
-  const photos = ctx.customPhotos[section.id] ?? [];
+  // Fotos escolhidas para esta seção na aba "Fotos": primeiro preenchem as áreas de imagem ainda vazias
+  // (na ordem); as que sobrarem ficam na grade do fim da seção (mesma grade da galeria do modelo)
+  const chosen = ctx.customPhotos[section.id] ?? [];
+  const emptySlots = blocks.flatMap((b, i) => (b.type === 'image' && !safeHref(b.url) ? [i] : []));
+  const filled = new Map(emptySlots.slice(0, chosen.length).map((slot, k) => [slot, chosen[k]]));
+  const photos = chosen.slice(filled.size);
   return (
     <section id={`sec-${section.id}`} className={`section${alt ? ' section-alt' : ''}${center ? ' custom-center' : ''}`}>
       <div className="container">
@@ -35,14 +39,25 @@ export function CustomSectionView({ ctx, section, alt }: { ctx: RenderContext; s
         ) : null}
         {blocks.length ? (
           <div className="blocks">
-            {blocks.map((b, i) =>
+            {blocks.map((b, i) => {
+              const photo = filled.get(i);
+              if (photo && b.type === 'image') {
+                return (
+                  <div key={b.id} className={`blk blk-image w-${b.width ?? 'full'} reveal`}>
+                    <figure>
+                      <img referrerPolicy="no-referrer" src={photo.url} alt={b.alt || photo.alt} loading="lazy" decoding="async" data-lp-img={photo.url} style={photo.style} />
+                      {b.caption || ctx.editable ? <figcaption {...edOptional(ctx, `${base}.blocks.${i}.caption`, 'Legenda (opcional)')}>{b.caption}</figcaption> : null}
+                    </figure>
+                  </div>
+                );
+              }
               // Foto ainda não escolhida não aparece na página publicada
-              (b.type === 'image' && !safeHref(b.url) && !ctx.editable) || (!ctx.editable && blockIsEmpty(b)) ? null : (
+              return (b.type === 'image' && !safeHref(b.url) && !ctx.editable) || (!ctx.editable && blockIsEmpty(b)) ? null : (
                 <div key={b.id} className={`blk blk-${b.type} w-${b.width ?? 'full'} reveal`}>
                   <BlockView ctx={ctx} block={b} path={`${base}.blocks.${i}`} />
                 </div>
-              ),
-            )}
+              );
+            })}
           </div>
         ) : null}
         {photos.length ? (
