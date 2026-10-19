@@ -10,7 +10,7 @@ export function DashboardPage() {
 
   const cards = [
     { label: 'Empresas', value: data?.companies, icon: Building2, tone: 'text-zinc-600 bg-zinc-100' },
-    { label: 'WP testado', value: data?.wp_tested, icon: BadgeCheck, tone: 'text-zinc-600 bg-zinc-100' },
+    { label: 'WP verificado', value: data?.wp_verified, icon: BadgeCheck, tone: 'text-zinc-600 bg-zinc-100' },
     { label: 'Landing Pages', value: data?.landing_pages, icon: PanelsTopLeft, tone: 'text-brand-700 bg-brand-50' },
     { label: 'Ativas', value: data?.active, icon: CircleCheck, tone: 'text-emerald-700 bg-emerald-50' },
     { label: 'Inativas', value: data?.inactive, icon: CircleOff, tone: 'text-red-700 bg-red-50' },
