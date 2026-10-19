@@ -157,6 +157,13 @@ function RapidGeminiConfigForm({ onKeyAdded }: { onKeyAdded: () => void }) {
 
 /** Chaves de API com rodízio: cada uso passa para a próxima chave. */
 const QUOTA_NAMES: Record<string, string> = { requests: 'Pedidos', tokens: 'Tokens' };
+
+/** Sem créditos: limite diário do Google atingido, cota do plano zerada ou último erro de cota esgotada. */
+function noCredits(k: AIKeyInfo): boolean {
+  if (k.quota_until) return true;
+  if (k.quota && Object.values(k.quota).some((q) => q.remaining <= 0)) return true;
+  return /cota esgotada|quota|exhausted|cr[eé]dito|credit|saldo|\b429\b/i.test(k.last_error ?? '');
+}
 const fmtInt = (n: number) => n.toLocaleString('pt-BR');
 
 /** Uso da cota do plano no RapidAPI (atualizado a cada uso da chave): % usado, quanto sobra e quando renova. */
@@ -325,7 +332,7 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
             ) : null}
             {/* Ativas primeiro (também logo depois de ativar/desativar), depois as desativadas; na ordem de cadastro */}
             {[...data.keys]
-              .sort((a, b) => Number(b.active) - Number(a.active) || String(a.created_at).localeCompare(String(b.created_at)))
+              .sort((a, b) => Number(b.active) - Number(a.active) || Number(noCredits(a)) - Number(noCredits(b)) || String(a.created_at).localeCompare(String(b.created_at)))
               .map((k) => (
               <li key={k.id} id={`key-${k.id}`} className={cn('flex items-center gap-3 px-3 py-2.5 text-sm', k.id === newId && 'bg-emerald-50')}>
                 <KeyRound className="size-4 flex-none text-zinc-400" />
@@ -333,6 +340,7 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
                   <div className="font-medium">
                     {k.label || cfg.name} <span className="font-mono text-zinc-500">•••• {k.last4}</span>
                     {k.id === newId ? <span className="ml-2 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">Esta chave</span> : null}
+                    {k.active && noCredits(k) ? <span className="ml-2 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-800">Sem créditos</span> : null}
                   </div>
                   <div className="text-xs text-zinc-500">
                     Cadastrada em {formatDate(k.created_at, true)} · {k.uses} {k.uses === 1 ? 'uso' : 'usos'} · {k.last_used_at ? `último uso ${formatDate(k.last_used_at, true)}` : 'ainda não usada'}

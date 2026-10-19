@@ -311,6 +311,8 @@ export interface ThemeSettings {
   hideMap?: boolean;
   /** Formato das fotos (galeria e seções); ausente = o do modelo */
   photoShape?: 'square' | 'landscape';
+  /** Fotos por linha (2 a 5); ausente = o do modelo */
+  photoCols?: number;
   /** Cabeçalho: logotipo, nome da empresa ou os dois */
   brand?: 'logo' | 'name' | 'both';
 }

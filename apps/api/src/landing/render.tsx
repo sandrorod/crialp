@@ -205,7 +205,7 @@ export function renderLandingPage(ctx: RenderContext): string {
         <script dangerouslySetInnerHTML={{ __html: REVEAL_SCRIPT }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ctx) }} />
       </head>
-      <body className={`tpl-${theme.template}${theme.photoShape ? ` photos-${theme.photoShape}` : ''}`}>
+      <body className={`tpl-${theme.template}${theme.photoShape ? ` photos-${theme.photoShape}` : ''}${theme.photoCols ? ` photos-cols-${theme.photoCols}` : ''}`}>
         <a className="skip" href="#conteudo">{ctx.labels.skip_link}</a>
         <Header ctx={ctx} nav={nav} />
         <main id="conteudo">

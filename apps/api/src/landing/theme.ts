@@ -48,6 +48,8 @@ export interface ThemeSettings {
   hideMap?: boolean;
   /** Formato das fotos (galeria e fotos das seções): quadradas ou horizontais; ausente = o do modelo */
   photoShape?: PhotoShape;
+  /** Fotos por linha na galeria e nas fotos das seções (2 a 5, no computador); ausente = o do modelo */
+  photoCols?: number;
   /** Cabeçalho: logotipo (padrão), nome da empresa ou os dois. */
   brand?: BrandDisplay;
 }
@@ -431,6 +433,7 @@ export interface ResolvedTheme {
   removeEmojis: boolean;
   hideMap: boolean;
   photoShape: PhotoShape | null;
+  photoCols: number | null;
   brand: BrandDisplay;
   fontsHref: string;
   vars: Record<string, string>;
@@ -463,6 +466,7 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
     blend: input?.blend === true,
     hideMap: input?.hideMap === true,
     ...(PHOTO_SHAPES.includes(input?.photoShape) ? { photoShape: input.photoShape } : {}),
+    ...(Number.isInteger(input?.photoCols) && input.photoCols >= 2 && input.photoCols <= 5 ? { photoCols: input.photoCols } : {}),
     brand: input?.brand === 'name' || input?.brand === 'both' ? input.brand : 'logo',
   };
 }
@@ -539,6 +543,7 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
     removeEmojis: settings.removeEmojis === true,
     hideMap: settings.hideMap === true,
     photoShape: settings.photoShape ?? null,
+    photoCols: settings.photoCols ?? null,
     brand: settings.brand ?? 'logo',
     fontsHref: `https://fonts.googleapis.com/css2?${families}&display=swap`,
     vars: {

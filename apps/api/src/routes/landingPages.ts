@@ -189,6 +189,8 @@ const ContentUpdateSchema = z.object({
     hideMap: z.boolean().optional(),
     // Formato das fotos: quadradas ou horizontais (ausente = do modelo)
     photoShape: z.enum(PHOTO_SHAPES).optional(),
+    // Fotos por linha (2 a 5; ausente = do modelo)
+    photoCols: z.number().int().min(2).max(5).optional(),
     // Ordem das seções só no celular (vazia = igual ao computador)
     mobileOrder: z.array(z.string().max(60)).max(60).optional(),
     // Cores e estilo do texto de elementos clicados na prévia: { desktop: { "<seletor>": { text, bg, size, font, bold, italic, underline } }, mobile: {...} }

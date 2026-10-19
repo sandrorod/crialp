@@ -787,6 +787,11 @@ img,video,iframe,svg{max-width:100%}
 :where(.photos-square) .gallery figure{aspect-ratio:1!important;height:auto!important;max-height:none!important;grid-row:auto!important}
 :where(.photos-landscape) .gallery figure{aspect-ratio:3/2!important;height:auto!important;max-height:none!important;grid-row:auto!important}
 :where(.photos-square,.photos-landscape) .gallery figure img{width:100%;height:100%;object-fit:cover}
+/* Fotos por linha escolhidas no editor (computador; no celular continua o padrão do modelo) */
+@media(min-width:860px){
+${[2, 3, 4, 5].map((n) => `:where(.photos-cols-${n}) .gallery{grid-template-columns:repeat(${n},minmax(0,1fr))!important;columns:${n}!important}`).join('')}
+:where(.photos-cols-2,.photos-cols-3,.photos-cols-4,.photos-cols-5) .gallery figure{grid-column:auto!important;grid-row:auto!important}
+}
 `.replace(/\n\s*/g, '');
 }
 
