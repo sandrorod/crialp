@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, CardSection, ErrorBlock, Field, Input, LoadingBlock, PageHeader } from '@/components/ui';
+import { Button, CardSection, CollapsibleSections, ErrorBlock, Field, Input, LoadingBlock, PageHeader } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { authService, miscService } from '@/services';
@@ -37,6 +37,8 @@ export function SettingsPage() {
     <>
       <PageHeader title="Configurações" description="Ambiente, integrações e conta." />
       {error ? <ErrorBlock message={error} onRetry={reload} /> : null}
+      {/* Todas as áreas começam recolhidas: clicar no título abre, clicar de novo fecha */}
+      <CollapsibleSections.Provider value={true}>
       <div className="grid max-w-3xl grid-cols-[minmax(0,1fr)] gap-4">
         <CardSection title="Sistema">
           {loading || !data ? (
@@ -89,6 +91,7 @@ export function SettingsPage() {
           </form>
         </CardSection>
       </div>
+      </CollapsibleSections.Provider>
     </>
   );
 }

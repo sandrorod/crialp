@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, Plus, X } from 'lucide-react';
 import { cn, confirmDelete } from '@/lib/utils';
 import type { LpStatus } from '@/types';
@@ -139,7 +139,29 @@ export function Card({ children, className }: { children: ReactNode; className?:
   return <div className={cn('rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)]', className)}>{children}</div>;
 }
 
+/** Dentro deste contexto (página de Configurações) as seções começam recolhidas e abrem/fecham pelo título. */
+export const CollapsibleSections = createContext(false);
+
 export function CardSection({ title, description, children, actions }: { title: string; description?: string; children: ReactNode; actions?: ReactNode }) {
+  const collapsible = useContext(CollapsibleSections);
+  const [open, setOpen] = useState(!collapsible);
+  if (collapsible) {
+    return (
+      <Card className="p-0">
+        <div className="flex items-center gap-3 px-5 sm:px-6">
+          <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-3 py-4 text-left">
+            <ChevronRight className={cn('size-4 flex-none text-zinc-400 transition-transform', open && 'rotate-90')} />
+            <span className="min-w-0">
+              <span className="block text-[15px] font-semibold text-ink">{title}</span>
+              {description ? <span className="mt-0.5 block text-sm text-zinc-500">{description}</span> : null}
+            </span>
+          </button>
+          {open ? actions : null}
+        </div>
+        {open ? <div className="border-t border-zinc-100 px-5 pb-5 pt-5 sm:px-6 sm:pb-6">{children}</div> : null}
+      </Card>
+    );
+  }
   return (
     <Card className="p-5 sm:p-6">
       <div className="mb-5 flex items-start justify-between gap-4">
