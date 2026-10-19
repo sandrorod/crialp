@@ -1,5 +1,6 @@
 import type { RenderContext } from '../context.js';
 import { SectionPhotos } from './SectionPhotos.js';
+import { lastRowClass } from '../photoGrid.js';
 import { TEMPLATES } from '../theme.js';
 import { cad, ed, edIcon, edOptional } from '../context.js';
 import { Icon } from './Icon.js';
@@ -167,11 +168,11 @@ function chunk<T>(list: T[], size: number) {
   return out;
 }
 
-function GalleryGrid({ photos }: { photos: RenderContext['gallery'] }) {
+function GalleryGrid({ photos, cols }: { photos: RenderContext['gallery']; cols?: number | null }) {
   return (
     <div className={`gallery g-n${photos.length}`}>
-      {photos.map((img) => (
-        <figure key={img.url} className="reveal">
+      {photos.map((img, i) => (
+        <figure key={img.url} className={`reveal${lastRowClass(i, photos.length, cols)}`}>
           <img referrerPolicy="no-referrer" src={img.url} alt={img.alt} loading="lazy" decoding="async" data-lp-img={img.url} style={img.style} />
         </figure>
       ))}
@@ -189,12 +190,12 @@ export function GallerySection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
       <div className="container">
         <SectionHead eyebrow={ctx.labels.eyebrow_gallery} title={g.title} lead={g.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_gallery'), title: ed(ctx, 'gallery.title'), lead: edOptional(ctx, 'gallery.subtitle', 'Texto de apoio (opcional)') }} />
         {/* g-nN: a grade se ajusta à quantidade de fotos para nunca sobrar buraco (ver styles.ts) */}
-        <GalleryGrid photos={photos.slice(0, GALLERY_VISIBLE)} />
+        <GalleryGrid photos={photos.slice(0, GALLERY_VISIBLE)} cols={ctx.theme.photoCols} />
         {/* No editor todas as fotos aparecem abertas, sem o botão "Exibir mais" */}
         {photos.length > GALLERY_VISIBLE && ctx.editable ? (
           <div className="gallery-more-panel gallery-more-open">
             {chunk(photos.slice(GALLERY_VISIBLE), GALLERY_VISIBLE).map((group) => (
-              <GalleryGrid key={group[0].url} photos={group} />
+              <GalleryGrid key={group[0].url} photos={group} cols={ctx.theme.photoCols} />
             ))}
           </div>
         ) : photos.length > GALLERY_VISIBLE ? (
@@ -204,7 +205,7 @@ export function GallerySection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
             <input type="checkbox" id="gallery-more" className="gallery-more-toggle" />
             <div className="gallery-more-panel">
               {chunk(photos.slice(GALLERY_VISIBLE), GALLERY_VISIBLE).map((group) => (
-                <GalleryGrid key={group[0].url} photos={group} />
+                <GalleryGrid key={group[0].url} photos={group} cols={ctx.theme.photoCols} />
               ))}
             </div>
             <div className="gallery-more-action">

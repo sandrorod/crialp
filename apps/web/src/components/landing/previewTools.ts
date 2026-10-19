@@ -165,6 +165,11 @@ export function elementColorsCss(colors: ElementColors | undefined): string {
 /** Escala base das margens das seções em todos os modelos (apps/api/src/landing/styles.ts). */
 const SPACING_BASE = 0.85;
 const spacingScale = (pct: number) => +((SPACING_BASE * pct) / 100).toFixed(4);
+/** Escala de espaço lida do CSS; vazia ou inválida = padrão (0 vale: espaço zerado). */
+const readScale = (raw: string) => {
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? n : SPACING_BASE;
+};
 
 /** Mesmo CSS gerado na página publicada (apps/api/src/landing/spacing.ts). */
 
@@ -552,7 +557,8 @@ export function attachSpacingDrag(doc: Document, onChange: (key: string, pct: nu
   if (!win || doc.body.dataset.lpSpacing) return;
   doc.body.dataset.lpSpacing = '1';
   const px = (n: number) => `${Math.round(n * uiScale)}px`;
-  const scaleOf = (w: HTMLElement) => parseFloat(win.getComputedStyle(w).getPropertyValue('--section-y-scale')) || SPACING_BASE;
+  // 0 é um valor válido (espaço zerado): só cai no padrão quando a variável não existe
+  const scaleOf = (w: HTMLElement) => readScale(win.getComputedStyle(w).getPropertyValue('--section-y-scale'));
   const pctOf = (w: HTMLElement) => Math.round((scaleOf(w) / SPACING_BASE) * 100);
 
   doc.querySelectorAll<HTMLElement>('[data-section]').forEach((w) => {
@@ -583,10 +589,14 @@ export function attachSpacingDrag(doc: Document, onChange: (key: string, pct: nu
       if (currentMode(doc) !== 'espacos' || e.button !== 0) return;
       e.preventDefault();
       e.stopPropagation();
-      const startScale = scaleOf(w);
       const startPad = parseFloat(win.getComputedStyle(inner).paddingBottom) || 0;
-      // Padding que esta seção teria com escala 1 (a borda de baixo acompanha o ponteiro)
-      const unit = startScale > 0 ? startPad / startScale : 0;
+      // Padding que esta seção teria com escala 1 (a borda de baixo acompanha o ponteiro). Medido direto,
+      // com a escala 1 por um instante: com o espaço em 0% a conta antiga (padding ÷ escala) dava zero e travava a barra
+      const prev = w.style.getPropertyValue('--section-y-scale');
+      w.style.setProperty('--section-y-scale', '1');
+      const unit = parseFloat(win.getComputedStyle(inner).paddingBottom) || 0;
+      if (prev) w.style.setProperty('--section-y-scale', prev);
+      else w.style.removeProperty('--section-y-scale');
       const sy = e.clientY;
       let pct = pctOf(w);
       handle.setPointerCapture(e.pointerId);
@@ -617,7 +627,7 @@ function refreshSpacingLabels(doc: Document) {
   doc.querySelectorAll<HTMLElement>('[data-lp-ui="spacing"]').forEach((h) => {
     const w = h.parentElement;
     if (!w) return;
-    const s = parseFloat(win.getComputedStyle(w).getPropertyValue('--section-y-scale')) || SPACING_BASE;
+    const s = readScale(win.getComputedStyle(w).getPropertyValue('--section-y-scale'));
     h.textContent = `↕ Espaço ${Math.round((s / SPACING_BASE) * 100)}%`;
   });
 }

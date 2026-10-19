@@ -543,7 +543,8 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
     removeEmojis: settings.removeEmojis === true,
     hideMap: settings.hideMap === true,
     photoShape: settings.photoShape ?? null,
-    photoCols: settings.photoCols ?? null,
+    // Ofício sem escolha própria: 4 por linha na grade sem buracos (as fotos altas do modelo deixavam espaços vazios)
+    photoCols: settings.photoCols ?? ((settings.template ?? 'classico') === 'oficio' ? 4 : null),
     brand: settings.brand ?? 'logo',
     fontsHref: `https://fonts.googleapis.com/css2?${families}&display=swap`,
     vars: {

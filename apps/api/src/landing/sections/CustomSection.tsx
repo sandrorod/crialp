@@ -1,6 +1,7 @@
 import type { CustomSection, SectionBlock } from '../../services/ai/schemas.js';
 import { ed, edIcon, edOptional, safeHref, type RenderContext } from '../context.js';
 import { Icon } from './Icon.js';
+import { lastRowClass } from '../photoGrid.js';
 import { SectionHead } from './SectionHead.js';
 
 /** Seção livre criada pelo administrador (textos do site ou conteúdo próprio). */
@@ -62,8 +63,8 @@ export function CustomSectionView({ ctx, section, alt }: { ctx: RenderContext; s
         ) : null}
         {photos.length ? (
           <div className={`gallery custom-photos g-n${photos.length}`}>
-            {photos.map((img) => (
-              <figure key={img.url} className="reveal">
+            {photos.map((img, i) => (
+              <figure key={img.url} className={`reveal${lastRowClass(i, photos.length, ctx.theme.photoCols)}`}>
                 <img referrerPolicy="no-referrer" src={img.url} alt={img.alt} loading="lazy" decoding="async" data-lp-img={img.url} style={img.style} />
               </figure>
             ))}

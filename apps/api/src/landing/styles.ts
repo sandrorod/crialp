@@ -787,12 +787,42 @@ img,video,iframe,svg{max-width:100%}
 :where(.photos-square) .gallery figure{aspect-ratio:1!important;height:auto!important;max-height:none!important;grid-row:auto!important}
 :where(.photos-landscape) .gallery figure{aspect-ratio:3/2!important;height:auto!important;max-height:none!important;grid-row:auto!important}
 :where(.photos-square,.photos-landscape) .gallery figure img{width:100%;height:100%;object-fit:cover}
-/* Fotos por linha escolhidas no editor (computador; no celular continua o padrão do modelo) */
+/* Fotos por linha escolhidas no editor (computador; no celular continua o padrão do modelo).
+   Grade de 60 colunas: cada foto ocupa 60/N; as da última linha incompleta (classe gl-rR, R fotos) dividem
+   a linha inteira (60/R) com a proporção ajustada para ficar da mesma altura das outras — sem buracos */
 @media(min-width:860px){
-${[2, 3, 4, 5].map((n) => `:where(.photos-cols-${n}) .gallery{grid-template-columns:repeat(${n},minmax(0,1fr))!important;columns:${n}!important}`).join('')}
-:where(.photos-cols-2,.photos-cols-3,.photos-cols-4,.photos-cols-5) .gallery figure{grid-column:auto!important;grid-row:auto!important}
+${photoColsCss()}
 }
+/* Ofício: as fotos altas (2 linhas) deixavam buracos na maioria das quantidades. No computador a galeria usa
+   a grade sem buracos de 4 por linha (ver resolveTheme); no celular vale a regra geral (quantidade ímpar: a primeira ocupa a linha) */
+body.tpl-oficio .gallery figure{grid-row:auto!important}
+/* Grade com uma foto só (ex.: a décima, depois de "Exibir mais"): ocupa a linha inteira, em faixa */
+.gallery.g-n1>figure{grid-column:1/-1!important;width:100%;aspect-ratio:auto!important;height:clamp(200px,42vw,520px)!important;max-height:none!important}
 `.replace(/\n\s*/g, '');
 }
 
 export const REVEAL_SCRIPT = `document.documentElement.classList.add('js');addEventListener('DOMContentLoaded',function(){var h=document.querySelector('.site-header'),de=document.documentElement;function rk(i){var w=i.offsetWidth,g=i.offsetHeight;if(w&&g)i.style.setProperty('--lp-rk',String(Math.max(w/g,g/w)))}var im=document.querySelectorAll('img[data-lp-img]');if('ResizeObserver'in window){var ro=new ResizeObserver(function(t){t.forEach(function(x){rk(x.target)})});im.forEach(function(i){ro.observe(i)})}else{im.forEach(rk);addEventListener('load',function(){im.forEach(rk)})}function m(){if(!h)return;var c=getComputedStyle(h);de.style.setProperty('--header-h',h.offsetHeight+'px');de.style.setProperty('--header-space',h.offsetHeight+parseFloat(c.marginTop)+parseFloat(c.marginBottom)+'px')}m();addEventListener('resize',m);var mq=matchMedia('(max-width:767px)'),T;function sh(){de.classList.remove('hdr-hide');clearTimeout(T);if(!h||!mq.matches||window.self!==window.top)return;T=setTimeout(function(){var d=h.querySelector('details');if(scrollY>h.offsetHeight&&!(d&&d.open))de.classList.add('hdr-hide')},2500)}addEventListener('scroll',sh,{passive:true});if(h)h.addEventListener('toggle',sh,true);document.querySelectorAll('.menu-panel a').forEach(function(a){a.addEventListener('click',function(){var d=a.closest('details');if(d)d.open=false})});var e=document.querySelectorAll('.reveal');if(!('IntersectionObserver'in window)){e.forEach(function(n){n.classList.add('in')});return}var o=new IntersectionObserver(function(t){t.forEach(function(n){if(n.isIntersecting){n.target.classList.add('in');o.unobserve(n.target)}})},{rootMargin:'0px 0px -8% 0px'});e.forEach(function(n){o.observe(n)});var j=document.getElementById('lp-fx');if(!j)return;var L=[];try{L=JSON.parse(j.textContent)}catch(_){}var rm=matchMedia('(prefers-reduced-motion: reduce)').matches;function ty(n){if(n.children.length||rm)return;var t=n.textContent,i=0;n.textContent='';n.classList.add('fx-typing');var k=setInterval(function(){i++;n.textContent=t.slice(0,i);if(i>=t.length){clearInterval(k);n.classList.remove('fx-typing')}},Math.max(18,Math.min(70,1400/t.length))/(parseFloat(getComputedStyle(n).getPropertyValue('--fx-s'))||1))}var q=new IntersectionObserver(function(t){t.forEach(function(x){if(x.isIntersecting){var n=x.target;n.classList.add('fx-in');if(n.getAttribute('data-fx')==='typing')ty(n);q.unobserve(n)}})},{rootMargin:'0px 0px -8% 0px'});L.forEach(function(x){if(!matchMedia(x[2]==='m'?'(max-width:767px)':'(min-width:768px)').matches)return;try{document.querySelectorAll(x[0]).forEach(function(n){n.setAttribute('data-fx',x[1]);if(getComputedStyle(n).display==='inline')n.style.display='inline-block';q.observe(n)})}catch(_){}})});`;
+
+/**
+ * CSS da grade de fotos com N por linha (2 a 5) e o preenchimento da última linha. Ver GalleryGrid.
+ * A altura vem da largura da própria galeria (unidade cqw) e do espaçamento fixo: todas as linhas,
+ * inclusive a última (fotos mais largas), ficam exatamente da mesma altura.
+ */
+function photoColsCss(): string {
+  const scope = ':where(body:not(.tpl-revista):not(.tpl-capa))';
+  const shapes: [string, number][] = [['', 4 / 3], ['.photos-square', 1], ['.photos-landscape', 3 / 2]];
+  const GAP = 14;
+  const r3 = (n: number) => Math.round(n * 1000) / 1000;
+  let css = '';
+  for (const n of [2, 3, 4, 5]) {
+    const cls = `.photos-cols-${n}`;
+    css += `:where(${cls}) .gallery{grid-template-columns:repeat(60,minmax(0,1fr))!important;grid-auto-rows:auto!important;grid-template-rows:none!important;columns:${n}!important}`;
+    css += `${scope}:where(${cls}) .gallery{container-type:inline-size;gap:${GAP}px!important}`;
+    css += `${scope}:where(${cls}) .gallery figure{grid-column:span ${60 / n}!important;grid-row:auto!important;max-height:none!important;aspect-ratio:auto!important}`;
+    for (const [shape, ratio] of shapes) {
+      css += `${scope}:where(${cls}${shape}) .gallery figure{height:calc((100cqw - ${(n - 1) * GAP}px) / ${r3(n * ratio)})!important}`;
+    }
+    for (let r = 1; r < n; r++) css += `${scope}:where(${cls}) .gallery figure.gl-r${r}{grid-column:span ${60 / r}!important}`;
+  }
+  return css;
+}
