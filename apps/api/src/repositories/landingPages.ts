@@ -303,3 +303,15 @@ export async function dashboardStats(orgId: string) {
     recent,
   };
 }
+
+/** Lista do card "WP verificado": empresas com o número verificado preenchido e o status do teste (wp_testado). */
+export async function wpVerifiedCompanies(orgId: string) {
+  const { rows } = await query<{ id: string; name: string; wp_verificado: string; wp_testado: string | null }>(
+    `select id, coalesce(nullif(trim(trade_name), ''), name) as name, trim(wp_verificado) as wp_verificado, nullif(trim(wp_testado), '') as wp_testado
+       from companies
+      where organization_id = $1 and coalesce(trim(wp_verificado), '') <> ''
+      order by lower(coalesce(nullif(trim(trade_name), ''), name))`,
+    [orgId],
+  );
+  return rows;
+}

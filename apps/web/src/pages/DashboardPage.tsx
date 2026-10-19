@@ -1,16 +1,18 @@
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { ArrowUpRight, BadgeCheck, Building2, CircleCheck, CircleOff, PanelsTopLeft, Plus, Sparkles } from 'lucide-react';
-import { Button, Card, EmptyState, ErrorBlock, PageHeader, StatusBadge } from '@/components/ui';
+import { Button, Card, EmptyState, ErrorBlock, Input, Modal, PageHeader, Spinner, StatusBadge } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { relativeTime } from '@/lib/utils';
 import { miscService } from '@/services';
 
 export function DashboardPage() {
   const { data, error, loading, reload } = useAsync(() => miscService.dashboard(), []);
+  const [wpOpen, setWpOpen] = useState(false);
 
   const cards = [
     { label: 'Empresas', value: data?.companies, icon: Building2, tone: 'text-zinc-600 bg-zinc-100' },
-    { label: 'WP verificado', value: data?.wp_verified, icon: BadgeCheck, tone: 'text-zinc-600 bg-zinc-100' },
+    { label: 'WP verificado', value: data?.wp_verified, icon: BadgeCheck, tone: 'text-zinc-600 bg-zinc-100', onOpen: () => setWpOpen(true) },
     { label: 'Landing Pages', value: data?.landing_pages, icon: PanelsTopLeft, tone: 'text-brand-700 bg-brand-50' },
     { label: 'Ativas', value: data?.active, icon: CircleCheck, tone: 'text-emerald-700 bg-emerald-50' },
     { label: 'Inativas', value: data?.inactive, icon: CircleOff, tone: 'text-red-700 bg-red-50' },
@@ -39,7 +41,15 @@ export function DashboardPage() {
               </span>
             </div>
             <div className="mt-4 text-3xl font-semibold tracking-tight tabular-nums">
-              {loading ? <span className="skeleton inline-block h-8 w-14 rounded-md" /> : c.value ?? 0}
+              {loading ? (
+                <span className="skeleton inline-block h-8 w-14 rounded-md" />
+              ) : 'onOpen' in c && c.onOpen ? (
+                <button type="button" onClick={c.onOpen} className="rounded-md hover:text-brand-600 hover:underline" title="Ver a lista">
+                  {c.value ?? 0}
+                </button>
+              ) : (
+                c.value ?? 0
+              )}
             </div>
           </Card>
         ))}
@@ -103,6 +113,69 @@ export function DashboardPage() {
           </div>
         </div>
       </div>
+      <WpVerifiedModal open={wpOpen} onClose={() => setWpOpen(false)} />
     </>
+  );
+}
+
+/** Popup do card "WP verificado": número verificado de cada empresa e o status do teste (wp_testado). */
+function WpVerifiedModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { data, error, loading, reload } = useAsync(() => (open ? miscService.wpVerified() : Promise.resolve(null)), [open]);
+  const [search, setSearch] = useState('');
+  const items = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const digits = q.replace(/\D/g, '');
+    return (data?.items ?? []).filter(
+      (i) => !q || i.name.toLowerCase().includes(q) || (digits && i.wp_verificado.replace(/\D/g, '').includes(digits)),
+    );
+  }, [data, search]);
+
+  return (
+    <Modal
+      open={open}
+      title="WP verificado"
+      description={data ? `${data.items.length} números verificados` : undefined}
+      onClose={() => {
+        setSearch('');
+        onClose();
+      }}
+      size="lg"
+    >
+      {error ? (
+        <ErrorBlock message={error} onRetry={reload} />
+      ) : loading || !data ? (
+        <div className="grid place-items-center py-10">
+          <Spinner className="size-5" />
+        </div>
+      ) : (
+        <>
+          <Input placeholder="Buscar por empresa ou número" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <div className="mt-3 divide-y divide-zinc-100 rounded-lg border border-zinc-200">
+            <div className="grid grid-cols-[1fr_auto_auto] gap-4 bg-zinc-50 px-4 py-2 text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
+              <span>Empresa</span>
+              <span>Número</span>
+              <span className="w-20 text-right">Status</span>
+            </div>
+            {items.length ? (
+              items.map((i) => (
+                <div key={i.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-4 py-2.5 text-sm">
+                  <span className="truncate" title={i.name}>{i.name}</span>
+                  <span className="font-mono tabular-nums text-zinc-700">{i.wp_verificado}</span>
+                  <span className="w-20 text-right">
+                    {i.wp_testado ? (
+                      <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">{i.wp_testado}</span>
+                    ) : (
+                      <span className="text-zinc-400">—</span>
+                    )}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="px-4 py-6 text-center text-sm text-zinc-500">Nenhum resultado.</div>
+            )}
+          </div>
+        </>
+      )}
+    </Modal>
   );
 }

@@ -12,6 +12,7 @@ import type {
   CompanySources,
   CompanyListItem,
   DashboardStats,
+  WpVerifiedItem,
   FoundCompany,
   PlaceListing,
   SavedSearchItem,
@@ -157,6 +158,7 @@ export interface DriveStatus {
 
 export const miscService = {
   dashboard: () => api.get<DashboardStats>('/dashboard'),
+  wpVerified: () => api.get<{ items: WpVerifiedItem[] }>('/dashboard/wp-verified'),
   settings: () =>
     api.get<{ user: User; ai: { provider: string; model: string; configured: boolean }; app_url: string; storage: string; environment: string }>('/settings'),
   /** Chaves com rodízio por provedor (Gemini e RapidAPI) */

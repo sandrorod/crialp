@@ -493,6 +493,14 @@ export interface DashboardStats {
   recent: { id: string; slug: string; status: LpStatus; created_at: string; company_name: string; segment: string | null }[];
 }
 
+/** Linha do popup do card "WP verificado" */
+export interface WpVerifiedItem {
+  id: string;
+  name: string;
+  wp_verificado: string;
+  wp_testado: string | null;
+}
+
 export interface AIKeyInfo {
   id: string;
   label: string | null;
