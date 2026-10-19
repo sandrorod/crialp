@@ -102,7 +102,8 @@ function normalizeMap(input: unknown): Record<string, ElementColor> {
     const mx = offset(value?.mx);
     const my = offset(value?.my);
     const w = Number(value?.w);
-    const width = value?.w != null && Number.isFinite(w) && w < 100 ? Math.round(Math.max(10, w) * 10) / 10 : null;
+    // Abaixo de 100%: faixa mais estreita; acima: mais larga que o espaço do texto (até a área da seção)
+    const width = value?.w != null && Number.isFinite(w) && Math.abs(w - 100) >= 0.5 ? Math.round(Math.min(MAX_TEXT_W, Math.max(10, w)) * 10) / 10 : null;
     const entry: ElementColor = {
       ...(text ? { text } : {}),
       ...(bg ? { bg } : {}),
@@ -130,6 +131,19 @@ export function normalizeElementColors(input: unknown): ElementColors {
   return { desktop: normalizeMap(i.desktop), mobile: normalizeMap(i.mobile) };
 }
 
+/** Largura máxima do texto arrastada no editor (% do espaço original do texto) */
+const MAX_TEXT_W = 400;
+
+/**
+ * Largura do texto: abaixo de 100% limita a faixa (centralizada quando o texto é centralizado);
+ * acima de 100% o texto fica mais largo que o espaço dele (centralizado: cresce igual para os dois lados).
+ */
+function textWidthDecl(w: number, centered: boolean) {
+  if (w < 100) return `max-width:${w}%!important${centered ? ';margin-left:auto!important;margin-right:auto!important' : ''}`;
+  const side = Math.round(((100 - w) / 2) * 10) / 10;
+  return `width:${w}%!important;max-width:none!important${centered ? `;margin-left:${side}%!important;margin-right:${side}%!important` : ''}`;
+}
+
 function rules(map: Record<string, ElementColor>) {
   return Object.entries(map)
     .map(([sel, c]) => {
@@ -145,7 +159,7 @@ function rules(map: Record<string, ElementColor>) {
         // Posição arrastada no editor: "translate" não interfere nas animações (que usam transform)
         c.mx || c.my ? `translate:${c.mx ?? 0}px ${c.my ?? 0}px` : '',
         // Largura arrastada no editor: faixa mais estreita (centralizada quando o texto é centralizado)
-        c.w ? `max-width:${c.w}%!important${c.wc ? ';margin-left:auto!important;margin-right:auto!important' : ''}` : '',
+        c.w ? textWidthDecl(c.w, !!c.wc) : '',
         // Velocidade do efeito: as durações das animações dividem por ela
         c.fxSpeed ? `--fx-s:${c.fxSpeed}` : '',
       ]

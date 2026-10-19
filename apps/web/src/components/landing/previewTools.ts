@@ -1,4 +1,5 @@
 import type { ElementColor, ElementColors, ImageBox, ImageSizes, LandingContent, SectionSpacing, TextEffect } from '@/types';
+import { richToHtml, serializeRich } from '@/lib/richText';
 
 /** Ferramentas ativas na prévia: enquadrar fotos, arrastar seções ou escolher cores. */
 export type PreviewMode = 'textos' | 'fotos' | 'mover' | 'secoes' | 'espacos' | 'cores';
@@ -125,7 +126,7 @@ export function elementStyleDecl(c: ElementColor): string {
     c.hidden ? 'opacity:.3!important;outline:2px dashed #ef4444!important;outline-offset:2px' : '',
     c.fxSpeed ? `--fx-s:${c.fxSpeed}` : '',
     c.mx || c.my ? `translate:${c.mx ?? 0}px ${c.my ?? 0}px` : '',
-    c.w ? `max-width:${c.w}%!important${c.wc ? ';margin-left:auto!important;margin-right:auto!important' : ''}` : '',
+    c.w ? textWidthDecl(c.w, !!c.wc) : '',
   ]
     .filter(Boolean)
     .join(';');
@@ -1164,6 +1165,54 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   const cs = () => win.getComputedStyle(el);
   const computedSize = () => Math.round(parseFloat(cs().fontSize)) || 16;
 
+  // Trecho selecionado no texto em edição: negrito, itálico, sublinhado, cor e tamanho valem só para ele.
+  // Sem seleção, valem para o texto inteiro (como antes). A seleção fica guardada para a cor (o seletor tira o foco).
+  let lastRange: Range | null = null;
+  const rememberSel = () => {
+    const s = win.getSelection();
+    if (!s || !s.rangeCount) return;
+    const r = s.getRangeAt(0);
+    if (!el.contains(r.commonAncestorContainer)) return;
+    lastRange = r.collapsed ? null : r.cloneRange();
+  };
+  doc.addEventListener('selectionchange', rememberSel);
+  const partial = () => el.isContentEditable && !!lastRange && !lastRange.collapsed;
+  const restoreSel = () => {
+    el.focus({ preventScroll: true });
+    const s = win.getSelection();
+    if (!s || !lastRange) return;
+    s.removeAllRanges();
+    s.addRange(lastRange);
+  };
+  const inlineCmd = (cmd: string, value?: string, css = false) => {
+    restoreSel();
+    doc.execCommand('styleWithCSS', false, String(css));
+    doc.execCommand(cmd, false, value);
+    rememberSel();
+  };
+  const selSize = () => {
+    const n = lastRange?.startContainer;
+    const host = n ? (n.nodeType === Node.TEXT_NODE ? n.parentElement : (n as HTMLElement)) : null;
+    return (host && Math.round(parseFloat(win.getComputedStyle(host).fontSize))) || computedSize();
+  };
+  const inlineSize = (next: number) => {
+    restoreSel();
+    const s = win.getSelection();
+    if (!s?.rangeCount) return;
+    const r = s.getRangeAt(0);
+    const span = doc.createElement('span');
+    span.style.fontSize = `${next}px`;
+    span.appendChild(r.extractContents());
+    // Tamanhos que já existiam dentro do trecho dão lugar ao novo
+    span.querySelectorAll<HTMLElement>('[style*="font-size"]').forEach((x) => x.style.removeProperty('font-size'));
+    r.insertNode(span);
+    const nr = doc.createRange();
+    nr.selectNodeContents(span);
+    s.removeAllRanges();
+    s.addRange(nr);
+    lastRange = nr.cloneRange();
+  };
+
   const bar = doc.createElement('div');
   bar.dataset.lpUi = 'size';
   bar.setAttribute('style', `position:fixed;z-index:9999;display:flex;flex-direction:column;gap:${px(2)};padding:${px(4)};border-radius:${px(10)};background:rgba(17,24,39,.94);color:#fff;font:500 ${px(12)}/1 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.3);white-space:nowrap;box-sizing:border-box;max-width:calc(100vw - ${px(8)})`);
@@ -1214,25 +1263,34 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   value.setAttribute('style', `min-width:${px(42)};text-align:center;font-variant-numeric:tabular-nums`);
   const size = () => saved().size ?? computedSize();
   const setSize = (next: number) => {
+    if (partial()) {
+      inlineSize(next);
+      value.textContent = `${next}px`;
+      return;
+    }
     opts.setStyle(sel(), { size: next });
     render();
   };
-  const step = () => (size() < 24 ? 1 : 2);
+  const step = () => ((partial() ? selSize() : size()) < 24 ? 1 : 2);
 
   // Negrito, itálico e sublinhado: o botão inverte o que está aparecendo agora
   const isBold = () => saved().bold ?? Number(cs().fontWeight) >= 600;
   const isItalic = () => saved().italic ?? cs().fontStyle === 'italic';
   const isUnderline = () => saved().underline ?? cs().textDecorationLine.includes('underline');
-  const bold = mk('B', 'Negrito', () => (opts.setStyle(sel(), { bold: !isBold() }), render()), ';font-weight:800');
-  const italic = mk('I', 'Itálico', () => (opts.setStyle(sel(), { italic: !isItalic() }), render()), ';font-style:italic;font-family:Georgia,serif');
-  const underline = mk('U', 'Sublinhado', () => (opts.setStyle(sel(), { underline: !isUnderline() }), render()), ';text-decoration:underline');
+  const bold = mk('B', 'Negrito (com um trecho selecionado, só nele)', () => (partial() ? inlineCmd('bold') : (opts.setStyle(sel(), { bold: !isBold() }), render())), ';font-weight:800');
+  const italic = mk('I', 'Itálico (com um trecho selecionado, só nele)', () => (partial() ? inlineCmd('italic') : (opts.setStyle(sel(), { italic: !isItalic() }), render())), ';font-style:italic;font-family:Georgia,serif');
+  const underline = mk('U', 'Sublinhado (com um trecho selecionado, só nele)', () => (partial() ? inlineCmd('underline') : (opts.setStyle(sel(), { underline: !isUnderline() }), render())), ';text-decoration:underline');
 
   // Cor do texto
   const color = doc.createElement('input');
   color.type = 'color';
-  color.title = 'Cor do texto';
+  color.title = 'Cor do texto (com um trecho selecionado, só nele)';
   color.setAttribute('style', `${fieldCss};width:${px(34)};padding:${px(3)}`);
-  color.addEventListener('input', () => opts.setStyle(sel(), { text: color.value }));
+  // Trecho selecionado: aplica ao fechar o seletor (focar o texto antes fecharia o seletor de cor)
+  let colorPartial = false;
+  color.addEventListener('pointerdown', () => (colorPartial = partial()));
+  color.addEventListener('input', () => !colorPartial && opts.setStyle(sel(), { text: color.value }));
+  color.addEventListener('change', () => colorPartial && inlineCmd('foreColor', color.value, true));
 
   // Cor de fundo
   const bg = doc.createElement('input');
@@ -1460,6 +1518,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   return {
     bar,
     close: () => {
+      doc.removeEventListener('selectionchange', rememberSel);
       win.removeEventListener('scroll', place, true);
       win.removeEventListener('resize', place);
       parentWin?.removeEventListener('scroll', place, true);
@@ -1471,6 +1530,14 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
 }
 
 const TEXT_W_MIN = 10;
+const TEXT_W_MAX = 400;
+
+/** Mesma regra de apps/api/src/landing/elementColors.ts: abaixo de 100% estreita, acima alarga o texto. */
+function textWidthDecl(w: number, centered: boolean) {
+  if (w < 100) return `max-width:${w}%!important${centered ? ';margin-left:auto!important;margin-right:auto!important' : ''}`;
+  const side = Math.round(((100 - w) / 2) * 10) / 10;
+  return `width:${w}%!important;max-width:none!important${centered ? `;margin-left:${side}%!important;margin-right:${side}%!important` : ''}`;
+}
 
 /**
  * Alças azuis nas laterais do texto selecionado: arrastar estreita (ou alarga) a faixa do texto, com a
@@ -1514,20 +1581,28 @@ function attachWidthHandles(doc: Document, el: HTMLElement, opts: TextSizeOption
       h.setPointerCapture(e.pointerId);
       const parent = el.parentElement!;
       const pcs = win.getComputedStyle(parent);
-      // Área disponível = largura útil do elemento de fora (100%)
+      // 100% = largura útil do elemento de fora (a coluna do texto)
       const available = parent.getBoundingClientRect().width - parseFloat(pcs.paddingLeft) - parseFloat(pcs.paddingRight);
       const startW = el.getBoundingClientRect().width;
       const both = centered();
+      // Para alargar além da coluna: até a área da seção (.container), sem sair dela
+      const area = (el.closest('.container') ?? el.closest('[data-section]') ?? doc.body).getBoundingClientRect();
+      const er = el.getBoundingClientRect();
+      const pr = parent.getBoundingClientRect();
+      const roomPx = both
+        ? Math.min(pr.left + pr.width / 2 - area.left, area.right - (pr.left + pr.width / 2)) * 2
+        : area.right - er.left;
+      const maxPct = Math.min(TEXT_W_MAX, Math.max(100, (roomPx / available) * 100));
       const sx = e.clientX;
-      let pct = Math.min(100, (startW / available) * 100);
+      let pct = Math.min(maxPct, (startW / available) * 100);
       label.style.display = 'block';
       const move = (ev: PointerEvent) => {
         const dx = (ev.clientX - sx) * (side === 'right' ? 1 : -1) * (both ? 2 : 1);
-        pct = Math.min(100, Math.max(TEXT_W_MIN, ((startW + dx) / available) * 100));
-        el.style.setProperty('max-width', `${pct}%`, 'important');
-        if (both) {
-          el.style.setProperty('margin-left', 'auto', 'important');
-          el.style.setProperty('margin-right', 'auto', 'important');
+        pct = Math.min(maxPct, Math.max(TEXT_W_MIN, ((startW + dx) / available) * 100));
+        ['max-width', 'width', 'margin-left', 'margin-right'].forEach((p) => el.style.removeProperty(p));
+        for (const decl of textWidthDecl(pct, both).split(';')) {
+          const [prop, val] = decl.split(':');
+          el.style.setProperty(prop, val.replace('!important', ''), 'important');
         }
         label.textContent = `Largura ${Math.round(pct)}%`;
         placeHandles();
@@ -1537,9 +1612,9 @@ function attachWidthHandles(doc: Document, el: HTMLElement, opts: TextSizeOption
         h.removeEventListener('pointerup', up);
         h.removeEventListener('pointercancel', up);
         label.style.display = 'none';
-        ['max-width', 'margin-left', 'margin-right'].forEach((p) => el.style.removeProperty(p));
+        ['max-width', 'width', 'margin-left', 'margin-right'].forEach((p) => el.style.removeProperty(p));
         const w = Math.round(pct * 10) / 10;
-        opts.setStyle(sel(), w >= 99.5 ? { w: null, wc: null } : { w, wc: both ? true : null });
+        opts.setStyle(sel(), Math.abs(w - 100) < 0.5 ? { w: null, wc: null } : { w, wc: both ? true : null });
         win.requestAnimationFrame(() => win.requestAnimationFrame(placeHandles));
       };
       h.addEventListener('pointermove', move);
@@ -1746,19 +1821,20 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
     if (doc.activeElement === el) el.blur();
     el.removeAttribute('contenteditable');
     const path = el.dataset.lpText!;
-    const value = el.innerText.replace(/[ \t]+\n/g, '\n').trim();
-    if (cancelled || value === original.trim()) {
-      el.innerText = original;
+    // Texto com a formatação dos trechos em códigos ([[b]]…[[/b]] etc.; ver lib/richText.ts)
+    const value = serializeRich(el);
+    if (cancelled || value === original) {
+      el.innerHTML = richToHtml(original);
       return;
     }
     if (!onText(path, value)) {
-      el.innerText = original;
+      el.innerHTML = richToHtml(original);
       return;
     }
     // O mesmo campo pode aparecer em mais de um lugar (ex.: botão do CTA, telefone no topo e no contato)
     const syncAll = (text: string) =>
       doc.querySelectorAll<HTMLElement>('[data-lp-text]').forEach((o) => {
-        if (o.dataset.lpText === path) o.innerText = text;
+        if (o.dataset.lpText === path) o.innerHTML = richToHtml(text);
       });
     if (value) {
       syncAll(value);
@@ -1822,10 +1898,16 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
     if (editing?.el === el) return;
     notifySelect(doc, el);
     finish();
-    editing = { el, original: el.innerText, cancelled: false };
-    el.setAttribute('contenteditable', 'plaintext-only');
-    // Navegadores sem "plaintext-only" recusam o valor: usa o modo comum (o texto é lido sem formatação)
-    if (el.contentEditable !== 'plaintext-only') el.setAttribute('contenteditable', 'true');
+    editing = { el, original: serializeRich(el), cancelled: false };
+    // Modo comum (aceita negrito/cor/tamanho num trecho); colar entra sempre como texto puro
+    el.setAttribute('contenteditable', 'true');
+    if (!el.dataset.lpPaste) {
+      el.dataset.lpPaste = '1';
+      el.addEventListener('paste', (e) => {
+        e.preventDefault();
+        doc.execCommand('insertText', false, e.clipboardData?.getData('text/plain') ?? '');
+      });
+    }
     const current = editing;
     if (sizes) {
       const tb = textToolbar(doc, el, sizes);

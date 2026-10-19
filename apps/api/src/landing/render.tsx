@@ -7,6 +7,7 @@ import { elementColorsCss, elementFontsHref, MOBILE_MAX, textEffectsJson } from 
 import { sectionSpacingCss } from './spacing.js';
 import { imageSizesCss } from './imageSize.js';
 import { imageStylesCss } from './imageStyle.js';
+import { applyRichText } from './richText.js';
 import type { CSSProperties, ReactNode } from 'react';
 
 /** Envolve a seção num contêiner que redefine as variáveis de cor (quando houver cores próprias). */
@@ -216,7 +217,8 @@ export function renderLandingPage(ctx: RenderContext): string {
       </body>
     </html>
   );
-  return `<!doctype html>${renderToStaticMarkup(page)}`;
+  // Formatação de trechos ([[b]]…[[/b]] etc.) vira tags só no texto visível
+  return applyRichText(`<!doctype html>${renderToStaticMarkup(page)}`);
 }
 
 export function renderUnavailablePage(): string {
