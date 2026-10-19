@@ -90,16 +90,19 @@ export function serializeRich(root: HTMLElement): string {
       out += node.textContent ?? '';
       return;
     }
-    if (!(node instanceof HTMLElement) || node.dataset.lpUi) return;
-    if (node.tagName === 'BR') {
+    // Pelo tipo do nó (não "instanceof"): o texto editado fica no documento da prévia (iframe), que tem as próprias classes
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const el = node as HTMLElement;
+    if (el.dataset?.lpUi) return;
+    if (el.tagName === 'BR') {
       out += '\n';
       return;
     }
     // Enter no modo de edição cria <div>/<p>: vira quebra de linha
-    if (BLOCKS.has(node.tagName) && !first && out && !out.endsWith('\n')) out += '\n';
-    const formats = formatsOf(node);
+    if (BLOCKS.has(el.tagName) && !first && out && !out.endsWith('\n')) out += '\n';
+    const formats = formatsOf(el);
     for (const f of formats) out += `[[${f}]]`;
-    node.childNodes.forEach((c, i) => walk(c, i === 0));
+    el.childNodes.forEach((c, i) => walk(c, i === 0));
     for (const f of formats.slice().reverse()) out += `[[/${f.split('=')[0]}]]`;
   };
   root.childNodes.forEach((c, i) => walk(c, i === 0));
