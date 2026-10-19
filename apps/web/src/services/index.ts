@@ -161,8 +161,8 @@ export const miscService = {
   dashboard: () => api.get<DashboardStats>('/dashboard'),
   /** Tabela atendimento_lp (Configurações → Atendimento) */
   atendimento: () => api.get<{ items: AtendimentoItem[] }>('/settings/atendimento'),
-  createAtendimento: (respostas: string | null) => api.post<AtendimentoItem>('/settings/atendimento', { respostas }),
-  saveAtendimento: (id: string, respostas: string | null) => api.put<AtendimentoItem>(`/settings/atendimento/${id}`, { respostas }),
+  createAtendimento: (body: { titulo: string | null; respostas: string | null }) => api.post<AtendimentoItem>('/settings/atendimento', body),
+  saveAtendimento: (id: string, body: { titulo: string | null; respostas: string | null }) => api.put<AtendimentoItem>(`/settings/atendimento/${id}`, body),
   deleteAtendimento: (id: string) => api.del(`/settings/atendimento/${id}`),
   wpList: (kind: 'verified' | 'missing') => api.get<{ items: WpVerifiedItem[] }>(`/dashboard/wp-${kind}`),
   settings: () =>

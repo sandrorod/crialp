@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, CardSection, ConfirmDialog, ErrorBlock, LoadingBlock, Modal, Textarea } from '@/components/ui';
+import { Button, CardSection, ConfirmDialog, ErrorBlock, Field, Input, LoadingBlock, Modal, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { miscService } from '@/services';
@@ -20,7 +20,7 @@ export function AtendimentoSection() {
   const create = async () => {
     setCreating(true);
     try {
-      const row = await miscService.createAtendimento(null);
+      const row = await miscService.createAtendimento({ titulo: null, respostas: null });
       setData({ items: [...items, row] });
       setOpenId(row.id);
     } catch (err) {
@@ -70,8 +70,13 @@ export function AtendimentoSection() {
                 className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-zinc-50"
               >
                 <span className="flex-none rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-zinc-600">#{item.id}</span>
-                <span className={item.respostas ? 'min-w-0 flex-1 truncate text-sm text-zinc-700' : 'min-w-0 flex-1 truncate text-sm italic text-zinc-400'}>
-                  {item.respostas ? item.respostas.replace(/\s+/g, ' ').slice(0, 200) : 'Sem texto — clique para escrever'}
+                <span className="min-w-0 flex-1">
+                  <span className={item.titulo ? 'block truncate text-sm font-medium text-ink' : 'block truncate text-sm italic text-zinc-400'}>
+                    {item.titulo || 'Sem título'}
+                  </span>
+                  <span className="block truncate text-xs text-zinc-500">
+                    {item.respostas ? item.respostas.replace(/\s+/g, ' ').slice(0, 200) : 'Sem texto — clique para escrever'}
+                  </span>
                 </span>
                 <span className="flex-none text-xs tabular-nums text-zinc-400">{(item.respostas?.length ?? 0).toLocaleString('pt-BR')} caracteres</span>
                 <ChevronRight className="size-4 flex-none text-zinc-400" />
@@ -106,15 +111,17 @@ export function AtendimentoSection() {
 }
 
 function AtendimentoEditor({ item, onClose, onSaved, onDelete }: { item: AtendimentoItem; onClose: () => void; onSaved: (row: AtendimentoItem) => void; onDelete: () => void }) {
+  const [title, setTitle] = useState(item.titulo ?? '');
   const [text, setText] = useState(item.respostas ?? '');
   const [saving, setSaving] = useState(false);
-  const changed = text !== (item.respostas ?? '');
+  const changed = text !== (item.respostas ?? '') || title.trim() !== (item.titulo ?? '');
 
   const save = async (close: boolean) => {
     setSaving(true);
     try {
-      const row = await miscService.saveAtendimento(item.id, text.trim() ? text : null);
+      const row = await miscService.saveAtendimento(item.id, { titulo: title.trim() || null, respostas: text.trim() ? text : null });
       onSaved(row);
+      setTitle(row.titulo ?? '');
       setText(row.respostas ?? '');
       toast.success('Respostas salvas.');
       if (close) onClose();
@@ -133,7 +140,7 @@ function AtendimentoEditor({ item, onClose, onSaved, onDelete }: { item: Atendim
   return (
     <Modal
       open
-      title={`Resposta #${item.id}`}
+      title={title.trim() || `Resposta #${item.id}`}
       description={`${text.length.toLocaleString('pt-BR')} caracteres${changed ? ' · alterações não salvas' : ''}`}
       onClose={close}
       busy={saving}
@@ -154,12 +161,15 @@ function AtendimentoEditor({ item, onClose, onSaved, onDelete }: { item: Atendim
         </div>
       }
     >
+      <Field label="Título">
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={300} placeholder="Ex.: Horários e formas de pagamento" autoFocus />
+      </Field>
+      <div className="mb-1.5 mt-4 text-[13px] font-medium text-zinc-700">Respostas</div>
       <Textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Escreva aqui as respostas do atendimento…"
-        className="min-h-[55vh] resize-y font-mono text-[13px]"
-        autoFocus
+        className="min-h-[50vh] resize-y font-mono text-[13px]"
         spellCheck
         onKeyDown={(e) => {
           // Ctrl/Cmd + S salva sem fechar

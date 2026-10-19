@@ -55,23 +55,27 @@ miscRouter.post('/uploads', upload.single('file'), async (req, res) => {
 });
 
 // ─── Atendimento (tabela atendimento_lp): textos de respostas editados em Configurações ─────
-const RespostasSchema = z.object({ respostas: z.string().max(4_000_000, 'Texto muito grande (máximo de 4 milhões de caracteres).').nullable() });
+const RespostasSchema = z.object({
+  titulo: z.string().trim().max(300, 'Título muito longo (máximo de 300 caracteres).').nullish().transform((v) => v || null),
+  respostas: z.string().max(4_000_000, 'Texto muito grande (máximo de 4 milhões de caracteres).').nullable(),
+});
+const ATENDIMENTO_COLUMNS = 'id::text, titulo, respostas';
 
 miscRouter.get('/settings/atendimento', requireRole(...MANAGER_ROLES), async (_req, res) => {
-  const { rows } = await query<{ id: string; respostas: string | null }>('select id::text, respostas from atendimento_lp order by id');
+  const { rows } = await query(`select ${ATENDIMENTO_COLUMNS} from atendimento_lp order by id`);
   res.json({ items: rows });
 });
 
 miscRouter.post('/settings/atendimento', requireRole(...MANAGER_ROLES), async (req, res) => {
-  const { respostas } = parseBody(RespostasSchema, req.body);
-  const row = await one<{ id: string; respostas: string | null }>('insert into atendimento_lp (respostas) values ($1) returning id::text, respostas', [respostas]);
+  const { titulo, respostas } = parseBody(RespostasSchema, req.body);
+  const row = await one(`insert into atendimento_lp (titulo, respostas) values ($1, $2) returning ${ATENDIMENTO_COLUMNS}`, [titulo, respostas]);
   res.status(201).json(row);
 });
 
 miscRouter.put('/settings/atendimento/:id', requireRole(...MANAGER_ROLES), async (req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params.id);
-  const { respostas } = parseBody(RespostasSchema, req.body);
-  const row = await one<{ id: string; respostas: string | null }>('update atendimento_lp set respostas = $2 where id = $1 returning id::text, respostas', [id, respostas]);
+  const { titulo, respostas } = parseBody(RespostasSchema, req.body);
+  const row = await one(`update atendimento_lp set titulo = $2, respostas = $3 where id = $1 returning ${ATENDIMENTO_COLUMNS}`, [id, titulo, respostas]);
   if (!row) throw notFound('Registro não encontrado.');
   res.json(row);
 });

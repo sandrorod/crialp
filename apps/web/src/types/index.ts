@@ -509,6 +509,7 @@ export interface WpVerifiedItem {
 /** Registro da tabela atendimento_lp */
 export interface AtendimentoItem {
   id: string;
+  titulo: string | null;
   respostas: string | null;
 }
 
