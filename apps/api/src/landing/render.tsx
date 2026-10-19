@@ -32,6 +32,14 @@ import {
 } from './sections/ContentSections.js';
 import { ContactSection, FinalCTA, Footer, WhatsAppFloat } from './sections/ContactSection.js';
 
+/**
+ * Texto de um bloco <style>: o HTML não escapa nada dentro dele, então um "<" vindo de dados
+ * (seletor, cor, URL de foto) poderia fechar a tag com "</style>". Na CSS, "\3c " é o mesmo "<".
+ */
+export function styleText(css: string): string {
+  return css.replace(/</g, '\\3c ');
+}
+
 /** Hash do único script inline, usado na Content-Security-Policy das páginas públicas. */
 export const REVEAL_SCRIPT_HASH = `'sha256-${crypto.createHash('sha256').update(REVEAL_SCRIPT).digest('base64')}'`;
 
@@ -185,7 +193,7 @@ export function renderLandingPage(ctx: RenderContext): string {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link rel="stylesheet" href={theme.fontsHref} />
         {elementFontsHref(theme.elementColors) ? <link rel="stylesheet" href={elementFontsHref(theme.elementColors)!} /> : null}
-        <style dangerouslySetInnerHTML={{ __html: landingCss(theme) }} />
+        <style dangerouslySetInnerHTML={{ __html: styleText(landingCss(theme)) }} />
         {ctx.editable ? (
           <style
             dangerouslySetInnerHTML={{
@@ -193,12 +201,12 @@ export function renderLandingPage(ctx: RenderContext): string {
             }}
           />
         ) : null}
-        <style id="lp-order" dangerouslySetInnerHTML={{ __html: mobileOrderCss(sections, theme.mobileOrder) }} />
+        <style id="lp-order" dangerouslySetInnerHTML={{ __html: styleText(mobileOrderCss(sections, theme.mobileOrder)) }} />
         {/* O editor substitui este bloco ao vivo quando uma cor é escolhida na prévia */}
-        <style id="lp-colors" dangerouslySetInnerHTML={{ __html: elementColorsCss(theme.elementColors) }} />
-        <style id="lp-spacing" dangerouslySetInnerHTML={{ __html: sectionSpacingCss(theme.sectionSpacing) }} />
-        <style id="lp-image-size" dangerouslySetInnerHTML={{ __html: imageSizesCss(theme.imageSize) }} />
-        <style id="lp-image-style" dangerouslySetInnerHTML={{ __html: imageStylesCss(theme.imageStyle, theme.focus) }} />
+        <style id="lp-colors" dangerouslySetInnerHTML={{ __html: styleText(elementColorsCss(theme.elementColors)) }} />
+        <style id="lp-spacing" dangerouslySetInnerHTML={{ __html: styleText(sectionSpacingCss(theme.sectionSpacing)) }} />
+        <style id="lp-image-size" dangerouslySetInnerHTML={{ __html: styleText(imageSizesCss(theme.imageSize)) }} />
+        <style id="lp-image-style" dangerouslySetInnerHTML={{ __html: styleText(imageStylesCss(theme.imageStyle, theme.focus)) }} />
         {/* Efeitos de movimento dos textos (lidos pelo script abaixo) */}
         {textEffectsJson(theme.elementColors) ? <script type="application/json" id="lp-fx" dangerouslySetInnerHTML={{ __html: textEffectsJson(theme.elementColors)! }} /> : null}
         <script dangerouslySetInnerHTML={{ __html: REVEAL_SCRIPT }} />

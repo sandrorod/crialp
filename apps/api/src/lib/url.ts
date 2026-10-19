@@ -20,23 +20,39 @@ export function normalizeInputUrl(raw: string): URL {
   return url;
 }
 
-function isPrivateIPv4(ip: string) {
-  const [a, b] = ip.split('.').map(Number);
-  return (
-    a === 0 || a === 10 || a === 127 || a >= 224 ||
-    (a === 100 && b >= 64 && b <= 127) ||
-    (a === 169 && b === 254) ||
-    (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168) ||
-    (a === 198 && (b === 18 || b === 19))
-  );
+// Faixas que o servidor nunca acessa: loopback, redes privadas, link-local (metadata de nuvem
+// 169.254.169.254 e fd00:ec2::254), CGNAT, multicast, reservadas e de documentação/testes.
+const BLOCKED = new net.BlockList();
+for (const [addr, prefix] of [
+  ['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8], ['169.254.0.0', 16], ['172.16.0.0', 12],
+  ['192.0.0.0', 24], ['192.0.2.0', 24], ['192.88.99.0', 24], ['192.168.0.0', 16], ['198.18.0.0', 15],
+  ['198.51.100.0', 24], ['203.0.113.0', 24], ['224.0.0.0', 4], ['240.0.0.0', 4],
+] as const) BLOCKED.addSubnet(addr, prefix, 'ipv4');
+for (const [addr, prefix] of [
+  ['::', 128], ['::1', 128], ['::', 96] /* IPv4-compatível (obsoleto) */, ['64:ff9b::', 96] /* NAT64 */, ['64:ff9b:1::', 48],
+  ['100::', 64], ['2001::', 23], ['2001:db8::', 32], ['2002::', 16] /* 6to4 */, ['fc00::', 7], ['fe80::', 10], ['fec0::', 10], ['ff00::', 8],
+] as const) BLOCKED.addSubnet(addr, prefix, 'ipv6');
+
+/** IPv4 embutido num IPv6 "mapeado" (::ffff:7f00:1 ou ::ffff:127.0.0.1), como a URL normaliza. */
+function mappedIPv4(ip: string): string | null {
+  const m = /^(?:0{0,4}:){0,5}:?ffff:(.+)$/i.exec(ip) ?? /^::ffff:(.+)$/i.exec(ip);
+  if (!m) return null;
+  const rest = m[1];
+  if (net.isIPv4(rest)) return rest;
+  const hex = /^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i.exec(rest);
+  if (!hex) return null;
+  const hi = parseInt(hex[1], 16);
+  const lo = parseInt(hex[2], 16);
+  return `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
 }
 
-function isPrivateIp(ip: string) {
-  if (net.isIPv4(ip)) return isPrivateIPv4(ip);
-  const lower = ip.toLowerCase();
-  if (lower.startsWith('::ffff:')) return isPrivateIPv4(lower.slice(7));
-  return lower === '::1' || lower === '::' || lower.startsWith('fc') || lower.startsWith('fd') || lower.startsWith('fe80');
+export function isPrivateIp(ip: string): boolean {
+  const addr = ip.replace(/^\[|\]$/g, '').replace(/%.*$/, '');
+  if (net.isIPv4(addr)) return BLOCKED.check(addr, 'ipv4');
+  if (!net.isIPv6(addr)) return true; // formato desconhecido: na dúvida, bloqueia
+  const v4 = mappedIPv4(addr);
+  if (v4) return BLOCKED.check(v4, 'ipv4');
+  return BLOCKED.check(addr, 'ipv6');
 }
 
 /**

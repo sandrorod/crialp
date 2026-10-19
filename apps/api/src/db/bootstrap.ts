@@ -2,6 +2,8 @@ import bcrypt from 'bcryptjs';
 import { env } from '../config/env.js';
 import { one, transaction } from './pool.js';
 
+const PLACEHOLDER_PASSWORDS = ['troque-esta-senha', 'admin123', 'password', '12345678', 'changeme'];
+
 /** Cria a organização e o administrador inicial se ainda não existir nenhum usuário. */
 export async function ensureAdmin(log = console.log) {
   const existing = await one<{ count: string }>('select count(*)::text as count from users');
@@ -13,6 +15,12 @@ export async function ensureAdmin(log = console.log) {
     return;
   }
   if (password.length < 8) throw new Error('ADMIN_PASSWORD deve ter pelo menos 8 caracteres.');
+  // Senha de exemplo do .env.example/README não cria a conta principal em produção
+  if (env.isProduction && PLACEHOLDER_PASSWORDS.includes(password.toLowerCase())) {
+    throw Object.assign(new Error('ADMIN_PASSWORD usa um valor de exemplo. Defina uma senha própria.'), {
+      setupMessage: 'ADMIN_PASSWORD usa um valor de exemplo. Defina uma senha própria.',
+    });
+  }
 
   const hash = await bcrypt.hash(password, 12);
   await transaction(async (db) => {

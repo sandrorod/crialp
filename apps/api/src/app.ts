@@ -18,6 +18,13 @@ import { clientLevelsRouter } from './routes/clientLevels.js';
 import { customDomainMiddleware, publicRouter } from './routes/public.js';
 import { readDbUpload } from './services/storage/StorageService.js';
 
+/** Arquivos enviados são só imagens: nunca interpretados como página nem executados se abertos direto. */
+const UPLOAD_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'Content-Security-Policy': "default-src 'none'; sandbox",
+  'Cross-Origin-Resource-Policy': 'cross-origin',
+};
+
 export function createApp() {
   const app = express();
   app.disable('x-powered-by');
@@ -31,13 +38,22 @@ export function createApp() {
     try {
       const file = await readDbUpload(req.params.file.replace(/\.[a-z0-9]+$/i, ''));
       if (!file) return res.status(404).end();
-      res.set({ 'Content-Type': file.content_type, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' });
+      res.set({ ...UPLOAD_HEADERS, 'Content-Type': file.content_type, 'Cache-Control': 'public, max-age=31536000, immutable' });
       res.send(file.data);
     } catch (err) {
       next(err);
     }
   });
-  app.use('/uploads', express.static(env.storage.uploadDir, { maxAge: '30d', immutable: true, index: false }));
+  app.use(
+    '/uploads',
+    express.static(env.storage.uploadDir, {
+      maxAge: '30d',
+      immutable: true,
+      index: false,
+      dotfiles: 'deny',
+      setHeaders: (res) => res.set(UPLOAD_HEADERS),
+    }),
+  );
 
   // 3) Landing Pages públicas (/lp/:slug) e verificação de domínio
   app.use(publicRouter);

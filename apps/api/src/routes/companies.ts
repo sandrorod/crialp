@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { query } from '../db/pool.js';
 import { AppError, notFound } from '../lib/errors.js';
@@ -15,6 +16,15 @@ import type { CompanyFull } from '../repositories/companies.js';
 import type { SectionKey, SectionOrderKey } from '../services/ai/schemas.js';
 import { getSources, saveSources, toSourcePayload, type SourcePayload } from '../repositories/sources.js';
 import { jobService } from '../services/jobs/JobService.js';
+
+// Reler o site (e classificar as fotos pela IA) custa tempo e cota: mesmo limite da análise de links
+const scrapeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 60,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Limite de processamentos por hora atingido. Tente mais tarde.' },
+});
 
 /**
  * Quando a empresa passa a ter fotos liberadas e a LP foi gerada sem galeria,
@@ -147,7 +157,7 @@ companiesRouter.post('/:id/images/remove', async (req, res) => {
  * Busca (de novo) as fotos no site da empresa. Não salva: devolve as imagens novas
  * para o administrador revisar no formulário antes de salvar.
  */
-companiesRouter.post('/:id/fetch-images', async (req, res) => {
+companiesRouter.post('/:id/fetch-images', scrapeLimiter, async (req, res) => {
   const user = authUser(req);
   const id = uuidParam.parse(req.params.id);
   const { allowImages } = parseBody(z.object({ allowImages: z.boolean().optional() }), req.body);
@@ -187,7 +197,7 @@ companiesRouter.get('/:id/sources', async (req, res) => {
 });
 
 /** Lê o site novamente e substitui o conteúdo bruto guardado (não altera o cadastro). */
-companiesRouter.post('/:id/sources/refresh', async (req, res) => {
+companiesRouter.post('/:id/sources/refresh', scrapeLimiter, async (req, res) => {
   const user = authUser(req);
   const company = await getCompanyFull(user.organizationId, uuidParam.parse(req.params.id));
   if (!company) throw notFound('Empresa não encontrada.');

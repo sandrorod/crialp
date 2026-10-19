@@ -19,7 +19,7 @@ googleDriveRouter.get('/connect', (req, res) => {
   const user = authUser(req);
   if (!driveConfigured()) throw new AppError(503, 'Google Drive não configurado no servidor (GOOGLE_OAUTH_CLIENT_ID e GOOGLE_OAUTH_CLIENT_SECRET).');
   // state assinado: o retorno do Google só vale para quem iniciou o login
-  const state = jwt.sign({ sub: user.id, p: 'gdrive' }, env.jwtSecret, { expiresIn: '10m' });
+  const state = jwt.sign({ sub: user.id, p: 'gdrive', typ: 'gdrive-state' }, env.jwtSecret, { expiresIn: '10m', algorithm: 'HS256' });
   res.redirect(driveAuthUrl(state));
 });
 
@@ -29,7 +29,7 @@ googleDriveRouter.get('/callback', async (req, res) => {
   const { code, state, error } = req.query as Record<string, string | undefined>;
   try {
     if (error) throw new Error(`Google OAuth: ${error}`);
-    const payload = jwt.verify(state ?? '', env.jwtSecret) as { sub?: string; p?: string };
+    const payload = jwt.verify(state ?? '', env.jwtSecret, { algorithms: ['HS256'] }) as { sub?: string; p?: string };
     if (payload.sub !== user.id || payload.p !== 'gdrive' || !code) throw new Error('Google OAuth: state inválido');
     await connectDrive(code);
     res.redirect(`${SETTINGS_PAGE}?drive=ok`);

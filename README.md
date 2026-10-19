@@ -107,7 +107,7 @@ A migration ativa RLS sem políticas em todas as tabelas. Assim a API pública d
 | POST | `/api/landing-pages/:id/domain/verify` | Verifica o DNS do domínio |
 | POST | `/api/landing-pages/:id/versions/:v/restore` | Restaura versão |
 | GET | `/api/landing-pages/:id/preview` · `/export` | Prévia (mesmo inativa) e download do HTML |
-| POST | `/api/uploads` | Upload de imagem (JPG/PNG/WEBP/GIF, 5 MB) |
+| POST | `/api/uploads` | Upload de imagem (JPG/PNG/WEBP/GIF, 2 MB) |
 
 A análise e a geração levam de 30 s a 2 min por causa da IA. Por isso rodam como *jobs*: a interface acompanha o progresso e nunca fica travada.
 

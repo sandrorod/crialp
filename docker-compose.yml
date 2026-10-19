@@ -1,13 +1,19 @@
 # Produção em VPS: docker compose up -d
-# Pré-requisitos: DNS do domínio do sistema apontando para a VPS e o arquivo .env preenchido.
+# Pré-requisitos: DNS do domínio do sistema apontando para a VPS e o arquivo .env preenchido
+# com POSTGRES_PASSWORD e JWT_SECRET (obrigatórios; sem eles o compose/a API não sobem).
+#
+# Instalação que já roda com a senha antiga padrão "lp": defina POSTGRES_PASSWORD=lp no .env para
+# subir sem perder a conexão e troque a senha depois (passo a passo em SECURITY.md). O Postgres só
+# aplica POSTGRES_PASSWORD ao criar o volume: mudar a variável não troca a senha de um banco existente.
 services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: lp
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env (senha do banco)}
       POSTGRES_DB: lp
+    # Sem "ports": o banco só é acessível pela rede interna do compose (serviço app), nunca pela internet
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -20,7 +26,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgres://lp:${POSTGRES_PASSWORD:-lp}@db:5432/lp
+      DATABASE_URL: postgres://lp:${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env (senha do banco)}@db:5432/lp
       DATABASE_SSL: "false"
       NODE_ENV: production
     volumes:

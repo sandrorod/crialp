@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio';
 import { AppError, Messages } from '../../lib/errors.js';
 import { assertPublicHost, sameSite } from '../../lib/url.js';
+import { fetchViaPublicAgent } from '../../lib/safeFetch.js';
 import { toBrazilE164Digits } from '../../lib/phone.js';
 import { mapLimit, probeImage } from './imageProbe.js';
 import { imageKey } from '../../lib/imageKey.js';
@@ -227,7 +228,7 @@ async function fetchHtml(start: URL): Promise<FetchedHtml> {
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     let res: Response;
     try {
-      res = await fetch(current, {
+      res = await fetchViaPublicAgent(current, {
         redirect: 'manual',
         signal: controller.signal,
         headers: {
