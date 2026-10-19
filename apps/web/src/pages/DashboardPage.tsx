@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { ArrowUpRight, Building2, CircleCheck, CircleOff, PanelsTopLeft, Plus, Sparkles } from 'lucide-react';
+import { ArrowUpRight, BadgeCheck, Building2, CircleCheck, CircleOff, PanelsTopLeft, Plus, Sparkles } from 'lucide-react';
 import { Button, Card, EmptyState, ErrorBlock, PageHeader, StatusBadge } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { relativeTime } from '@/lib/utils';
@@ -10,6 +10,7 @@ export function DashboardPage() {
 
   const cards = [
     { label: 'Empresas', value: data?.companies, icon: Building2, tone: 'text-zinc-600 bg-zinc-100' },
+    { label: 'WP testado', value: data?.wp_tested, icon: BadgeCheck, tone: 'text-zinc-600 bg-zinc-100' },
     { label: 'Landing Pages', value: data?.landing_pages, icon: PanelsTopLeft, tone: 'text-brand-700 bg-brand-50' },
     { label: 'Ativas', value: data?.active, icon: CircleCheck, tone: 'text-emerald-700 bg-emerald-50' },
     { label: 'Inativas', value: data?.inactive, icon: CircleOff, tone: 'text-red-700 bg-red-50' },
@@ -28,7 +29,7 @@ export function DashboardPage() {
       />
       {error ? <ErrorBlock message={error} onRetry={reload} /> : null}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4">
         {cards.map((c) => (
           <Card key={c.label} className="p-5">
             <div className="flex items-center justify-between">

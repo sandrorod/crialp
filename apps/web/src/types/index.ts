@@ -485,6 +485,8 @@ export interface Preset {
 
 export interface DashboardStats {
   companies: number;
+  /** Empresas com wp_testado = "sim" */
+  wp_tested: number;
   landing_pages: number;
   active: number;
   inactive: number;

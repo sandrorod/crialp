@@ -278,9 +278,10 @@ export function getVersion(id: string, version: number) {
 }
 
 export async function dashboardStats(orgId: string) {
-  const counts = await one<{ companies: string; pages: string; active: string; inactive: string }>(
+  const counts = await one<{ companies: string; wp_tested: string; pages: string; active: string; inactive: string }>(
     `select
         (select count(*) from companies where organization_id = $1)::text as companies,
+        (select count(*) from companies where organization_id = $1 and lower(trim(wp_testado)) = 'sim')::text as wp_tested,
         (select count(*) from landing_pages where organization_id = $1)::text as pages,
         (select count(*) from landing_pages where organization_id = $1 and status = 'ativa')::text as active,
         (select count(*) from landing_pages where organization_id = $1 and status = 'inativa')::text as inactive`,
@@ -294,6 +295,8 @@ export async function dashboardStats(orgId: string) {
   );
   return {
     companies: Number(counts?.companies ?? 0),
+    // Empresas com wp_testado = "sim" (campo de texto preenchido fora do painel)
+    wp_tested: Number(counts?.wp_tested ?? 0),
     landing_pages: Number(counts?.pages ?? 0),
     active: Number(counts?.active ?? 0),
     inactive: Number(counts?.inactive ?? 0),
