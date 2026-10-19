@@ -1197,6 +1197,34 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     const host = n ? (n.nodeType === Node.TEXT_NODE ? n.parentElement : (n as HTMLElement)) : null;
     return (host && Math.round(parseFloat(win.getComputedStyle(host).fontSize))) || computedSize();
   };
+  /**
+   * Cor no trecho guardado: envolve o trecho num <span style="color"> (sem execCommand, que exige o foco no texto
+   * e falhava com o seletor de cor aberto). Chamadas seguidas do mesmo seletor só trocam a cor do mesmo span.
+   */
+  const inlineColor = (hex: string, current: HTMLElement | null, range: Range | null): HTMLElement | null => {
+    if (current?.isConnected) {
+      current.style.color = hex;
+      return current;
+    }
+    if (!range || range.collapsed || !el.contains(range.commonAncestorContainer)) return null;
+    const r = range.cloneRange();
+    const span = doc.createElement('span');
+    span.style.color = hex;
+    span.appendChild(r.extractContents());
+    // Cores que já existiam dentro do trecho dão lugar à nova
+    span.querySelectorAll<HTMLElement>('[style*="color"]').forEach((x) => x.style.removeProperty('color'));
+    span.querySelectorAll('font[color]').forEach((x) => x.removeAttribute('color'));
+    r.insertNode(span);
+    const nr = doc.createRange();
+    nr.selectNodeContents(span);
+    lastRange = nr.cloneRange();
+    const s = win.getSelection();
+    if (s && doc.activeElement === el) {
+      s.removeAllRanges();
+      s.addRange(nr);
+    }
+    return span;
+  };
   const inlineSize = (next: number) => {
     restoreSel();
     const s = win.getSelection();
@@ -1297,11 +1325,22 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   color.type = 'color';
   color.title = 'Cor do texto (com um trecho selecionado, só nele)';
   color.setAttribute('style', `${fieldCss};width:${px(34)};padding:${px(3)}`);
-  // Trecho selecionado: aplica ao fechar o seletor (focar o texto antes fecharia o seletor de cor)
+  // Trecho selecionado: a cor entra na hora, enquanto escolhe (sem depender do foco nem do seletor fechar)
   let colorPartial = false;
-  color.addEventListener('pointerdown', () => (colorPartial = partial()));
-  color.addEventListener('input', () => !colorPartial && opts.setStyle(sel(), { text: color.value }));
-  color.addEventListener('change', () => colorPartial && inlineCmd('foreColor', color.value, true));
+  let colorSpan: HTMLElement | null = null;
+  // Cópia do trecho no clique: abrir o seletor pode apagar a seleção da página
+  let colorRange: Range | null = null;
+  const startColor = () => {
+    colorPartial = partial();
+    colorRange = colorPartial ? lastRange!.cloneRange() : null;
+    colorSpan = null;
+  };
+  color.addEventListener('pointerdown', startColor);
+  color.addEventListener('keydown', startColor);
+  color.addEventListener('input', () => {
+    if (!colorPartial) return opts.setStyle(sel(), { text: color.value });
+    colorSpan = inlineColor(color.value, colorSpan, colorRange);
+  });
 
   // Cor de fundo
   const bg = doc.createElement('input');
