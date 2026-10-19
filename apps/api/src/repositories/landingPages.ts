@@ -278,10 +278,11 @@ export function getVersion(id: string, version: number) {
 }
 
 export async function dashboardStats(orgId: string) {
-  const counts = await one<{ companies: string; wp_verified: string; pages: string; active: string; inactive: string }>(
+  const counts = await one<{ companies: string; wp_verified: string; wp_missing: string; pages: string; active: string; inactive: string }>(
     `select
         (select count(*) from companies where organization_id = $1)::text as companies,
         (select count(*) from companies where organization_id = $1 and coalesce(trim(wp_verificado), '') <> '')::text as wp_verified,
+        (select count(*) from companies where organization_id = $1 and coalesce(trim(wp_verificado), '') = '')::text as wp_missing,
         (select count(*) from landing_pages where organization_id = $1)::text as pages,
         (select count(*) from landing_pages where organization_id = $1 and status = 'ativa')::text as active,
         (select count(*) from landing_pages where organization_id = $1 and status = 'inativa')::text as inactive`,
@@ -297,6 +298,8 @@ export async function dashboardStats(orgId: string) {
     companies: Number(counts?.companies ?? 0),
     // Empresas com wp_verificado preenchido (campo de texto preenchido fora do painel)
     wp_verified: Number(counts?.wp_verified ?? 0),
+    // Empresas sem wp_verificado (vazio ou nulo)
+    wp_missing: Number(counts?.wp_missing ?? 0),
     landing_pages: Number(counts?.pages ?? 0),
     active: Number(counts?.active ?? 0),
     inactive: Number(counts?.inactive ?? 0),
@@ -304,14 +307,19 @@ export async function dashboardStats(orgId: string) {
   };
 }
 
-/** Lista do card "WP verificado": empresas com o número verificado preenchido e o status do teste (wp_testado). */
-export async function wpVerifiedCompanies(orgId: string) {
-  const { rows } = await query<{ id: string; name: string; wp_verificado: string; wp_testado: string | null }>(
-    `select id, coalesce(nullif(trim(trade_name), ''), name) as name, trim(wp_verificado) as wp_verificado, nullif(trim(wp_testado), '') as wp_testado
+/**
+ * Listas dos cards "WP verificado" (wp_verificado preenchido) e "Sem WP" (vazio ou nulo), com o status do teste (wp_testado).
+ * Sem número verificado, mostra o contato do cadastro: WhatsApp, celular ou telefone.
+ */
+export async function wpCompanies(orgId: string, verified: boolean) {
+  const { rows } = await query<{ id: string; name: string; number: string | null; wp_testado: string | null }>(
+    `select id, coalesce(nullif(trim(trade_name), ''), name) as name,
+            coalesce(nullif(trim(wp_verificado), ''), nullif(trim(whatsapp), ''), nullif(trim(mobile), ''), nullif(trim(phone), '')) as number,
+            nullif(trim(wp_testado), '') as wp_testado
        from companies
-      where organization_id = $1 and coalesce(trim(wp_verificado), '') <> ''
+      where organization_id = $1 and (coalesce(trim(wp_verificado), '') <> '') = $2
       order by lower(coalesce(nullif(trim(trade_name), ''), name))`,
-    [orgId],
+    [orgId, verified],
   );
   return rows;
 }

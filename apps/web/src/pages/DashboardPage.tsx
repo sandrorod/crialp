@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowUpRight, BadgeCheck, Building2, CircleCheck, CircleOff, PanelsTopLeft, Plus, Sparkles } from 'lucide-react';
+import { ArrowUpRight, BadgeCheck, BadgeX, Building2, CircleCheck, CircleOff, PanelsTopLeft, Plus, Sparkles } from 'lucide-react';
 import { Button, Card, EmptyState, ErrorBlock, Input, Modal, PageHeader, Spinner, StatusBadge } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { relativeTime } from '@/lib/utils';
@@ -8,11 +8,12 @@ import { miscService } from '@/services';
 
 export function DashboardPage() {
   const { data, error, loading, reload } = useAsync(() => miscService.dashboard(), []);
-  const [wpOpen, setWpOpen] = useState(false);
+  const [wpList, setWpList] = useState<'verified' | 'missing' | null>(null);
 
   const cards = [
     { label: 'Empresas', value: data?.companies, icon: Building2, tone: 'text-zinc-600 bg-zinc-100' },
-    { label: 'WP verificado', value: data?.wp_verified, icon: BadgeCheck, tone: 'text-zinc-600 bg-zinc-100', onOpen: () => setWpOpen(true) },
+    { label: 'WP verificado', value: data?.wp_verified, icon: BadgeCheck, tone: 'text-zinc-600 bg-zinc-100', onOpen: () => setWpList('verified') },
+    { label: 'Sem WP', value: data?.wp_missing, icon: BadgeX, tone: 'text-amber-700 bg-amber-50', onOpen: () => setWpList('missing') },
     { label: 'Landing Pages', value: data?.landing_pages, icon: PanelsTopLeft, tone: 'text-brand-700 bg-brand-50' },
     { label: 'Ativas', value: data?.active, icon: CircleCheck, tone: 'text-emerald-700 bg-emerald-50' },
     { label: 'Inativas', value: data?.inactive, icon: CircleOff, tone: 'text-red-700 bg-red-50' },
@@ -31,7 +32,7 @@ export function DashboardPage() {
       />
       {error ? <ErrorBlock message={error} onRetry={reload} /> : null}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:gap-4">
         {cards.map((c) => (
           <Card key={c.label} className="p-5">
             <div className="flex items-center justify-between">
@@ -113,28 +114,33 @@ export function DashboardPage() {
           </div>
         </div>
       </div>
-      <WpVerifiedModal open={wpOpen} onClose={() => setWpOpen(false)} />
+      <WpListModal kind={wpList} onClose={() => setWpList(null)} />
     </>
   );
 }
 
-/** Popup do card "WP verificado": número verificado de cada empresa e o status do teste (wp_testado). */
-function WpVerifiedModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { data, error, loading, reload } = useAsync(() => (open ? miscService.wpVerified() : Promise.resolve(null)), [open]);
+const WP_LISTS = {
+  verified: { title: 'WP verificado', count: (n: number) => `${n} números verificados` },
+  missing: { title: 'Sem WP', count: (n: number) => `${n} empresas sem número verificado (mostra o contato do cadastro)` },
+} as const;
+
+/** Popups dos cards "WP verificado" e "Sem WP": empresa, número e o status do teste (wp_testado). */
+function WpListModal({ kind, onClose }: { kind: 'verified' | 'missing' | null; onClose: () => void }) {
+  const { data, error, loading, reload } = useAsync(() => (kind ? miscService.wpList(kind) : Promise.resolve(null)), [kind]);
   const [search, setSearch] = useState('');
   const items = useMemo(() => {
     const q = search.trim().toLowerCase();
     const digits = q.replace(/\D/g, '');
     return (data?.items ?? []).filter(
-      (i) => !q || i.name.toLowerCase().includes(q) || (digits && i.wp_verificado.replace(/\D/g, '').includes(digits)),
+      (i) => !q || i.name.toLowerCase().includes(q) || (digits && (i.number ?? '').replace(/\D/g, '').includes(digits)),
     );
   }, [data, search]);
 
   return (
     <Modal
-      open={open}
-      title="WP verificado"
-      description={data ? `${data.items.length} números verificados` : undefined}
+      open={!!kind}
+      title={kind ? WP_LISTS[kind].title : ''}
+      description={kind && data ? WP_LISTS[kind].count(data.items.length) : undefined}
       onClose={() => {
         setSearch('');
         onClose();
@@ -160,7 +166,7 @@ function WpVerifiedModal({ open, onClose }: { open: boolean; onClose: () => void
               items.map((i) => (
                 <div key={i.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-4 py-2.5 text-sm">
                   <span className="truncate" title={i.name}>{i.name}</span>
-                  <span className="font-mono tabular-nums text-zinc-700">{i.wp_verificado}</span>
+                  <span className="font-mono tabular-nums text-zinc-700">{i.number ?? <span className="font-sans text-zinc-400">sem número</span>}</span>
                   <span className="w-20 text-right">
                     {i.wp_testado ? (
                       <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">{i.wp_testado}</span>

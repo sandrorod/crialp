@@ -5,7 +5,7 @@ import { env } from '../config/env.js';
 import { AppError, notFound } from '../lib/errors.js';
 import { parseBody, uuidParam } from '../lib/validation.js';
 import { authUser, MANAGER_ROLES, requireRole } from '../middleware/auth.js';
-import { dashboardStats, wpVerifiedCompanies } from '../repositories/landingPages.js';
+import { dashboardStats, wpCompanies } from '../repositories/landingPages.js';
 import { AIProviderError, aiService } from '../services/ai/index.js';
 import { aiKeyStore, KEY_PROVIDERS, type KeyProvider } from '../services/ai/keyStore.js';
 import { testRapidApiKey } from '../services/search/companySearch.js';
@@ -19,10 +19,14 @@ miscRouter.get('/dashboard', async (req, res) => {
   res.json(await dashboardStats(user.organizationId));
 });
 
-/** Popup do card "WP verificado": número verificado e status do teste de cada empresa. */
+/** Popups dos cards "WP verificado" e "Sem WP": número e status do teste de cada empresa. */
 miscRouter.get('/dashboard/wp-verified', async (req, res) => {
   const user = authUser(req);
-  res.json({ items: await wpVerifiedCompanies(user.organizationId) });
+  res.json({ items: await wpCompanies(user.organizationId, true) });
+});
+miscRouter.get('/dashboard/wp-missing', async (req, res) => {
+  const user = authUser(req);
+  res.json({ items: await wpCompanies(user.organizationId, false) });
 });
 
 miscRouter.get('/settings', async (req, res) => {

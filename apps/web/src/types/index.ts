@@ -487,17 +487,20 @@ export interface DashboardStats {
   companies: number;
   /** Empresas com wp_verificado preenchido (não vazio) */
   wp_verified: number;
+  /** Empresas sem wp_verificado (vazio ou nulo) */
+  wp_missing: number;
   landing_pages: number;
   active: number;
   inactive: number;
   recent: { id: string; slug: string; status: LpStatus; created_at: string; company_name: string; segment: string | null }[];
 }
 
-/** Linha do popup do card "WP verificado" */
+/** Linha dos popups dos cards "WP verificado" e "Sem WP" */
 export interface WpVerifiedItem {
   id: string;
   name: string;
-  wp_verificado: string;
+  /** wp_verificado; sem ele, WhatsApp, celular ou telefone do cadastro */
+  number: string | null;
   wp_testado: string | null;
 }
 
