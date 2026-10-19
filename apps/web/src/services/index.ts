@@ -13,6 +13,7 @@ import type {
   CompanyListItem,
   DashboardStats,
   WpVerifiedItem,
+  AtendimentoItem,
   FoundCompany,
   PlaceListing,
   SavedSearchItem,
@@ -158,6 +159,11 @@ export interface DriveStatus {
 
 export const miscService = {
   dashboard: () => api.get<DashboardStats>('/dashboard'),
+  /** Tabela atendimento_lp (Configurações → Atendimento) */
+  atendimento: () => api.get<{ items: AtendimentoItem[] }>('/settings/atendimento'),
+  createAtendimento: (respostas: string | null) => api.post<AtendimentoItem>('/settings/atendimento', { respostas }),
+  saveAtendimento: (id: string, respostas: string | null) => api.put<AtendimentoItem>(`/settings/atendimento/${id}`, { respostas }),
+  deleteAtendimento: (id: string) => api.del(`/settings/atendimento/${id}`),
   wpList: (kind: 'verified' | 'missing') => api.get<{ items: WpVerifiedItem[] }>(`/dashboard/wp-${kind}`),
   settings: () =>
     api.get<{ user: User; ai: { provider: string; model: string; configured: boolean }; app_url: string; storage: string; environment: string }>('/settings'),

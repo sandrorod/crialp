@@ -12,6 +12,9 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
   if ((err as any)?.type === 'entity.parse.failed') {
     return res.status(400).json({ error: 'JSON inválido.', code: 'BAD_JSON' });
   }
+  if ((err as any)?.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Conteúdo muito grande para enviar de uma vez.', code: 'BODY_TOO_LARGE' });
+  }
   if ((err as any)?.code === 'LIMIT_FILE_SIZE') {
     return res.status(413).json({ error: 'Arquivo muito grande (máximo 2 MB).', code: 'FILE_TOO_LARGE' });
   }

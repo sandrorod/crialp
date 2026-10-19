@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 import { env } from '../config/env.js';
+import { one, query } from '../db/pool.js';
 import { AppError, notFound } from '../lib/errors.js';
 import { parseBody, uuidParam } from '../lib/validation.js';
 import { authUser, MANAGER_ROLES, requireRole } from '../middleware/auth.js';
@@ -51,6 +52,35 @@ miscRouter.post('/uploads', upload.single('file'), async (req, res) => {
   if (!ext) throw new AppError(400, 'Formato não suportado. Envie JPG, PNG, WEBP ou GIF.');
   const url = await storage.save(req.file.buffer, ext);
   res.status(201).json({ url });
+});
+
+// ─── Atendimento (tabela atendimento_lp): textos de respostas editados em Configurações ─────
+const RespostasSchema = z.object({ respostas: z.string().max(4_000_000, 'Texto muito grande (máximo de 4 milhões de caracteres).').nullable() });
+
+miscRouter.get('/settings/atendimento', requireRole(...MANAGER_ROLES), async (_req, res) => {
+  const { rows } = await query<{ id: string; respostas: string | null }>('select id::text, respostas from atendimento_lp order by id');
+  res.json({ items: rows });
+});
+
+miscRouter.post('/settings/atendimento', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const { respostas } = parseBody(RespostasSchema, req.body);
+  const row = await one<{ id: string; respostas: string | null }>('insert into atendimento_lp (respostas) values ($1) returning id::text, respostas', [respostas]);
+  res.status(201).json(row);
+});
+
+miscRouter.put('/settings/atendimento/:id', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const id = z.coerce.number().int().positive().parse(req.params.id);
+  const { respostas } = parseBody(RespostasSchema, req.body);
+  const row = await one<{ id: string; respostas: string | null }>('update atendimento_lp set respostas = $2 where id = $1 returning id::text, respostas', [id, respostas]);
+  if (!row) throw notFound('Registro não encontrado.');
+  res.json(row);
+});
+
+miscRouter.delete('/settings/atendimento/:id', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const id = z.coerce.number().int().positive().parse(req.params.id);
+  const { rowCount } = await query('delete from atendimento_lp where id = $1', [id]);
+  if (!rowCount) throw notFound('Registro não encontrado.');
+  res.json({ ok: true });
 });
 
 // ─── Chaves de API com rodízio (Gemini e RapidAPI) ──────────────────

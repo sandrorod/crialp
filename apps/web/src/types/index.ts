@@ -506,6 +506,12 @@ export interface WpVerifiedItem {
   wp_testado: string | null;
 }
 
+/** Registro da tabela atendimento_lp */
+export interface AtendimentoItem {
+  id: string;
+  respostas: string | null;
+}
+
 export interface AIKeyInfo {
   id: string;
   label: string | null;

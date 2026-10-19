@@ -45,7 +45,11 @@ export function createApp() {
   // 4) API administrativa (JSON, autenticada)
   const api = express.Router();
   api.use(securityHeaders());
-  api.use(express.json({ limit: '1mb' }));
+  // Textos do atendimento (Configurações) podem ser grandes; o resto da API continua com 1 MB.
+  // (No Vercel o corpo da requisição tem limite próprio de ~4,5 MB.)
+  const jsonDefault = express.json({ limit: '1mb' });
+  const jsonLarge = express.json({ limit: '4.4mb' });
+  api.use((req, res, next) => (req.path.startsWith('/settings/atendimento') ? jsonLarge : jsonDefault)(req, res, next));
   api.use(cookieParser());
   api.use(requireSameOriginWrite);
   // Versão publicada (commit) para conferir se um deploy já está no ar

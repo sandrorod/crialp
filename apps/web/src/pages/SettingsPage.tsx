@@ -7,6 +7,7 @@ import { errorMessage } from '@/lib/api';
 import { authService, miscService } from '@/services';
 import { AIKeysSection } from '@/components/settings/AIKeysSection';
 import { GoogleDriveSection } from '@/components/settings/GoogleDriveSection';
+import { AtendimentoSection } from '@/components/settings/AtendimentoSection';
 import { useAuth } from '@/hooks/useAuth';
 
 export function SettingsPage() {
@@ -72,6 +73,7 @@ export function SettingsPage() {
         {canManageKeys ? <AIKeysSection provider="rapidapi_gemini" /> : null}
         {canManageKeys ? <AIKeysSection provider="rapidapi" /> : null}
         {canManageKeys ? <GoogleDriveSection /> : null}
+        {canManageKeys ? <AtendimentoSection /> : null}
 
         <CardSection title="Alterar senha" description={data ? `${data.user.name} · ${data.user.email}` : undefined}>
           <form onSubmit={changePassword} className="grid gap-4 sm:grid-cols-2">
