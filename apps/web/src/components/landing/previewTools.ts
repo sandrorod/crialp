@@ -1174,6 +1174,8 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     const r = s.getRangeAt(0);
     if (!el.contains(r.commonAncestorContainer)) return;
     lastRange = r.collapsed ? null : r.cloneRange();
+    // A barra mostra o tamanho do trecho selecionado (ou do texto inteiro)
+    value.textContent = `${lastRange && el.isContentEditable ? selSize() : size()}px`;
   };
   doc.addEventListener('selectionchange', rememberSel);
   const partial = () => el.isContentEditable && !!lastRange && !lastRange.collapsed;
@@ -1200,6 +1202,13 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     const s = win.getSelection();
     if (!s?.rangeCount) return;
     const r = s.getRangeAt(0);
+    // Seleção já é um trecho com tamanho próprio (cliques seguidos em A+/A−): só troca o tamanho dele
+    const anc = r.commonAncestorContainer;
+    const own = (anc.nodeType === Node.TEXT_NODE ? anc.parentElement : (anc as HTMLElement)) as HTMLElement | null;
+    if (own && own !== el && own.tagName === 'SPAN' && own.style.fontSize && r.toString() === own.textContent) {
+      own.style.fontSize = `${next}px`;
+      return;
+    }
     const span = doc.createElement('span');
     span.style.fontSize = `${next}px`;
     span.appendChild(r.extractContents());
@@ -1271,7 +1280,9 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     opts.setStyle(sel(), { size: next });
     render();
   };
-  const step = () => ((partial() ? selSize() : size()) < 24 ? 1 : 2);
+  // Tamanho de partida: o do trecho selecionado, ou o do texto inteiro
+  const current = () => (partial() ? selSize() : size());
+  const step = () => (current() < 24 ? 1 : 2);
 
   // Negrito, itálico e sublinhado: o botão inverte o que está aparecendo agora
   const isBold = () => saved().bold ?? Number(cs().fontWeight) >= 600;
@@ -1469,7 +1480,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   if (hasText) {
     bar.append(
       line('Fonte', font, reset),
-      line('Tamanho', mk('A−', 'Diminuir fonte', () => setSize(Math.max(8, size() - step()))), value, mk('A+', 'Aumentar fonte', () => setSize(Math.min(160, size() + step())))),
+      line('Tamanho', mk('A−', 'Diminuir fonte (com um trecho selecionado, só nele)', () => setSize(Math.max(8, current() - step()))), value, mk('A+', 'Aumentar fonte (com um trecho selecionado, só nele)', () => setSize(Math.min(160, current() + step())))),
       line('Estilo', bold, italic, underline),
       line('Cor do texto', color),
     );
