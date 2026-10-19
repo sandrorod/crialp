@@ -11,6 +11,8 @@ import {
   attachImageResize,
   imagePickFor,
   imageSizeKey,
+  applyBoxInline,
+  cropOf,
   onImagePick,
   type ImagePick,
   attachMoveDrag,
@@ -67,6 +69,8 @@ function attachFocusDrag(
   onFocus: (url: string, focus: ImageFocus) => void,
   uiScale = 1,
   onStyle?: (img: HTMLImageElement, at: { x: number; y: number }) => void,
+  /** Foto cortada pelas bordas: arrastar desloca a foto dentro da moldura (o que foi cortado) */
+  crop?: { get: (img: HTMLImageElement) => { key: string; box: ImageBox } | null; save: (key: string, box: ImageBox) => void },
 ) {
   // A prévia desktop é reduzida para caber no painel: os controles crescem na mesma proporção
   const px = (n: number) => `${Math.round(n * uiScale)}px`;
@@ -182,14 +186,38 @@ function attachFocusDrag(
       handle.setPointerCapture(e.pointerId);
       handle.style.cursor = 'grabbing';
 
+      // Foto cortada pelas bordas: a parte escondida pode ser trazida de volta arrastando a foto dentro da moldura.
+      // Lateral em % da largura disponível (il, até iw − w); em cima/embaixo em px (it, até ih − h)
+      const cut = crop?.get(img) ?? null;
+      const box0 = cut?.box;
+      const bw = box0?.w ?? 100;
+      const available = handle.getBoundingClientRect().width / (bw / 100);
+      const rangeX = box0?.iw !== undefined ? Math.max(0, box0.iw - bw) : 0;
+      const rangeY = box0?.ih !== undefined && box0.h !== undefined ? Math.max(0, box0.ih - box0.h) : 0;
+      const il0 = box0?.il ?? 0;
+      const it0 = box0?.it ?? 0;
+      let box = box0;
+
       const move = (ev: PointerEvent) => {
+        const dx = ev.clientX - sx;
+        const dy = ev.clientY - sy;
+        if (box0 && (rangeX > 0.05 || rangeY >= 1)) {
+          // Arrastar para a direita/baixo revela o lado esquerdo/de cima (o deslocamento diminui)
+          box = {
+            ...box0,
+            ...(rangeX > 0.05 ? { il: Math.round(clamp(il0 - (dx / available) * 100, 0, rangeX) * 10) / 10 } : {}),
+            ...(rangeY >= 1 ? { it: Math.round(clamp(it0 - dy, 0, rangeY)) } : {}),
+          };
+          applyBoxInline(handle, img, box);
+        }
         // Foto maior que o espaço: arrastar para a direita/baixo revela o lado esquerdo/de cima (a posição diminui).
         // Foto menor que o espaço (zoom abaixo de 100%): a foto acompanha o ponteiro dentro do espaço livre.
+        // No eixo em que a foto foi cortada, quem se move é o corte (acima)
         const axis = (o: number, p: number, d: number) => (o > 1 ? clamp(p - (d / o) * 100) : o < -1 ? clamp(p + (d / -o) * 100) : p);
         moved = {
           ...start,
-          x: axis(over.x, start.x, ev.clientX - sx),
-          y: axis(over.y, start.y, ev.clientY - sy),
+          x: rangeX > 0.05 ? start.x : axis(over.x, start.x, dx),
+          y: rangeY >= 1 ? start.y : axis(over.y, start.y, dy),
         };
         applyFocus(img, moved);
       };
@@ -199,6 +227,7 @@ function attachFocusDrag(
         handle.removeEventListener('pointercancel', end);
         handle.style.cursor = 'grab';
         if (moved.x !== start.x || moved.y !== start.y) onFocus(url, round(moved));
+        if (cut && box && (box.il !== box0?.il || box.it !== box0?.it)) crop?.save(cut.key, box);
       };
       handle.addEventListener('pointermove', move);
       handle.addEventListener('pointerup', end);
@@ -387,7 +416,11 @@ export function PreviewFrame({
     setImageStyleCss(d, imageStylesCss(imageStyleRef.current, focusRef.current));
     if (onFocusRef.current) {
       const openImage = (img: HTMLImageElement, at: { x: number; y: number }) => setImagePick(imagePickFor(img, at.x, at.y));
-      attachFocusDrag(d, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), uiScale, openImage);
+      const sizeOf = (key: string) => imageSizeRef.current?.[device]?.[key];
+      attachFocusDrag(d, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), uiScale, openImage, {
+        get: (img) => cropOf(img, sizeOf),
+        save: (key, box) => onImageSizeRef.current?.({ [key]: box }),
+      });
       onImagePick(d, setImagePick);
     }
     setColorsCss(d, elementColorsCss(colorsRef.current));

@@ -268,7 +268,7 @@ export function setImageSizeCss(doc: Document, css: string) {
 type Edge = 'left' | 'right' | 'top' | 'bottom';
 
 /** Aplica o tamanho (e o corte) direto na moldura e na foto durante o arrasto. */
-function applyBoxInline(frame: HTMLElement, img: HTMLElement, b: ImageBox) {
+export function applyBoxInline(frame: HTMLElement, img: HTMLElement, b: ImageBox) {
   frame.dataset.lpResized = '1';
   img.dataset.lpResized = '1';
   const set = (el: HTMLElement, p: string, v: string | null) => (v === null ? el.style.removeProperty(p) : el.style.setProperty(p, v, 'important'));
@@ -289,6 +289,19 @@ function applyBoxInline(frame: HTMLElement, img: HTMLElement, b: ImageBox) {
   set(img, 'height', b.ih !== undefined ? `${b.ih}px` : null);
   set(img, 'max-height', b.ih !== undefined ? 'none' : null);
   set(img, 'margin-top', b.ih !== undefined ? `-${b.it ?? 0}px` : null);
+}
+
+/**
+ * Corte salvo da foto (bordas arrastadas no modo Fotos): a chave onde está gravado (desta seção ou a antiga,
+ * de todas as seções) e as medidas. null = foto sem corte.
+ */
+export function cropOf(img: HTMLImageElement, getSize: (key: string) => ImageBox | undefined): { key: string; box: ImageBox } | null {
+  const src = img.dataset.lpImg;
+  if (!src) return null;
+  const sectionKey = imageSizeKey(img.closest<HTMLElement>('[data-section]')?.dataset.section, src);
+  const key = getSize(sectionKey) ? sectionKey : getSize(src) ? src : null;
+  const box = key ? getSize(key) : undefined;
+  return key && box && (box.iw !== undefined || box.ih !== undefined) ? { key, box } : null;
 }
 
 /** Tira do tamanho o que ficou igual ao padrão (largura 100%, foto do tamanho da moldura). */
