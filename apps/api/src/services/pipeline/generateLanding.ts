@@ -65,6 +65,8 @@ function themeFromContent(content: LandingContent): ThemeSettings {
     primary: content.design.primary_color,
     accent: content.design.accent_color,
     heroVariant: content.design.hero_variant,
+    // Páginas novas já usam os tons das duas cores
+    blend: true,
   });
 }
 

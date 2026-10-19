@@ -184,6 +184,8 @@ const ContentUpdateSchema = z.object({
     brand: z.enum(['logo', 'name', 'both']).optional(),
     // Tira os emojis de todos os textos da página
     removeEmojis: z.boolean().optional(),
+    // Tons das duas cores (gravado ao escolher as cores no editor)
+    blend: z.boolean().optional(),
     hideMap: z.boolean().optional(),
     // Ordem das seções só no celular (vazia = igual ao computador)
     mobileOrder: z.array(z.string().max(60)).max(60).optional(),

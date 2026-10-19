@@ -56,7 +56,7 @@ p{margin:0;text-wrap:pretty}
 @media(min-width:960px){.nav{display:flex}.header-cta{display:inline-flex}.menu{display:none}}
 
 /* Tipografia de seção */
-.eyebrow{display:inline-flex;align-items:center;gap:10px;font:600 13px/1.2 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--primary-ink);margin-bottom:18px}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;font:600 13px/1.2 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--eyebrow,var(--primary-ink));margin-bottom:18px}
 .eyebrow::before{content:"";width:22px;height:1.5px;background:currentColor;opacity:.7}
 /* Margem interna superior/inferior das seções: 15% menor em todos os modelos */
 /* Seções (todas menos o topo): margem interna de cima e de baixo com 50% da original, no computador e no celular */
@@ -121,7 +121,7 @@ p{margin:0;text-wrap:pretty}
 .card{position:relative;padding:32px 28px;border-radius:var(--radius);background:var(--bg);border:1px solid var(--border);transition:transform .25s ease,box-shadow .25s ease,border-color .25s}
 .section-alt .card{background:var(--bg)}
 .card:hover{transform:translateY(-3px);box-shadow:0 24px 48px -28px rgba(0,0,0,.28);border-color:color-mix(in srgb,var(--primary) 35%,var(--border))}
-.card .icon-box{width:52px;height:52px;border-radius:calc(var(--radius-sm));display:grid;place-items:center;background:var(--primary-soft);color:var(--primary-ink);margin-bottom:10px}
+.card .icon-box{width:52px;height:52px;border-radius:calc(var(--radius-sm));display:grid;place-items:center;background:var(--icon-bg,var(--primary-soft));color:var(--icon-fg,var(--primary-ink));margin-bottom:10px}
 .card h3{font-size:calc((clamp(1.3rem,1.1rem + .6vw,1.55rem)) * var(--title-scale));margin-bottom:12px}
 .card p{color:var(--muted);font-size:16px}
 .benefit{display:flex;gap:10px;align-items:flex-start;margin-top:20px;padding-top:18px;border-top:1px dashed var(--border);font-size:15px;font-weight:500}
@@ -648,7 +648,7 @@ p{margin:0;text-wrap:pretty}
 .tpl-oficio .site-header .nav a{color:rgba(255,255,255,.82)}
 .tpl-oficio .site-header .nav a:hover{color:var(--accent)}
 .tpl-oficio .hero-pattern{display:none}
-.tpl-oficio .eyebrow{text-transform:uppercase;letter-spacing:.14em;font-weight:600;color:var(--primary-ink)}
+.tpl-oficio .eyebrow{text-transform:uppercase;letter-spacing:.14em;font-weight:600;color:var(--eyebrow,var(--primary-ink))}
 .tpl-oficio .eyebrow::before,.tpl-oficio .eyebrow::after{display:none}
 .tpl-oficio .hero-media{box-shadow:0 10px 30px -12px rgba(0,0,0,.28)}
 .hero-mosaic{display:grid;grid-template-columns:1.1fr 1fr;grid-template-rows:1fr 1fr;gap:14px;height:520px}

@@ -305,6 +305,8 @@ export interface ThemeSettings {
   logoPlacement?: 'header' | 'hero' | 'about';
   /** Tira os emojis de todos os textos da página */
   removeEmojis?: boolean;
+  /** Página usa tons das duas cores (gravado ao escolher as cores no editor) */
+  blend?: boolean;
   /** Esconde o mapa do endereço na seção de contato */
   hideMap?: boolean;
   /** Cabeçalho: logotipo, nome da empresa ou os dois */

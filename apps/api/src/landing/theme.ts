@@ -35,6 +35,12 @@ export interface ThemeSettings {
   logoPlacement?: LogoPlacement;
   /** Tira os emojis de todos os textos da página. */
   removeEmojis?: boolean;
+  /**
+   * Página trabalha com tons das duas cores (principal e destaque): fundos alternados, bordas, textos de apoio
+   * e ícones puxam a cor de destaque. Gravado quando as cores são escolhidas no editor (e nas páginas novas);
+   * páginas antigas continuam como estavam até alguém escolher as cores de novo.
+   */
+  blend?: boolean;
   /** Esconde o mapa do endereço na seção de contato (padrão: mostra quando há endereço). */
   hideMap?: boolean;
   /** Cabeçalho: logotipo (padrão), nome da empresa ou os dois. */
@@ -448,6 +454,7 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
     imageStyle: normalizeImageStyles(input?.imageStyle),
     logoPlacement: input?.logoPlacement === 'hero' || input?.logoPlacement === 'about' ? input.logoPlacement : 'header',
     removeEmojis: input?.removeEmojis === true,
+    blend: input?.blend === true,
     hideMap: input?.hideMap === true,
     brand: input?.brand === 'name' || input?.brand === 'both' ? input.brand : 'logo',
   };
@@ -486,6 +493,23 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
   const band = p.dark ? c.surface : ensureContrast(mix(c.text, primary, 0.12), '#ffffff', 12);
   const bandText = readableOn(band);
   const bandAccent = ensureContrast(p.dark ? primary : mix(primary, '#ffffff', 0.35), band, 4.5);
+
+  // Duas cores: tons da cor de destaque nos fundos alternados, bordas, textos de apoio (eyebrow) e ícones.
+  // Sem "blend", --eyebrow/--icon-* não são definidas e o CSS usa as da cor principal (visual de antes).
+  const blend = settings.blend === true;
+  const blendVars: Record<string, string> = blend
+    ? (() => {
+        const iconBg = mix(c.bg, accent, p.dark ? 0.2 : 0.13);
+        return {
+          '--surface': mix(c.surface, accent, p.dark ? 0.12 : 0.08),
+          '--border': mix(c.bg, mix(c.text, accent, 0.6), p.dark ? 0.2 : 0.14),
+          '--eyebrow': ensureContrast(accent, c.bg, 4.5),
+          '--icon-bg': iconBg,
+          '--icon-fg': ensureContrast(accent, iconBg, 3),
+          '--band-accent': ensureContrast(p.dark ? accent : mix(accent, '#ffffff', 0.35), band, 4.5),
+        };
+      })()
+    : {};
 
   const h = headingFont(p);
   // Corpo sem query própria usava a mesma família do título do preset: carrega essa família para o texto
@@ -535,6 +559,7 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
       '--heading-case': p.heading.case,
       '--heading-tracking': h.tracking,
       '--heading-lh': String(h.lineHeight),
+      ...blendVars,
     },
   };
 }

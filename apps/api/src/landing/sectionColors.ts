@@ -55,6 +55,10 @@ export function sectionVars(theme: ResolvedTheme, colors: SectionColors | undefi
     '--primary-ink': accentInk,
     '--primary-soft': mix(bg, accent, 0.12),
     '--accent-ink': accentInk,
+    // Textos de apoio e ícones seguem o destaque da seção (sobrepõem os tons do "blend" da página)
+    '--eyebrow': accentInk,
+    '--icon-bg': mix(bg, accent, 0.12),
+    '--icon-fg': accentInk,
     // Seções em faixa (diferenciais) e o painel do topo usam as variáveis --band
     '--band': bg,
     '--band-text': text,

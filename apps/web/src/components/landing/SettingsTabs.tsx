@@ -180,7 +180,8 @@ export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSe
   const manual = manualColorCount(theme);
   // Mudar a direção visual ou as cores gerais vale para a página inteira: as cores feitas à mão
   // (seções e elementos) dão lugar às novas cores. Para desfazer antes de salvar: "Descartar".
-  const onPalette = (next: ThemeSettings) => change(withoutManualColors(next));
+  // Escolher estilo ou cores liga os tons das duas cores na página inteira (blend)
+  const onPalette = (next: ThemeSettings) => change(withoutManualColors({ ...next, blend: true }));
   const onChange = change;
 
   return (
