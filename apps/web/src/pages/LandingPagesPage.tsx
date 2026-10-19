@@ -16,13 +16,14 @@ export function LandingPagesPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [segment, setSegment] = useState('');
+  const [wp, setWp] = useState('');
   const deferred = useDeferredValue(search);
   const { data, error, loading, reload } = useAsync(
-    () => landingPageService.list({ search: deferred || undefined, status: status || undefined, segment: segment || undefined }),
-    [deferred, status, segment],
+    () => landingPageService.list({ search: deferred || undefined, status: status || undefined, segment: segment || undefined, wp: wp || undefined }),
+    [deferred, status, segment, wp],
   );
   // 10 por página; volta para a primeira ao mudar os filtros
-  const pager = usePagination(data?.items, 10, [deferred, status, segment].join('|'));
+  const pager = usePagination(data?.items, 10, [deferred, status, segment, wp].join('|'));
   const actions = useLandingPageActions(reload);
   const { sellers, canAssign } = useSellers();
   const clientLevels = useClientLevels();
@@ -40,7 +41,7 @@ export function LandingPagesPage() {
         }
       />
       <Card>
-        <div className="grid gap-2 border-b border-zinc-100 p-4 sm:grid-cols-[1fr_200px_180px]">
+        <div className="grid gap-2 border-b border-zinc-100 p-4 sm:grid-cols-[1fr_200px_180px_200px]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
             <Input placeholder="Buscar por empresa ou endereço…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
@@ -57,6 +58,11 @@ export function LandingPagesPage() {
             <option value="ativa">Ativas</option>
             <option value="inativa">Inativas</option>
           </Select>
+          <Select value={wp} onChange={(e) => setWp(e.target.value)} aria-label="WP verificado">
+            <option value="">WP verificado: todos</option>
+            <option value="com">Com WP verificado</option>
+            <option value="sem">Sem WP verificado</option>
+          </Select>
         </div>
 
         {error ? (
@@ -67,8 +73,8 @@ export function LandingPagesPage() {
           <EmptyState
             icon={<PanelsTopLeft className="size-5" />}
             title="Nenhuma Landing Page encontrada"
-            description={search || status || segment ? 'Ajuste a busca ou o filtro.' : 'Gere a primeira Landing Page a partir de uma URL.'}
-            action={!search && !status && !segment ? <Link to="/nova"><Button icon={<Plus className="size-4" />}>Criar Landing Page</Button></Link> : undefined}
+            description={search || status || segment || wp ? 'Ajuste a busca ou o filtro.' : 'Gere a primeira Landing Page a partir de uma URL.'}
+            action={!search && !status && !segment && !wp ? <Link to="/nova"><Button icon={<Plus className="size-4" />}>Criar Landing Page</Button></Link> : undefined}
           />
         ) : (
           <>

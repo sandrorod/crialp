@@ -97,7 +97,7 @@ export const companyService = {
 };
 
 export const landingPageService = {
-  list: (f: { search?: string; status?: string; segment?: string }) =>
+  list: (f: { search?: string; status?: string; segment?: string; wp?: string }) =>
     api.get<{ items: LandingPageListItem[]; facets: { segments: string[] } }>(`/landing-pages${qs(f)}`),
   setSeller: (id: string, sellerId: string | null) => api.patch<{ ok: true }>(`/landing-pages/${id}/seller`, { seller_id: sellerId }),
   setClientLevel: (id: string, levelId: string | null) => api.patch<{ ok: true }>(`/landing-pages/${id}/client-level`, { client_level_id: levelId }),

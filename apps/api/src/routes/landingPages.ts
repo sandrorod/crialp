@@ -36,7 +36,7 @@ function serialize(lp: repo.LandingPageRow) {
 
 landingPagesRouter.get('/', async (req, res) => {
   const user = authUser(req);
-  const q = z.object({ search: z.string().max(200).optional(), status: z.string().max(20).optional(), segment: z.string().max(200).optional() }).parse(req.query);
+  const q = z.object({ search: z.string().max(200).optional(), status: z.string().max(20).optional(), segment: z.string().max(200).optional(), wp: z.enum(['com', 'sem']).optional().catch(undefined) }).parse(req.query);
   const [items, segments] = await Promise.all([repo.listLandingPages(user.organizationId, q), repo.landingPageSegments(user.organizationId)]);
   res.json({ items: items.map((i) => ({ ...i, public_url: publicUrl(i) })), facets: { segments } });
 });

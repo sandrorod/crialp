@@ -180,7 +180,7 @@ export async function getLandingPageByDomain(domain: string) {
   );
 }
 
-export async function listLandingPages(orgId: string, f: { search?: string; status?: string; segment?: string }) {
+export async function listLandingPages(orgId: string, f: { search?: string; status?: string; segment?: string; wp?: string }) {
   const where = ['lp.organization_id = $1'];
   const params: unknown[] = [orgId];
   if (f.search) {
@@ -195,6 +195,9 @@ export async function listLandingPages(orgId: string, f: { search?: string; stat
     params.push(f.segment);
     where.push(`c.segment = $${params.length}`);
   }
+  // WhatsApp verificado da empresa (companies.wp_verificado): preenchido ou vazio/nulo
+  if (f.wp === 'com') where.push(`coalesce(trim(c.wp_verificado), '') <> ''`);
+  if (f.wp === 'sem') where.push(`coalesce(trim(c.wp_verificado), '') = ''`);
   const { rows } = await query(
     `select lp.id, lp.title, lp.slug, lp.status, lp.custom_domain, lp.domain_status, lp.current_version,
             lp.created_at, lp.updated_at, lp.published_at, c.id as company_id, c.name as company_name, c.segment,
