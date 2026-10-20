@@ -1,14 +1,14 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { TEXT_WIDTH_MIN } from './previewTools';
-import { Check, CheckCircle2, Clock, Copy, Globe, GripVertical, ImageOff, Link2, Loader2, RotateCcw, ShieldAlert, Trash2, Upload, XCircle } from 'lucide-react';
+import { Bookmark, Check, CheckCircle2, Clock, Copy, Globe, GripVertical, ImageOff, Link2, Loader2, RotateCcw, ShieldAlert, Trash2, Upload, X, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, ConfirmDialog, Field, Input, ListEditor, Select, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { cn, copyToClipboard, formatDate } from '@/lib/utils';
 import { brandTones, type ToneRow } from '@/lib/colorTones';
-import { landingPageService, miscService } from '@/services';
-import type { CompanyImage, ElementColor, HeroVariant, ImagePlacement, LandingContent, TemplateKey, LandingPageDetail, SectionColors, SectionOrderKey, ThemeSettings } from '@/types';
+import { colorPaletteService, landingPageService, miscService } from '@/services';
+import type { ColorPalette, CompanyImage, ElementColor, HeroVariant, ImagePlacement, LandingContent, TemplateKey, LandingPageDetail, SectionColors, SectionOrderKey, ThemeSettings } from '@/types';
 
 // ─── Visual ─────────────────────────────────────────────────────────
 const HERO_VARIANTS: { value: HeroVariant; label: string; hint: string }[] = [
@@ -174,6 +174,128 @@ function withoutManualColors(theme: ThemeSettings): ThemeSettings {
   };
 }
 
+/** Cores das seções que valem em qualquer página (as seções criadas na própria página ficam de fora). */
+function portableSections(sections: ThemeSettings['sections']) {
+  return Object.fromEntries(Object.entries(sections ?? {}).filter(([k, c]) => !k.startsWith('custom:') && (c.bg || c.text || c.accent)));
+}
+
+function sameColors(theme: ThemeSettings, p: ColorPalette) {
+  const norm = (v: Record<string, SectionColors>) =>
+    JSON.stringify(Object.keys(v).sort().map((k) => [k, v[k].bg ?? null, v[k].text ?? null, v[k].accent ?? null]));
+  return (
+    theme.preset === p.preset &&
+    (theme.primary ?? null)?.toLowerCase() === (p.primary ?? null)?.toLowerCase() &&
+    (theme.accent ?? null)?.toLowerCase() === (p.accent ?? null)?.toLowerCase() &&
+    norm(portableSections(theme.sections)) === norm(p.sections ?? {})
+  );
+}
+
+/** Combinações de cores salvas com nome: aplicar em um clique e salvar a atual (com o mesmo nome, atualiza). */
+function SavedPalettes({ theme, presets, onApply }: { theme: ThemeSettings; presets: { key: string; primary: string; accent: string; bg: string }[] | null; onApply: (p: ColorPalette) => void }) {
+  const { data: palettes, setData } = useAsync(() => colorPaletteService.list(), []);
+  const [name, setName] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState<ColorPalette | null>(null);
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const active = palettes?.find((p) => sameColors(theme, p)) ?? null;
+  const taken = name?.trim() ? palettes?.find((p) => p.name.toLowerCase() === name.trim().toLowerCase()) : null;
+  const swatch = (p: ColorPalette) => {
+    const base = presets?.find((x) => x.key === p.preset);
+    return [base?.bg ?? '#ffffff', p.primary ?? base?.primary ?? '#000000', p.accent ?? base?.accent ?? '#000000'];
+  };
+
+  const save = async () => {
+    if (!name?.trim()) return;
+    setSaving(true);
+    try {
+      const saved = await colorPaletteService.save({ name: name.trim(), preset: theme.preset, primary: theme.primary ?? null, accent: theme.accent ?? null, sections: portableSections(theme.sections) });
+      setData((list) => [...(list ?? []).filter((p) => p.id !== saved.id), saved].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
+      toast.success(taken ? `Combinação "${saved.name}" atualizada.` : `Combinação "${saved.name}" salva.`);
+      setName(null);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!removing) return;
+    setRemoveBusy(true);
+    try {
+      await colorPaletteService.remove(removing.id);
+      setData((list) => (list ?? []).filter((p) => p.id !== removing.id));
+      toast.success('Combinação excluída.');
+      setRemoving(null);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setRemoveBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-zinc-200 p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold">Minhas combinações</h4>
+        {name === null ? (
+          <Button type="button" variant="secondary" size="sm" icon={<Bookmark className="size-4" />} onClick={() => setName(active?.name ?? '')} disabled={!!active} title={active ? `Estas cores já estão salvas como "${active.name}"` : 'Salvar as cores atuais com um nome'}>
+            Salvar combinação
+          </Button>
+        ) : null}
+      </div>
+      {name !== null ? (
+        <form className="mb-3 space-y-1" onSubmit={(e) => { e.preventDefault(); void save(); }}>
+          <div className="flex gap-2">
+            <Input autoFocus value={name} maxLength={60} placeholder="Nome da combinação (ex.: Azul e laranja)" onChange={(e) => setName(e.target.value)} />
+            <Button type="submit" size="sm" disabled={!name.trim() || saving} icon={saving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}>Salvar</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setName(null)}>Cancelar</Button>
+          </div>
+          <p className="text-[11px] text-zinc-500">
+            {taken ? `Já existe "${taken.name}": as cores dela serão substituídas pelas atuais.` : 'Guarda o estilo, a cor principal, a cor de destaque e as cores das seções.'}
+          </p>
+        </form>
+      ) : null}
+      {palettes === null ? (
+        <div className="skeleton h-12 rounded-lg" />
+      ) : palettes.length ? (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {palettes.map((p) => (
+            <div key={p.id} className={cn('group flex items-center gap-2 rounded-lg border p-2 transition', active?.id === p.id ? 'border-ink ring-1 ring-ink' : 'border-zinc-200 hover:border-zinc-300')}>
+              <button type="button" onClick={() => onApply(p)} className="flex min-w-0 flex-1 items-center gap-3 text-left" title={`Aplicar "${p.name}"`}>
+                <span className="flex flex-none overflow-hidden rounded-md ring-1 ring-black/5">
+                  {swatch(p).map((c, i) => <span key={i} className="h-7 w-3.5" style={{ background: c }} />)}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px] font-medium">{p.name}</span>
+                  <span className="block truncate text-[11px] text-zinc-500">
+                    {Object.keys(p.sections ?? {}).length ? `${Object.keys(p.sections).length} ${Object.keys(p.sections).length === 1 ? 'seção' : 'seções'} com cor própria` : 'Cores gerais'}
+                  </span>
+                </span>
+              </button>
+              <button type="button" onClick={() => setRemoving(p)} className="flex-none rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-red-600" aria-label={`Excluir "${p.name}"`} title="Excluir combinação">
+                <X className="size-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-zinc-500">Ajuste as cores (estilo, cor principal, destaque ou cores das seções) e clique em "Salvar combinação" para usar de novo nesta e em outras páginas.</p>
+      )}
+      <ConfirmDialog
+        open={!!removing}
+        title="Excluir combinação"
+        description={`Excluir "${removing?.name ?? ''}"? As páginas que já usam essas cores não mudam.`}
+        confirmLabel="Excluir"
+        danger
+        loading={removeBusy}
+        onConfirm={() => void remove()}
+        onClose={() => setRemoving(null)}
+      />
+    </div>
+  );
+}
+
 export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; content: LandingContent }) {
   const { data: presets } = useAsync(() => landingPageService.presets(), []);
   const current = presets?.find((p) => p.key === theme.preset);
@@ -225,6 +347,8 @@ export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSe
         })}
       </div>
       <p className="-mt-3 text-xs text-zinc-500">O contraste é ajustado automaticamente para manter textos e botões legíveis.</p>
+
+      <SavedPalettes theme={theme} presets={presets} onApply={(p) => change({ ...withoutManualColors({ ...theme, preset: p.preset as ThemeSettings['preset'], primary: p.primary, accent: p.accent, blend: true }), sections: p.sections })} />
       {manual ? (
         <p className="-mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
           Há {manual === 1 ? '1 cor ajustada' : `${manual} cores ajustadas`} à mão (fundo de seção ou cor de elemento). Ao mudar a direção visual ou as cores acima, a página inteira passa a usar as novas cores e esses ajustes são substituídos. Para desfazer antes de salvar, use "Descartar".

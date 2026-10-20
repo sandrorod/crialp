@@ -6,6 +6,7 @@ import type {
   ClientAccess,
   ClientLevel,
   ClientSite,
+  ColorPalette,
   Company,
   CompanyDraft,
   CompanyImage,
@@ -27,6 +28,7 @@ import type {
   Preset,
   ProspectingNote,
   SalesCompany,
+  SectionColors,
   SiteFilter,
   SubUser,
   TemplateInfo,
@@ -206,6 +208,14 @@ export const salesService = {
   notes: (companyId: string) => api.get<ProspectingNote[]>(`/sales/companies/${companyId}/notes`),
   addNote: (companyId: string, note: string) => api.post<ProspectingNote>(`/sales/companies/${companyId}/notes`, { note }),
   removeNote: (companyId: string, noteId: string) => api.del(`/sales/companies/${companyId}/notes/${noteId}`),
+};
+
+export const colorPaletteService = {
+  list: () => api.get<ColorPalette[]>('/color-palettes'),
+  /** Com o nome de uma combinação já salva, substitui as cores dela */
+  save: (body: { name: string; preset: string; primary: string | null; accent: string | null; sections: Record<string, SectionColors> }) =>
+    api.post<ColorPalette>('/color-palettes', body),
+  remove: (id: string) => api.del(`/color-palettes/${id}`),
 };
 
 export const clientLevelService = {

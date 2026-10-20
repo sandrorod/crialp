@@ -489,6 +489,18 @@ export interface Preset {
   heroDefault: HeroVariant;
 }
 
+/** Combinação de cores salva no editor (estilo + cores principais + cores das seções) */
+export interface ColorPalette {
+  id: string;
+  name: string;
+  preset: string;
+  primary: string | null;
+  accent: string | null;
+  sections: Record<string, SectionColors>;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DashboardStats {
   companies: number;
   /** Empresas com wp_verificado preenchido (não vazio) */
