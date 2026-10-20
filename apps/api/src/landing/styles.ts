@@ -789,10 +789,11 @@ img,video,iframe,svg{max-width:100%}
 :where(.photos-square,.photos-landscape) .gallery figure img{width:100%;height:100%;object-fit:cover}
 /* Fotos por linha escolhidas no editor: linhas justificadas (ver PhotoGrid). Cada foto cresce na proporção
    dela (--r, lida no navegador; com Quadradas/Horizontais, a do formato): mesma altura na linha e a linha
-   inteira preenchida, sem cortar. No celular, 2 por linha (quantidade ímpar: a primeira ocupa a linha) */
+   inteira preenchida, sem cortar; a última linha incompleta (jrow-part) fica do tamanho das outras, centralizada. No celular, 2 por linha (quantidade ímpar: a primeira ocupa a linha) */
 .gallery.jgrid{display:block!important;columns:auto!important;container-type:normal}
 .gallery.jgrid .jrow{display:flex;gap:14px}
 .gallery.jgrid .jrow+.jrow{margin-top:14px}
+.gallery.jgrid .jrow-part{width:calc((100% - (var(--jn) - 1) * 14px) / var(--jn) * var(--jk) + (var(--jk) - 1) * 14px);margin-left:auto;margin-right:auto}
 .gallery.jgrid figure{flex:var(--r,1.333) 1 0!important;aspect-ratio:var(--r,1.333)!important;min-width:0;width:auto!important;height:auto!important;max-height:none!important;margin:0!important;grid-column:auto!important;grid-row:auto!important}
 .photos-square .gallery.jgrid figure{--r:1}
 .photos-landscape .gallery.jgrid figure{--r:1.5}
@@ -801,6 +802,7 @@ img,video,iframe,svg{max-width:100%}
 .gallery.jgrid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .gallery.jgrid .jrow{display:contents}
 .gallery.jgrid .jrow+.jrow{margin-top:0}
+.gallery.jgrid .jrow-part{width:auto}
 .gallery.jgrid figure{aspect-ratio:1!important}
 .gallery.jgrid.j-odd .jrow:first-child figure:first-child{grid-column:1/-1!important;aspect-ratio:16/9!important}
 }

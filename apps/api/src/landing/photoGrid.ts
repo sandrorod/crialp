@@ -1,19 +1,10 @@
 /**
- * "Fotos por linha" (N) escolhido no editor: linhas justificadas. As fotos de cada linha ficam com a mesma
- * altura e larguras proporcionais ao formato de cada uma (proporção lida no navegador, ver REVEAL_SCRIPT),
- * preenchendo a linha inteira. As linhas são equilibradas: 9 fotos com até 4 por linha = 3 + 3 + 3.
+ * "Fotos por linha" (N) escolhido no editor: linhas justificadas com exatamente N fotos cada. As fotos de cada
+ * linha ficam com a mesma altura e larguras proporcionais ao formato de cada uma (proporção lida no navegador,
+ * ver REVEAL_SCRIPT). A última linha, se incompleta, mantém o tamanho das outras e fica centralizada.
  */
-export function balancedRows<T>(items: T[], cols: number): T[][] {
-  if (items.length === 0) return [];
-  const rows = Math.ceil(items.length / cols);
-  const base = Math.floor(items.length / rows);
-  const extra = items.length % rows; // as primeiras linhas recebem uma foto a mais
+export function photoRows<T>(items: T[], cols: number): T[][] {
   const out: T[][] = [];
-  let at = 0;
-  for (let r = 0; r < rows; r++) {
-    const size = base + (r < extra ? 1 : 0);
-    out.push(items.slice(at, at + size));
-    at += size;
-  }
+  for (let i = 0; i < items.length; i += cols) out.push(items.slice(i, i + cols));
   return out;
 }

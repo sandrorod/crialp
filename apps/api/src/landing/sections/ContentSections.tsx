@@ -177,26 +177,30 @@ export function GallerySection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
   // ctx.gallery já exclui as fotos usadas no topo e em "sobre"
   const photos = ctx.gallery;
   if (!g || photos.length < 2) return null;
+  // Com "Fotos por linha" escolhido, as fotos visíveis (e cada grupo do "Exibir mais") formam linhas completas:
+  // o múltiplo de N mais próximo de 9 (2→10, 3→9, 4→8, 5→10)
+  const cols = ctx.theme.photoCols;
+  const visible = cols && cols >= 2 ? Math.max(cols, Math.round(GALLERY_VISIBLE / cols) * cols) : GALLERY_VISIBLE;
   return (
     <section id="galeria" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
         <SectionHead eyebrow={ctx.labels.eyebrow_gallery} title={g.title} lead={g.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_gallery'), title: ed(ctx, 'gallery.title'), lead: edOptional(ctx, 'gallery.subtitle', 'Texto de apoio (opcional)') }} />
         {/* g-nN: a grade se ajusta à quantidade de fotos para nunca sobrar buraco (ver styles.ts) */}
-        <GalleryGrid photos={photos.slice(0, GALLERY_VISIBLE)} cols={ctx.theme.photoCols} />
+        <GalleryGrid photos={photos.slice(0, visible)} cols={ctx.theme.photoCols} />
         {/* No editor todas as fotos aparecem abertas, sem o botão "Exibir mais" */}
-        {photos.length > GALLERY_VISIBLE && ctx.editable ? (
+        {photos.length > visible && ctx.editable ? (
           <div className="gallery-more-panel gallery-more-open">
-            {chunk(photos.slice(GALLERY_VISIBLE), GALLERY_VISIBLE).map((group) => (
+            {chunk(photos.slice(visible), visible).map((group) => (
               <GalleryGrid key={group[0].url} photos={group} cols={ctx.theme.photoCols} />
             ))}
           </div>
-        ) : photos.length > GALLERY_VISIBLE ? (
+        ) : photos.length > visible ? (
           // Mais de 9 fotos: as demais ficam escondidas até clicar em "Exibir mais" (sem JavaScript),
           // em grades de até 9 para manter o mesmo arranjo de cada modelo
           <div className="gallery-more">
             <input type="checkbox" id="gallery-more" className="gallery-more-toggle" />
             <div className="gallery-more-panel">
-              {chunk(photos.slice(GALLERY_VISIBLE), GALLERY_VISIBLE).map((group) => (
+              {chunk(photos.slice(visible), visible).map((group) => (
                 <GalleryGrid key={group[0].url} photos={group} cols={ctx.theme.photoCols} />
               ))}
             </div>
