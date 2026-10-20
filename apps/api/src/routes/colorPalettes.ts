@@ -7,10 +7,10 @@ import { authUser } from '../middleware/auth.js';
 import { DESIGN_PRESETS } from '../services/ai/schemas.js';
 import { normalizeSectionColors } from '../landing/sectionColors.js';
 
-/** Combinações de cores salvas no editor da LP (estilo + cores principais + cores das seções), com nome. */
+/** Combinações de cores salvas no editor da LP (estilo + as três cores + cores das seções), com nome. */
 export const colorPalettesRouter = Router();
 
-const COLUMNS = 'id, name, preset, primary_color as primary, accent_color as accent, sections, created_at, updated_at';
+const COLUMNS = 'id, name, preset, primary_color as primary, accent_color as accent, background_color as background, sections, created_at, updated_at';
 const hex = z.string().regex(/^#[0-9a-f]{6}$/i, 'Cor inválida.').transform((v) => v.toLowerCase()).nullish().transform((v) => v ?? null);
 
 const PaletteSchema = z.object({
@@ -18,6 +18,7 @@ const PaletteSchema = z.object({
   preset: z.enum(DESIGN_PRESETS as unknown as [string, ...string[]]),
   primary: hex,
   accent: hex,
+  background: hex,
   // Seções criadas na própria página (custom:<id>) não existem nas outras: ficam de fora
   sections: z.record(z.string(), z.unknown()).nullish().transform((v) =>
     Object.fromEntries(Object.entries(normalizeSectionColors(v ?? {})).filter(([k]) => !k.startsWith('custom:'))),
@@ -35,13 +36,13 @@ colorPalettesRouter.post('/', async (req, res) => {
   const user = authUser(req);
   const body = parseBody(PaletteSchema, req.body);
   const saved = await one(
-    `insert into lp_color_palettes (organization_id, name, preset, primary_color, accent_color, sections, created_by)
-     values ($1, $2, $3, $4, $5, $6, $7)
+    `insert into lp_color_palettes (organization_id, name, preset, primary_color, accent_color, background_color, sections, created_by)
+     values ($1, $2, $3, $4, $5, $6, $7, $8)
      on conflict (organization_id, lower(name)) do update
        set name = excluded.name, preset = excluded.preset, primary_color = excluded.primary_color,
-           accent_color = excluded.accent_color, sections = excluded.sections, updated_at = now()
+           accent_color = excluded.accent_color, background_color = excluded.background_color, sections = excluded.sections, updated_at = now()
      returning ${COLUMNS}`,
-    [user.organizationId, body.name, body.preset, body.primary, body.accent, JSON.stringify(body.sections), user.id],
+    [user.organizationId, body.name, body.preset, body.primary, body.accent, body.background, JSON.stringify(body.sections), user.id],
   );
   res.status(201).json(saved);
 });

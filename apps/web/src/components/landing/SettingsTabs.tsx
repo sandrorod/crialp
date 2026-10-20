@@ -186,6 +186,7 @@ function sameColors(theme: ThemeSettings, p: ColorPalette) {
     theme.preset === p.preset &&
     (theme.primary ?? null)?.toLowerCase() === (p.primary ?? null)?.toLowerCase() &&
     (theme.accent ?? null)?.toLowerCase() === (p.accent ?? null)?.toLowerCase() &&
+    (theme.background ?? null)?.toLowerCase() === (p.background ?? null)?.toLowerCase() &&
     norm(portableSections(theme.sections)) === norm(p.sections ?? {})
   );
 }
@@ -201,14 +202,14 @@ function SavedPalettes({ theme, presets, onApply }: { theme: ThemeSettings; pres
   const taken = name?.trim() ? palettes?.find((p) => p.name.toLowerCase() === name.trim().toLowerCase()) : null;
   const swatch = (p: ColorPalette) => {
     const base = presets?.find((x) => x.key === p.preset);
-    return [base?.bg ?? '#ffffff', p.primary ?? base?.primary ?? '#000000', p.accent ?? base?.accent ?? '#000000'];
+    return [p.background ?? base?.bg ?? '#ffffff', p.primary ?? base?.primary ?? '#000000', p.accent ?? base?.accent ?? '#000000'];
   };
 
   const save = async () => {
     if (!name?.trim()) return;
     setSaving(true);
     try {
-      const saved = await colorPaletteService.save({ name: name.trim(), preset: theme.preset, primary: theme.primary ?? null, accent: theme.accent ?? null, sections: portableSections(theme.sections) });
+      const saved = await colorPaletteService.save({ name: name.trim(), preset: theme.preset, primary: theme.primary ?? null, accent: theme.accent ?? null, background: theme.background ?? null, sections: portableSections(theme.sections) });
       setData((list) => [...(list ?? []).filter((p) => p.id !== saved.id), saved].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
       toast.success(taken ? `Combinação "${saved.name}" atualizada.` : `Combinação "${saved.name}" salva.`);
       setName(null);
@@ -252,7 +253,7 @@ function SavedPalettes({ theme, presets, onApply }: { theme: ThemeSettings; pres
             <Button type="button" variant="ghost" size="sm" onClick={() => setName(null)}>Cancelar</Button>
           </div>
           <p className="text-[11px] text-zinc-500">
-            {taken ? `Já existe "${taken.name}": as cores dela serão substituídas pelas atuais.` : 'Guarda o estilo, a cor principal, a cor de destaque e as cores das seções.'}
+            {taken ? `Já existe "${taken.name}": as cores dela serão substituídas pelas atuais.` : 'Guarda o estilo, as três cores (fundo, principal e destaque) e as cores das seções.'}
           </p>
         </form>
       ) : null}
@@ -280,7 +281,7 @@ function SavedPalettes({ theme, presets, onApply }: { theme: ThemeSettings; pres
           ))}
         </div>
       ) : (
-        <p className="text-xs text-zinc-500">Ajuste as cores (estilo, cor principal, destaque ou cores das seções) e clique em "Salvar combinação" para usar de novo nesta e em outras páginas.</p>
+        <p className="text-xs text-zinc-500">Ajuste as cores (estilo, fundo, cor principal, destaque ou cores das seções) e clique em "Salvar combinação" para usar de novo nesta e em outras páginas.</p>
       )}
       <ConfirmDialog
         open={!!removing}
@@ -315,7 +316,7 @@ export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSe
             <button
               key={p.key}
               type="button"
-              onClick={() => onPalette({ ...theme, preset: p.key, primary: null, accent: null })}
+              onClick={() => onPalette({ ...theme, preset: p.key, primary: null, accent: null, background: null })}
               className={cn('flex items-center gap-3 rounded-lg border p-3 text-left transition', theme.preset === p.key ? 'border-ink ring-1 ring-ink' : 'border-zinc-200 hover:border-zinc-300')}
             >
               <span className="flex flex-none overflow-hidden rounded-md ring-1 ring-black/5">
@@ -332,11 +333,12 @@ export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSe
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {(['primary', 'accent'] as const).map((key) => {
-          const value = theme[key] ?? (key === 'primary' ? current?.primary : current?.accent) ?? '#000000';
+      <div className="grid gap-4 sm:grid-cols-3">
+        {/* As três cores do modelo, na mesma ordem das amostras: fundo, principal e destaque */}
+        {(['background', 'primary', 'accent'] as const).map((key) => {
+          const value = theme[key] ?? (key === 'background' ? current?.bg : key === 'primary' ? current?.primary : current?.accent) ?? '#000000';
           return (
-            <Field key={key} label={key === 'primary' ? 'Cor principal' : 'Cor de destaque'} hint={theme[key] ? 'Personalizada' : 'Padrão do estilo'}>
+            <Field key={key} label={key === 'background' ? 'Cor de fundo' : key === 'primary' ? 'Cor principal' : 'Cor de destaque'} hint={theme[key] ? 'Personalizada' : 'Padrão do estilo'}>
               <div className="flex gap-2">
                 <input type="color" value={value} onChange={(e) => onPalette({ ...theme, [key]: e.target.value })} className="h-10 w-12 cursor-pointer rounded-lg border border-zinc-200 bg-white p-1" />
                 <Input value={value} onChange={(e) => /^#[0-9a-f]{6}$/i.test(e.target.value) && onPalette({ ...theme, [key]: e.target.value })} className="font-mono uppercase" />
@@ -346,9 +348,9 @@ export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSe
           );
         })}
       </div>
-      <p className="-mt-3 text-xs text-zinc-500">O contraste é ajustado automaticamente para manter textos e botões legíveis.</p>
+      <p className="-mt-3 text-xs text-zinc-500">O contraste é ajustado automaticamente para manter textos e botões legíveis (com fundo escuro, os textos ficam claros).</p>
 
-      <SavedPalettes theme={theme} presets={presets} onApply={(p) => change({ ...withoutManualColors({ ...theme, preset: p.preset as ThemeSettings['preset'], primary: p.primary, accent: p.accent, blend: true }), sections: p.sections })} />
+      <SavedPalettes theme={theme} presets={presets} onApply={(p) => change({ ...withoutManualColors({ ...theme, preset: p.preset as ThemeSettings['preset'], primary: p.primary, accent: p.accent, background: p.background, blend: true }), sections: p.sections })} />
       {manual ? (
         <p className="-mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
           Há {manual === 1 ? '1 cor ajustada' : `${manual} cores ajustadas`} à mão (fundo de seção ou cor de elemento). Ao mudar a direção visual ou as cores acima, a página inteira passa a usar as novas cores e esses ajustes são substituídos. Para desfazer antes de salvar, use "Descartar".
@@ -407,9 +409,9 @@ export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSe
           theme={theme}
           onChange={onChange}
           content={content}
-          defaults={{ bg: current?.bg ?? '#ffffff', text: '#111111', accent: theme.primary ?? current?.primary ?? '#1d4ed8' }}
+          defaults={{ bg: theme.background ?? current?.bg ?? '#ffffff', text: '#111111', accent: theme.primary ?? current?.primary ?? '#1d4ed8' }}
           // Branco e o fundo do estilo; abaixo, os tons das duas cores escolhidas (do claro ao escuro)
-          palette={[...new Set(['#ffffff', current?.bg ?? '#ffffff', '#111111'].map((c) => c.toLowerCase()))]}
+          palette={[...new Set(['#ffffff', theme.background ?? current?.bg ?? '#ffffff', '#111111'].map((c) => c.toLowerCase()))]}
           tones={brandTones(theme.primary ?? current?.primary, theme.accent ?? current?.accent)}
         />
       </div>
@@ -956,7 +958,9 @@ export function PhotosTab({
     for (const u of rest) if (next[u] && next[u] !== 'gallery' && !isInSection(next[u])) delete next[u];
     for (const u of newOutside) if (activeSet.has(u)) next[u] = 'hidden';
     const imageOrder = [heroPick, aboutPick, ...rest, ...newOutside].filter((u): u is string => !!u);
-    onChange({ ...theme, images: next, imageOrder });
+    // Foto levada para o topo: o topo "Centralizado" não mostra foto, então passa para "Dividido"
+    const heroVariant = heroPick && next[heroPick] === 'hero' && theme.heroVariant === 'centered' ? 'split' : theme.heroVariant;
+    onChange({ ...theme, images: next, imageOrder, heroVariant });
   };
 
   const dragOver = (overUrl: string) => {
@@ -973,7 +977,8 @@ export function PhotosTab({
     if (value === 'hero' || value === 'about' || value === 'logo') for (const u of Object.keys(next)) if (next[u] === value) delete next[u];
     if (value) next[url] = value;
     else delete next[url];
-    onChange({ ...theme, images: next });
+    // Topo sem foto ("Centralizado"): ao escolher a foto do topo, passa para "Dividido" para ela aparecer
+    onChange({ ...theme, images: next, heroVariant: value === 'hero' && theme.heroVariant === 'centered' ? 'split' : theme.heroVariant });
   };
 
   const addPhotos = async (photos: NewPhoto[]) => {
@@ -1026,7 +1031,7 @@ export function PhotosTab({
         Escolha onde cada foto aparece e arraste pela alça para mudar a ordem. Em "Automático", as fotos preenchem o topo, a seção "Sobre" e a galeria, seguindo a ordem da lista. Seções criadas em "Textos" também aparecem na lista e podem receber fotos.
       </p>
       {theme.heroVariant === 'centered' ? (
-        <p className="text-xs text-amber-700">O topo está no estilo "Centralizado", que não exibe foto. Para mostrar a foto do topo, escolha "Dividido" ou "Imagem cheia" em "Cores e estilo".</p>
+        <p className="text-xs text-amber-700">O topo está no estilo "Centralizado", que não exibe foto. Escolha uma foto em "Topo" (o topo passa para "Dividido") ou mude o estilo do topo em "Cores e estilo".</p>
       ) : null}
       {galleryCount === 1 ? <p className="text-xs text-amber-700">A galeria só aparece com pelo menos 2 fotos.</p> : null}
 

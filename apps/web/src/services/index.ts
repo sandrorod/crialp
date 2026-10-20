@@ -213,7 +213,7 @@ export const salesService = {
 export const colorPaletteService = {
   list: () => api.get<ColorPalette[]>('/color-palettes'),
   /** Com o nome de uma combinação já salva, substitui as cores dela */
-  save: (body: { name: string; preset: string; primary: string | null; accent: string | null; sections: Record<string, SectionColors> }) =>
+  save: (body: { name: string; preset: string; primary: string | null; accent: string | null; background: string | null; sections: Record<string, SectionColors> }) =>
     api.post<ColorPalette>('/color-palettes', body),
   remove: (id: string) => api.del(`/color-palettes/${id}`),
 };

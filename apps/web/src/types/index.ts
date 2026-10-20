@@ -280,6 +280,8 @@ export interface ThemeSettings {
   preset: string;
   primary: string | null;
   accent: string | null;
+  /** Cor de fundo da página (1ª cor do modelo); ausente = a do estilo */
+  background?: string | null;
   heroVariant: HeroVariant;
   /** Cores próprias por seção: hero, about, services…, custom:<id>, footer */
   sections?: Record<string, SectionColors>;
@@ -496,6 +498,7 @@ export interface ColorPalette {
   preset: string;
   primary: string | null;
   accent: string | null;
+  background: string | null;
   sections: Record<string, SectionColors>;
   created_at: string;
   updated_at: string;

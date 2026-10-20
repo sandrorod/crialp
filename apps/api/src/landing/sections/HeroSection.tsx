@@ -77,7 +77,8 @@ function InfoCard({ ctx }: { ctx: RenderContext }) {
 }
 
 export function HeroSection({ ctx }: { ctx: RenderContext }) {
-  const variant = ctx.theme.heroVariant;
+  // Foto escolhida para o topo aparece mesmo em página criada com topo "Centralizado" (sem foto)
+  const variant = ctx.theme.heroVariant === 'centered' && ctx.heroChosen ? 'split' : ctx.theme.heroVariant;
 
   if (variant === 'centered') {
     return (

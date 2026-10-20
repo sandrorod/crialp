@@ -12,6 +12,8 @@ export interface ThemeSettings {
   preset: DesignPreset;
   primary?: string | null;
   accent?: string | null;
+  /** Cor de fundo da página (a 1ª cor do modelo); textos e fundos alternados acompanham. Ausente = a do estilo. */
+  background?: string | null;
   /** Topo: foto emoldurada ao lado do texto ("split") ou mensagem centralizada. */
   heroVariant?: 'split' | 'centered';
   /** Cores próprias por seção (hero, about, services…, custom:<id>, footer). */
@@ -445,6 +447,7 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
     preset,
     primary: isHex(input?.primary) ? normalizeHex(input.primary) : null,
     accent: isHex(input?.accent) ? normalizeHex(input.accent) : null,
+    background: isHex(input?.background) ? normalizeHex(input.background) : null,
     // "image" (foto de fundo em tela cheia) foi descontinuado: a foto do topo fica emoldurada, como em "Sobre"
     heroVariant: input?.heroVariant === 'centered' ? 'centered' : input?.heroVariant === 'split' || input?.heroVariant === 'image' ? 'split' : PRESETS[preset as DesignPreset].heroDefault,
     sections: normalizeSectionColors(input?.sections),
@@ -492,8 +495,29 @@ export function headingFont(p: { heading: { weight: number; case: 'none' | 'uppe
   };
 }
 
+/**
+ * Estilo com outra cor de fundo: o texto, o texto de apoio e o fundo alternado são refeitos a partir dela
+ * (mantendo o tom do estilo quando ainda dá contraste) e a página passa a ser clara ou escura conforme o fundo.
+ */
+function withBackground(p: Preset, bg: string | null | undefined): Preset {
+  if (!bg || bg.toLowerCase() === p.colors.bg.toLowerCase()) return p;
+  const dark = luminance(bg) < 0.18;
+  const text = contrast(p.colors.text, bg) >= 7 ? p.colors.text : dark ? '#f5f5f4' : '#111111';
+  return {
+    ...p,
+    dark,
+    colors: {
+      ...p.colors,
+      bg,
+      text,
+      surface: mix(bg, text, dark ? 0.07 : 0.04),
+      muted: ensureContrast(mix(text, bg, 0.35), bg, 4.5),
+    },
+  };
+}
+
 export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
-  const p = PRESETS[settings.preset] ?? PRESETS.professional;
+  const p = withBackground(PRESETS[settings.preset] ?? PRESETS.professional, settings.background);
   const c = p.colors;
   const primary = settings.primary ?? c.primary;
   const accent = settings.accent ?? c.accent;
