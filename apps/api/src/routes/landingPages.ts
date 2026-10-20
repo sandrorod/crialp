@@ -164,6 +164,8 @@ const ContentUpdateSchema = z.object({
     preset: z.string(),
     primary: z.string().nullish(),
     accent: z.string().nullish(),
+    // Cor de fundo da página (3ª cor do modelo); ausente = a do estilo
+    background: z.string().max(9).nullish(),
     heroVariant: z.enum(['split', 'centered', 'image']).optional(), // "image" é legado: vira "split"
     // Cores por seção: { "services": { "bg": "#0b1b2b", "text": null, "accent": "#ffcc00" }, ... }
     sections: z
