@@ -6,7 +6,7 @@ import { finalCtaVars, sectionVars } from './sectionColors.js';
 import { elementColorsCss, elementFontsHref, MOBILE_MAX, textEffectsJson } from './elementColors.js';
 import { sectionSpacingCss } from './spacing.js';
 import { imageSizesCss } from './imageSize.js';
-import { imageStylesCss } from './imageStyle.js';
+import { IMAGE_LINKS_SCRIPT, imageLinksJson, imageStylesCss } from './imageStyle.js';
 import { applyRichText } from './richText.js';
 import type { CSSProperties, ReactNode } from 'react';
 
@@ -203,6 +203,13 @@ export function renderLandingPage(ctx: RenderContext): string {
         {/* Efeitos de movimento dos textos (lidos pelo script abaixo) */}
         {textEffectsJson(theme.elementColors) ? <script type="application/json" id="lp-fx" dangerouslySetInnerHTML={{ __html: textEffectsJson(theme.elementColors)! }} /> : null}
         <script dangerouslySetInnerHTML={{ __html: REVEAL_SCRIPT }} />
+        {/* Links das fotos (só na página publicada: no editor o clique é para editar) */}
+        {!ctx.editable && imageLinksJson(theme.imageStyle) ? (
+          <>
+            <script type="application/json" id="lp-links" dangerouslySetInnerHTML={{ __html: imageLinksJson(theme.imageStyle)! }} />
+            <script dangerouslySetInnerHTML={{ __html: `addEventListener('DOMContentLoaded',function(){${IMAGE_LINKS_SCRIPT}})` }} />
+          </>
+        ) : null}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ctx) }} />
       </head>
       <body className={`tpl-${theme.template}${theme.photoShape ? ` photos-${theme.photoShape}` : ''}${theme.photoCols ? ` photos-cols-${theme.photoCols}` : ''}`}>

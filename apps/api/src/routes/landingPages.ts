@@ -217,7 +217,7 @@ const ContentUpdateSchema = z.object({
       })
       .optional(),
     // Tamanho das fotos arrastado na prévia: { desktop: { "<url>": { w: 20-100 (%), h: 80-1400 (px) } }, mobile: {...} }
-    // Borda, cantos, sombra, filtro, giro e espelhamento de cada foto: { "<url>": { bw, bc, r, sh, fx, rot, fh, fv } }
+    // Borda, cantos, sombra, filtro, giro, espelhamento e link de cada foto: { "<url>": { bw, bc, r, sh, fx, rot, fh, fv, href, nt, lb } }
     imageStyle: z
       .record(
         z.string().max(2048),
@@ -231,6 +231,10 @@ const ContentUpdateSchema = z.object({
           rot: z.union([z.literal(90), z.literal(180), z.literal(270)]).optional(),
           fh: z.literal(true).optional(),
           fv: z.literal(true).optional(),
+          // Link ao clicar na foto, nova aba e borda indicando o link
+          href: z.string().max(2048).optional(),
+          nt: z.literal(true).optional(),
+          lb: z.literal(true).optional(),
         }),
       )
       .optional(),

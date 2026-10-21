@@ -1,9 +1,10 @@
 /**
  * Formatação de trechos do texto no editor: o mesmo formato de apps/api/src/landing/richText.ts
  *   [[b]]…[[/b]]  [[n]]…[[/n]] (sem negrito)  [[i]]…[[/i]]  [[u]]…[[/u]]  [[c=#rrggbb]]…[[/c]]  [[s=18]]…[[/s]]
+ *   [[a=un|https://…]]…[[/a]] (link: u/x = sublinhado ou não; n/s = nova aba ou mesma aba)
  * `richToHtml` mostra o texto formatado; `serializeRich` lê o texto editado de volta para os códigos.
  */
-const TOKEN = /\[\[(\/?)(b|n|i|u|c|s)(?:=(#[0-9a-fA-F]{6}|\d{1,3}))?\]\]/g;
+const TOKEN = /\[\[(\/?)(b|n|i|u|c|s|a)(?:=(#[0-9a-fA-F]{6}|\d{1,3}|[ux][ns]\|[^\]\s"<>]{1,2000}))?\]\]/g;
 
 function openTag(kind: string, value: string | undefined): string | null {
   if (kind === 'b') return '<strong>';
@@ -16,9 +17,20 @@ function openTag(kind: string, value: string | undefined): string | null {
     const n = Number(value);
     return Number.isFinite(n) && n >= 6 && n <= 200 ? `<span style="font-size:${n}px">` : null;
   }
+  if (kind === 'a') return linkTag(value);
   return null;
 }
-const closeTag = (kind: string) => (kind === 'b' ? '</strong>' : kind === 'i' ? '</em>' : kind === 'u' ? '</u>' : '</span>');
+const closeTag = (kind: string) => (kind === 'b' ? '</strong>' : kind === 'i' ? '</em>' : kind === 'u' ? '</u>' : kind === 'a' ? '</a>' : '</span>');
+
+/** Link externo: só http(s), e-mail e telefone. O endereço chega já escapado (&amp;), pronto para o atributo. */
+function linkTag(value: string | undefined): string | null {
+  const m = value ? /^([ux])([ns])\|(.+)$/.exec(value) : null;
+  if (!m) return null;
+  const [, underline, tab, href] = m;
+  if (!/^(https?:\/\/|mailto:|tel:)/i.test(href.replace(/&amp;/g, '&'))) return null;
+  const target = tab === 'n' ? ' target="_blank" rel="noopener noreferrer"' : '';
+  return `<a href="${href}"${target} style="text-decoration:${underline === 'u' ? 'underline' : 'none'};color:inherit">`;
+}
 
 const escapeHtml = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -65,6 +77,21 @@ function toHex(color: string): string | null {
 
 const BLOCKS = new Set(['DIV', 'P', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6']);
 
+export const isLinkUrl = (href: string) => /^(https?:\/\/|mailto:|tel:)/i.test(href);
+/** Caracteres que fechariam o código do link (ou o atributo) ficam codificados no endereço. */
+const encodeLinkUrl = (href: string) => href.replace(/[\]\s"<>]/g, (c) => encodeURIComponent(c));
+
+/** Endereço digitado pelo usuário → link válido (sem protocolo vira https://; e-mail vira mailto:) ou null. */
+export function normalizeLinkUrl(input: string): string | null {
+  const t = input.trim();
+  if (!t) return null;
+  if (isLinkUrl(t)) return t;
+  if (/^[^\s@/]+@[^\s@/]+\.[^\s@/]+$/.test(t)) return `mailto:${t}`;
+  if (/^\+?[\d\s().-]{8,}$/.test(t)) return `tel:${t.replace(/[^\d+]/g, '')}`;
+  if (/^[\w-]+(\.[\w-]+)+([/?#].*)?$/.test(t)) return `https://${t}`;
+  return null;
+}
+
 /** Formatação aplicada por um elemento dentro do texto editado (tags e estilos em linha). */
 function formatsOf(el: HTMLElement): string[] {
   const f: string[] = [];
@@ -73,7 +100,10 @@ function formatsOf(el: HTMLElement): string[] {
   if (tag === 'B' || tag === 'STRONG' || st.fontWeight === 'bold' || Number(st.fontWeight) >= 600) f.push('b');
   else if (st.fontWeight === 'normal' || (st.fontWeight !== '' && Number(st.fontWeight) <= 500)) f.push('n');
   if (tag === 'I' || tag === 'EM' || st.fontStyle === 'italic') f.push('i');
-  if (tag === 'U' || st.textDecoration.includes('underline') || st.textDecorationLine.includes('underline')) f.push('u');
+  if (tag === 'A') {
+    const href = el.getAttribute('href');
+    if (href && isLinkUrl(href)) f.push(`a=${st.textDecorationLine === 'none' || st.textDecoration.startsWith('none') ? 'x' : 'u'}${el.getAttribute('target') === '_blank' ? 'n' : 's'}|${encodeLinkUrl(href)}`);
+  } else if (tag === 'U' || st.textDecoration.includes('underline') || st.textDecorationLine.includes('underline')) f.push('u');
   const color = (tag === 'FONT' && el.getAttribute('color')) || st.color;
   const hex = color ? toHex(color) : null;
   if (hex) f.push(`c=${hex}`);
@@ -111,7 +141,7 @@ export function serializeRich(root: HTMLElement): string {
       // Mesma formatação fechada e reaberta em seguida: junta
       .replace(/\[\[\/(b|n|i|u)\]\]\[\[\1\]\]/g, '')
       // Formatação sem texto dentro
-      .replace(/\[\[(b|n|i|u|c=#[0-9a-f]{6}|s=\d+)\]\]\[\[\/(b|n|i|u|c|s)\]\]/g, '')
+      .replace(/\[\[(b|n|i|u|c=#[0-9a-f]{6}|s=\d+|a=[^\]]+)\]\]\[\[\/(b|n|i|u|c|s|a)\]\]/g, '')
       .replace(/ /g, ' ')
       .replace(/[ \t]+\n/g, '\n')
       .trim()

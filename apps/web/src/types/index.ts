@@ -342,6 +342,10 @@ export interface ImageLook {
   /** Espelhada na horizontal / vertical */
   fh?: true;
   fv?: true;
+  /** Link externo ao clicar na foto; `nt`: abre em nova aba; `lb`: borda na cor da página indicando o link */
+  href?: string;
+  nt?: true;
+  lb?: true;
 }
 export interface ImageSizes {
   desktop?: Record<string, ImageBox>;

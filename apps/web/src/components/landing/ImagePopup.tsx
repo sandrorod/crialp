@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui';
+import { normalizeLinkUrl } from '@/lib/richText';
 import { cn } from '@/lib/utils';
 import type { ImageLook, TextEffect } from '@/types';
 import { PopupHeader, useDraggablePopup } from './ElementColorPopup';
@@ -67,7 +68,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 /**
  * Quadro aberto ao clicar numa foto da prévia (em qualquer modo): só as opções da foto —
- * enquadramento e zoom, corte, giro e espelhamento, borda, cantos, sombra, filtro, efeito (e a velocidade dele)
+ * enquadramento e zoom, corte, giro e espelhamento, borda, cantos, sombra, filtro, link externo, efeito (e a velocidade dele)
  * e excluir. Tudo vale na hora.
  */
 export function ImagePopup({
@@ -126,6 +127,21 @@ export function ImagePopup({
     setDraft(next);
     onLook(Object.keys(next).length ? next : null);
   };
+  // Link: o endereço só vale ao aplicar (digitar não salva meio endereço)
+  const [linkText, setLinkText] = useState(look?.href ?? '');
+  const [linkError, setLinkError] = useState(false);
+  const applyLink = () => {
+    const href = normalizeLinkUrl(linkText);
+    if (!href) return setLinkError(true);
+    setLinkText(href);
+    set({ href, nt: draft.href ? draft.nt : true });
+  };
+  const removeLink = () => {
+    setLinkText('');
+    set({ href: undefined, nt: undefined, lb: undefined });
+  };
+  const LINK_KEYS = ['href', 'nt', 'lb'];
+  const hasStyle = Object.keys(draft).some((k) => !LINK_KEYS.includes(k));
   const zoomTo = (p: number) => {
     const v = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(p)));
     setPct(v);
@@ -226,9 +242,59 @@ export function ImagePopup({
             <p className="mb-1 text-xs font-medium text-zinc-600">Filtro</p>
             <Chips items={FILTERS} value={draft.fx} onChange={(v) => set({ fx: v })} />
           </div>
-          {Object.keys(draft).length ? (
-            <button type="button" onClick={() => (setDraft({}), onLook(null))} className="text-[11px] text-zinc-500 hover:text-ink">Tirar estilo</button>
+          {hasStyle ? (
+            <button
+              type="button"
+              onClick={() => {
+                // Tira o estilo, mas mantém o link
+                const keep = Object.fromEntries(Object.entries(draft).filter(([k]) => LINK_KEYS.includes(k))) as ImageLook;
+                setDraft(keep);
+                onLook(Object.keys(keep).length ? keep : null);
+              }}
+              className="text-[11px] text-zinc-500 hover:text-ink"
+            >
+              Tirar estilo
+            </button>
           ) : null}
+        </Section>
+        <Section title="Link externo">
+          <div className="flex gap-2">
+            <input
+              value={linkText}
+              onChange={(e) => {
+                setLinkText(e.target.value);
+                setLinkError(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  applyLink();
+                }
+              }}
+              placeholder="https://… , e-mail ou telefone"
+              className={cn('h-8 min-w-0 flex-1 rounded-md border px-2 text-xs outline-none focus:border-zinc-400', linkError ? 'border-red-400' : 'border-zinc-200')}
+              aria-label="Endereço do link"
+            />
+            <button type="button" onClick={applyLink} className="whitespace-nowrap rounded-md border border-ink bg-ink px-2 text-xs text-white">
+              {draft.href ? 'Atualizar' : 'Aplicar'}
+            </button>
+          </div>
+          {linkError ? <p className="text-[11px] text-red-600">Endereço inválido. Ex.: https://site.com.br</p> : null}
+          {draft.href ? (
+            <>
+              <div>
+                <p className="mb-1 text-xs font-medium text-zinc-600">Abrir em</p>
+                <Chips items={[{ value: true, label: 'Nova aba' }, { value: false, label: 'Mesma aba' }]} value={!!draft.nt} onChange={(v) => set({ nt: v ? true : undefined })} />
+              </div>
+              <div>
+                <p className="mb-1 text-xs font-medium text-zinc-600">Borda indicando o link</p>
+                <Chips items={[{ value: true, label: 'Com borda' }, { value: false, label: 'Sem borda' }]} value={!!draft.lb} onChange={(v) => set({ lb: v ? true : undefined })} />
+              </div>
+              <button type="button" onClick={removeLink} className="text-[11px] text-zinc-500 hover:text-red-600">Remover link</button>
+            </>
+          ) : (
+            <p className="text-[11px] text-zinc-400">Na página publicada, clicar na foto abre o link.</p>
+          )}
         </Section>
         <Section title="Efeito ao aparecer">
           <select

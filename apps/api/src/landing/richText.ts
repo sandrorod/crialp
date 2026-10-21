@@ -2,15 +2,16 @@
  * Formatação de trechos do texto (negrito, itálico, sublinhado, cor e tamanho de uma parte selecionada no editor).
  * O texto continua sendo texto: a formatação fica em códigos que o React escapa como texto comum
  *   [[b]]…[[/b]]  [[n]]…[[/n]] (sem negrito)  [[i]]…[[/i]]  [[u]]…[[/u]]  [[c=#rrggbb]]…[[/c]]  [[s=18]]…[[/s]]
+ *   [[a=un|https://…]]…[[/a]] (link: u/x = sublinhado ou não; n/s = nova aba ou mesma aba)
  * e só aqui, no HTML final, viram tags — com valores validados (cor hexadecimal, tamanho numérico).
  * Dentro de atributos, <title>, <script> e <style> os códigos são apenas removidos.
  * Mantenha igual a apps/web/src/lib/richText.ts.
  */
-const TOKEN = /\[\[(\/?)(b|n|i|u|c|s)(?:=(#[0-9a-fA-F]{6}|\d{1,3}))?\]\]/g;
+const TOKEN = /\[\[(\/?)(b|n|i|u|c|s|a)(?:=(#[0-9a-fA-F]{6}|\d{1,3}|[ux][ns]\|[^\]\s"<>]{1,2000}))?\]\]/g;
 const RAW_TAGS = new Set(['title', 'script', 'style', 'textarea']);
 
 export function hasRich(text: string | null | undefined): boolean {
-  return !!text && /\[\[\/?(?:b|n|i|u|c|s)(?:=[^\]]*)?\]\]/.test(text);
+  return !!text && /\[\[\/?(?:b|n|i|u|c|s|a)(?:=[^\]]*)?\]\]/.test(text);
 }
 
 /** Texto sem os códigos de formatação (para atributos, SEO e textos que não aceitam formatação). */
@@ -29,9 +30,20 @@ function openTag(kind: string, value: string | undefined): string | null {
     const n = Number(value);
     return Number.isFinite(n) && n >= 6 && n <= 200 ? `<span style="font-size:${n}px">` : null;
   }
+  if (kind === 'a') return linkTag(value);
   return null;
 }
-const closeTag = (kind: string) => (kind === 'b' ? '</strong>' : kind === 'i' ? '</em>' : kind === 'u' ? '</u>' : '</span>');
+const closeTag = (kind: string) => (kind === 'b' ? '</strong>' : kind === 'i' ? '</em>' : kind === 'u' ? '</u>' : kind === 'a' ? '</a>' : '</span>');
+
+/** Link externo: só http(s), e-mail e telefone. O endereço chega já escapado (&amp;), pronto para o atributo. */
+function linkTag(value: string | undefined): string | null {
+  const m = value ? /^([ux])([ns])\|(.+)$/.exec(value) : null;
+  if (!m) return null;
+  const [, underline, tab, href] = m;
+  if (!/^(https?:\/\/|mailto:|tel:)/i.test(href.replace(/&amp;/g, '&'))) return null;
+  const target = tab === 'n' ? ' target="_blank" rel="noopener noreferrer"' : '';
+  return `<a href="${href}"${target} style="text-decoration:${underline === 'u' ? 'underline' : 'none'};color:inherit">`;
+}
 
 /** Converte os códigos de um trecho de texto (já escapado) em tags, sempre bem fechadas. */
 export function richSegment(escaped: string): string {

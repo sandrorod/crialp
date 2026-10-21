@@ -16,6 +16,10 @@ export interface ImageLook {
   rot?: ImageRotation;
   fh?: true;
   fv?: true;
+  /** Link externo ao clicar na foto; `nt`: abre em nova aba; `lb`: borda na cor da página indicando o link */
+  href?: string;
+  nt?: true;
+  lb?: true;
 }
 export const IMAGE_ROTATIONS = [90, 180, 270] as const;
 export type ImageRotation = (typeof IMAGE_ROTATIONS)[number];
@@ -28,6 +32,9 @@ export const IMAGE_BORDER_MAX = 40;
 export const IMAGE_RADIUS_MAX = 300;
 
 const HEX = /^#[0-9a-f]{6}$/i;
+
+/** Link de foto: só http(s), e-mail e telefone, sem espaços. */
+export const isImageLink = (href: string) => href.length <= 2048 && /^(https?:\/\/|mailto:|tel:)\S+$/i.test(href);
 
 function normalizeLook(v: unknown): ImageLook | null {
   if (!v || typeof v !== 'object') return null;
@@ -44,6 +51,11 @@ function normalizeLook(v: unknown): ImageLook | null {
   if (IMAGE_ROTATIONS.includes(i.rot as ImageRotation)) out.rot = i.rot as ImageRotation;
   if (i.fh === true) out.fh = true;
   if (i.fv === true) out.fv = true;
+  if (typeof i.href === 'string' && isImageLink(i.href)) {
+    out.href = i.href;
+    if (i.nt === true) out.nt = true;
+    if (i.lb === true) out.lb = true;
+  }
   return Object.keys(out).length ? out : null;
 }
 
@@ -101,10 +113,11 @@ export function imageStylesCss(styles: Record<string, ImageLook> | undefined, fo
         l.bw ? `border:${n(l.bw)} solid ${l.bc ?? '#ffffff'}!important` : '',
         l.r !== undefined ? `border-radius:${n(l.r)}!important` : '',
         l.sh ? `box-shadow:${l.sh === 'none' ? 'none' : `0 ${n(SHADOW[l.sh][0])} ${n(SHADOW[l.sh][1])} rgba(0,0,0,${SHADOW[l.sh][2]})`}!important` : '',
+        l.href && l.lb ? `outline:${n(3)} solid var(--primary,#2563eb)!important;outline-offset:${n(3)}!important` : '',
       ].filter(Boolean);
       const img = `img[data-lp-img="${cssString(url)}"]`;
       const frame = `:has(>${img})`;
-      const filter = (l.fx ? `${img}{filter:${FILTER[l.fx]}}` : '') + orientCss(img, l, focus?.[url]);
+      const filter = (l.fx ? `${img}{filter:${FILTER[l.fx]}}` : '') + orientCss(img, l, focus?.[url]) + (l.href ? `${img}{cursor:pointer}` : '');
       if (!decl.length) return filter;
       // Foto afastada: o espaço em volta não ganha fundo, sombra nem borda — só a foto
       return onImg
@@ -113,3 +126,18 @@ export function imageStylesCss(styles: Record<string, ImageLook> | undefined, fo
     })
     .join('');
 }
+
+/**
+ * Links das fotos para o script da página publicada: [[url da foto, link, nova aba]].
+ * O clique é tratado por script (sem envolver a foto num <a>), para não mudar o layout do modelo.
+ */
+export function imageLinksJson(styles: Record<string, ImageLook> | undefined): string | null {
+  const list = Object.entries(styles ?? {})
+    .filter(([, l]) => l.href)
+    .map(([url, l]) => [url, l.href, l.nt ? 1 : 0]);
+  // Evita fechar a tag <script> dentro do JSON
+  return list.length ? JSON.stringify(list).replace(/</g, '\\u003c') : null;
+}
+
+/** Foto com link: clique (mesmo com algo por cima, como legenda) e teclado abrem o link. */
+export const IMAGE_LINKS_SCRIPT = `(function(){var j=document.getElementById('lp-links');if(!j)return;var M={};try{JSON.parse(j.textContent).forEach(function(x){M[x[0]]=x})}catch(_){return}function go(x){if(x[2])window.open(x[1],'_blank','noopener');else location.href=x[1]}function find(e){var l=document.elementsFromPoint?document.elementsFromPoint(e.clientX,e.clientY):[e.target];for(var i=0;i<l.length;i++){var n=l[i];if(n.closest&&n.closest('a,button,summary,input,textarea,select'))return null;if(n.tagName==='IMG'&&M[n.getAttribute('data-lp-img')])return M[n.getAttribute('data-lp-img')]}return null}document.addEventListener('click',function(e){var x=find(e);if(x){e.preventDefault();go(x)}});document.querySelectorAll('img[data-lp-img]').forEach(function(i){var x=M[i.getAttribute('data-lp-img')];if(!x)return;i.setAttribute('role','link');i.setAttribute('tabindex','0');i.addEventListener('keydown',function(e){if(e.key==='Enter')go(x)})})})();`;

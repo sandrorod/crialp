@@ -1,5 +1,5 @@
 import type { ElementColor, ElementColors, ImageBox, ImageSizes, LandingContent, SectionSpacing, TextEffect } from '@/types';
-import { richToHtml, serializeRich } from '@/lib/richText';
+import { normalizeLinkUrl, richToHtml, serializeRich } from '@/lib/richText';
 
 /** Ferramentas ativas na prévia: enquadrar fotos, arrastar seções ou escolher cores. */
 export type PreviewMode = 'textos' | 'fotos' | 'mover' | 'secoes' | 'espacos' | 'cores';
@@ -1443,6 +1443,112 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   speedRow.append(speedLabel, speed, ticks);
   if (opts.setFxSpeed) menu.append(group('Velocidade do movimento', []), speedRow);
 
+  // Link externo no trecho selecionado (sem seleção, no texto inteiro): endereço, sublinhado e aba onde abre
+  const linkPanel = doc.createElement('div');
+  linkPanel.setAttribute('style', `display:none;flex-direction:column;gap:${px(6)};padding:${px(6)} ${px(4)} ${px(2)};width:${px(300)};max-width:100%;box-sizing:border-box;white-space:normal`);
+  const linkUrl = doc.createElement('input');
+  linkUrl.type = 'text';
+  linkUrl.placeholder = 'https://… , e-mail ou telefone';
+  linkUrl.setAttribute('style', `${fieldCss};cursor:text;padding:0 ${px(8)};width:100%;box-sizing:border-box`);
+  linkUrl.addEventListener('mousedown', (e) => e.stopPropagation());
+  linkUrl.addEventListener('input', () => (linkUrl.style.outline = ''));
+  let linkUnderline = true;
+  let linkNewTab = true;
+  let linkRange: Range | null = null;
+  const unwrap = (a: Element) => {
+    while (a.firstChild) a.parentNode!.insertBefore(a.firstChild, a);
+    a.remove();
+  };
+  /** Link onde está o trecho guardado; sem trecho, o link que ocupa o texto inteiro. */
+  const currentLink = (): HTMLAnchorElement | null => {
+    if (linkRange) {
+      const n = linkRange.commonAncestorContainer;
+      const a = (n.nodeType === Node.TEXT_NODE ? n.parentElement : (n as HTMLElement))?.closest('a');
+      return a && el.contains(a) ? (a as HTMLAnchorElement) : null;
+    }
+    const links = el.querySelectorAll('a');
+    return links.length === 1 && links[0].textContent === el.textContent ? links[0] : null;
+  };
+  const choice = (labels: [string, string], get: () => boolean, set: (v: boolean) => void) => {
+    const [yes, no] = [true, false].map((v, i) => mk(labels[i], labels[i], () => (set(v), renderLink()), chipCss.replace(/^/, ';')));
+    return { el: [yes, no], paint: () => ([yes, no].forEach((b, i) => (b.style.background = get() === !i ? '#2563eb' : 'rgba(255,255,255,.1)'))) };
+  };
+  const underlineChoice = choice(['Sublinhado', 'Sem sublinhado'], () => linkUnderline, (v) => (linkUnderline = v));
+  const tabChoice = choice(['Nova aba', 'Mesma aba'], () => linkNewTab, (v) => (linkNewTab = v));
+  const renderLink = () => {
+    underlineChoice.paint();
+    tabChoice.paint();
+    removeLink.style.display = currentLink() ? '' : 'none';
+  };
+  const closeLink = () => {
+    linkPanel.style.display = 'none';
+    place();
+  };
+  const applyLink = () => {
+    const href = normalizeLinkUrl(linkUrl.value);
+    if (!href) {
+      linkUrl.style.outline = '2px solid #ef4444';
+      linkUrl.focus();
+      return;
+    }
+    let a = currentLink();
+    if (!a) {
+      const r = linkRange?.cloneRange() ?? doc.createRange();
+      if (!linkRange) r.selectNodeContents(el);
+      a = doc.createElement('a');
+      a.appendChild(r.extractContents());
+      a.querySelectorAll('a').forEach(unwrap);
+      r.insertNode(a);
+    }
+    a.setAttribute('href', href);
+    if (linkNewTab) {
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener noreferrer');
+    } else {
+      a.removeAttribute('target');
+      a.removeAttribute('rel');
+    }
+    a.style.textDecoration = linkUnderline ? 'underline' : 'none';
+    a.style.color = 'inherit';
+    const nr = doc.createRange();
+    nr.selectNodeContents(a);
+    lastRange = nr;
+    closeLink();
+    el.focus({ preventScroll: true });
+  };
+  const applyBtn = mk('Aplicar link', 'Aplicar link', applyLink, `;background:#2563eb;font-weight:600;font-size:${px(12)}`);
+  const removeLink = mk('Remover link', 'Remover link', () => {
+    const a = currentLink();
+    if (a) unwrap(a);
+    closeLink();
+    el.focus({ preventScroll: true });
+  }, `;background:rgba(239,68,68,.85);font-weight:500;font-size:${px(12)}`);
+  linkUrl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      applyLink();
+    }
+  });
+  const linkRow = (...items: HTMLElement[]) => {
+    const r = row();
+    r.append(...items);
+    return r;
+  };
+  linkPanel.append(linkUrl, linkRow(...underlineChoice.el), linkRow(...tabChoice.el), linkRow(applyBtn, removeLink));
+  const linkBtn = mk('🔗 Link', 'Link externo (com um trecho selecionado, só nele; sem seleção, no texto inteiro)', () => {
+    if (linkPanel.style.display !== 'none') return closeLink();
+    linkRange = partial() ? lastRange!.cloneRange() : null;
+    const a = currentLink();
+    linkUrl.value = a?.getAttribute('href') ?? '';
+    linkUrl.style.outline = '';
+    linkUnderline = a ? !(a.style.textDecorationLine === 'none' || a.style.textDecoration.startsWith('none')) : true;
+    linkNewTab = a ? a.getAttribute('target') === '_blank' : true;
+    renderLink();
+    linkPanel.style.display = 'flex';
+    place();
+    linkUrl.focus();
+  }, `;background:rgba(255,255,255,.12);font-weight:500;font-size:${px(12)}`);
+
   const tag = doc.createElement('span');
   tag.setAttribute('style', `opacity:.6;padding:0 ${px(6)}`);
   tag.textContent = opts.deviceLabel;
@@ -1533,6 +1639,8 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
       line('Estilo', bold, italic, underline),
       line('Cor do texto', color),
     );
+    // Link só no texto em edição (dá para escolher o trecho)
+    if (el.isContentEditable) bar.append(line('Link', linkBtn), linkPanel);
   }
   bar.append(line('Fundo', bg), line('Aplicar em', scopeBtn));
   if (opts.setEffect) bar.append(line('Efeito', effect), menu);

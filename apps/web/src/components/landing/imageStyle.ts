@@ -45,6 +45,7 @@ export function imageStylesCss(styles: Record<string, ImageLook> | undefined, fo
         l.bw ? `border:${n(l.bw)} solid ${l.bc ?? '#ffffff'}!important` : '',
         l.r !== undefined ? `border-radius:${n(l.r)}!important` : '',
         l.sh ? `box-shadow:${l.sh === 'none' ? 'none' : `0 ${n(SHADOW[l.sh][0])} ${n(SHADOW[l.sh][1])} rgba(0,0,0,${SHADOW[l.sh][2]})`}!important` : '',
+        l.href && l.lb ? `outline:${n(3)} solid var(--primary,#2563eb)!important;outline-offset:${n(3)}!important` : '',
       ].filter(Boolean);
       const img = `img[data-lp-img="${cssString(url)}"]`;
       const frame = `:has(>${img})`;
