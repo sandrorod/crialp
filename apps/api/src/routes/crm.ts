@@ -236,6 +236,76 @@ crmRouter.get('/stages', async (req, res) => {
   res.json(await stagesFor(authUser(req).organizationId));
 });
 
+// Colunas do funil: as mesmas para toda a organização, então só a gerência altera
+const StageSchema = z.object({
+  name: z.string().trim().min(1, 'Informe o nome da coluna.').max(60),
+  color: z.string().regex(/^#[0-9a-f]{6}$/i, 'Cor inválida.'),
+  kind: z.enum(['open', 'won', 'lost']),
+});
+
+async function ensureStage(orgId: string, id: string) {
+  const stage = await one<{ id: string }>('select id from lp_crm_stages where id = $1 and organization_id = $2', [id, orgId]);
+  if (!stage) throw notFound('Coluna não encontrada.');
+  return stage;
+}
+
+crmRouter.post('/stages', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const user = authUser(req);
+  const b = parseBody(StageSchema, req.body);
+  const created = await one(
+    `insert into lp_crm_stages (organization_id, name, color, kind, position)
+     values ($1, $2, $3, $4, coalesce((select max(position) from lp_crm_stages where organization_id = $1), 0) + 1)
+     returning id, name, position, color, kind`,
+    [user.organizationId, b.name, b.color.toLowerCase(), b.kind],
+  );
+  res.status(201).json(created);
+});
+
+crmRouter.put('/stages/:id', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const user = authUser(req);
+  const stage = await ensureStage(user.organizationId, uuidParam.parse(req.params.id));
+  const b = parseBody(StageSchema, req.body);
+  await query('update lp_crm_stages set name = $2, color = $3, kind = $4 where id = $1', [stage.id, b.name, b.color.toLowerCase(), b.kind]);
+  res.json({ ok: true });
+});
+
+// Nova ordem das colunas (lista completa de ids, da esquerda para a direita)
+crmRouter.put('/stages-order', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const user = authUser(req);
+  const { ids } = parseBody(z.object({ ids: z.array(uuidParam).min(1).max(50) }), req.body);
+  const { rowCount } = await query('select 1 from lp_crm_stages where organization_id = $1 and id = any($2::uuid[])', [user.organizationId, ids]);
+  const total = await one<{ n: number }>('select count(*)::int as n from lp_crm_stages where organization_id = $1', [user.organizationId]);
+  if (rowCount !== ids.length || total?.n !== ids.length) throw badRequest('Lista de colunas desatualizada. Recarregue a página.');
+  await query(
+    `update lp_crm_stages s set position = o.pos from unnest($2::uuid[]) with ordinality as o(id, pos)
+      where s.id = o.id and s.organization_id = $1`,
+    [user.organizationId, ids],
+  );
+  res.json({ ok: true });
+});
+
+// Excluir coluna: os negócios dela vão para outra coluna (nada se perde)
+crmRouter.delete('/stages/:id', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const user = authUser(req);
+  const stage = await ensureStage(user.organizationId, uuidParam.parse(req.params.id));
+  const moveTo = req.query.move_to ? uuidParam.parse(req.query.move_to) : null;
+  const total = await one<{ n: number }>('select count(*)::int as n from lp_crm_stages where organization_id = $1', [user.organizationId]);
+  if ((total?.n ?? 0) <= 1) throw badRequest('O funil precisa de pelo menos uma coluna.');
+  const deals = await one<{ n: number }>('select count(*)::int as n from lp_crm_deals where stage_id = $1', [stage.id]);
+  if (deals?.n) {
+    if (!moveTo || moveTo === stage.id) throw badRequest('Escolha para qual coluna vão os negócios desta coluna.');
+    await ensureStage(user.organizationId, moveTo);
+    await query(
+      `update lp_crm_deals set stage_id = $2, updated_at = now(),
+              position = position + coalesce((select max(position) from lp_crm_deals where stage_id = $2), 0)
+        where stage_id = $1`,
+      [stage.id, moveTo],
+    );
+  }
+  await query('delete from lp_crm_stages where id = $1', [stage.id]);
+  res.json({ ok: true, moved: deals?.n ?? 0 });
+});
+
 crmRouter.get('/deals', async (req, res) => {
   const user = authUser(req);
   const f = z.object({ seller: z.string().max(40).optional() }).parse(req.query);

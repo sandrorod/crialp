@@ -21,9 +21,12 @@ function CompanySelect({ value, onChange, required }: { value: string; onChange:
   );
 }
 
-function Footer({ onClose, saving, form }: { onClose: () => void; saving: boolean; form: string }) {
+function Footer({ onClose, saving, form, onDelete }: { onClose: () => void; saving: boolean; form: string; onDelete?: () => void }) {
   return (
     <>
+      {onDelete ? (
+        <Button variant="ghost" className="mr-auto text-red-600 hover:bg-red-50 hover:text-red-700" onClick={onDelete} disabled={saving}>Excluir</Button>
+      ) : null}
       <Button variant="secondary" onClick={onClose} disabled={saving}>Cancelar</Button>
       <Button type="submit" form={form} loading={saving}>Salvar</Button>
     </>
@@ -124,8 +127,29 @@ export function DealForm({
     }
   };
 
+  const remove = async () => {
+    if (!deal || !window.confirm(`Excluir o negócio "${deal.title}"? Esta ação não pode ser desfeita.`)) return;
+    setSaving(true);
+    try {
+      await crmService.removeDeal(deal.id);
+      toast.success('Negócio excluído.');
+      onSaved();
+      onClose();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <Modal open title={deal ? 'Editar negócio' : 'Novo negócio'} onClose={onClose} busy={saving} footer={<Footer onClose={onClose} saving={saving} form="crm-deal" />}>
+    <Modal
+      open
+      title={deal ? 'Editar negócio' : 'Novo negócio'}
+      onClose={onClose}
+      busy={saving}
+      footer={<Footer onClose={onClose} saving={saving} form="crm-deal" onDelete={deal ? () => void remove() : undefined} />}
+    >
       <form id="crm-deal" onSubmit={submit} className="space-y-3">
         <Field label="Título *"><Input required value={f.title} onChange={set('title')} placeholder="Ex.: Plano anual do site" /></Field>
         {!companyId ? (

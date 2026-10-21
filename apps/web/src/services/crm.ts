@@ -19,6 +19,7 @@ const qs = (params: Record<string, string | undefined>) => {
 
 export type ContactInput = Omit<CrmContact, 'id'>;
 export type DealInput = { company_id: string; contact_id: string | null; stage_id: string; title: string; value: number; expected_close: string | null; notes: string | null };
+export type StageInput = { name: string; color: string; kind: 'open' | 'won' | 'lost' };
 export type TaskInput = { title: string; description: string | null; due_at: string | null; company_id: string | null; assignee_id: string | null };
 
 export const crmService = {
@@ -32,6 +33,10 @@ export const crmService = {
   removeContact: (id: string) => api.del(`/crm/contacts/${id}`),
 
   stages: () => api.get<CrmStage[]>('/crm/stages'),
+  createStage: (st: StageInput) => api.post<CrmStage>('/crm/stages', st),
+  updateStage: (id: string, st: StageInput) => api.put(`/crm/stages/${id}`, st),
+  reorderStages: (ids: string[]) => api.put('/crm/stages-order', { ids }),
+  removeStage: (id: string, moveTo?: string) => api.del<{ moved: number }>(`/crm/stages/${id}${moveTo ? `?move_to=${moveTo}` : ''}`),
   deals: (f: { seller?: string }) => api.get<CrmDeal[]>(`/crm/deals${qs(f)}`),
   createDeal: (d: DealInput) => api.post<CrmDeal>('/crm/deals', d),
   updateDeal: (id: string, d: DealInput) => api.put<CrmDeal>(`/crm/deals/${id}`, d),
