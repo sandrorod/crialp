@@ -75,8 +75,31 @@ export function driveAuthUrl(state: string) {
   return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** Falha passageira do Google (rede, 429, 5xx, limite de taxa): vale tentar de novo. */
+const transient = (status: number, text: string) => status === 429 || status >= 500 || (status === 403 && /rateLimitExceeded|userRateLimit|backendError/i.test(text));
+
+/** fetch com até 3 tentativas para falhas passageiras (espera 1 s e depois 3 s). */
+async function fetchRetry(url: string, init: RequestInit) {
+  for (let attempt = 0; ; attempt++) {
+    const last = attempt >= 2;
+    let res: Response;
+    try {
+      res = await fetch(url, init);
+    } catch (err) {
+      if (last) throw err;
+      await sleep(attempt ? 3000 : 1000);
+      continue;
+    }
+    if (res.ok || last) return res;
+    const text = await res.clone().text().catch(() => '');
+    if (!transient(res.status, text)) return res;
+    await sleep(attempt ? 3000 : 1000);
+  }
+}
+
 async function tokenRequest(body: Record<string, string>) {
-  const res = await fetch('https://oauth2.googleapis.com/token', {
+  const res = await fetchRetry('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ client_id: env.googleOAuth.clientId!, client_secret: env.googleOAuth.clientSecret!, ...body }),
@@ -87,7 +110,7 @@ async function tokenRequest(body: Record<string, string>) {
 }
 
 async function driveFetch<T>(accessToken: string, url: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(url, { ...init, headers: { Authorization: `Bearer ${accessToken}`, ...init.headers } });
+  const res = await fetchRetry(url, { ...init, headers: { Authorization: `Bearer ${accessToken}`, ...init.headers } });
   if (!res.ok) throw new Error(`Google Drive ${res.status}: ${(await res.text()).slice(0, 300)}`);
   return res.json() as Promise<T>;
 }

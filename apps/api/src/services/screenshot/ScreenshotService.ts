@@ -83,15 +83,38 @@ export async function captureHtml(html: string) {
   }
 }
 
+// Um print por vez em cada instância: na Vercel, pedidos simultâneos (ativar várias LPs seguidas) podem cair
+// na mesma instância, e dois Chromes juntos estouram a memória e derrubam a função sem registrar nada.
+let queue: Promise<unknown> = Promise.resolve();
+function oneAtATime<T>(task: () => Promise<T>): Promise<T> {
+  const run = queue.then(task, task);
+  queue = run.catch(() => {});
+  return run;
+}
+
+/** Tira o print; se o Chrome falhar (acontece às vezes ao abrir na Vercel), tenta mais uma vez. */
+async function captureWithRetry(html: string) {
+  try {
+    return await captureHtml(html);
+  } catch (err) {
+    console.warn('[screenshot] nova tentativa após falha:', err);
+    return captureHtml(html);
+  }
+}
+
 /**
  * Gera e guarda a imagem da LP. Nunca lança erro: a falha fica registrada
  * (a geração da página não deve falhar por causa da imagem).
  */
-export async function generateScreenshot(lp: LandingPageRow): Promise<ScreenshotInfo | null> {
+export function generateScreenshot(lp: LandingPageRow): Promise<ScreenshotInfo | null> {
+  return oneAtATime(() => generateNow(lp));
+}
+
+async function generateNow(lp: LandingPageRow): Promise<ScreenshotInfo | null> {
   try {
     const html = await renderFromData(lp);
     if (!html) return null;
-    const shot = await captureHtml(html);
+    const shot = await captureWithRetry(html);
     await query(
       `insert into lp_screenshots (landing_page_id, image, width, height, error, created_at) values ($1, $2, $3, $4, null, now())
        on conflict (landing_page_id) do update set image = excluded.image, width = excluded.width, height = excluded.height, error = null, created_at = now()`,
@@ -129,6 +152,7 @@ function driveErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
   if (raw.startsWith('Google Drive não') || raw.includes('Configurações')) return raw;
   if (/accessNotConfigured|has not been used|SERVICE_DISABLED/i.test(raw)) return 'A Google Drive API está desativada no projeto do Google Cloud: ative-a em APIs e serviços → Biblioteca → Google Drive API.';
+  if (/rateLimitExceeded|userRateLimit|quotaExceeded|\b429\b/i.test(raw)) return 'O Google Drive limitou os envios por alguns instantes: gere o print de novo em "Novo print" no editor.';
   if (/invalid_client|unauthorized_client/i.test(raw)) return 'ID ou chave secreta do OAuth do Google inválidos na Vercel (GOOGLE_OAUTH_CLIENT_ID / SECRET).';
   if (/insufficient|403/i.test(raw)) return `O Google Drive recusou o envio (sem permissão): conecte de novo em Configurações. Detalhe: ${raw.slice(0, 160)}`;
   return `Não foi possível enviar a imagem ao Google Drive. Detalhe: ${raw.slice(0, 160)}`;

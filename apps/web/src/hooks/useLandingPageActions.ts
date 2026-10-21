@@ -14,10 +14,12 @@ export function useLandingPageActions(onChange: () => void) {
     try {
       const next = current === 'ativa' ? 'inativa' : 'ativa';
       const { screenshot } = await landingPageService.setStatus(id, next);
-      toast.success(next === 'ativa' ? 'Landing Page ativada.' : 'Landing Page desativada.');
-      // Ao ativar é gerado o print da página: avisa se ele ou o envio ao Google Drive falharam
+      // Ao ativar é gerado o print da página: confirma o envio ao Google Drive ou avisa o que falhou
+      const sent = next === 'ativa' && screenshot?.drive_file_id && !screenshot.error && !screenshot.drive_error;
+      toast.success(next === 'ativa' ? `Landing Page ativada${sent ? ' e print enviado ao Google Drive' : ''}.` : 'Landing Page desativada.');
       if (screenshot?.error) toast.warning(screenshot.error);
       else if (screenshot?.drive_error) toast.warning(screenshot.drive_error);
+      else if (next === 'ativa' && !sent) toast.warning('O print da página não foi enviado ao Google Drive: use "Novo print" no editor da página.');
       onChange();
     } catch (err) {
       toast.error(errorMessage(err));
