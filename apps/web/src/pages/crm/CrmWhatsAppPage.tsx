@@ -145,7 +145,10 @@ function Chat({ conversation, manager, onBack, onChanged }: { conversation: CrmC
   const [linking, setLinking] = useState(false);
   const end = useRef<HTMLDivElement>(null);
 
-  useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [messages?.length]);
+  // Chaves: no Chrome atual scrollIntoView devolve uma Promise, que o React trataria como função de limpeza
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: 'end' });
+  }, [messages?.length]);
   useEffect(() => {
     if (conversation.unread) void crmService.markRead(conversation.id).then(onChanged).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
