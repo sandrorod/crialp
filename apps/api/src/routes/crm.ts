@@ -9,6 +9,7 @@ import {
   importHistory,
   jidNumber,
   loadConfig,
+  markReadOnWhatsapp,
   normalizeNumber,
   registerMessage,
   relinkConversations,
@@ -516,6 +517,8 @@ crmRouter.post('/conversations/:id/read', async (req, res) => {
   const user = authUser(req);
   const conv = await ensureConversation(user, uuidParam.parse(req.params.id));
   await query('update lp_crm_conversations set unread = 0 where id = $1', [conv.id]);
+  // Confirmação de leitura para o cliente; se o WhatsApp falhar, a conversa continua marcada como lida aqui
+  await markReadOnWhatsapp(user.organizationId, conv.id).catch((err) => console.error('[crm] markRead', err));
   res.json({ ok: true });
 });
 

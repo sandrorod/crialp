@@ -175,7 +175,30 @@ export async function ingestEvolutionRecord(orgId: string, m: any, extra: Partia
   if (m.message?.reactionMessage) return applyEvolutionReaction(m);
   const parsed = parseEvolutionMessage(m);
   if (!parsed) return false;
-  return (await registerMessage({ orgId, ...parsed, ...extra, pushName: extra.pushName ?? parsed.pushName })).inserted;
+  const { inserted } = await registerMessage({ orgId, ...parsed, ...extra, pushName: extra.pushName ?? parsed.pushName });
+  // Confirmação de entrega/leitura guardada pela Evolution (vale mesmo quando o webhook não chegou)
+  if (parsed.direction === 'out' && parsed.waMessageId) {
+    const statuses = (Array.isArray(m.MessageUpdate) ? m.MessageUpdate : []).map((u: any) => STATUS[String(u?.status ?? '').toUpperCase()]).filter(Boolean);
+    const best = statuses.sort((a: string, b: string) => STATUS_RANK.indexOf(b) - STATUS_RANK.indexOf(a))[0];
+    if (best) await updateMessageStatus(parsed.waMessageId, best);
+  }
+  return inserted;
+}
+
+/** Avisa o WhatsApp que as mensagens recebidas foram lidas (o cliente vê os dois tiques azuis). */
+export async function markReadOnWhatsapp(orgId: string, conversationId: string) {
+  const cfg = await loadConfig(orgId);
+  if (!cfg) return;
+  const { rows } = await query<{ remote_jid: string | null; phone: string; wa_message_id: string }>(
+    `select cv.remote_jid, cv.phone, m.wa_message_id from lp_crm_messages m join lp_crm_conversations cv on cv.id = m.conversation_id
+      where m.conversation_id = $1 and m.direction = 'in' and m.wa_message_id is not null
+      order by m.created_at desc limit 20`,
+    [conversationId],
+  );
+  if (!rows.length) return;
+  await evolution(cfg, 'POST', `/chat/markMessageAsRead/${cfg.instance}`, {
+    readMessages: rows.map((r) => ({ remoteJid: r.remote_jid ?? `${normalizeNumber(r.phone)}@s.whatsapp.net`, fromMe: false, id: r.wa_message_id })),
+  });
 }
 
 /** Mensagem da Evolution (webhook ou histórico) → dados para gravar; null para grupos, status e eventos sem conteúdo. */
