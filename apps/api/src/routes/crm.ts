@@ -529,6 +529,8 @@ crmRouter.post('/messages', async (req, res) => {
   const user = authUser(req);
   const b = parseBody(SendSchema, req.body);
   let number: string;
+  // Enviando pelo WhatsApp da empresa: a conversa fica com ela (o número pode estar em mais de uma empresa)
+  let companyTarget: string | null = null;
   if (b.conversation_id) {
     const conv = await ensureConversation(user, b.conversation_id);
     number = conv.remote_jid ? jidNumber(conv.remote_jid) : normalizeNumber(conv.phone);
@@ -541,6 +543,7 @@ crmRouter.post('/messages', async (req, res) => {
     const n = co.whatsapp || co.mobile;
     if (!n) throw badRequest('Esta empresa não tem WhatsApp cadastrado.');
     number = normalizeNumber(n);
+    companyTarget = co.id;
   } else {
     throw badRequest('Informe a conversa, o contato ou a empresa.');
   }
@@ -568,6 +571,9 @@ crmRouter.post('/messages', async (req, res) => {
     waMessageId: sent?.key?.id ?? null,
     sentBy: user.id,
   });
+  if (companyTarget) {
+    await query('update lp_crm_conversations set company_id = $2 where id = $1 and contact_id is null', [conversationId, companyTarget]);
+  }
   res.status(201).json({ conversation_id: conversationId });
 });
 

@@ -188,11 +188,13 @@ export async function relinkConversations(orgId: string, opts: { conversationId?
            left join lateral (
              select id, company_id from lp_crm_contacts where organization_id = c2.organization_id and wa_key = c2.wa_key limit 1
            ) ct on true
+           -- Mesmo número em mais de uma empresa: fica a empresa atual da conversa (ex.: a de quem enviou),
+           -- enquanto ela ainda tiver esse número; senão, a cadastrada primeiro
            left join lateral (
              select id from companies
               where organization_id = c2.organization_id and ct.id is null
                 and (lp_crm_wa_key(whatsapp) = c2.wa_key or lp_crm_wa_key(mobile) = c2.wa_key)
-              order by created_at limit 1
+              order by (id = c2.company_id) desc, created_at limit 1
            ) co on true
           where c2.organization_id = $1
             and ($2::uuid is null or c2.id = $2)
