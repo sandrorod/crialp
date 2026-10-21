@@ -71,6 +71,26 @@ export function CrmConnectionPage() {
     }
   };
 
+  const [importing, setImporting] = useState<{ done: number; total: number } | null>(null);
+  const importHistory = async () => {
+    setImporting({ done: 0, total: 0 });
+    let offset: number | null = 0;
+    let messages = 0;
+    try {
+      while (offset !== null) {
+        const r = await crmService.importWhatsapp(offset);
+        messages += r.messages;
+        offset = r.next;
+        setImporting({ done: r.next ?? r.total, total: r.total });
+      }
+      toast.success(messages ? `Conversas importadas (${messages} mensagens lidas).` : 'Nenhuma conversa nova para importar.');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setImporting(null);
+    }
+  };
+
   const logout = async () => {
     setBusy(true);
     try {
@@ -122,9 +142,21 @@ export function CrmConnectionPage() {
             </Button>
             {status.state === 'open' ? <Button variant="secondary" onClick={() => setConfirmLogout(true)}>Desconectar</Button> : null}
           </div>
-        ) : (
-          <p className="mt-4 text-sm text-zinc-500">Preencha e salve a configuração ao lado para conectar.</p>
-        )}
+        ) : null}
+        {status.configured && status.state === 'open' ? (
+          <div className="mt-4 border-t border-zinc-100 pt-4">
+            <Button variant="secondary" loading={!!importing} onClick={() => void importHistory()}>
+              {importing ? `Importando… ${importing.done}/${importing.total || '?'} conversas` : 'Importar conversas'}
+            </Button>
+            <p className="mt-1 text-xs text-zinc-500">
+              Traz para o CRM as conversas que o servidor do WhatsApp já guardou (até 50 mensagens recentes de cada). As novas chegam sozinhas.
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              Faltando conversas antigas? Clique em Desconectar e conecte de novo: ao ler o QR Code o celular envia o histórico. Espere alguns minutos e importe outra vez.
+            </p>
+          </div>
+        ) : null}
+        {!status.configured ? <p className="mt-4 text-sm text-zinc-500">Preencha e salve a configuração ao lado para conectar.</p> : null}
 
         {qr && status.state !== 'open' ? (
           <div className="mt-4 text-center">

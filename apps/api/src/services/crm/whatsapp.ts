@@ -94,6 +94,85 @@ export function normalizeNumber(value: string) {
 
 export const jidNumber = (jid: string) => jid.split('@')[0].split(':')[0];
 
+// ─── Mensagens da Evolution ─────────────────────────────────────────
+
+const TYPES: Record<string, string> = {
+  conversation: 'text',
+  extendedTextMessage: 'text',
+  imageMessage: 'image',
+  videoMessage: 'video',
+  audioMessage: 'audio',
+  documentMessage: 'document',
+  documentWithCaptionMessage: 'document',
+  stickerMessage: 'sticker',
+  locationMessage: 'location',
+  contactMessage: 'contact',
+};
+const IGNORED = new Set(['protocolMessage', 'reactionMessage', 'senderKeyDistributionMessage', 'messageContextInfo']);
+
+export const STATUS: Record<string, string> = {
+  ERROR: 'error',
+  PENDING: 'pending',
+  SERVER_ACK: 'sent',
+  DELIVERY_ACK: 'delivered',
+  READ: 'read',
+  PLAYED: 'read',
+};
+
+function messageText(m: any): string | null {
+  const msg = m.message ?? {};
+  return (
+    msg.conversation ??
+    msg.extendedTextMessage?.text ??
+    msg.imageMessage?.caption ??
+    msg.videoMessage?.caption ??
+    msg.documentMessage?.caption ??
+    msg.documentMessage?.fileName ??
+    msg.documentWithCaptionMessage?.message?.documentMessage?.caption ??
+    msg.buttonsResponseMessage?.selectedDisplayText ??
+    msg.listResponseMessage?.title ??
+    msg.templateButtonReplyMessage?.selectedDisplayText ??
+    null
+  );
+}
+
+function messageType(m: any): string | null {
+  const t = m.messageType ?? Object.keys(m.message ?? {}).find((k) => !IGNORED.has(k));
+  if (!t || IGNORED.has(t)) return null;
+  return TYPES[t] ?? 'other';
+}
+
+/** JID de telefone; com endereçamento LID o número vem em campos alternativos. Grupos e status são ignorados. */
+function phoneJid(m: any): string | null {
+  const key = m.key ?? {};
+  const jid: string = key.remoteJid ?? '';
+  if (jid.endsWith('@s.whatsapp.net')) return jid;
+  if (jid.endsWith('@lid')) {
+    const alt: string | undefined = key.remoteJidAlt ?? key.senderPn ?? m.senderPn;
+    if (alt) return alt.includes('@') ? alt : `${alt}@s.whatsapp.net`;
+  }
+  return null;
+}
+
+/** Mensagem da Evolution (webhook ou histórico) → dados para gravar; null para grupos, status e eventos sem conteúdo. */
+export function parseEvolutionMessage(m: any): Omit<IncomingMessage, 'orgId'> | null {
+  const jid = phoneJid(m);
+  const type = jid ? messageType(m) : null;
+  if (!jid || !type) return null;
+  const fromMe = !!m.key?.fromMe;
+  const ts = Number(m.messageTimestamp);
+  return {
+    phone: jidNumber(jid),
+    remoteJid: jid,
+    pushName: fromMe ? null : (m.pushName ?? null),
+    direction: fromMe ? 'out' : 'in',
+    type,
+    body: messageText(m),
+    waMessageId: m.key?.id ?? null,
+    at: ts ? new Date(ts * 1000) : new Date(),
+  };
+}
+
 // ─── Conversas ──────────────────────────────────────────────────────
 
 /**
@@ -136,6 +215,8 @@ export interface IncomingMessage {
   sentBy?: string | null;
   at?: Date;
   status?: string;
+  /** Histórico importado: não conta como não lida */
+  history?: boolean;
 }
 
 /** Grava a mensagem (idempotente pelo id do WhatsApp) e atualiza o resumo da conversa. */
@@ -164,9 +245,9 @@ export async function registerMessage(m: IncomingMessage): Promise<string> {
       `update lp_crm_conversations set
          last_message = left(coalesce($2, '[' || $3 || ']'), 200),
          last_message_at = greatest(coalesce(last_message_at, '-infinity'), $4),
-         unread = case when $5 = 'in' then unread + 1 else 0 end
+         unread = case when $6 then unread when $5 = 'in' then unread + 1 else 0 end
        where id = $1`,
-      [conv.id, m.body, m.type, at, m.direction],
+      [conv.id, m.body, m.type, at, m.direction, !!m.history],
     );
   }
   return conv.id;
@@ -182,4 +263,50 @@ export async function updateMessageStatus(waMessageId: string, status: string) {
         and array_position($3::text[], $2) > coalesce(array_position($3::text[], status), 0)`,
     [waMessageId, status, STATUS_RANK],
   );
+}
+
+// ─── Importação do histórico guardado na Evolution ──────────────────
+
+/** Conversas importadas por chamada (cada uma busca as mensagens dela): cabe no tempo de uma função da Vercel. */
+export const IMPORT_BATCH = 10;
+const IMPORT_MESSAGES_PER_CHAT = 50;
+
+/**
+ * Importa um lote das conversas individuais que a Evolution guardou (grupos ficam de fora) com as
+ * últimas mensagens de cada uma. Idempotente: mensagens já gravadas (mesmo id do WhatsApp) são ignoradas.
+ */
+export async function importHistory(orgId: string, offset: number) {
+  const cfg = await loadConfig(orgId);
+  const raw = await evolution<any>(cfg, 'POST', `/chat/findChats/${cfg!.instance}`, {});
+  const chats: any[] = (Array.isArray(raw) ? raw : raw?.chats ?? [])
+    .filter((c: any) => {
+      const jid = String(c.remoteJid ?? '');
+      return jid.endsWith('@s.whatsapp.net') || (jid.endsWith('@lid') && !!c.lastMessage?.key?.remoteJidAlt);
+    })
+    .sort((a: any, b: any) => String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')));
+
+  let messages = 0;
+  for (const chat of chats.slice(offset, offset + IMPORT_BATCH)) {
+    const r = await evolution<any>(cfg, 'POST', `/chat/findMessages/${cfg!.instance}`, {
+      where: { key: { remoteJid: chat.remoteJid } },
+      page: 1,
+      offset: IMPORT_MESSAGES_PER_CHAT,
+    });
+    const records: any[] = (r?.messages?.records ?? r?.records ?? [])
+      .slice()
+      .sort((a: any, b: any) => Number(a.messageTimestamp) - Number(b.messageTimestamp))
+      .slice(-IMPORT_MESSAGES_PER_CHAT);
+    for (const m of records) {
+      // Mensagem antiga em conversa LID pode não trazer o número: usa o da conversa
+      if (String(m.key?.remoteJid ?? '').endsWith('@lid') && !m.key?.remoteJidAlt) {
+        m.key = { ...m.key, remoteJidAlt: chat.lastMessage?.key?.remoteJidAlt };
+      }
+      const parsed = parseEvolutionMessage(m);
+      if (!parsed) continue;
+      await registerMessage({ orgId, ...parsed, pushName: parsed.pushName ?? chat.pushName ?? null, history: true });
+      messages++;
+    }
+  }
+  const next = offset + IMPORT_BATCH;
+  return { total: chats.length, next: next < chats.length ? next : null, messages };
 }

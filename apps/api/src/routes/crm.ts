@@ -6,6 +6,7 @@ import { longText, parseBody, text, uuidParam } from '../lib/validation.js';
 import { authUser, MANAGER_ROLES, requireRole, type AuthUser } from '../middleware/auth.js';
 import {
   evolution,
+  importHistory,
   jidNumber,
   loadConfig,
   normalizeNumber,
@@ -572,14 +573,26 @@ wa.post('/connect', async (req, res) => {
   const user = authUser(req);
   const { cfg, state } = await connectionState(user.organizationId);
   if (state === 'missing') {
-    await evolution(cfg, 'POST', '/instance/create', { instanceName: cfg!.instance, integration: 'WHATSAPP-BAILEYS', qrcode: false, groupsIgnore: true });
+    await evolution(cfg, 'POST', '/instance/create', { instanceName: cfg!.instance, integration: 'WHATSAPP-BAILEYS', qrcode: false, groupsIgnore: true, syncFullHistory: true });
   }
   await evolution(cfg, 'POST', `/webhook/set/${cfg!.instance}`, {
     webhook: { enabled: true, url: webhookUrl(user.organizationId), byEvents: false, base64: false, events: WEBHOOK_EVENTS },
   });
   if (state === 'open') return res.json({ state, qrcode: null });
+  // Ao ler o QR o celular manda o histórico das conversas (depois trazido por "Importar conversas")
+  const settings = await evolution<Record<string, unknown>>(cfg, 'GET', `/settings/find/${cfg!.instance}`).catch(() => null);
+  if (settings && settings.syncFullHistory !== true) {
+    await evolution(cfg, 'POST', `/settings/set/${cfg!.instance}`, { ...settings, syncFullHistory: true }).catch((err) => console.error('[crm] syncFullHistory', err));
+  }
   const r = await evolution(cfg, 'GET', `/instance/connect/${cfg!.instance}`);
   res.json({ state: (await connectionState(user.organizationId)).state, qrcode: r?.base64 ?? null, pairing_code: r?.pairingCode ?? null });
+});
+
+// Importa (em lotes) as conversas que a Evolution já guardou; a tela chama de novo com `offset` até acabar
+wa.post('/import', async (req, res) => {
+  const user = authUser(req);
+  const { offset } = parseBody(z.object({ offset: z.number().int().min(0).default(0) }), req.body);
+  res.json(await importHistory(user.organizationId, offset));
 });
 
 wa.post('/logout', async (req, res) => {

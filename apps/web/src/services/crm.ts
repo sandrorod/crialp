@@ -54,6 +54,7 @@ export const crmService = {
   whatsapp: () => api.get<CrmWhatsAppStatus>('/crm/whatsapp'),
   saveWhatsapp: (c: { api_url: string; api_key?: string; instance: string }) => api.put('/crm/whatsapp', c),
   connectWhatsapp: () => api.post<{ state: string; qrcode: string | null }>('/crm/whatsapp/connect'),
+  importWhatsapp: (offset: number) => api.post<{ total: number; next: number | null; messages: number }>('/crm/whatsapp/import', { offset }),
   logoutWhatsapp: () => api.post('/crm/whatsapp/logout'),
 };
 
