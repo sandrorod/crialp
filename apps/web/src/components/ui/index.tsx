@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { createContext, useContext, type ComponentProps, useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, Plus, X } from 'lucide-react';
 import { cn, confirmDelete } from '@/lib/utils';
 import type { LpStatus } from '@/types';
@@ -50,7 +50,8 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return <input className={cn(fieldBase, 'h-10', className)} {...props} />;
 }
 
-export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+// ComponentProps (e não só os atributos): aceita `ref`, que o React 19 repassa como prop
+export function Textarea({ className, ...props }: ComponentProps<'textarea'>) {
   return <textarea className={cn(fieldBase, 'py-2.5 min-h-[88px] leading-relaxed', className)} {...props} />;
 }
 

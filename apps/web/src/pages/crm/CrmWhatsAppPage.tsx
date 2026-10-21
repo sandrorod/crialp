@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router';
-import { AlertTriangle, ArrowLeft, Building2, Check, CheckCheck, Clock, MessageCircle, MessageSquarePlus, Search, Send, User, UserPlus } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Building2, Check, CheckCheck, Clock, MessageCircle, MessageSquarePlus, Search, Send, Smile, User, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card, Input, Modal, Spinner, Textarea } from '@/components/ui';
 import { ContactForm } from '@/components/crm/CrmForms';
@@ -13,6 +13,9 @@ import type { CrmConversation, CrmMessage } from '@/types/crm';
 import { isCrmManager } from './CrmLayout';
 
 const LIST_POLL = 6_000;
+
+// Seletor de emojis só é baixado quando aberto
+const EmojiPanel = lazy(() => import('@/components/crm/EmojiPanel'));
 const CHAT_POLL = 4_000;
 
 const title = (c: CrmConversation) => c.contact_name ?? c.push_name ?? phone(c.phone);
@@ -333,6 +336,36 @@ function NewConversation({ contactId, companyId, onBack, onSent }: { contactId: 
 function Composer({ onSend }: { onSend: (text: string) => Promise<void> }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const input = useRef<HTMLTextAreaElement>(null);
+  const box = useRef<HTMLFormElement>(null);
+
+  // Fecha o seletor ao clicar fora ou apertar Esc
+  useEffect(() => {
+    if (!emojiOpen) return;
+    const onDown = (e: PointerEvent) => !box.current?.contains(e.target as Node) && setEmojiOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setEmojiOpen(false);
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [emojiOpen]);
+
+  /** Emoji entra onde está o cursor (ou no lugar do trecho selecionado), e o cursor fica depois dele. */
+  const insertEmoji = (emoji: string) => {
+    const el = input.current;
+    const start = el?.selectionStart ?? text.length;
+    const end = el?.selectionEnd ?? text.length;
+    setText(text.slice(0, start) + emoji + text.slice(end));
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(start + emoji.length, start + emoji.length);
+    });
+  };
+
   const submit = async (e?: FormEvent) => {
     e?.preventDefault();
     if (!text.trim() || sending) return;
@@ -340,6 +373,7 @@ function Composer({ onSend }: { onSend: (text: string) => Promise<void> }) {
     try {
       await onSend(text);
       setText('');
+      setEmojiOpen(false);
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -347,8 +381,16 @@ function Composer({ onSend }: { onSend: (text: string) => Promise<void> }) {
     }
   };
   return (
-    <form onSubmit={submit} className="flex items-end gap-2 border-t border-zinc-100 bg-white p-3">
+    <form ref={box} onSubmit={submit} className="relative flex items-end gap-2 border-t border-zinc-100 bg-white p-3">
+      {emojiOpen ? (
+        <div className="absolute bottom-full right-3 z-20 mb-2 max-w-[calc(100vw-24px)] overflow-hidden rounded-xl shadow-2xl">
+          <Suspense fallback={<div className="grid h-[380px] w-[340px] place-items-center bg-white"><Spinner /></div>}>
+            <EmojiPanel onPick={insertEmoji} />
+          </Suspense>
+        </div>
+      ) : null}
       <Textarea
+        ref={input}
         rows={1}
         className="max-h-40 min-h-10 resize-none py-2"
         placeholder="Digite uma mensagem (Enter envia, Shift+Enter quebra linha)"
@@ -361,7 +403,19 @@ function Composer({ onSend }: { onSend: (text: string) => Promise<void> }) {
           }
         }}
       />
-      <Button type="submit" loading={sending} disabled={!text.trim()} aria-label="Enviar" icon={<Send className="size-4" />} />
+      <div className="flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={() => setEmojiOpen((o) => !o)}
+          className={cn('grid size-10 place-items-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-ink', emojiOpen && 'bg-zinc-100 text-ink')}
+          title="Emojis"
+          aria-label="Emojis"
+          aria-expanded={emojiOpen}
+        >
+          <Smile className="size-5" />
+        </button>
+        <Button type="submit" loading={sending} disabled={!text.trim()} aria-label="Enviar" icon={<Send className="size-4" />} />
+      </div>
     </form>
   );
 }
