@@ -502,7 +502,8 @@ crmRouter.get('/conversations/:id/messages', async (req, res) => {
   const conv = await ensureConversation(user, uuidParam.parse(req.params.id));
   const { rows } = await query(
     `select * from (
-       select m.id, m.direction, m.type, m.body, m.status, m.created_at, u.name as sent_by_name
+       select m.id, m.direction, m.type, m.body, m.status, m.created_at, u.name as sent_by_name,
+              m.my_reaction, m.their_reaction, m.wa_message_id is not null as can_react
          from lp_crm_messages m left join users u on u.id = m.sent_by
         where m.conversation_id = $1 order by m.created_at desc limit 200
      ) x order by created_at`,
@@ -515,6 +516,26 @@ crmRouter.post('/conversations/:id/read', async (req, res) => {
   const user = authUser(req);
   const conv = await ensureConversation(user, uuidParam.parse(req.params.id));
   await query('update lp_crm_conversations set unread = 0 where id = $1', [conv.id]);
+  res.json({ ok: true });
+});
+
+// Reação do número central numa mensagem (emoji vazio remove), como no WhatsApp
+crmRouter.post('/messages/:id/reaction', async (req, res) => {
+  const user = authUser(req);
+  const { emoji } = parseBody(z.object({ emoji: z.string().max(16) }), req.body);
+  const msg = await one<{ id: string; conversation_id: string; direction: string; wa_message_id: string | null }>(
+    'select id, conversation_id, direction, wa_message_id from lp_crm_messages where id = $1',
+    [uuidParam.parse(req.params.id)],
+  );
+  if (!msg) throw notFound('Mensagem não encontrada.');
+  const conv = await ensureConversation(user, msg.conversation_id);
+  if (!msg.wa_message_id) throw badRequest('Não dá para reagir a esta mensagem.');
+  const cfg = await loadConfig(user.organizationId);
+  await evolution(cfg, 'POST', `/message/sendReaction/${cfg?.instance}`, {
+    key: { remoteJid: conv.remote_jid ?? `${normalizeNumber(conv.phone)}@s.whatsapp.net`, fromMe: msg.direction === 'out', id: msg.wa_message_id },
+    reaction: emoji,
+  });
+  await query('update lp_crm_messages set my_reaction = $2 where id = $1', [msg.id, emoji || null]);
   res.json({ ok: true });
 });
 

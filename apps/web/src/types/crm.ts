@@ -91,6 +91,10 @@ export interface CrmMessage {
   status: string;
   created_at: string;
   sent_by_name: string | null;
+  /** Reação do número central e a do cliente (uma por pessoa, como no WhatsApp) */
+  my_reaction: string | null;
+  their_reaction: string | null;
+  can_react: boolean;
 }
 
 export interface CrmCompanyDetail {

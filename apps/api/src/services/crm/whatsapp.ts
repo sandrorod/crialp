@@ -154,6 +154,30 @@ function phoneJid(m: any): string | null {
   return null;
 }
 
+/**
+ * Reação (reactionMessage): o emoji vale para a mensagem de `key.id`; texto vazio = reação removida.
+ * `fromMe`: reação do número central (pelo CRM ou pelo celular).
+ */
+export async function applyEvolutionReaction(m: any): Promise<boolean> {
+  const r = m.message?.reactionMessage;
+  const target: string | undefined = r?.key?.id;
+  if (!target) return false;
+  const column = m.key?.fromMe ? 'my_reaction' : 'their_reaction';
+  const { rowCount } = await query(`update lp_crm_messages set ${column} = $2 where wa_message_id = $1 and ${column} is distinct from $2`, [
+    target,
+    String(r.text ?? '').slice(0, 16) || null,
+  ]);
+  return !!rowCount;
+}
+
+/** Registro da Evolution (webhook, sincronização ou histórico): mensagem nova ou reação. Devolve se mudou algo. */
+export async function ingestEvolutionRecord(orgId: string, m: any, extra: Partial<IncomingMessage> = {}): Promise<boolean> {
+  if (m.message?.reactionMessage) return applyEvolutionReaction(m);
+  const parsed = parseEvolutionMessage(m);
+  if (!parsed) return false;
+  return (await registerMessage({ orgId, ...parsed, ...extra, pushName: extra.pushName ?? parsed.pushName })).inserted;
+}
+
 /** Mensagem da Evolution (webhook ou histórico) → dados para gravar; null para grupos, status e eventos sem conteúdo. */
 export function parseEvolutionMessage(m: any): Omit<IncomingMessage, 'orgId'> | null {
   const jid = phoneJid(m);
@@ -303,10 +327,7 @@ export async function importHistory(orgId: string, offset: number) {
       if (String(m.key?.remoteJid ?? '').endsWith('@lid') && !m.key?.remoteJidAlt) {
         m.key = { ...m.key, remoteJidAlt: chat.lastMessage?.key?.remoteJidAlt };
       }
-      const parsed = parseEvolutionMessage(m);
-      if (!parsed) continue;
-      await registerMessage({ orgId, ...parsed, pushName: parsed.pushName ?? chat.pushName ?? null, history: true });
-      messages++;
+      if (await ingestEvolutionRecord(orgId, m, { pushName: m.key?.fromMe ? null : (m.pushName ?? chat.pushName ?? null), history: true })) messages++;
     }
   }
   const next = offset + IMPORT_BATCH;
@@ -332,10 +353,6 @@ export async function syncRecent(orgId: string): Promise<{ added: number; skippe
   const r = await evolution<any>(cfg, 'POST', `/chat/findMessages/${cfg.instance}`, { where: {}, page: 1, offset: 50 });
   const records: any[] = (r?.messages?.records ?? []).slice().sort((a: any, b: any) => Number(a.messageTimestamp) - Number(b.messageTimestamp));
   let added = 0;
-  for (const m of records) {
-    const parsed = parseEvolutionMessage(m);
-    if (!parsed) continue;
-    if ((await registerMessage({ orgId, ...parsed })).inserted) added++;
-  }
+  for (const m of records) if (await ingestEvolutionRecord(orgId, m)) added++;
   return { added };
 }

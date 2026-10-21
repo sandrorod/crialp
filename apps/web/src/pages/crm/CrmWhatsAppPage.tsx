@@ -235,6 +235,18 @@ function Chat({ conversation, manager, onBack, onChanged }: { conversation: CrmC
   const [linking, setLinking] = useState(false);
   const end = useRef<HTMLDivElement>(null);
 
+  // Reação aparece na hora; se o WhatsApp recusar, volta como estava
+  const react = async (m: CrmMessage, emoji: string) => {
+    const before = messages;
+    setData((messages ?? []).map((x) => (x.id === m.id ? { ...x, my_reaction: emoji || null } : x)));
+    try {
+      await crmService.react(m.id, emoji);
+    } catch (err) {
+      setData(before);
+      toast.error(errorMessage(err));
+    }
+  };
+
   // Chaves: no Chrome atual scrollIntoView devolve uma Promise, que o React trataria como função de limpeza
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'end' });
@@ -272,7 +284,7 @@ function Chat({ conversation, manager, onBack, onChanged }: { conversation: CrmC
           return (
             <div key={m.id}>
               {newDay ? <p className="my-3 text-center text-[11px] text-zinc-400">{new Date(m.created_at).toLocaleDateString('pt-BR')}</p> : null}
-              <Bubble m={m} />
+              <Bubble m={m} onReact={react} />
             </div>
           );
         })}
@@ -424,11 +436,35 @@ const TYPE_LABEL: Record<string, string> = {
   image: 'imagem', video: 'vídeo', audio: 'áudio', document: 'documento', sticker: 'figurinha', location: 'localização', contact: 'contato', other: 'mídia',
 };
 
-function Bubble({ m }: { m: CrmMessage }) {
+const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+function Bubble({ m, onReact }: { m: CrmMessage; onReact: (m: CrmMessage, emoji: string) => void }) {
   const out = m.direction === 'out';
+  const [picker, setPicker] = useState<'quick' | 'full' | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const reactions = [m.their_reaction, m.my_reaction].filter(Boolean) as string[];
+
+  useEffect(() => {
+    if (!picker) return;
+    const onDown = (e: PointerEvent) => !box.current?.contains(e.target as Node) && setPicker(null);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setPicker(null);
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [picker]);
+
+  // Mesmo emoji de novo tira a reação (como no WhatsApp)
+  const pick = (emoji: string) => {
+    setPicker(null);
+    onReact(m, m.my_reaction === emoji ? '' : emoji);
+  };
+
   return (
-    <div className={cn('flex', out ? 'justify-end' : 'justify-start')}>
-      <div className={cn('max-w-[80%] rounded-xl px-3 py-2 text-sm shadow-xs', out ? 'bg-brand-50 text-ink' : 'bg-white text-ink')}>
+    <div className={cn('group flex items-center gap-1', out ? 'flex-row-reverse' : 'flex-row', reactions.length > 0 && 'mb-3')}>
+      <div className={cn('relative max-w-[80%] rounded-xl px-3 py-2 text-sm shadow-xs', out ? 'bg-brand-50 text-ink' : 'bg-white text-ink')}>
         {m.type !== 'text' ? <div className="text-xs italic text-zinc-500">[{TYPE_LABEL[m.type] ?? m.type}]</div> : null}
         {m.body ? <div className="whitespace-pre-wrap break-words">{m.body}</div> : null}
         <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-zinc-400">
@@ -436,7 +472,55 @@ function Bubble({ m }: { m: CrmMessage }) {
           {new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           {out ? <StatusIcon status={m.status} /> : null}
         </div>
+        {reactions.length ? (
+          <button
+            type="button"
+            onClick={() => m.my_reaction && pick(m.my_reaction)}
+            title={m.my_reaction ? 'Clique para tirar a sua reação' : 'Reação do cliente'}
+            className={cn('absolute -bottom-3 flex items-center gap-0.5 rounded-full border border-zinc-200 bg-white px-1.5 py-px text-sm leading-5 shadow-xs', out ? 'right-2' : 'left-2')}
+          >
+            {reactions.map((r, i) => <span key={i}>{r}</span>)}
+          </button>
+        ) : null}
       </div>
+
+      {m.can_react ? (
+        <div ref={box} className="relative">
+          <button
+            type="button"
+            onClick={() => setPicker(picker ? null : 'quick')}
+            className={cn('grid size-7 place-items-center rounded-full text-zinc-400 hover:bg-white hover:text-ink', picker ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-60')}
+            title="Reagir"
+            aria-label="Reagir"
+          >
+            <Smile className="size-4" />
+          </button>
+          {picker === 'quick' ? (
+            <div className={cn('absolute bottom-full z-20 mb-1 flex items-center gap-0.5 rounded-full border border-zinc-200 bg-white p-1 shadow-lg', out ? 'right-0' : 'left-0')}>
+              {QUICK_REACTIONS.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => pick(e)}
+                  className={cn('grid size-8 place-items-center rounded-full text-lg transition hover:scale-125 hover:bg-zinc-100', m.my_reaction === e && 'bg-zinc-200')}
+                  aria-label={`Reagir com ${e}`}
+                >
+                  {e}
+                </button>
+              ))}
+              <button type="button" onClick={() => setPicker('full')} className="grid size-8 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100" aria-label="Mais emojis" title="Mais emojis">
+                +
+              </button>
+            </div>
+          ) : picker === 'full' ? (
+            <div className={cn('absolute bottom-full z-20 mb-1 overflow-hidden rounded-xl shadow-2xl', out ? 'right-0' : 'left-0')}>
+              <Suspense fallback={<div className="grid h-[380px] w-[340px] place-items-center bg-white"><Spinner /></div>}>
+                <EmojiPanel onPick={pick} />
+              </Suspense>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
