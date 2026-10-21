@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router';
-import { AlertTriangle, ArrowLeft, Check, CheckCheck, Clock, MessageCircle, Search, Send, UserPlus } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Building2, Check, CheckCheck, Clock, MessageCircle, MessageSquarePlus, Search, Send, User, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, Card, Input, Spinner, Textarea } from '@/components/ui';
+import { Button, Card, Input, Modal, Spinner, Textarea } from '@/components/ui';
 import { ContactForm } from '@/components/crm/CrmForms';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { crmService, dateTime, phone } from '@/services/crm';
+import { crmService, dateTime, phone, waKey } from '@/services/crm';
 import type { CrmConversation, CrmMessage } from '@/types/crm';
 import { isCrmManager } from './CrmLayout';
 
@@ -56,16 +56,25 @@ export function CrmWhatsAppPage() {
   const contactParam = params.get('contato');
   const companyParam = params.get('empresa');
 
-  // Vindo de um contato/empresa: abre a conversa existente ou prepara uma nova
+  // Vindo de um contato/empresa: abre a conversa do número cadastrado ATUAL (se já existir) ou prepara uma nova
   useEffect(() => {
-    if (!conversations || selectedId) return;
-    const found = contactParam
-      ? conversations.find((c) => c.contact_id === contactParam)
-      : companyParam
-        ? conversations.find((c) => c.company_id === companyParam && !c.contact_id)
-        : null;
-    if (found) setParams({ id: found.id }, { replace: true });
+    if (!conversations || selectedId || (!contactParam && !companyParam)) return;
+    let alive = true;
+    const number = contactParam
+      ? crmService.contact(contactParam).then((c) => c.whatsapp)
+      : crmService.company(companyParam!).then((d) => d.company.whatsapp || d.company.mobile);
+    void number
+      .then((n) => {
+        const key = waKey(n);
+        const found = key ? conversations.find((c) => waKey(c.phone) === key) : null;
+        if (alive && found) setParams({ id: found.id }, { replace: true });
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, [conversations, contactParam, companyParam, selectedId, setParams]);
+  const [picking, setPicking] = useState(false);
 
   const list = useMemo(() => {
     const t = search.trim().toLowerCase();
@@ -83,9 +92,12 @@ export function CrmWhatsAppPage() {
     <Card className="flex h-[calc(100dvh-260px)] min-h-[480px] overflow-hidden">
       <aside className={cn('w-full flex-col border-r border-zinc-100 md:flex md:w-80', open ? 'hidden' : 'flex')}>
         <div className="space-y-2 border-b border-zinc-100 p-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
-            <Input placeholder="Buscar conversa…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
+              <Input placeholder="Buscar conversa…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            </div>
+            <Button variant="secondary" onClick={() => setPicking(true)} title="Nova conversa" aria-label="Nova conversa" icon={<MessageSquarePlus className="size-4" />} />
           </div>
           {manager ? (
             <label className="flex items-center gap-2 text-xs text-zinc-600">
@@ -149,7 +161,68 @@ export function CrmWhatsAppPage() {
           </div>
         )}
       </section>
+      {picking ? (
+        <NewChatPicker
+          onClose={() => setPicking(false)}
+          onPick={(p) => {
+            setPicking(false);
+            setParams(p);
+          }}
+        />
+      ) : null}
     </Card>
+  );
+}
+
+/** Escolhe uma empresa ou contato com WhatsApp cadastrado para começar (ou abrir) a conversa. */
+function NewChatPicker({ onClose, onPick }: { onClose: () => void; onPick: (p: { empresa: string } | { contato: string }) => void }) {
+  const [search, setSearch] = useState('');
+  const [debounced, setDebounced] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(search), 250);
+    return () => clearTimeout(t);
+  }, [search]);
+  const { data, loading } = useAsync(() => crmService.whatsappTargets(debounced || undefined), [debounced]);
+  const empty = data && !data.companies.length && !data.contacts.length;
+  const Item = ({ icon, title, sub, onClick }: { icon: React.ReactNode; title: string; sub: string; onClick: () => void }) => (
+    <li>
+      <button type="button" onClick={onClick} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-zinc-50">
+        <span className="text-zinc-400">{icon}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-ink">{title}</span>
+          <span className="block truncate text-xs text-zinc-500">{sub}</span>
+        </span>
+      </button>
+    </li>
+  );
+  return (
+    <Modal open title="Nova conversa" description="Empresas e contatos com WhatsApp cadastrado" onClose={onClose}>
+      <Input autoFocus placeholder="Buscar por nome ou número…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div className="mt-3 max-h-[50vh] overflow-y-auto">
+        {loading && !data ? <div className="grid place-items-center p-6"><Spinner /></div> : null}
+        {empty ? <p className="p-6 text-center text-sm text-zinc-500">Nada encontrado com WhatsApp cadastrado.</p> : null}
+        {data?.contacts.length ? (
+          <>
+            <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Contatos</p>
+            <ul>
+              {data.contacts.map((c) => (
+                <Item key={c.id} icon={<User className="size-4" />} title={c.name} sub={`${phone(c.whatsapp)} · ${c.company_name}`} onClick={() => onPick({ contato: c.id })} />
+              ))}
+            </ul>
+          </>
+        ) : null}
+        {data?.companies.length ? (
+          <>
+            <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Empresas</p>
+            <ul>
+              {data.companies.map((c) => (
+                <Item key={c.id} icon={<Building2 className="size-4" />} title={c.name} sub={[phone(c.whatsapp), c.city].filter(Boolean).join(' · ')} onClick={() => onPick({ empresa: c.id })} />
+              ))}
+            </ul>
+          </>
+        ) : null}
+      </div>
+    </Modal>
   );
 }
 

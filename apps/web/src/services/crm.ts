@@ -45,6 +45,11 @@ export const crmService = {
   removeTask: (id: string) => api.del(`/crm/tasks/${id}`),
 
   conversations: (unlinked?: boolean) => api.get<CrmConversation[]>(`/crm/conversations${unlinked ? '?unlinked=true' : ''}`),
+  whatsappTargets: (search?: string) =>
+    api.get<{
+      companies: { id: string; name: string; whatsapp: string; city: string | null }[];
+      contacts: { id: string; name: string; whatsapp: string; company_name: string }[];
+    }>(`/crm/whatsapp-targets${search ? `?search=${encodeURIComponent(search)}` : ''}`),
   sync: () => api.post<{ added: number; skipped?: string }>('/crm/sync'),
   unread: () => api.get<{ total: number }>('/crm/unread'),
   messages: (conversationId: string) => api.get<CrmMessage[]>(`/crm/conversations/${conversationId}/messages`),
@@ -75,6 +80,14 @@ export function phone(v: string | null | undefined) {
 
 export const dateTime = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+
+/** Mesma chave do banco (lp_crm_wa_key): 55 + DDD + 8 últimos dígitos, por causa do 9º dígito do WhatsApp. */
+export function waKey(v: string | null | undefined) {
+  let d = (v ?? '').replace(/\D/g, '');
+  if (d.length === 10 || d.length === 11) d = `55${d}`;
+  if (!d) return null;
+  return d.startsWith('55') && (d.length === 12 || d.length === 13) ? `55${d.slice(2, 4)}${d.slice(-8)}` : d;
+}
 
 /** ISO → valor de <input type="datetime-local"> no fuso do navegador. */
 export function toLocalInput(iso: string | null | undefined) {

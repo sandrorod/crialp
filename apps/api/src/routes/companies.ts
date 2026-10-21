@@ -15,6 +15,7 @@ import type { CompanyFull } from '../repositories/companies.js';
 import type { SectionKey, SectionOrderKey } from '../services/ai/schemas.js';
 import { getSources, saveSources, toSourcePayload, type SourcePayload } from '../repositories/sources.js';
 import { jobService } from '../services/jobs/JobService.js';
+import { relinkConversations } from '../services/crm/whatsapp.js';
 
 /**
  * Quando a empresa passa a ter fotos liberadas e a LP foi gerada sem galeria,
@@ -84,6 +85,7 @@ companiesRouter.post('/', async (req, res) => {
   });
   if (dup) throw new AppError(409, `Esta empresa já foi cadastrada: "${dup.name}" (mesmo ${dup.reason}).`, 'DUPLICATE_COMPANY');
   const id = await createCompany(user.organizationId, user.id, withLogo(input), source_meta ?? {});
+  await relinkConversations(user.organizationId, { onlyUnlinked: true });
   // Conteúdo completo do site, guardado pela análise
   if (analysis_job_id) {
     const job = await jobService.get(user.organizationId, analysis_job_id);
@@ -98,6 +100,8 @@ companiesRouter.put('/:id', async (req, res) => {
   const id = uuidParam.parse(req.params.id);
   const input = parseBody(CompanyInputSchema, req.body);
   if (!(await updateCompany(user.organizationId, id, withLogo(input)))) throw notFound('Empresa não encontrada.');
+  // CRM: WhatsApp/celular da empresa pode ter mudado — as conversas seguem o número atual
+  await relinkConversations(user.organizationId);
   // As LPs são renderizadas a partir dos dados da empresa: atualiza os snapshots
   const company = (await getCompanyFull(user.organizationId, id))!;
   const { rows } = await query<LandingPageRow>('select * from landing_pages where company_id = $1', [id]);

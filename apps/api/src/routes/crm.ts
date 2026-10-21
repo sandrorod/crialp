@@ -456,6 +456,36 @@ crmRouter.post('/sync', async (req, res) => {
   }
 });
 
+// "Nova conversa": empresas e contatos visíveis que têm WhatsApp (ou celular) cadastrado
+crmRouter.get('/whatsapp-targets', async (req, res) => {
+  const user = authUser(req);
+  const { search } = z.object({ search: z.string().max(100).optional() }).parse(req.query);
+  const term = search?.trim() ? `%${search.trim()}%` : null;
+  const digits = search?.replace(/\D/g, '') ?? '';
+  const phoneTerm = digits.length >= 4 ? `%${digits.slice(-8)}%` : null;
+  const params = [user.organizationId, sellerScope(user), term, phoneTerm];
+  const [companies, contacts] = await Promise.all([
+    query(
+      `select c.id, coalesce(c.trade_name, c.name) as name, coalesce(c.whatsapp, c.mobile) as whatsapp, c.city
+         from companies c
+        where c.organization_id = $1 and ${visible('c.id', '$2')} and coalesce(c.whatsapp, c.mobile) is not null
+          and (($3::text is null and $4::text is null) or c.name ilike $3 or c.trade_name ilike $3
+               or regexp_replace(coalesce(c.whatsapp, c.mobile), '\\D', '', 'g') like $4)
+        order by coalesce(c.trade_name, c.name) limit 20`,
+      params,
+    ),
+    query(
+      `select ct.id, ct.name, ct.whatsapp, coalesce(c.trade_name, c.name) as company_name
+         from lp_crm_contacts ct join companies c on c.id = ct.company_id
+        where ct.organization_id = $1 and ${visible('c.id', '$2')} and ct.whatsapp is not null
+          and (($3::text is null and $4::text is null) or ct.name ilike $3 or c.name ilike $3 or ct.wa_key like $4)
+        order by ct.name limit 20`,
+      params,
+    ),
+  ]);
+  res.json({ companies: companies.rows, contacts: contacts.rows });
+});
+
 crmRouter.get('/unread', async (req, res) => {
   const user = authUser(req);
   const r = await one<{ total: number }>(
