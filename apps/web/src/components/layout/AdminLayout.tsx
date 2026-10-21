@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router';
-import { Briefcase, Building2, Layers, LayoutDashboard, LogOut, Menu, PanelsTopLeft, Plus, Search, Settings, Users, X } from 'lucide-react';
+import { Briefcase, Building2, Contact, Layers, LayoutDashboard, LogOut, Menu, PanelsTopLeft, Plus, Search, Settings, Users, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui';
@@ -18,6 +18,7 @@ const NAV: { to: string; label: string; icon: typeof Building2; end?: boolean; r
   { to: '/nova', label: 'Criar Landing Page', icon: Plus, roles: STAFF },
   { to: '/buscar', label: 'Buscar empresas', icon: Search, roles: STAFF },
   { to: '/vendas', label: 'Vendas', icon: Briefcase, roles: [...STAFF, 'seller'] },
+  { to: '/crm', label: 'CRM', icon: Contact, roles: [...MANAGERS, 'seller'] },
   { to: '/subusuarios', label: 'Subusuários', icon: Users, roles: MANAGERS },
   { to: '/niveis-cliente', label: 'Nível cliente', icon: Layers, roles: MANAGERS },
   { to: '/configuracoes', label: 'Configurações', icon: Settings, roles: STAFF },

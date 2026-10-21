@@ -17,6 +17,13 @@ import { UsersPage } from '@/pages/UsersPage';
 import { ClientLevelsPage } from '@/pages/ClientLevelsPage';
 import { SearchCompaniesPage } from '@/pages/SearchCompaniesPage';
 import { MySitesPage } from '@/pages/MySitesPage';
+import { CrmLayout } from '@/pages/crm/CrmLayout';
+import { CrmCompaniesPage } from '@/pages/crm/CrmCompaniesPage';
+import { CrmCompanyPage } from '@/pages/crm/CrmCompanyPage';
+import { CrmWhatsAppPage } from '@/pages/crm/CrmWhatsAppPage';
+import { CrmPipelinePage } from '@/pages/crm/CrmPipelinePage';
+import { CrmTasksPage } from '@/pages/crm/CrmTasksPage';
+import { CrmConnectionPage } from '@/pages/crm/CrmConnectionPage';
 import './index.css';
 
 const router = createBrowserRouter(
@@ -37,6 +44,18 @@ const router = createBrowserRouter(
         { path: '/subusuarios', element: <UsersPage /> },
         { path: '/niveis-cliente', element: <ClientLevelsPage /> },
         { path: '/meus-sites', element: <MySitesPage /> },
+        {
+          path: '/crm',
+          element: <CrmLayout />,
+          children: [
+            { index: true, element: <CrmCompaniesPage /> },
+            { path: 'empresas/:id', element: <CrmCompanyPage /> },
+            { path: 'whatsapp', element: <CrmWhatsAppPage /> },
+            { path: 'funil', element: <CrmPipelinePage /> },
+            { path: 'tarefas', element: <CrmTasksPage /> },
+            { path: 'conexao', element: <CrmConnectionPage /> },
+          ],
+        },
       ],
     },
   ],

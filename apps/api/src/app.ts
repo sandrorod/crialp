@@ -13,6 +13,8 @@ import { landingPagesRouter } from './routes/landingPages.js';
 import { miscRouter } from './routes/misc.js';
 import { googleDriveRouter } from './routes/googleDrive.js';
 import { salesRouter } from './routes/sales.js';
+import { crmRouter } from './routes/crm.js';
+import { crmWebhookRouter } from './routes/crmWebhook.js';
 import { usersRouter } from './routes/users.js';
 import { clientLevelsRouter } from './routes/clientLevels.js';
 import { colorPalettesRouter } from './routes/colorPalettes.js';
@@ -56,9 +58,11 @@ export function createApp() {
   // Versão publicada (commit) para conferir se um deploy já está no ar
   api.get('/health', (_req, res) => res.json({ ok: true, version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null }));
   api.use('/auth', authRouter);
+  api.use('/crm-webhook', crmWebhookRouter); // eventos do WhatsApp (Evolution API), autenticados por token na URL
   api.use(requireAuth);
   api.use(restrictClients); // cliente: só o próprio site
-  api.use('/sales', salesRouter); // único acesso do vendedor
+  api.use('/sales', salesRouter); // acesso do vendedor: Vendas e CRM
+  api.use('/crm', requireRole(...MANAGER_ROLES, 'seller'), crmRouter);
   api.use(blockSellers);
   api.use('/users', requireRole(...MANAGER_ROLES), usersRouter);
   api.use('/client-levels', clientLevelsRouter);
