@@ -45,6 +45,7 @@ export const crmService = {
   removeTask: (id: string) => api.del(`/crm/tasks/${id}`),
 
   conversations: (unlinked?: boolean) => api.get<CrmConversation[]>(`/crm/conversations${unlinked ? '?unlinked=true' : ''}`),
+  sync: () => api.post<{ added: number; skipped?: string }>('/crm/sync'),
   unread: () => api.get<{ total: number }>('/crm/unread'),
   messages: (conversationId: string) => api.get<CrmMessage[]>(`/crm/conversations/${conversationId}/messages`),
   markRead: (conversationId: string) => api.post(`/crm/conversations/${conversationId}/read`),

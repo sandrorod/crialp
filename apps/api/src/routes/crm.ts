@@ -13,6 +13,7 @@ import {
   registerMessage,
   relinkConversations,
   saveConfig,
+  syncRecent,
   webhookUrl,
 } from '../services/crm/whatsapp.js';
 
@@ -444,6 +445,17 @@ crmRouter.get('/conversations', async (req, res) => {
   res.json(rows);
 });
 
+// Busca mensagens novas direto na Evolution (complementa o webhook); falhas não atrapalham a tela
+crmRouter.post('/sync', async (req, res) => {
+  const user = authUser(req);
+  try {
+    res.json(await syncRecent(user.organizationId));
+  } catch (err) {
+    console.error('[crm] sync', err);
+    res.json({ added: 0, skipped: 'error' });
+  }
+});
+
 crmRouter.get('/unread', async (req, res) => {
   const user = authUser(req);
   const r = await one<{ total: number }>(
@@ -515,7 +527,7 @@ crmRouter.post('/messages', async (req, res) => {
     throw err;
   }
   const jid: string = sent?.key?.remoteJid ?? `${number}@s.whatsapp.net`;
-  const conversationId = await registerMessage({
+  const { conversationId } = await registerMessage({
     orgId: user.organizationId,
     phone: jidNumber(jid),
     remoteJid: jid,

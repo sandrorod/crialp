@@ -12,7 +12,7 @@ import { crmService, dateTime, phone } from '@/services/crm';
 import type { CrmConversation, CrmMessage } from '@/types/crm';
 import { isCrmManager } from './CrmLayout';
 
-const LIST_POLL = 10_000;
+const LIST_POLL = 6_000;
 const CHAT_POLL = 4_000;
 
 const title = (c: CrmConversation) => c.contact_name ?? c.push_name ?? phone(c.phone);
@@ -36,7 +36,21 @@ export function CrmWhatsAppPage() {
   const [onlyUnlinked, setOnlyUnlinked] = useState(false);
   const [search, setSearch] = useState('');
   const { data: conversations, reload, setData } = useAsync(() => crmService.conversations(onlyUnlinked), [onlyUnlinked]);
-  usePolling(() => void crmService.conversations(onlyUnlinked).then(setData).catch(() => {}), LIST_POLL, [onlyUnlinked]);
+  // Busca as mensagens novas na Evolution e recarrega a lista (e o contador do menu) quando chegou algo
+  usePolling(
+    () =>
+      void crmService
+        .sync()
+        .catch(() => ({ added: 0 }))
+        .then((r) => {
+          if (r.added) refreshUnread();
+          return crmService.conversations(onlyUnlinked);
+        })
+        .then(setData)
+        .catch(() => {}),
+    LIST_POLL,
+    [onlyUnlinked],
+  );
 
   const selectedId = params.get('id');
   const contactParam = params.get('contato');

@@ -220,7 +220,7 @@ export interface IncomingMessage {
 }
 
 /** Grava a mensagem (idempotente pelo id do WhatsApp) e atualiza o resumo da conversa. */
-export async function registerMessage(m: IncomingMessage): Promise<string> {
+export async function registerMessage(m: IncomingMessage): Promise<{ conversationId: string; inserted: boolean }> {
   const conv = await one<{ id: string; inserted: boolean }>(
     `insert into lp_crm_conversations (organization_id, phone, remote_jid, push_name) values ($1, $2, $3, $4)
      on conflict (organization_id, wa_key) do update set
@@ -250,7 +250,7 @@ export async function registerMessage(m: IncomingMessage): Promise<string> {
       [conv.id, m.body, m.type, at, m.direction, !!m.history],
     );
   }
-  return conv.id;
+  return { conversationId: conv.id, inserted: !!msg?.inserted };
 }
 
 const STATUS_RANK = ['error', 'pending', 'sent', 'delivered', 'read'];
@@ -309,4 +309,31 @@ export async function importHistory(orgId: string, offset: number) {
   }
   const next = offset + IMPORT_BATCH;
   return { total: chats.length, next: next < chats.length ? next : null, messages };
+}
+
+// ─── Sincronização das mensagens recentes ───────────────────────────
+
+const SYNC_MIN_INTERVAL = 5_000;
+const lastSync = new Map<string, number>();
+
+/**
+ * Busca na Evolution as mensagens mais recentes de todas as conversas e grava as que faltam.
+ * Garante o recebimento mesmo quando o webhook não alcança o sistema (ex.: rodando no computador)
+ * ou um aviso se perde. Chamado pelas telas do CRM enquanto estão abertas; no máximo a cada 5 s por organização.
+ */
+export async function syncRecent(orgId: string): Promise<{ added: number; skipped?: string }> {
+  const now = Date.now();
+  if (now - (lastSync.get(orgId) ?? 0) < SYNC_MIN_INTERVAL) return { added: 0, skipped: 'recent' };
+  lastSync.set(orgId, now);
+  const cfg = await loadConfig(orgId);
+  if (!cfg) return { added: 0, skipped: 'not_configured' };
+  const r = await evolution<any>(cfg, 'POST', `/chat/findMessages/${cfg.instance}`, { where: {}, page: 1, offset: 50 });
+  const records: any[] = (r?.messages?.records ?? []).slice().sort((a: any, b: any) => Number(a.messageTimestamp) - Number(b.messageTimestamp));
+  let added = 0;
+  for (const m of records) {
+    const parsed = parseEvolutionMessage(m);
+    if (!parsed) continue;
+    if ((await registerMessage({ orgId, ...parsed })).inserted) added++;
+  }
+  return { added };
 }
