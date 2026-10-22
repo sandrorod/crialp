@@ -10,6 +10,17 @@ export const COMPANY_COLUMNS = [
   'commercial_info',
 ] as const;
 
+/** Avaliações do Google guardadas na empresa: as melhores com nota máxima, só as reais. */
+export interface GoogleReviews {
+  /** Nota média e total de avaliações do perfil no Google */
+  rating: number | null;
+  total: number | null;
+  /** Página do local no Google Maps */
+  url: string | null;
+  items: { author: string; photo: string | null; text: string; date: string | null; link: string | null }[];
+  fetched_at: string;
+}
+
 export interface CompanyRow {
   id: string;
   organization_id: string;
@@ -40,6 +51,8 @@ export interface CompanyRow {
   opening_hours: string | null;
   commercial_info: Record<string, any>;
   source_meta: Record<string, any>;
+  /** Avaliações do Google (null = ainda não buscadas) */
+  google_reviews: GoogleReviews | null;
   wp_verificado: string | null;
   wp_testado: string | null;
   created_at: string;
@@ -431,4 +444,9 @@ export async function matchRegisteredCompanies(
       companies.find((c) => nameHit(c) && zipHit(c) && (reason = 'nome_cep'));
     return hit && reason ? { id: hit.id, name: hit.name, reason, landing_page: hit.landing_page, lp_error: hit.lp_error } : null;
   });
+}
+
+/** Grava as avaliações do Google buscadas para a empresa. */
+export async function saveGoogleReviews(id: string, reviews: GoogleReviews) {
+  await query('update companies set google_reviews = $2 where id = $1', [id, JSON.stringify(reviews)]);
 }

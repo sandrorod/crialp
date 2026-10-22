@@ -1,5 +1,6 @@
 import { AppError, Messages } from '../../lib/errors.js';
-import { getCompanyFull, type CompanyFull } from '../../repositories/companies.js';
+import { getCompanyFull, saveGoogleReviews, type CompanyFull } from '../../repositories/companies.js';
+import { googlePlaceReviews } from '../search/companySearch.js';
 import { createLandingPage, getLandingPage, saveVersion } from '../../repositories/landingPages.js';
 import { normalizeThemeSettings, type ThemeSettings } from '../../landing/theme.js';
 import { refreshSnapshot } from '../../landing/publish.js';
@@ -56,7 +57,37 @@ function enforceFacts(content: Omit<LandingContent, 'section_order'> & { section
     faq: content.faq && content.faq.items.length ? content.faq : null,
   };
   const section_order = [...new Set(content.section_order)].filter((k): k is SectionKey => SECTION_KEYS.includes(k as SectionKey));
+  // Avaliações do Google: logo depois dos depoimentos (ou antes das dúvidas / do contato)
+  if (c.google_reviews?.items.length && !section_order.includes('reviews')) {
+    const after = section_order.indexOf('testimonials');
+    const before = ['faq', 'contact', 'final_cta'].map((k) => section_order.indexOf(k as SectionKey)).filter((i) => i >= 0);
+    section_order.splice(after >= 0 ? after + 1 : before.length ? Math.min(...before) : section_order.length, 0, 'reviews');
+  }
   return { ...out, section_order };
+}
+
+/** Avaliações do Google buscadas há mais tempo que isso são buscadas de novo ao gerar a LP. */
+const REVIEWS_MAX_AGE_MS = 30 * 24 * 3600_000;
+
+/**
+ * Busca as avaliações do Google da empresa (as 5 melhores com nota máxima) e guarda no cadastro.
+ * Falha na busca não impede gerar a página: ela só sai sem a seção de avaliações.
+ */
+async function ensureGoogleReviews(company: CompanyFull) {
+  const cur = company.google_reviews;
+  if (cur && Date.now() - new Date(cur.fetched_at).getTime() < REVIEWS_MAX_AGE_MS) return;
+  const where = [company.address, company.number, company.neighborhood, company.city, company.state].filter(Boolean).join(', ');
+  try {
+    const found = await googlePlaceReviews({
+      businessId: typeof company.source_meta?.google_place_id === 'string' ? company.source_meta.google_place_id : null,
+      query: [company.trade_name || company.name, where].filter(Boolean).join(', '),
+    });
+    if (!found) return;
+    await saveGoogleReviews(company.id, found);
+    company.google_reviews = found;
+  } catch (err) {
+    console.error('[generate] avaliações do Google:', err instanceof Error ? err.message : err);
+  }
 }
 
 function themeFromContent(content: LandingContent): ThemeSettings {
@@ -81,6 +112,8 @@ export async function generateLanding(
   if (!company) throw new AppError(404, 'Empresa não encontrada.');
   const existing = opts.landingPageId ? await getLandingPage(opts.orgId, opts.landingPageId) : null;
   if (opts.landingPageId && !existing) throw new AppError(404, 'Landing Page não encontrada.');
+
+  await ensureGoogleReviews(company);
 
   await job.step(GENERATE_STEPS.generate);
   let generated: LandingContent;

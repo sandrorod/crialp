@@ -464,7 +464,7 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
       ? [...new Set<string>(input.imageOrder.filter((u: unknown) => typeof u === 'string' && u.length <= 2048))].slice(0, 300)
       : [],
     mobileOrder: Array.isArray(input?.mobileOrder)
-      ? [...new Set<string>(input.mobileOrder.filter((k: unknown) => typeof k === 'string' && /^(about|services|differentials|products|gallery|testimonials|faq|custom:[a-z0-9-]{1,40})$/.test(k)))].slice(0, 60)
+      ? [...new Set<string>(input.mobileOrder.filter((k: unknown) => typeof k === 'string' && /^(about|services|differentials|products|gallery|testimonials|reviews|faq|custom:[a-z0-9-]{1,40})$/.test(k)))].slice(0, 60)
       : [],
     elementColors: normalizeElementColors(input?.elementColors),
     sectionSpacing: normalizeSectionSpacing(input?.sectionSpacing),

@@ -13,7 +13,7 @@ export function normalizeSectionColors(input: unknown): Record<string, SectionCo
   const out: Record<string, SectionColors> = {};
   if (!input || typeof input !== 'object') return out;
   for (const [key, value] of Object.entries(input as Record<string, SectionColors>)) {
-    if (!/^(hero|header|footer|about|services|differentials|products|gallery|testimonials|faq|contact|final_cta|custom:[a-z0-9-]{1,40})$/.test(key)) continue;
+    if (!/^(hero|header|footer|about|services|differentials|products|gallery|testimonials|reviews|faq|contact|final_cta|custom:[a-z0-9-]{1,40})$/.test(key)) continue;
     const c = { bg: hex(value?.bg), text: hex(value?.text), accent: hex(value?.accent) };
     if (c.bg || c.text || c.accent) out[key] = c;
   }

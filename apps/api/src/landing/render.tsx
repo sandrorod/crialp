@@ -30,6 +30,7 @@ import {
   ProductsSection,
   ServicesSection,
   TestimonialsSection,
+  ReviewsSection,
 } from './sections/ContentSections.js';
 import { ContactSection, FinalCTA, Footer, WhatsAppFloat } from './sections/ContactSection.js';
 
@@ -64,6 +65,7 @@ export function resolveSections(ctx: RenderContext): SectionOrderKey[] {
     products: !!c.products?.items.length,
     gallery: !!c.gallery && ctx.gallery.length >= 2,
     testimonials: ctx.company.testimonials.length > 0,
+    reviews: !!ctx.company.google_reviews?.items.length,
     faq: !!c.faq?.items.length,
     contact: true,
     final_cta: true,
@@ -82,6 +84,12 @@ export function resolveSections(ctx: RenderContext): SectionOrderKey[] {
   // Seções obrigatórias sempre presentes; depoimentos reais só saem se desativados
   for (const k of ['testimonials', 'contact', 'final_cta'] as SectionKey[]) {
     if (available[k] && !hidden.has(k) && !order.includes(k)) order.push(k);
+  }
+  // Avaliações do Google entram sozinhas (páginas anteriores à seção): depois dos depoimentos ou antes das dúvidas
+  if (available.reviews && !hidden.has('reviews') && !order.includes('reviews')) {
+    const after = order.indexOf('testimonials');
+    const faq = order.indexOf('faq');
+    order.splice(after >= 0 ? after + 1 : faq >= 0 ? faq : order.length, 0, 'reviews');
   }
   // CTA final encerra a página; contato imediatamente antes
   const rest = order.filter((k) => k !== 'final_cta' && k !== 'contact');
@@ -164,6 +172,7 @@ export function renderLandingPage(ctx: RenderContext): string {
       case 'products': return <ProductsSection key={key} ctx={ctx} alt={alt} />;
       case 'gallery': return <GallerySection key={key} ctx={ctx} alt={alt} />;
       case 'testimonials': return <TestimonialsSection key={key} ctx={ctx} alt={alt} />;
+      case 'reviews': return <ReviewsSection key={key} ctx={ctx} alt={alt} />;
       case 'faq': return <FaqSection key={key} ctx={ctx} alt={alt} />;
       case 'contact': return <ContactSection key={key} ctx={ctx} alt={alt} />;
       default: return null;

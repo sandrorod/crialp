@@ -183,6 +183,22 @@ p{margin:0;text-wrap:pretty}
 .quote-more-link{font-weight:600;color:var(--primary-ink);text-decoration:underline;text-underline-offset:3px;white-space:nowrap;cursor:pointer}
 .quote-more-toggle:focus-visible~p .quote-more-link{outline:2px solid var(--primary);outline-offset:2px;border-radius:2px}
 
+/* Avaliações do Google */
+.rv-summary{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 12px;margin:-8px auto 32px;font-size:16px;color:var(--muted)}
+.rv-summary strong{font-size:26px;line-height:1;color:var(--text)}
+.rv-g{flex:none}
+.rv-stars{color:#fbbc04;letter-spacing:2px;font-size:18px;line-height:1}
+.rv::before{display:none}
+.rv .rv-stars{margin-bottom:14px}
+.rv p{display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical;overflow:hidden}
+.rv-author{display:flex;align-items:center;gap:12px}
+.rv-author img,.rv-initial{width:40px;height:40px;border-radius:50%;flex:none;object-fit:cover}
+.rv-initial{display:grid;place-items:center;background:var(--primary);color:#fff;font-weight:700}
+.rv-name{display:block}
+.rv-author small{display:block;font-weight:400;font-size:13px;color:var(--muted)}
+.rv-more{margin-top:28px;text-align:center}
+.rv-more a{font-weight:600;color:var(--primary-ink);text-decoration:underline;text-underline-offset:3px}
+
 /* FAQ */
 .faq{max-width:860px;margin:0 auto;border-top:1px solid var(--border)}
 .faq details{border-bottom:1px solid var(--border)}

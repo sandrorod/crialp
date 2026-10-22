@@ -4,6 +4,7 @@ import { aiKeyStore } from '../ai/keyStore.js';
 import { AppError } from '../../lib/errors.js';
 import { toBrazilE164Digits } from '../../lib/phone.js';
 import { PHONE_RE } from '../scraper/ScraperService.js';
+import type { GoogleReviews } from '../../repositories/companies.js';
 
 /** Empresa encontrada na pesquisa (sem nada inventado: só o que a fonte trouxe). */
 export interface FoundCompany {
@@ -199,6 +200,62 @@ export async function googlePlacePhotos(p: { businessId?: string | null; query?:
   if (notSubscribed(r)) return sample.length ? sample.map(largePhoto) : null;
   const urls: string[] = r.status === 200 && Array.isArray(r.body?.data) ? r.body.data.map((x: any) => x?.photo_url).filter(Boolean) : [];
   return [...new Set([...urls, ...sample].map(largePhoto))];
+}
+
+/** Quantas avaliações do Google entram na página (as melhores com nota máxima). */
+const REVIEWS_SHOWN = 5;
+
+/**
+ * Avaliações do Google com nota máxima, pela "Local Business Data" do RapidAPI: maiores notas
+ * primeiro, só as 5 estrelas com texto, sem repetir. Só avaliações reais (nada é escrito pela IA).
+ * Identifica o local pelo código (place_id / google_id) ou, sem ele, pelo nome + endereço.
+ * Devolve `null` quando não há como buscar (sem chave, sem assinatura da API ou local não encontrado).
+ */
+export async function googlePlaceReviews(p: { businessId?: string | null; query?: string | null }): Promise<GoogleReviews | null> {
+  if (!(await aiKeyStore.hasAny('rapidapi', env.rapidApiKey))) return null;
+  const host = 'local-business-data.p.rapidapi.com';
+  let id = p.businessId ?? null;
+  let place: any = null;
+  if (p.query) {
+    const r = await rapid(host, `/search?query=${encodeURIComponent(p.query)}&limit=1&region=br&language=pt`);
+    if (notSubscribed(r)) return null;
+    place = r.status === 200 ? r.body?.data?.[0] ?? null : null;
+    id ??= place?.business_id || place?.google_id || place?.place_id || null;
+  }
+  if (!id) return null;
+  if (!place) {
+    const r = await rapid(host, `/business-details?business_id=${encodeURIComponent(id)}&region=br&language=pt`);
+    if (notSubscribed(r)) return null;
+    place = r.status === 200 ? r.body?.data?.[0] ?? null : null;
+  }
+  const r = await rapid(host, `/business-reviews?business_id=${encodeURIComponent(id)}&limit=40&sort_by=highest_ranking&region=br&language=pt`);
+  if (notSubscribed(r)) return null;
+  if (r.status !== 200) return null;
+  // Ordem: maiores notas primeiro. Versões da API: lista direta em "data" ou dentro de "data.reviews"
+  const list: any[] = Array.isArray(r.body?.data) ? r.body.data : Array.isArray(r.body?.data?.reviews) ? r.body.data.reviews : [];
+  const seen = new Set<string>();
+  const items: GoogleReviews['items'] = [];
+  for (const x of list) {
+    const text = String(x?.review_text ?? '').replace(/\s+/g, ' ').trim();
+    const author = String(x?.author_name ?? '').trim();
+    if (Number(x?.rating) !== 5 || text.length < 15 || !author || seen.has(text)) continue;
+    seen.add(text);
+    items.push({
+      author,
+      photo: typeof x?.author_photo_url === 'string' && /^https:\/\//.test(x.author_photo_url) ? x.author_photo_url : null,
+      text: text.slice(0, 1500),
+      date: x?.review_datetime_utc ? new Date(x.review_datetime_utc).toISOString() : null,
+      link: typeof x?.review_link === 'string' && /^https:\/\//.test(x.review_link) ? x.review_link : null,
+    });
+    if (items.length >= REVIEWS_SHOWN) break;
+  }
+  return {
+    rating: typeof place?.rating === 'number' ? place.rating : null,
+    total: typeof place?.review_count === 'number' ? place.review_count : null,
+    url: typeof place?.place_link === 'string' ? place.place_link : null,
+    items,
+    fetched_at: new Date().toISOString(),
+  };
 }
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();

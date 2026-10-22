@@ -15,6 +15,7 @@ const SECTION_LABELS: Record<SectionKey, string> = {
   products: 'Produtos',
   gallery: 'Galeria',
   testimonials: 'Depoimentos',
+  reviews: 'Avaliações do Google',
   faq: 'Perguntas frequentes',
   contact: 'Contato',
   final_cta: 'CTA final',
@@ -31,6 +32,7 @@ const LABEL_FIELDS: { key: string; label: string }[] = [
   { key: 'eyebrow_products', label: 'Sobretítulo — Produtos' },
   { key: 'eyebrow_gallery', label: 'Sobretítulo — Galeria' },
   { key: 'eyebrow_testimonials', label: 'Sobretítulo — Depoimentos' },
+  { key: 'eyebrow_reviews', label: 'Sobretítulo — Avaliações do Google' },
   { key: 'eyebrow_faq', label: 'Sobretítulo — Perguntas' },
   { key: 'eyebrow_contact', label: 'Sobretítulo — Contato' },
   { key: 'nav_about', label: 'Menu — Sobre' },
@@ -532,6 +534,21 @@ export function ContentTab({
           Os depoimentos são sempre os reais, cadastrados na empresa (Editar empresa → Depoimentos). A seção só aparece se houver algum.
         </p>
         <Txt field="testimonials.title" label="Título" value={content.testimonials?.title ?? ''} placeholder="O que dizem nossos clientes" onChange={(v) => set('testimonials', v ? { title: v } : null)} />
+      </Group>
+
+      <Group id="reviews" title="Avaliações do Google" actions={hideBtn('reviews')}>
+        <p className="text-xs text-zinc-500">
+          As 5 melhores avaliações reais do Google (nota máxima), buscadas ao gerar ou regerar a página. A seção só aparece se a empresa tiver avaliações 5 estrelas com texto.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[
+            { key: 'title_reviews', label: 'Título' },
+            { key: 'reviews_based', label: 'Texto ao lado do total ("123 avaliações no Google")' },
+            { key: 'reviews_more', label: 'Link para o Google' },
+          ].map((f) => (
+            <Txt key={f.key} field={`labels.${f.key}`} label={f.label} value={labels[f.key] ?? ''} placeholder={defaults?.[f.key]} onChange={(v) => set('labels', { ...labels, [f.key]: v })} />
+          ))}
+        </div>
       </Group>
 
       {content.faq ? (

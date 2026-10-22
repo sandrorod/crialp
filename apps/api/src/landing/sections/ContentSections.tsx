@@ -277,6 +277,68 @@ export function TestimonialsSection({ ctx, alt }: { ctx: RenderContext; alt: boo
   );
 }
 
+/** "G" colorido do Google, ao lado da nota. */
+function GoogleMark() {
+  return (
+    <svg className="rv-g" viewBox="0 0 48 48" width="22" height="22" aria-hidden="true">
+      <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z" />
+      <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z" />
+    </svg>
+  );
+}
+
+const Stars = () => <span className="rv-stars" role="img" aria-label="5 de 5 estrelas">★★★★★</span>;
+
+/** Mês e ano da avaliação ("março de 2026"). */
+const reviewDate = (iso: string | null) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'America/Sao_Paulo' });
+};
+
+/** Avaliações do Google: só as reais, 5 estrelas, buscadas ao gerar a página (nunca escritas pela IA). */
+export function ReviewsSection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {
+  const g = ctx.company.google_reviews;
+  if (!g?.items.length) return null;
+  return (
+    <section id="avaliacoes" className={`section${alt ? ' section-alt' : ''}`}>
+      <div className="container">
+        <SectionHead eyebrow={ctx.labels.eyebrow_reviews} title={ctx.labels.title_reviews} center paths={{ eyebrow: ed(ctx, 'labels.eyebrow_reviews'), title: ed(ctx, 'labels.title_reviews') }} />
+        {g.rating != null ? (
+          <p className="rv-summary reveal">
+            <GoogleMark />
+            <strong>{g.rating.toFixed(1).replace('.', ',')}</strong>
+            <Stars />
+            {g.total ? <span>{g.total.toLocaleString('pt-BR')} <span {...ed(ctx, 'labels.reviews_based')}>{ctx.labels.reviews_based}</span></span> : null}
+          </p>
+        ) : null}
+        <div className="quotes">
+          {g.items.map((r, i) => (
+            <blockquote key={`${i}-${r.author}`} className="quote rv reveal">
+              <Stars />
+              <p>{r.text}</p>
+              <footer className="rv-author">
+                {r.photo ? <img src={r.photo} alt="" width={40} height={40} loading="lazy" referrerPolicy="no-referrer" /> : <span className="rv-initial" aria-hidden="true">{r.author.charAt(0).toUpperCase()}</span>}
+                <span>
+                  <span className="rv-name">{r.author}</span>
+                  {reviewDate(r.date) ? <small>{reviewDate(r.date)} · Google</small> : <small>Google</small>}
+                </span>
+              </footer>
+            </blockquote>
+          ))}
+        </div>
+        {g.url ? (
+          <p className="rv-more">
+            <a href={g.url} target="_blank" rel="noopener noreferrer" {...ed(ctx, 'labels.reviews_more')}>{ctx.labels.reviews_more}</a>
+          </p>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 export function FaqSection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {
   const f = ctx.content.faq;
   if (!f || !f.items.length) return null;

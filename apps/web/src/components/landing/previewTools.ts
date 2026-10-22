@@ -2051,13 +2051,13 @@ export function onSectionPick(doc: Document, fn: (p: SectionPick) => void) {
 }
 const SECTION_NAMES: Record<string, string> = {
   hero: 'Topo', header: 'Cabeçalho', footer: 'Rodapé', about: 'Sobre', services: 'Serviços', differentials: 'Diferenciais',
-  products: 'Produtos', gallery: 'Galeria', testimonials: 'Depoimentos', faq: 'Perguntas frequentes', contact: 'Contato', final_cta: 'Chamada final',
+  products: 'Produtos', gallery: 'Galeria', testimonials: 'Depoimentos', reviews: 'Avaliações do Google', faq: 'Perguntas frequentes', contact: 'Contato', final_cta: 'Chamada final',
 };
 /** Clique no fundo da seção: o próprio contêiner, a <section>/<header>/<footer> ou a área .container. */
 function sectionAreaKey(el: HTMLElement): string | null {
   if (!el.matches('[data-section],section,header,footer,.section,.container,.hero,.site-header,.site-footer')) return null;
   const key = el.closest<HTMLElement>('[data-section]')?.dataset.section ?? (el.closest('.site-header') ? 'header' : el.closest('.site-footer') ? 'footer' : null);
-  return key && /^(hero|header|footer|about|services|differentials|products|gallery|testimonials|faq|contact|final_cta|custom:[a-z0-9-]{1,40})$/.test(key) ? key : null;
+  return key && /^(hero|header|footer|about|services|differentials|products|gallery|testimonials|reviews|faq|contact|final_cta|custom:[a-z0-9-]{1,40})$/.test(key) ? key : null;
 }
 function sectionLabel(doc: Document, key: string) {
   if (SECTION_NAMES[key]) return SECTION_NAMES[key];

@@ -27,7 +27,7 @@ export const DESIGN_PRESETS = [
 export type DesignPreset = (typeof DESIGN_PRESETS)[number];
 
 export const SECTION_KEYS = [
-  'about', 'services', 'differentials', 'products', 'gallery', 'testimonials', 'faq', 'contact', 'final_cta',
+  'about', 'services', 'differentials', 'products', 'gallery', 'testimonials', 'reviews', 'faq', 'contact', 'final_cta',
 ] as const;
 export type SectionKey = (typeof SECTION_KEYS)[number];
 
@@ -235,10 +235,10 @@ export const LandingContentEditSchema = LandingContentSchema.extend({
   custom_sections: z.array(CustomSectionSchema).max(20).optional(),
   overrides: z.record(z.string().regex(/^[a-z_]+(\.[a-z0-9_-]+){1,2}$/i).max(100), z.string().max(4000)).optional(),
   section_order: z
-    .array(z.string().regex(/^(about|services|differentials|products|gallery|testimonials|faq|contact|final_cta|custom:[a-z0-9-]{1,40})$/))
+    .array(z.string().regex(/^(about|services|differentials|products|gallery|testimonials|reviews|faq|contact|final_cta|custom:[a-z0-9-]{1,40})$/))
     .max(60),
   hidden_sections: z
-    .array(z.string().regex(/^(about|services|differentials|products|gallery|testimonials|faq|custom:[a-z0-9-]{1,40})$/))
+    .array(z.string().regex(/^(about|services|differentials|products|gallery|testimonials|reviews|faq|custom:[a-z0-9-]{1,40})$/))
     .max(60)
     .optional(),
 });

@@ -20,7 +20,7 @@ export const SECTION_SPACING_MIN = 0;
 export const SECTION_SPACING_MAX = 150;
 /** Escala base já aplicada em todos os modelos (ver styles.ts). */
 const BASE_SCALE = 0.85;
-const SECTION_KEY = /^(hero|about|services|differentials|products|gallery|testimonials|faq|contact|final_cta|footer|custom:[a-z0-9-]{1,40})$/;
+const SECTION_KEY = /^(hero|about|services|differentials|products|gallery|testimonials|reviews|faq|contact|final_cta|footer|custom:[a-z0-9-]{1,40})$/;
 
 function clampPct(v: unknown): number | undefined {
   if (typeof v !== 'number' || !Number.isFinite(v)) return undefined;

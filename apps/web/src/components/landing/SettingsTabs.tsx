@@ -24,6 +24,7 @@ const SECTION_NAMES: Record<string, string> = {
   products: 'Produtos',
   gallery: 'Galeria',
   testimonials: 'Depoimentos',
+  reviews: 'Avaliações do Google',
   faq: 'Perguntas frequentes',
   contact: 'Contato',
   final_cta: 'CTA final',

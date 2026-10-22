@@ -202,7 +202,7 @@ export interface Job<T = unknown> {
 }
 
 export type IconName = string;
-export type SectionKey = 'about' | 'services' | 'differentials' | 'products' | 'gallery' | 'testimonials' | 'faq' | 'contact' | 'final_cta';
+export type SectionKey = 'about' | 'services' | 'differentials' | 'products' | 'gallery' | 'testimonials' | 'reviews' | 'faq' | 'contact' | 'final_cta';
 
 export interface LandingContent {
   design: { preset: string; primary_color: string; accent_color: string; hero_variant: HeroVariant | 'image'; rationale: string };
