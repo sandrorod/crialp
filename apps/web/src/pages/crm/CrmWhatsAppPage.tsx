@@ -435,7 +435,6 @@ function LabelsManager({ labels, onClose, onChanged, onRemoved }: { labels: CrmL
     <Modal
       open
       title="Etiquetas"
-      description="Valem para toda a equipe, como no WhatsApp Business."
       onClose={onClose}
       busy={busy}
       actions={
