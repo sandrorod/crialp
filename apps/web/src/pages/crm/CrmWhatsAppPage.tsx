@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router';
-import { AlertTriangle, ArrowLeft, Ban, ChevronDown, Building2, Check, CheckCheck, Clock, MessageCircle, MessageSquarePlus, FileText, Mic, Paperclip, Pencil, Plus, Search, Send, Smile, Tag, Trash2, User, UserPlus, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Ban, ChevronDown, CircleAlert, Building2, Check, CheckCheck, Clock, MessageCircle, MessageSquarePlus, FileText, Mic, Paperclip, Pencil, Plus, Search, Send, Smile, Tag, Trash2, User, UserPlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card, Input, Modal, Spinner, Textarea } from '@/components/ui';
 import { ContactForm } from '@/components/crm/CrmForms';
@@ -131,18 +131,29 @@ export function CrmWhatsAppPage() {
             <li key={c.id}>
               <button
                 onClick={() => setParams({ id: c.id })}
-                className={cn('flex w-full flex-col gap-0.5 border-b border-zinc-50 px-4 py-3 text-left hover:bg-zinc-50', c.id === selectedId && 'bg-zinc-100')}
+                className={cn(
+                  'flex w-full flex-col gap-0.5 border-b border-l-4 border-b-zinc-50 px-4 py-3 pl-3 text-left',
+                  // Mensagem não lida: cartão destacado na cor do WhatsApp
+                  c.id === selectedId ? 'border-l-transparent bg-zinc-100' : c.unread ? 'border-l-emerald-500 bg-emerald-50 hover:bg-emerald-100/70' : 'border-l-transparent hover:bg-zinc-50',
+                )}
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="truncate text-sm font-medium text-ink">{title(c)}</span>
-                  <span className="shrink-0 text-[11px] text-zinc-400">{dateTime(c.last_message_at)}</span>
+                  <span className={cn('flex min-w-0 items-center gap-1.5 text-sm text-ink', c.unread ? 'font-semibold' : 'font-medium')}>
+                    <span className="truncate">{title(c)}</span>
+                    {!c.company_id ? (
+                      <span title="Sem empresa no sistema" aria-label="Sem empresa no sistema" className="flex-none text-amber-500">
+                        <CircleAlert className="size-3.5" />
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className={cn('shrink-0 text-[11px]', c.unread ? 'font-medium text-emerald-700' : 'text-zinc-400')}>{dateTime(c.last_message_at)}</span>
                 </div>
-                <span className="truncate text-xs text-zinc-500">{c.company_name ?? <span className="text-amber-600">sem empresa no sistema</span>}</span>
+                {c.company_name ? <span className="truncate text-xs text-zinc-500">{c.company_name}</span> : null}
                 <div className="flex items-center gap-2">
-                  <span className="flex-1 truncate text-xs text-zinc-500">
+                  <span className={cn('flex-1 truncate text-xs', c.unread ? 'font-medium text-zinc-700' : 'text-zinc-500')}>
                     {c.matched ? <Highlight text={c.matched.body} term={debounced} /> : c.last_message}
                   </span>
-                  {c.unread ? <span className="rounded-full bg-brand-600 px-1.5 text-[11px] font-semibold text-white">{c.unread}</span> : null}
+                  {c.unread ? <span className="rounded-full bg-emerald-600 px-1.5 text-[11px] font-semibold text-white">{c.unread}</span> : null}
                 </div>
                 {c.labels?.length ? (
                   <div className="mt-1 flex flex-wrap gap-1">
