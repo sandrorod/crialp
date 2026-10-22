@@ -5,6 +5,7 @@ import type {
   CrmContact,
   CrmConversation,
   CrmDeal,
+  CrmLabel,
   CrmMessage,
   CrmStage,
   CrmTask,
@@ -51,7 +52,13 @@ export const crmService = {
   setTaskDone: (id: string, done: boolean) => api.patch(`/crm/tasks/${id}/done`, { done }),
   removeTask: (id: string) => api.del(`/crm/tasks/${id}`),
 
-  conversations: (unlinked?: boolean) => api.get<CrmConversation[]>(`/crm/conversations${unlinked ? '?unlinked=true' : ''}`),
+  conversations: (f: { unlinked?: boolean; label?: string; search?: string } = {}) =>
+    api.get<CrmConversation[]>(`/crm/conversations${qs({ unlinked: f.unlinked ? 'true' : undefined, label: f.label || undefined, search: f.search?.trim() || undefined })}`),
+  labels: () => api.get<CrmLabel[]>('/crm/labels'),
+  createLabel: (l: { name: string; color: string }) => api.post<CrmLabel>('/crm/labels', l),
+  updateLabel: (id: string, l: { name: string; color: string }) => api.put<CrmLabel>(`/crm/labels/${id}`, l),
+  removeLabel: (id: string) => api.del(`/crm/labels/${id}`),
+  setConversationLabels: (conversationId: string, labelIds: string[]) => api.put(`/crm/conversations/${conversationId}/labels`, { label_ids: labelIds }),
   whatsappTargets: (search?: string) =>
     api.get<{
       companies: { id: string; name: string; whatsapp: string; city: string | null }[];

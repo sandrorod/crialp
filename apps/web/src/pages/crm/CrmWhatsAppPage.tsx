@@ -1,15 +1,15 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router';
-import { AlertTriangle, ArrowLeft, Ban, ChevronDown, Building2, Check, CheckCheck, Clock, MessageCircle, MessageSquarePlus, FileText, Mic, Paperclip, Search, Send, Smile, Trash2, User, UserPlus, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Ban, ChevronDown, Building2, Check, CheckCheck, Clock, MessageCircle, MessageSquarePlus, FileText, Mic, Paperclip, Pencil, Plus, Search, Send, Smile, Tag, Trash2, User, UserPlus, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, Card, Input, Modal, Spinner, Textarea } from '@/components/ui';
+import { Button, Card, Input, Modal, Select, Spinner, Textarea } from '@/components/ui';
 import { ContactForm } from '@/components/crm/CrmForms';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { crmService, dateTime, phone, waKey, type OutgoingMedia, type SendTo } from '@/services/crm';
-import type { CrmConversation, CrmMessage } from '@/types/crm';
+import type { CrmConversation, CrmLabel, CrmMessage } from '@/types/crm';
 import { isCrmManager } from './CrmLayout';
 
 const LIST_POLL = 6_000;
@@ -38,7 +38,16 @@ export function CrmWhatsAppPage() {
   const [params, setParams] = useSearchParams();
   const [onlyUnlinked, setOnlyUnlinked] = useState(false);
   const [search, setSearch] = useState('');
-  const { data: conversations, reload, setData } = useAsync(() => crmService.conversations(onlyUnlinked), [onlyUnlinked]);
+  const [debounced, setDebounced] = useState('');
+  const [labelFilter, setLabelFilter] = useState('');
+  const [managingLabels, setManagingLabels] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+  const filters = { unlinked: onlyUnlinked, label: labelFilter, search: debounced };
+  const { data: labels, reload: reloadLabels } = useAsync(() => crmService.labels(), []);
+  const { data: conversations, reload, setData } = useAsync(() => crmService.conversations(filters), [onlyUnlinked, labelFilter, debounced]);
   // Busca as mensagens novas na Evolution e recarrega a lista (e o contador do menu) quando chegou algo
   usePolling(
     () =>
@@ -47,12 +56,12 @@ export function CrmWhatsAppPage() {
         .catch(() => ({ added: 0 }))
         .then((r) => {
           if (r.added) refreshUnread();
-          return crmService.conversations(onlyUnlinked);
+          return crmService.conversations(filters);
         })
         .then(setData)
         .catch(() => {}),
     LIST_POLL,
-    [onlyUnlinked],
+    [onlyUnlinked, labelFilter, debounced],
   );
 
   const selectedId = params.get('id');
@@ -79,15 +88,12 @@ export function CrmWhatsAppPage() {
   }, [conversations, contactParam, companyParam, selectedId, setParams]);
   const [picking, setPicking] = useState(false);
 
-  const list = useMemo(() => {
-    const t = search.trim().toLowerCase();
-    const digits = t.replace(/\D/g, '');
-    return (conversations ?? []).filter(
-      (c) => !t || title(c).toLowerCase().includes(t) || (c.company_name ?? '').toLowerCase().includes(t) || (digits.length >= 3 && c.phone.includes(digits)),
-    );
-  }, [conversations, search]);
-
-  const selected = conversations?.find((c) => c.id === selectedId) ?? null;
+  const list = conversations ?? [];
+  // A conversa aberta continua na tela mesmo se a busca/etiqueta tirar ela da lista
+  const lastSelected = useRef<CrmConversation | null>(null);
+  const found = conversations?.find((c) => c.id === selectedId) ?? null;
+  if (found) lastSelected.current = found;
+  const selected = found ?? (lastSelected.current?.id === selectedId ? lastSelected.current : null);
   const starting = !selectedId && (contactParam || companyParam);
   const open = !!selectedId || !!starting;
 
@@ -98,9 +104,25 @@ export function CrmWhatsAppPage() {
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
-              <Input placeholder="Buscar conversa…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              <Input placeholder="Nome, número ou mensagem…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
             <Button variant="secondary" onClick={() => setPicking(true)} title="Nova conversa" aria-label="Nova conversa" icon={<MessageSquarePlus className="size-4" />} />
+          </div>
+          <div className="flex gap-2">
+            <Select
+              value={labelFilter}
+              onChange={(e) => (e.target.value === '__manage' ? setManagingLabels(true) : setLabelFilter(e.target.value))}
+              className="h-9 flex-1 text-[13px]"
+              aria-label="Filtrar por etiqueta"
+            >
+              <option value="">Todas as etiquetas</option>
+              <option value="none">Sem etiqueta</option>
+              {labels?.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              <option value="__manage">⚙ Gerenciar etiquetas…</option>
+            </Select>
+            <button type="button" onClick={() => setManagingLabels(true)} className="grid size-9 place-items-center rounded-lg border border-zinc-200 text-zinc-500 hover:bg-zinc-50 hover:text-ink" title="Gerenciar etiquetas" aria-label="Gerenciar etiquetas">
+              <Tag className="size-4" />
+            </button>
           </div>
           {manager ? (
             <label className="flex items-center gap-2 text-xs text-zinc-600">
@@ -111,7 +133,9 @@ export function CrmWhatsAppPage() {
         </div>
         <ul className="flex-1 overflow-y-auto">
           {!conversations ? <li className="grid place-items-center p-6"><Spinner /></li> : null}
-          {conversations && !list.length ? <li className="p-6 text-center text-sm text-zinc-500">Nenhuma conversa.</li> : null}
+          {conversations && !list.length ? (
+            <li className="p-6 text-center text-sm text-zinc-500">{debounced || labelFilter ? 'Nada encontrado com essa busca ou etiqueta.' : 'Nenhuma conversa.'}</li>
+          ) : null}
           {list.map((c) => (
             <li key={c.id}>
               <button
@@ -124,9 +148,16 @@ export function CrmWhatsAppPage() {
                 </div>
                 <span className="truncate text-xs text-zinc-500">{c.company_name ?? <span className="text-amber-600">sem empresa no sistema</span>}</span>
                 <div className="flex items-center gap-2">
-                  <span className="flex-1 truncate text-xs text-zinc-500">{c.last_message}</span>
+                  <span className="flex-1 truncate text-xs text-zinc-500">
+                    {c.matched ? <Highlight text={c.matched.body} term={debounced} /> : c.last_message}
+                  </span>
                   {c.unread ? <span className="rounded-full bg-brand-600 px-1.5 text-[11px] font-semibold text-white">{c.unread}</span> : null}
                 </div>
+                {c.labels?.length ? (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {c.labels.map((l) => <LabelChip key={l.id} label={l} />)}
+                  </div>
+                ) : null}
               </button>
             </li>
           ))}
@@ -138,6 +169,8 @@ export function CrmWhatsAppPage() {
           <Chat
             key={selected.id}
             conversation={selected}
+            labels={labels ?? []}
+            onManageLabels={() => setManagingLabels(true)}
             manager={manager}
             onBack={() => setParams({})}
             onChanged={() => {
@@ -164,6 +197,17 @@ export function CrmWhatsAppPage() {
           </div>
         )}
       </section>
+      {managingLabels ? (
+        <LabelsManager
+          labels={labels ?? []}
+          onClose={() => setManagingLabels(false)}
+          onChanged={() => {
+            void reloadLabels();
+            void reload();
+          }}
+          onRemoved={(id) => labelFilter === id && setLabelFilter('')}
+        />
+      ) : null}
       {picking ? (
         <NewChatPicker
           onClose={() => setPicking(false)}
@@ -174,6 +218,216 @@ export function CrmWhatsAppPage() {
         />
       ) : null}
     </Card>
+  );
+}
+
+const LABEL_COLORS = ['#2553e0', '#0ea5e9', '#16a34a', '#84cc16', '#f59e0b', '#f97316', '#dc2626', '#ec4899', '#8b5cf6', '#71717a'];
+
+function LabelChip({ label }: { label: CrmLabel }) {
+  return (
+    <span className="inline-flex max-w-full items-center gap-1 rounded-full px-2 py-px text-[11px] font-medium" style={{ background: `${label.color}1f`, color: label.color }}>
+      <span className="size-1.5 flex-none rounded-full" style={{ background: label.color }} />
+      <span className="truncate">{label.name}</span>
+    </span>
+  );
+}
+
+/** Trecho da mensagem encontrada na busca, com o termo destacado. */
+function Highlight({ text, term }: { text: string; term: string }) {
+  const i = term ? text.toLowerCase().indexOf(term.toLowerCase()) : -1;
+  if (i < 0) return <>{text}</>;
+  const start = Math.max(0, i - 24);
+  return (
+    <>
+      {start > 0 ? '…' : ''}
+      {text.slice(start, i)}
+      <mark className="rounded bg-amber-100 px-0.5 text-ink">{text.slice(i, i + term.length)}</mark>
+      {text.slice(i + term.length)}
+    </>
+  );
+}
+
+/** Etiquetas da conversa aberta: marcar/desmarcar e criar uma nova ali mesmo. */
+function LabelPicker({ conversation, labels, onManage, onChanged }: { conversation: CrmConversation; labels: CrmLabel[]; onManage: () => void; onChanged: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<string[]>(() => (conversation.labels ?? []).map((l) => l.id));
+  const [newName, setNewName] = useState('');
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => setSelected((conversation.labels ?? []).map((l) => l.id)), [conversation.labels]);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [open]);
+
+  const save = async (ids: string[]) => {
+    setSelected(ids);
+    try {
+      await crmService.setConversationLabels(conversation.id, ids);
+      onChanged();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  };
+  const create = async () => {
+    const name = newName.trim();
+    if (!name) return;
+    try {
+      const l = await crmService.createLabel({ name, color: LABEL_COLORS[labels.length % LABEL_COLORS.length] });
+      setNewName('');
+      await save([...selected, l.id]);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  };
+
+  return (
+    <div ref={box} className="relative">
+      <Button variant="secondary" size="sm" icon={<Tag className="size-4" />} onClick={() => setOpen((o) => !o)}>
+        Etiquetas{selected.length ? ` (${selected.length})` : ''}
+      </Button>
+      {open ? (
+        <div className="absolute right-0 top-full z-30 mt-1 w-64 rounded-lg border border-zinc-200 bg-white p-2 shadow-lg">
+          <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Etiquetar conversa</p>
+          <div className="max-h-56 overflow-y-auto">
+            {!labels.length ? <p className="px-1 py-2 text-xs text-zinc-500">Nenhuma etiqueta ainda. Crie a primeira abaixo.</p> : null}
+            {labels.map((l) => (
+              <label key={l.id} className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1.5 text-sm hover:bg-zinc-50">
+                <input
+                  type="checkbox"
+                  className="accent-brand-600"
+                  checked={selected.includes(l.id)}
+                  onChange={(e) => void save(e.target.checked ? [...selected, l.id] : selected.filter((x) => x !== l.id))}
+                />
+                <span className="size-2.5 flex-none rounded-full" style={{ background: l.color }} />
+                <span className="truncate">{l.name}</span>
+              </label>
+            ))}
+          </div>
+          <div className="mt-2 flex gap-1 border-t border-zinc-100 pt-2">
+            <Input
+              value={newName}
+              maxLength={40}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void create();
+                }
+              }}
+              placeholder="Nova etiqueta"
+              className="h-8 text-[13px]"
+            />
+            <Button size="sm" onClick={() => void create()} disabled={!newName.trim()} aria-label="Criar etiqueta" icon={<Plus className="size-4" />} />
+          </div>
+          <button type="button" onClick={() => { setOpen(false); onManage(); }} className="mt-1 w-full rounded-md px-1 py-1.5 text-left text-xs text-zinc-500 hover:bg-zinc-50 hover:text-ink">
+            ⚙ Gerenciar etiquetas (cores, nomes, excluir)
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Criar, renomear, trocar a cor e excluir etiquetas (valem para a equipe toda). */
+function LabelsManager({ labels, onClose, onChanged, onRemoved }: { labels: CrmLabel[]; onClose: () => void; onChanged: () => void; onRemoved: (id: string) => void }) {
+  const { data, reload } = useAsync(() => crmService.labels(), []);
+  const list = data ?? labels;
+  const [editing, setEditing] = useState<{ id: string | null; name: string; color: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    if (!editing?.name.trim()) return;
+    setBusy(true);
+    try {
+      if (editing.id) await crmService.updateLabel(editing.id, { name: editing.name.trim(), color: editing.color });
+      else await crmService.createLabel({ name: editing.name.trim(), color: editing.color });
+      setEditing(null);
+      await reload();
+      onChanged();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async (l: CrmLabel) => {
+    const uses = l.conversations ? ` Ela sai de ${l.conversations} conversa${l.conversations > 1 ? 's' : ''}.` : '';
+    if (!window.confirm(`Excluir a etiqueta "${l.name}"?${uses}`)) return;
+    try {
+      await crmService.removeLabel(l.id);
+      onRemoved(l.id);
+      await reload();
+      onChanged();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  };
+
+  return (
+    <Modal open title="Etiquetas" description="Valem para toda a equipe, como no WhatsApp Business." onClose={onClose} busy={busy} footer={<Button variant="secondary" onClick={onClose}>Fechar</Button>}>
+      <ul className="space-y-1">
+        {list.map((l) =>
+          editing?.id === l.id ? (
+            <LabelEditRow key={l.id} value={editing} onChange={setEditing} onSave={() => void save()} onCancel={() => setEditing(null)} busy={busy} />
+          ) : (
+            <li key={l.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-50">
+              <span className="size-3 flex-none rounded-full" style={{ background: l.color }} />
+              <span className="min-w-0 flex-1 truncate text-sm">{l.name}</span>
+              <span className="text-xs text-zinc-400">{l.conversations ?? 0}</span>
+              <button type="button" onClick={() => setEditing({ id: l.id, name: l.name, color: l.color })} className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink" aria-label={`Editar ${l.name}`} title="Editar">
+                <Pencil className="size-3.5" />
+              </button>
+              <button type="button" onClick={() => void remove(l)} className="rounded-md p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600" aria-label={`Excluir ${l.name}`} title="Excluir">
+                <Trash2 className="size-3.5" />
+              </button>
+            </li>
+          ),
+        )}
+        {!list.length && !editing ? <li className="py-4 text-center text-sm text-zinc-500">Nenhuma etiqueta ainda.</li> : null}
+        {editing && !editing.id ? (
+          <LabelEditRow value={editing} onChange={setEditing} onSave={() => void save()} onCancel={() => setEditing(null)} busy={busy} />
+        ) : null}
+      </ul>
+      {!editing ? (
+        <Button variant="secondary" className="mt-3" icon={<Plus className="size-4" />} onClick={() => setEditing({ id: null, name: '', color: LABEL_COLORS[list.length % LABEL_COLORS.length] })}>
+          Nova etiqueta
+        </Button>
+      ) : null}
+    </Modal>
+  );
+}
+
+function LabelEditRow({
+  value, onChange, onSave, onCancel, busy,
+}: { value: { id: string | null; name: string; color: string }; onChange: (v: { id: string | null; name: string; color: string }) => void; onSave: () => void; onCancel: () => void; busy: boolean }) {
+  return (
+    <li className="space-y-2 rounded-lg border border-zinc-200 p-2">
+      <Input
+        autoFocus
+        maxLength={40}
+        value={value.name}
+        placeholder="Nome da etiqueta"
+        onChange={(e) => onChange({ ...value, name: e.target.value })}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            onSave();
+          }
+        }}
+      />
+      <div className="flex flex-wrap items-center gap-1.5">
+        {LABEL_COLORS.map((c) => (
+          <button key={c} type="button" onClick={() => onChange({ ...value, color: c })} className={cn('size-6 rounded-full ring-offset-2', value.color === c && 'ring-2 ring-ink')} style={{ background: c }} aria-label={`Cor ${c}`} />
+        ))}
+        <input type="color" value={value.color} onChange={(e) => onChange({ ...value, color: e.target.value })} className="h-6 w-8 cursor-pointer rounded border border-zinc-200 p-0" aria-label="Outra cor" />
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" size="sm" onClick={onCancel} disabled={busy}>Cancelar</Button>
+        <Button size="sm" onClick={onSave} loading={busy} disabled={!value.name.trim()}>Salvar</Button>
+      </div>
+    </li>
   );
 }
 
@@ -229,7 +483,9 @@ function NewChatPicker({ onClose, onPick }: { onClose: () => void; onPick: (p: {
   );
 }
 
-function Chat({ conversation, manager, onBack, onChanged }: { conversation: CrmConversation; manager: boolean; onBack: () => void; onChanged: () => void }) {
+function Chat({
+  conversation, labels, onManageLabels, manager, onBack, onChanged,
+}: { conversation: CrmConversation; labels: CrmLabel[]; onManageLabels: () => void; manager: boolean; onBack: () => void; onChanged: () => void }) {
   const { data: messages, setData } = useAsync(() => crmService.messages(conversation.id), [conversation.id]);
   usePolling(() => void crmService.messages(conversation.id).then(setData).catch(() => {}), CHAT_POLL, [conversation.id]);
   const [linking, setLinking] = useState(false);
@@ -283,7 +539,11 @@ function Chat({ conversation, manager, onBack, onChanged }: { conversation: CrmC
               <> · <Link to={`/crm/empresas/${conversation.company_id}`} className="hover:underline">{conversation.company_name}</Link></>
             ) : null}
           </div>
+          {conversation.labels?.length ? (
+            <div className="mt-1 flex flex-wrap gap-1">{conversation.labels.map((l) => <LabelChip key={l.id} label={l} />)}</div>
+          ) : null}
         </div>
+        <LabelPicker conversation={conversation} labels={labels} onManage={onManageLabels} onChanged={onChanged} />
         {manager && !conversation.contact_id ? (
           <Button variant="secondary" size="sm" icon={<UserPlus className="size-4" />} onClick={() => setLinking(true)}>
             {conversation.company_id ? 'Salvar como contato' : 'Vincular a uma empresa'}

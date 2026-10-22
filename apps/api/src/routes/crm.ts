@@ -501,23 +501,121 @@ crmRouter.delete('/tasks/:id', async (req, res) => {
 
 crmRouter.get('/conversations', async (req, res) => {
   const user = authUser(req);
-  const f = z.object({ unlinked: z.enum(['true', 'false']).optional() }).parse(req.query);
+  const f = z
+    .object({
+      unlinked: z.enum(['true', 'false']).optional(),
+      label: z.string().max(40).optional(),
+      search: z.string().max(200).optional(),
+    })
+    .parse(req.query);
   // Empresa cadastrada/alterada depois da 1ª mensagem: tenta ligar as conversas que ainda estão sem empresa
   if (isManager(user)) await relinkConversations(user.organizationId, { onlyUnlinked: true });
+  const term = f.search?.trim() ? `%${f.search.trim().replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null;
+  const digits = f.search?.replace(/\D/g, '') ?? '';
+  const phoneTerm = digits.length >= 4 ? `%${digits.slice(-8)}%` : null;
+  const label = f.label === 'none' ? 'none' : f.label && uuidParam.safeParse(f.label).success ? f.label : null;
   const { rows } = await query(
     `select cv.id, cv.phone, cv.push_name, cv.contact_id, cv.company_id, cv.unread, cv.last_message, cv.last_message_at,
-            ct.name as contact_name, coalesce(c.trade_name, c.name) as company_name
+            ct.name as contact_name, coalesce(c.trade_name, c.name) as company_name,
+            coalesce((select json_agg(json_build_object('id', l.id, 'name', l.name, 'color', l.color) order by lower(l.name))
+                        from lp_crm_conversation_labels cl join lp_crm_labels l on l.id = cl.label_id
+                       where cl.conversation_id = cv.id), '[]') as labels,
+            -- Busca pelo texto: a mensagem mais recente que contém o termo (para mostrar o trecho)
+            case when $4::text is null then null else (
+              select json_build_object('id', m.id, 'body', left(m.body, 300), 'created_at', m.created_at)
+                from lp_crm_messages m
+               where m.conversation_id = cv.id and m.hidden_at is null and m.revoked_at is null and m.body ilike $4
+               order by m.created_at desc limit 1) end as matched
        from lp_crm_conversations cv
        left join lp_crm_contacts ct on ct.id = cv.contact_id
        left join companies c on c.id = cv.company_id
       where cv.organization_id = $1
         and ($2::uuid is null or (cv.company_id is not null and ${visible('cv.company_id', '$2')}))
         and (not $3 or cv.company_id is null)
+        and ($4::text is null
+             or ct.name ilike $4 or cv.push_name ilike $4 or c.name ilike $4 or c.trade_name ilike $4
+             or ($5::text is not null and cv.wa_key like $5)
+             or exists (select 1 from lp_crm_messages m where m.conversation_id = cv.id and m.hidden_at is null
+                         and m.revoked_at is null and m.body ilike $4))
+        and ($6::text is null
+             or ($6 = 'none' and not exists (select 1 from lp_crm_conversation_labels cl where cl.conversation_id = cv.id))
+             or ($6 <> 'none' and exists (select 1 from lp_crm_conversation_labels cl where cl.conversation_id = cv.id and cl.label_id::text = $6)))
       order by cv.last_message_at desc nulls last
       limit 300`,
-    [user.organizationId, sellerScope(user), isManager(user) && f.unlinked === 'true'],
+    [user.organizationId, sellerScope(user), isManager(user) && f.unlinked === 'true', term, phoneTerm, label],
   );
   res.json(rows);
+});
+
+// ─── Etiquetas das conversas ────────────────────────────────────────
+
+const LabelSchema = z.object({
+  name: z.string().trim().min(1, 'Informe o nome da etiqueta.').max(40),
+  color: z.string().regex(/^#[0-9a-f]{6}$/i, 'Cor inválida.'),
+});
+
+function labelError(err: unknown): never {
+  if ((err as { constraint?: string }).constraint === 'lp_crm_labels_name_uniq') {
+    throw new AppError(409, 'Já existe uma etiqueta com esse nome.', 'CRM_DUP_LABEL');
+  }
+  throw err;
+}
+
+crmRouter.get('/labels', async (req, res) => {
+  const user = authUser(req);
+  const { rows } = await query(
+    `select l.id, l.name, l.color,
+            (select count(*)::int from lp_crm_conversation_labels cl where cl.label_id = l.id) as conversations
+       from lp_crm_labels l where l.organization_id = $1 order by lower(l.name)`,
+    [user.organizationId],
+  );
+  res.json(rows);
+});
+
+crmRouter.post('/labels', async (req, res) => {
+  const user = authUser(req);
+  const b = parseBody(LabelSchema, req.body);
+  const created = await one(
+    'insert into lp_crm_labels (organization_id, name, color) values ($1, $2, $3) returning id, name, color',
+    [user.organizationId, b.name, b.color.toLowerCase()],
+  ).catch(labelError);
+  res.status(201).json(created);
+});
+
+crmRouter.put('/labels/:id', async (req, res) => {
+  const user = authUser(req);
+  const b = parseBody(LabelSchema, req.body);
+  const updated = await one(
+    'update lp_crm_labels set name = $3, color = $4 where id = $1 and organization_id = $2 returning id, name, color',
+    [uuidParam.parse(req.params.id), user.organizationId, b.name, b.color.toLowerCase()],
+  ).catch(labelError);
+  if (!updated) throw notFound('Etiqueta não encontrada.');
+  res.json(updated);
+});
+
+crmRouter.delete('/labels/:id', async (req, res) => {
+  const user = authUser(req);
+  const { rowCount } = await query('delete from lp_crm_labels where id = $1 and organization_id = $2', [uuidParam.parse(req.params.id), user.organizationId]);
+  if (!rowCount) throw notFound('Etiqueta não encontrada.');
+  res.json({ ok: true });
+});
+
+// Etiquetas de uma conversa: a lista enviada substitui a anterior
+crmRouter.put('/conversations/:id/labels', async (req, res) => {
+  const user = authUser(req);
+  const conv = await ensureConversation(user, uuidParam.parse(req.params.id));
+  const { label_ids } = parseBody(z.object({ label_ids: z.array(uuidParam).max(30) }), req.body);
+  const valid = label_ids.length
+    ? (await query<{ id: string }>('select id from lp_crm_labels where organization_id = $1 and id = any($2::uuid[])', [user.organizationId, label_ids])).rows.map((r) => r.id)
+    : [];
+  await query('delete from lp_crm_conversation_labels where conversation_id = $1', [conv.id]);
+  if (valid.length) {
+    await query(
+      'insert into lp_crm_conversation_labels (conversation_id, label_id) select $1, unnest($2::uuid[]) on conflict do nothing',
+      [conv.id, valid],
+    );
+  }
+  res.json({ ok: true });
 });
 
 // Busca mensagens novas direto na Evolution (complementa o webhook); falhas não atrapalham a tela

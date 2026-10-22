@@ -70,6 +70,14 @@ export interface CrmTask {
   company_name?: string | null;
 }
 
+export interface CrmLabel {
+  id: string;
+  name: string;
+  color: string;
+  /** Quantas conversas têm a etiqueta (só na lista de etiquetas) */
+  conversations?: number;
+}
+
 export interface CrmConversation {
   id: string;
   phone: string;
@@ -81,6 +89,9 @@ export interface CrmConversation {
   last_message_at: string | null;
   contact_name: string | null;
   company_name?: string | null;
+  labels?: CrmLabel[];
+  /** Busca: a mensagem mais recente que contém o termo */
+  matched?: { id: string; body: string; created_at: string } | null;
 }
 
 export interface CrmMessage {
