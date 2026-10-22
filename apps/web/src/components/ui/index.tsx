@@ -324,6 +324,7 @@ export function Modal({
   onClose,
   busy,
   size = 'md',
+  actions,
 }: {
   open: boolean;
   title: string;
@@ -333,6 +334,8 @@ export function Modal({
   onClose: () => void;
   busy?: boolean;
   size?: 'md' | 'lg';
+  /** Botões no topo, ao lado do fechar (ex.: "+" para adicionar) */
+  actions?: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -354,9 +357,23 @@ export function Modal({
     >
       {open ? (
         <div className="flex max-h-[calc(100dvh-48px)] flex-col">
-          <div className="border-b border-zinc-100 px-6 py-4">
-            <h2 className="text-lg font-semibold text-ink">{title}</h2>
-            {description ? <div className="mt-0.5 text-sm text-zinc-500">{description}</div> : null}
+          <div className="flex items-start gap-2 border-b border-zinc-100 py-4 pl-6 pr-4">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-semibold text-ink">{title}</h2>
+              {description ? <div className="mt-0.5 text-sm text-zinc-500">{description}</div> : null}
+            </div>
+            {actions}
+            {/* Fechar no topo: padrão de todas as janelas */}
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={busy}
+              className="-mr-1 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink disabled:opacity-40"
+              aria-label="Fechar"
+              title="Fechar"
+            >
+              <X className="size-5" />
+            </button>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
           {footer ? <div className="flex justify-end gap-2 border-t border-zinc-100 px-6 py-4">{footer}</div> : null}

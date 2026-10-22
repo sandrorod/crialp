@@ -82,8 +82,8 @@ function normalizeFocus(input: unknown): Record<string, ImageFocus> {
 }
 
 export const TEMPLATE_KEYS = [
-  'classico', 'moderno', 'minimalista', 'elegante', 'impacto', 'revista', 'blocos', 'noturno', 'capa', 'organico',
-  'aurora', 'linhas', 'suave', 'estudio', 'degrade', 'oficio', 'banner',
+  'classico', 'banner', 'moderno', 'minimalista', 'elegante', 'impacto', 'revista', 'blocos', 'noturno', 'capa', 'organico',
+  'aurora', 'linhas', 'suave', 'estudio', 'degrade', 'oficio',
 ] as const;
 export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
 
@@ -102,6 +102,12 @@ export const TEMPLATES: Record<TemplateKey, Template> = {
     description: 'Equilibrado e versátil: texto à esquerda e foto à direita no topo, serviços em cartões, galeria em mosaico.',
     hero: { withPhoto: 'split', withoutPhoto: 'split' },
     services: () => null,
+  },
+  banner: {
+    label: 'Banner',
+    description: 'Banner largo no topo, de ponta a ponta, com a foto inteira (sem texto por cima); título e botões centralizados logo abaixo. Sem foto, o banner é uma faixa em degradê com o nome da empresa.',
+    hero: { withPhoto: 'split', withoutPhoto: 'split' },
+    services: () => 'grid',
   },
   moderno: {
     label: 'Moderno',
@@ -192,12 +198,6 @@ export const TEMPLATES: Record<TemplateKey, Template> = {
   oficio: {
     label: 'Ofício',
     description: 'Para prestadores de serviço: cabeçalho escuro na cor da marca, mosaico de 3 fotos no topo, serviços em cartões com ícone, foto do "Sobre" com moldura, depoimentos em faixa escura e contato em cartão ao lado do mapa.',
-    hero: { withPhoto: 'split', withoutPhoto: 'split' },
-    services: () => 'grid',
-  },
-  banner: {
-    label: 'Banner',
-    description: 'Banner largo no topo, de ponta a ponta, com a foto inteira (sem texto por cima); título e botões centralizados logo abaixo. Sem foto, o banner é uma faixa em degradê com o nome da empresa.',
     hero: { withPhoto: 'split', withoutPhoto: 'split' },
     services: () => 'grid',
   },

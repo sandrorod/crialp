@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } 
 import { Link, useOutletContext, useSearchParams } from 'react-router';
 import { AlertTriangle, ArrowLeft, Ban, ChevronDown, Building2, Check, CheckCheck, Clock, MessageCircle, MessageSquarePlus, FileText, Mic, Paperclip, Pencil, Plus, Search, Send, Smile, Tag, Trash2, User, UserPlus, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, Card, Input, Modal, Select, Spinner, Textarea } from '@/components/ui';
+import { Button, Card, Input, Modal, Spinner, Textarea } from '@/components/ui';
 import { ContactForm } from '@/components/crm/CrmForms';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
@@ -101,26 +101,17 @@ export function CrmWhatsAppPage() {
     <Card className="flex h-[calc(100dvh-260px)] min-h-[480px] overflow-hidden">
       <aside className={cn('w-full flex-col border-r border-zinc-100 md:flex md:w-80', open ? 'hidden' : 'flex')}>
         <div className="space-y-2 border-b border-zinc-100 p-3">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
-              <Input placeholder="Nome, número ou mensagem…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          {/* Uma linha: pesquisa, filtro de etiqueta (só as cores), nova conversa e editar etiquetas */}
+          <div className="flex items-center gap-1.5">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
+              <Input placeholder="Pesquisar…" title="Nome, número, empresa ou texto das mensagens" value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 pl-8 text-[13px]" />
             </div>
-            <Button variant="secondary" onClick={() => setPicking(true)} title="Nova conversa" aria-label="Nova conversa" icon={<MessageSquarePlus className="size-4" />} />
-          </div>
-          <div className="flex gap-2">
-            <Select
-              value={labelFilter}
-              onChange={(e) => (e.target.value === '__manage' ? setManagingLabels(true) : setLabelFilter(e.target.value))}
-              className="h-9 flex-1 text-[13px]"
-              aria-label="Filtrar por etiqueta"
-            >
-              <option value="">Todas as etiquetas</option>
-              <option value="none">Sem etiqueta</option>
-              {labels?.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              <option value="__manage">⚙ Gerenciar etiquetas…</option>
-            </Select>
-            <button type="button" onClick={() => setManagingLabels(true)} className="grid size-9 place-items-center rounded-lg border border-zinc-200 text-zinc-500 hover:bg-zinc-50 hover:text-ink" title="Gerenciar etiquetas" aria-label="Gerenciar etiquetas">
+            <LabelFilter labels={labels ?? []} value={labelFilter} onChange={setLabelFilter} />
+            <button type="button" onClick={() => setPicking(true)} className={TOOL_BTN} title="Nova conversa" aria-label="Nova conversa">
+              <MessageSquarePlus className="size-4" />
+            </button>
+            <button type="button" onClick={() => setManagingLabels(true)} className={TOOL_BTN} title="Editar etiquetas" aria-label="Editar etiquetas">
               <Tag className="size-4" />
             </button>
           </div>
@@ -218,6 +209,81 @@ export function CrmWhatsAppPage() {
         />
       ) : null}
     </Card>
+  );
+}
+
+const TOOL_BTN = 'grid size-9 flex-none place-items-center rounded-lg border border-zinc-200 text-zinc-500 hover:bg-zinc-50 hover:text-ink';
+
+/**
+ * Filtro de etiqueta compacto: fechado mostra só a(s) cor(es); aberto, cada cor com o nome ao lado.
+ */
+function LabelFilter({ labels, value, onChange }: { labels: CrmLabel[]; value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  const current = labels.find((l) => l.id === value);
+  const title = current ? `Etiqueta: ${current.name}` : value === 'none' ? 'Sem etiqueta' : 'Todas as etiquetas';
+  const pick = (v: string) => {
+    onChange(v);
+    setOpen(false);
+  };
+  const Option = ({ v, swatch, label }: { v: string; swatch: React.ReactNode; label: string }) => (
+    <button
+      type="button"
+      onClick={() => pick(v)}
+      className={cn('flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-zinc-50', value === v && 'bg-zinc-100 font-medium')}
+    >
+      {swatch}
+      <span className="truncate">{label}</span>
+    </button>
+  );
+
+  return (
+    <div ref={box} className="relative flex-none">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={cn(TOOL_BTN, (value || open) && 'border-zinc-400 text-ink')}
+        title={title}
+        aria-label={title}
+        aria-expanded={open}
+      >
+        {current ? (
+          <span className="size-4 rounded" style={{ background: current.color }} />
+        ) : value === 'none' ? (
+          <span className="size-4 rounded border-2 border-dashed border-zinc-300" />
+        ) : labels.length ? (
+          // Todas: as cores das etiquetas em miniatura
+          <span className="grid size-4 grid-cols-2 gap-px overflow-hidden rounded">
+            {[0, 1, 2, 3].map((i) => <span key={i} style={{ background: labels[i % labels.length].color }} />)}
+          </span>
+        ) : (
+          <span className="size-4 rounded border border-zinc-300" />
+        )}
+      </button>
+      {open ? (
+        <div className="absolute right-0 top-full z-30 mt-1 w-56 rounded-lg border border-zinc-200 bg-white p-1 shadow-lg">
+          <Option v="" label="Todas as etiquetas" swatch={<span className="size-3.5 flex-none rounded border border-zinc-300 bg-white" />} />
+          <Option v="none" label="Sem etiqueta" swatch={<span className="size-3.5 flex-none rounded border-2 border-dashed border-zinc-300" />} />
+          {labels.length ? <div className="my-1 border-t border-zinc-100" /> : null}
+          <div className="max-h-64 overflow-y-auto">
+            {labels.map((l) => (
+              <Option key={l.id} v={l.id} label={l.name} swatch={<span className="size-3.5 flex-none rounded" style={{ background: l.color }} />} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -366,8 +432,29 @@ function LabelsManager({ labels, onClose, onChanged, onRemoved }: { labels: CrmL
   };
 
   return (
-    <Modal open title="Etiquetas" description="Valem para toda a equipe, como no WhatsApp Business." onClose={onClose} busy={busy} footer={<Button variant="secondary" onClick={onClose}>Fechar</Button>}>
+    <Modal
+      open
+      title="Etiquetas"
+      description="Valem para toda a equipe, como no WhatsApp Business."
+      onClose={onClose}
+      busy={busy}
+      actions={
+        <button
+          type="button"
+          onClick={() => setEditing({ id: null, name: '', color: LABEL_COLORS[list.length % LABEL_COLORS.length] })}
+          disabled={!!editing}
+          className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-ink disabled:opacity-40"
+          aria-label="Nova etiqueta"
+          title="Nova etiqueta"
+        >
+          <Plus className="size-5" />
+        </button>
+      }
+    >
       <ul className="space-y-1">
+        {editing && !editing.id ? (
+          <LabelEditRow value={editing} onChange={setEditing} onSave={() => void save()} onCancel={() => setEditing(null)} busy={busy} />
+        ) : null}
         {list.map((l) =>
           editing?.id === l.id ? (
             <LabelEditRow key={l.id} value={editing} onChange={setEditing} onSave={() => void save()} onCancel={() => setEditing(null)} busy={busy} />
@@ -385,16 +472,8 @@ function LabelsManager({ labels, onClose, onChanged, onRemoved }: { labels: CrmL
             </li>
           ),
         )}
-        {!list.length && !editing ? <li className="py-4 text-center text-sm text-zinc-500">Nenhuma etiqueta ainda.</li> : null}
-        {editing && !editing.id ? (
-          <LabelEditRow value={editing} onChange={setEditing} onSave={() => void save()} onCancel={() => setEditing(null)} busy={busy} />
-        ) : null}
+        {!list.length && !editing ? <li className="py-4 text-center text-sm text-zinc-500">Nenhuma etiqueta ainda. Clique no + para criar.</li> : null}
       </ul>
-      {!editing ? (
-        <Button variant="secondary" className="mt-3" icon={<Plus className="size-4" />} onClick={() => setEditing({ id: null, name: '', color: LABEL_COLORS[list.length % LABEL_COLORS.length] })}>
-          Nova etiqueta
-        </Button>
-      ) : null}
     </Modal>
   );
 }
