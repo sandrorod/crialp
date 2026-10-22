@@ -399,7 +399,7 @@ export function NewLandingPagePage() {
   );
 
   return (
-    <div className="pb-28">
+    <div>
       {batchBar}
       <div className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Revise as informações</h1>
@@ -461,8 +461,9 @@ export function NewLandingPagePage() {
 
       <CompanyForm value={draft} onChange={changeDraft} />
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/90 backdrop-blur lg:left-64">
-        <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-10">
+      {/* Barra presa ao rodapé, na mesma largura das informações da empresa */}
+      <div className="sticky bottom-0 z-20 -mb-6 mt-4 rounded-t-xl border border-b-0 border-zinc-200 bg-white/90 backdrop-blur lg:-mb-8">
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
           <Button variant="ghost" onClick={() => { setCountdown(null); setStage('url'); }} disabled={saving}>Voltar</Button>
           <div className="flex flex-wrap items-center justify-end gap-3">
             {/* Lote: confirma sozinho ao fim da contagem; "Alterar" para a contagem para editar com calma */}
