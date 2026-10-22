@@ -543,7 +543,7 @@ function NewChatPicker({ onClose, onPick }: { onClose: () => void; onPick: (p: {
     </li>
   );
   return (
-    <Modal open title="Nova conversa" description="Empresas e contatos com WhatsApp cadastrado" onClose={onClose}>
+    <Modal open title="Nova conversa" tight="more" onClose={onClose}>
       <Input autoFocus placeholder="Buscar por nome ou número…" value={search} onChange={(e) => setSearch(e.target.value)} />
       <div className="mt-3 max-h-[50vh] overflow-y-auto">
         {loading && !data ? <div className="grid place-items-center p-6"><Spinner /></div> : null}

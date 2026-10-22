@@ -337,8 +337,8 @@ export function Modal({
   size?: 'md' | 'lg';
   /** Botões no topo, ao lado do fechar (ex.: "+" para adicionar) */
   actions?: ReactNode;
-  /** Conteúdo colado no título (sem a linha divisória e com pouco espaço entre eles) */
-  tight?: boolean;
+  /** Conteúdo colado no título (sem a linha divisória): true ≈ 8px entre eles; 'more' ≈ 4px */
+  tight?: boolean | 'more';
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -378,7 +378,7 @@ export function Modal({
               <X className="size-5" />
             </button>
           </div>
-          <div className={cn('min-h-0 flex-1 overflow-y-auto px-6', tight ? 'pb-5 pt-1' : 'py-5')}>{children}</div>
+          <div className={cn('min-h-0 flex-1 overflow-y-auto px-6', tight === 'more' ? 'pb-5 pt-0' : tight ? 'pb-5 pt-1' : 'py-5')}>{children}</div>
           {footer ? <div className="flex justify-end gap-2 border-t border-zinc-100 px-6 py-4">{footer}</div> : null}
         </div>
       ) : null}
