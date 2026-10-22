@@ -397,7 +397,7 @@ export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSe
         />
         <span>
           <span className="block text-[13px] font-medium">Mostrar mapa do endereço</span>
-          <span className="block text-[11px] text-zinc-500">Na seção de contato, um mapa do Google com a localização (só quando o cadastro tem rua). Desmarque para tirar o mapa da página.</span>
+          <span className="block text-[11px] text-zinc-500">Na seção de contato, um mapa do Google com a localização (pela rua do cadastro; sem rua, pelo nome da empresa na cidade). Desmarque para tirar o mapa da página.</span>
         </span>
       </label>
 

@@ -210,12 +210,19 @@ export function buildContext(opts: {
     company.zip_code ? `CEP ${company.zip_code}` : null,
   ].filter((p) => p && p.trim());
   const addressLine = addressParts.length ? addressParts.join(' · ') : null;
-  // Mapa só com rua (só a cidade daria um mapa genérico); o editor pode desativar
-  const mapQuery = [[company.address, company.number].filter(Boolean).join(', '), company.neighborhood, company.city, company.state, company.zip_code]
+  // Mapa pelo endereço; sem rua no cadastro, pelo nome da empresa na cidade (o Google acha o local pelo nome).
+  // Só a cidade, sem nome nem rua, daria um mapa genérico. O editor pode desativar
+  const street = company.address?.trim();
+  const mapQuery = (
+    street
+      ? [[company.address, company.number].filter(Boolean).join(', '), company.neighborhood, company.city, company.state, company.zip_code]
+      : company.city?.trim()
+        ? [displayName, company.neighborhood, company.city, company.state]
+        : []
+  )
     .filter((p) => p && p.trim())
     .join(', ');
-  const mapEmbed =
-    company.address?.trim() && !theme.hideMap ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=16&output=embed&hl=pt-BR` : null;
+  const mapEmbed = mapQuery && !theme.hideMap ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=16&output=embed&hl=pt-BR` : null;
   const map =
     company.address || company.city
       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
