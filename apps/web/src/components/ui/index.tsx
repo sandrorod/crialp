@@ -325,6 +325,7 @@ export function Modal({
   busy,
   size = 'md',
   actions,
+  tight,
 }: {
   open: boolean;
   title: string;
@@ -336,6 +337,8 @@ export function Modal({
   size?: 'md' | 'lg';
   /** Botões no topo, ao lado do fechar (ex.: "+" para adicionar) */
   actions?: ReactNode;
+  /** Conteúdo colado no título (sem a linha divisória e com pouco espaço entre eles) */
+  tight?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -357,7 +360,7 @@ export function Modal({
     >
       {open ? (
         <div className="flex max-h-[calc(100dvh-48px)] flex-col">
-          <div className="flex items-start gap-2 border-b border-zinc-100 py-4 pl-6 pr-4">
+          <div className={cn('flex items-start gap-2 pl-6 pr-4', tight ? 'pb-1 pt-4' : 'border-b border-zinc-100 py-4')}>
             <div className="min-w-0 flex-1">
               <h2 className="text-lg font-semibold text-ink">{title}</h2>
               {description ? <div className="mt-0.5 text-sm text-zinc-500">{description}</div> : null}
@@ -375,7 +378,7 @@ export function Modal({
               <X className="size-5" />
             </button>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
+          <div className={cn('min-h-0 flex-1 overflow-y-auto px-6', tight ? 'pb-5 pt-1' : 'py-5')}>{children}</div>
           {footer ? <div className="flex justify-end gap-2 border-t border-zinc-100 px-6 py-4">{footer}</div> : null}
         </div>
       ) : null}

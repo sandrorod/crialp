@@ -435,6 +435,7 @@ function LabelsManager({ labels, onClose, onChanged, onRemoved }: { labels: CrmL
     <Modal
       open
       title="Etiquetas"
+      tight
       onClose={onClose}
       busy={busy}
       actions={
