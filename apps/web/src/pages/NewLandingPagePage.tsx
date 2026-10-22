@@ -471,7 +471,11 @@ export function NewLandingPagePage() {
                 ALTERAR
               </Button>
             ) : null}
-            <Button variant="brand" size="lg" loading={saving} onClick={confirmAndGenerate} icon={<Sparkles className="size-4" />}>
+            <Button variant="brand" size="lg" className="relative isolate overflow-hidden" loading={saving} onClick={confirmAndGenerate} icon={<Sparkles className="size-4" />}>
+              {/* Contagem do lote: a barra enche o botão até confirmar sozinho */}
+              {batch && countdown !== null ? (
+                <span aria-hidden className="fill-bar absolute inset-y-0 left-0 -z-10 bg-white/30" style={{ animationDuration: `${BATCH_WAIT}s` }} />
+              ) : null}
               {batch ? `CONFIRMAR${countdown !== null ? ` (${countdown}s)` : ''}` : 'CONFIRMAR E GERAR LANDING PAGE'}
             </Button>
           </div>

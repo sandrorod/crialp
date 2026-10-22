@@ -97,6 +97,15 @@ body {
   animation: lp-shimmer 1.4s linear infinite;
 }
 
+/* Barra que enche o botão durante a contagem (duração no style do elemento) */
+@keyframes lp-fill {
+  from { width: 0; }
+  to { width: 100%; }
+}
+.fill-bar {
+  animation: lp-fill linear forwards;
+}
+
 /* Barra de rolagem sempre visível (o macOS esconde a padrão até rolar) */
 .scrollbar-visible::-webkit-scrollbar { width: 8px; }
 .scrollbar-visible::-webkit-scrollbar-track { background: #f4f4f5; border-radius: 999px; }
