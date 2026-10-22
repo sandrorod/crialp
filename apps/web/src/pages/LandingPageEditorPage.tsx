@@ -85,6 +85,9 @@ export function LandingPageEditorPage() {
   const { user } = useAuth();
   // Conta de cliente: edita o conteúdo, mas não publica, exclui, regenera nem mexe no cadastro
   const isClient = user?.role === 'client';
+  // Vendedor edita as LPs atribuídas a ele com as mesmas limitações do cliente
+  const isSeller = user?.role === 'seller';
+  const restricted = isClient || isSeller;
   const clientSiteCount = user?.landing_page_ids?.length ?? 0;
   const canManageAccess = user?.role === 'owner' || user?.role === 'admin';
   const { data: lp, error, loading, reload } = useAsync(() => landingPageService.get(id), [id]);
@@ -355,8 +358,8 @@ export function LandingPageEditorPage() {
         {/* Cliente com vários sites: volta à lista para escolher outro */}
         {!isClient || clientSiteCount > 1 ? (
           <>
-            <Link to={isClient ? '/meus-sites' : '/landing-pages'} className="inline-flex items-center gap-1.5 hover:text-ink">
-              <ArrowLeft className="size-4" /> {isClient ? 'Meus sites' : 'Landing Pages'}
+            <Link to={restricted ? '/meus-sites' : '/landing-pages'} className="inline-flex items-center gap-1.5 hover:text-ink">
+              <ArrowLeft className="size-4" /> {isSeller ? 'Minhas Landing Pages' : isClient ? 'Meus sites' : 'Landing Pages'}
             </Link>
             <span className="text-zinc-300" aria-hidden>|</span>
           </>
@@ -366,7 +369,7 @@ export function LandingPageEditorPage() {
         </a>
         <button onClick={() => actions.copyUrl(lp.public_url)} className="inline-flex items-center gap-1 hover:text-ink"><Copy className="size-3.5" /> Copiar</button>
         <span>v{lp.current_version} · atualizada {formatDate(lp.updated_at, true)}</span>
-        {isClient ? null : (
+        {restricted ? null : (
           <span className="inline-flex items-center gap-1.5">
             · Vendedor
             <SellerCell landingPageId={lp.id} sellerId={seller.id} sellerName={seller.name} sellers={sellers} canAssign={canAssign} onChanged={(s) => setSellerOverride(s)} />
@@ -386,7 +389,7 @@ export function LandingPageEditorPage() {
           <a href={landingPageService.previewUrl(lp.id)} target="_blank" rel="noreferrer" className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100" aria-label="Abrir prévia em nova aba" title="Abrir prévia em nova aba"><ExternalLink className="size-4" /></a>
         </div>
         {/* Ações da página, alinhadas à direita */}
-        {isClient ? null : <div className="ml-auto flex flex-wrap justify-end gap-1.5">
+        {restricted ? null : <div className="ml-auto flex flex-wrap justify-end gap-1.5">
           <Link to={`/empresas/${lp.company_id}`} className={ICON_ACTION} aria-label="Editar empresa" title="Editar empresa"><Building2 className="size-4" /></Link>
           <button type="button" onClick={() => setRegenOpen(true)} disabled={generating} className={ICON_ACTION} aria-label="Regenerar" title="Regenerar a Landing Page">
             {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
@@ -442,7 +445,7 @@ export function LandingPageEditorPage() {
               {/* Nome da página (o mesmo do topo da LP) e ativar/desativar, na linha dos modos */}
               <div className="flex min-w-0 items-center gap-3">
                 <h1 className="truncate text-lg font-semibold tracking-tight">{headerName}</h1>
-                {isClient ? null : <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />}
+                {restricted ? null : <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />}
               </div>
               {/* No celular os modos quebram em mais de uma linha (sem rolagem lateral) */}
               <div className="flex max-w-full flex-wrap justify-center gap-0.5 rounded-lg bg-white p-0.5 shadow-sm ring-1 ring-black/5">
@@ -580,7 +583,7 @@ export function LandingPageEditorPage() {
         <div ref={sideRef} className="min-w-0">
           <div className="mb-3 flex flex-wrap gap-1 rounded-lg bg-zinc-100 p-1">
             {/* Cliente: vê "Publicação" só para escolher o endereço da página */}
-            {TABS.filter((t) => !STAFF_TABS.includes(t.key) || t.key === 'publicacao' || (t.key === 'cliente' ? canManageAccess || isClient : !isClient)).map((t) => (
+            {TABS.filter((t) => !STAFF_TABS.includes(t.key) || t.key === 'publicacao' || (t.key === 'cliente' ? canManageAccess || isClient : !restricted)).map((t) => (
               <button key={t.key} onClick={() => setTab(t.key)} className={cn('shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition', tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink')}>
                 {t.label}
               </button>
@@ -592,7 +595,7 @@ export function LandingPageEditorPage() {
             {tab === 'fotos' ? <Card className="p-5"><PhotosTab theme={theme} onChange={change(setTheme)} images={company?.images ?? null} onAddPhotos={addPhotos} onRemovePhotos={removePhotos} sectionOrder={content.section_order} customSections={content.custom_sections} /></Card> : null}
             {tab === 'visual' ? <Card className="p-5"><DesignTab theme={theme} onChange={change(setTheme)} content={content} /></Card> : null}
             {tab === 'seo' ? <Card className="p-5"><SeoTab seo={seo} onChange={change(setSeo)} slug={lp.slug} /></Card> : null}
-            {tab === 'publicacao' ? <Card className="p-5"><PublishTab lp={lp} onUpdated={refresh} slugOnly={isClient} /></Card> : null}
+            {tab === 'publicacao' ? <Card className="p-5"><PublishTab lp={lp} onUpdated={refresh} slugOnly={restricted} /></Card> : null}
             {tab === 'cliente' && canManageAccess ? <Card className="p-5"><ClientAccessTab lpId={lp.id} /></Card> : null}
             {tab === 'cliente' && isClient ? <Card className="p-5"><OwnAccessTab /></Card> : null}
             {tab === 'versoes' ? <VersionsTab lp={lp} onRestored={refresh} /> : null}

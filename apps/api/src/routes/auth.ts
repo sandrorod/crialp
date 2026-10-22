@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { one, query } from '../db/pool.js';
 import { AppError } from '../lib/errors.js';
 import { parseBody } from '../lib/validation.js';
-import { authUser, clearSession, clientPages, issueSession, requireAuth } from '../middleware/auth.js';
+import { authUser, clearSession, clientPages, issueSession, requireAuth, sellerPages, sellerSites } from '../middleware/auth.js';
 import { publicUrl } from '../landing/publish.js';
 
 export const authRouter = Router();
@@ -31,7 +31,7 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
   if (!user || !ok) throw new AppError(401, 'E-mail ou senha incorretos.', 'INVALID_CREDENTIALS');
   await query('update users set last_login_at = now() where id = $1', [user.id]);
   issueSession(res, user.id);
-  const pages = user.role === 'client' ? await clientPages(user.id) : [];
+  const pages = user.role === 'client' ? await clientPages(user.id) : user.role === 'seller' ? await sellerPages(user.id) : [];
   res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, landing_page_ids: pages.map((p) => p.id) } });
 });
 
@@ -48,7 +48,7 @@ authRouter.get('/me', requireAuth, (req, res) => {
 /** Conta de cliente: os sites que pode editar (tela "Meus sites", para escolher qual editar). */
 authRouter.get('/my-sites', requireAuth, async (req, res) => {
   const u = authUser(req);
-  const pages = u.role === 'client' ? await clientPages(u.id) : [];
+  const pages = u.role === 'client' ? await clientPages(u.id) : u.role === 'seller' ? await sellerSites(u.id) : [];
   res.json({ items: pages.map((p) => ({ id: p.id, title: p.company_name || p.title, status: p.status, updated_at: p.updated_at, public_url: publicUrl(p) })) });
 });
 

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router';
-import { Briefcase, Building2, Contact, Layers, LayoutDashboard, LogOut, Menu, PanelsTopLeft, Plus, Search, Settings, Users, X } from 'lucide-react';
+import { Briefcase, Building2, Contact, Layers, LayoutDashboard, LogOut, Menu, PanelsTopLeft, Plus, Search, Settings, UserCog, Users, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui';
 import type { User, UserRole } from '@/types';
+import { MyAccountModal } from './MyAccountModal';
 
 type Role = UserRole;
 const MANAGERS: Role[] = ['owner', 'admin'];
@@ -19,6 +20,8 @@ const NAV: { to: string; label: string; icon: typeof Building2; end?: boolean; r
   { to: '/buscar', label: 'Buscar empresas', icon: Search, roles: STAFF },
   { to: '/vendas', label: 'Vendas', icon: Briefcase, roles: [...STAFF, 'seller'] },
   { to: '/crm', label: 'CRM', icon: Contact, roles: [...MANAGERS, 'seller'] },
+  // Vendedor edita as Landing Pages atribuídas a ele
+  { to: '/meus-sites', label: 'Minhas Landing Pages', icon: PanelsTopLeft, roles: ['seller'] },
   { to: '/subusuarios', label: 'Subusuários', icon: Users, roles: MANAGERS },
   { to: '/niveis-cliente', label: 'Nível cliente', icon: Layers, roles: MANAGERS },
   { to: '/configuracoes', label: 'Configurações', icon: Settings, roles: STAFF },
@@ -38,6 +41,8 @@ export function homeFor(user: User) {
 function canAccess(user: User, pathname: string) {
   // Cliente só abre a lista dos seus sites e o editor de cada um deles
   if (user.role === 'client') return pathname === '/meus-sites' || clientSites(user).some((id) => pathname === `/landing-pages/${id}`);
+  // Vendedor: editor só das Landing Pages atribuídas a ele
+  if (user.role === 'seller' && pathname.startsWith('/landing-pages/')) return clientSites(user).some((id) => pathname === `/landing-pages/${id}`);
   const role = user.role;
   const item = NAV.filter((n) => (n.end ? pathname === n.to : pathname === n.to || pathname.startsWith(`${n.to}/`)))
     .sort((a, b) => b.to.length - a.to.length)[0];
@@ -46,6 +51,7 @@ function canAccess(user: User, pathname: string) {
 
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { user, logout } = useAuth();
+  const [account, setAccount] = useState(false);
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center gap-2.5 px-5">
@@ -83,11 +89,15 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <div className="truncate text-[13px] font-medium">{user?.name}</div>
             <div className="truncate text-[11px] text-zinc-500">{user?.email}</div>
           </div>
+          <button onClick={() => setAccount(true)} className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink" title="Minha conta (nome e senha)" aria-label="Minha conta">
+            <UserCog className="size-4" />
+          </button>
           <button onClick={() => void logout()} className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink" title="Sair" aria-label="Sair">
             <LogOut className="size-4" />
           </button>
         </div>
       </div>
+      {account ? <MyAccountModal onClose={() => setAccount(false)} /> : null}
     </div>
   );
 }

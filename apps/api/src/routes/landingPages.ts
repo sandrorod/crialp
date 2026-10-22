@@ -374,7 +374,7 @@ landingPagesRouter.patch('/:id/settings', async (req, res) => {
     req.body,
   );
   // Conta de cliente só troca o endereço da página; domínio personalizado fica com a equipe
-  if (user.role === 'client' && body.custom_domain !== undefined) throw new AppError(403, 'Você não tem permissão para alterar o domínio.', 'FORBIDDEN');
+  if ((user.role === 'client' || user.role === 'seller') && body.custom_domain !== undefined) throw new AppError(403, 'Você não tem permissão para alterar o domínio.', 'FORBIDDEN');
   if (body.slug !== undefined && body.slug !== lp.slug) {
     if (!isValidSlug(body.slug)) throw new AppError(400, 'Endereço inválido: use apenas letras minúsculas, números e hífens.');
     if (await repo.getLandingPageBySlug(body.slug)) throw new AppError(409, 'Este endereço já está em uso.');

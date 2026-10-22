@@ -436,6 +436,31 @@ const TYPE_LABEL: Record<string, string> = {
   image: 'imagem', video: 'vídeo', audio: 'áudio', document: 'documento', sticker: 'figurinha', location: 'localização', contact: 'contato', other: 'mídia',
 };
 
+const URL_RE = /((?:https?:\/\/|www\.)[^\s<]+)/gi;
+
+/** Texto da mensagem com os endereços (http, https e www.) clicáveis, abrindo em nova aba. */
+function Linkified({ text }: { text: string }) {
+  const parts = text.split(URL_RE);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (i % 2 === 0) return part;
+        // Pontuação colada no fim ("veja site.com.") fica fora do link
+        const m = /^(.*?)([.,;:!?)\]]*)$/.exec(part)!;
+        const href = m[1].startsWith('www.') ? `https://${m[1]}` : m[1];
+        return (
+          <span key={i}>
+            <a href={href} target="_blank" rel="noopener noreferrer" className="break-all text-brand-600 underline hover:text-brand-700">
+              {m[1]}
+            </a>
+            {m[2]}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 function Bubble({ m, onReact }: { m: CrmMessage; onReact: (m: CrmMessage, emoji: string) => void }) {
@@ -466,7 +491,7 @@ function Bubble({ m, onReact }: { m: CrmMessage; onReact: (m: CrmMessage, emoji:
     <div className={cn('group flex items-center gap-1', out ? 'flex-row-reverse' : 'flex-row', reactions.length > 0 && 'mb-3')}>
       <div className={cn('relative max-w-[80%] rounded-xl px-3 py-2 text-sm shadow-xs', out ? 'bg-brand-50 text-ink' : 'bg-white text-ink')}>
         {m.type !== 'text' ? <div className="text-xs italic text-zinc-500">[{TYPE_LABEL[m.type] ?? m.type}]</div> : null}
-        {m.body ? <div className="whitespace-pre-wrap break-words">{m.body}</div> : null}
+        {m.body ? <div className="whitespace-pre-wrap break-words"><Linkified text={m.body} /></div> : null}
         <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-zinc-400">
           {out && m.sent_by_name ? <span>{m.sent_by_name} ·</span> : null}
           {new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}

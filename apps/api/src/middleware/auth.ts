@@ -13,7 +13,7 @@ export interface AuthUser {
   role: string;
   name: string;
   email: string;
-  /** Conta de cliente: as Landing Pages (e as empresas delas) que pode editar */
+  /** Cliente: as Landing Pages (e as empresas delas) que pode editar. Vendedor: as atribuídas a ele */
   landingPageIds: string[];
   companyIds: string[];
 }
@@ -49,7 +49,7 @@ async function loadUser(req: Request): Promise<AuthUser | null> {
       [payload.sub],
     );
     if (!user) return null;
-    const pages = user.role === 'client' ? await clientPages(user.id) : [];
+    const pages = user.role === 'client' ? await clientPages(user.id) : user.role === 'seller' ? await sellerPages(user.id) : [];
     return {
       id: user.id,
       organizationId: user.organization_id,
@@ -79,6 +79,28 @@ export async function clientPages(userId: string) {
       order by lp.updated_at desc`,
     [userId],
   );
+  return rows;
+}
+
+/** Lista "Minhas Landing Pages" do vendedor: as atribuídas a ele, da editada mais recentemente para a mais antiga. */
+export async function sellerSites(userId: string) {
+  const { rows } = await query<{
+    id: string; company_id: string; company_name: string | null; title: string; slug: string; status: string;
+    custom_domain: string | null; domain_status: string; updated_at: string;
+  }>(
+    `select lp.id, lp.company_id, coalesce(c.trade_name, c.name) as company_name, lp.title, lp.slug, lp.status,
+            lp.custom_domain, lp.domain_status, lp.updated_at
+       from landing_pages lp left join companies c on c.id = lp.company_id
+      where lp.seller_id = $1
+      order by lp.updated_at desc`,
+    [userId],
+  );
+  return rows;
+}
+
+/** Landing Pages atribuídas ao vendedor (ele edita o conteúdo delas, como o cliente edita o próprio site). */
+export async function sellerPages(userId: string) {
+  const { rows } = await query<{ id: string; company_id: string }>('select id, company_id from landing_pages where seller_id = $1', [userId]);
   return rows;
 }
 
@@ -124,9 +146,9 @@ export function requireRole(...roles: string[]) {
   };
 }
 
-/** Vendedores só acessam a área de Vendas: bloqueia todo o resto da API. */
+/** Vendedores acessam Vendas, CRM e a edição das Landing Pages atribuídas a eles: bloqueia o resto da API. */
 export function blockSellers(req: Request, _res: Response, next: NextFunction) {
-  if (req.user?.role === 'seller') return next(new AppError(403, 'Você não tem permissão para acessar esta área.', 'FORBIDDEN'));
+  if (req.user?.role === 'seller' && !siteEditAllowed(req.user, req)) return next(new AppError(403, 'Você não tem permissão para acessar esta área.', 'FORBIDDEN'));
   next();
 }
 
@@ -137,6 +159,15 @@ export function blockSellers(req: Request, _res: Response, next: NextFunction) {
 export function restrictClients(req: Request, _res: Response, next: NextFunction) {
   const u = req.user;
   if (u?.role !== 'client') return next();
+  if (siteEditAllowed(u, req)) return next();
+  next(new AppError(403, 'Você não tem permissão para acessar esta área.', 'FORBIDDEN'));
+}
+
+/**
+ * Rotas de edição das Landing Pages da conta (cliente: os próprios sites; vendedor: as atribuídas a ele):
+ * abrir e salvar a página, enviar fotos, ler a empresa dela e escolher o endereço.
+ */
+function siteEditAllowed(u: AuthUser, req: Request) {
   // Ids (uuid) das páginas e empresas da conta, como alternativas da expressão
   const lp = `(?:${u.landingPageIds.join('|')})`;
   const co = `(?:${u.companyIds.join('|')})`;
@@ -154,6 +185,5 @@ export function restrictClients(req: Request, _res: Response, next: NextFunction
         ['POST', /^\/uploads$/],
       ]
     : [];
-  if (allowed.some(([method, re]) => req.method === method && re.test(req.path))) return next();
-  next(new AppError(403, 'Você não tem permissão para acessar esta área.', 'FORBIDDEN'));
+  return allowed.some(([method, re]) => req.method === method && re.test(req.path));
 }
