@@ -1,6 +1,5 @@
 import { NavLink, Outlet } from 'react-router';
 import { Building2, CheckSquare, KanbanSquare, MessageCircle, Smartphone } from 'lucide-react';
-import { PageHeader } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -30,11 +29,7 @@ export function CrmLayout() {
 
   return (
     <>
-      <PageHeader
-        title="CRM"
-        description={manager ? 'Contatos, conversas, funil e follow-ups de todas as empresas.' : 'Contatos, conversas, funil e follow-ups dos seus clientes.'}
-      />
-      <nav className="-mt-2 mb-5 flex gap-1 overflow-x-auto border-b border-zinc-200">
+      <nav className="mb-5 flex gap-1 overflow-x-auto border-b border-zinc-200">
         {tabs.map(({ to, label, icon: Icon, end, badge }) => (
           <NavLink
             key={to}
