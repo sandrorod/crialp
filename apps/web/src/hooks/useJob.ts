@@ -9,10 +9,9 @@ export function useJob<T>(jobId: string | null) {
   const [networkError, setNetworkError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!jobId) {
-      setJob(null);
-      return;
-    }
+    setNetworkError(null);
+    setJob(null);
+    if (!jobId) return;
     let active = true;
     let timer: ReturnType<typeof setTimeout>;
     let failures = 0;

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { AlertTriangle, ArrowRight, Check, CircleSlash, FileSearch, Globe, PencilLine, RotateCcw, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, CircleSlash, FileSearch, Globe, Layers, PencilLine, RotateCcw, SkipForward, Sparkles, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { CompanyForm, emptyDraft } from '@/components/company/CompanyForm';
 import { SellerPicker } from '@/components/SellerCell';
@@ -10,11 +10,14 @@ import { StopJobButton } from '@/components/StopJobButton';
 import { Button, Card, Input } from '@/components/ui';
 import { useJob } from '@/hooks/useJob';
 import { errorMessage } from '@/lib/api';
+import { loadBatch, saveBatch, type LpBatch } from '@/lib/lpBatch';
 import { shortUrl } from '@/lib/utils';
 import { analysisService, companyService } from '@/services';
 import type { AnalysisMeta, AnalysisResult, CompanyDraft, PlaceListing } from '@/types';
 
 type Stage = 'url' | 'analyzing' | 'review' | 'generating';
+/** Segundos que o lote espera na revisão (e antes de pular uma empresa com erro). */
+const BATCH_WAIT = 10;
 
 function looksLikeUrl(v: string) {
   const t = v.trim();
@@ -46,6 +49,10 @@ export function NewLandingPagePage() {
   // Vendedor "auto" (Aleatório, padrão) = rodízio: o próximo depois do último que recebeu LP
   const [sellerId, setSellerId] = useState('auto');
   const [clientLevelId, setClientLevelId] = useState('');
+  // Lote vindo de "Buscar empresas" (?lote=1): gera uma empresa por vez, sem voltar para a pesquisa
+  const [batch, setBatch] = useState<LpBatch | null>(() => (params.get('lote') ? loadBatch() : null));
+  // Contagem do lote: na revisão confirma sozinha ao chegar a zero; com erro, pula para a próxima empresa
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const analyze = useJob<AnalysisResult>(analyzeJobId);
   const generate = useJob<{ landingPageId: string }>(generateJobId);
@@ -57,56 +64,136 @@ export function NewLandingPagePage() {
       setDraft(j.result.draft);
       setMeta(j.result.meta);
       setStage('review');
+      if (batch) setCountdown(BATCH_WAIT);
       window.scrollTo({ top: 0 });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analyze.job]);
 
-  // Geração concluída → editor da LP
+  // Geração concluída → editor da LP (no lote, segue para a próxima empresa)
   useEffect(() => {
     const j = generate.job;
     if (j?.status === 'done' && j.result) {
+      if (batch) {
+        toast.success(`LP de “${draft.trade_name || draft.name}” gerada.`);
+        next(true);
+        return;
+      }
       toast.success('Landing Page gerada! Revise a prévia e publique.');
       navigate(`/landing-pages/${j.result.landingPageId}`);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generate.job, navigate]);
 
   useEffect(() => {
-    if (params.get('url')) void startAnalysis();
+    if (batch) void startItem(batch);
+    else if (params.get('url')) void startAnalysis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const startAnalysis = async (e?: FormEvent) => {
-    e?.preventDefault();
-    if (!looksLikeUrl(url)) {
-      setUrlError('Informe uma URL válida.');
+  // No lote, um erro na análise ou na geração pula para a próxima empresa depois da contagem
+  const analyzeFailed = stage === 'analyzing' && (analyze.job?.status === 'error' || !!analyze.networkError);
+  const generateFailed = stage === 'generating' && (generate.job?.status === 'error' || !!generate.networkError);
+  useEffect(() => {
+    if (batch && (analyzeFailed || generateFailed)) setCountdown(BATCH_WAIT);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analyzeFailed, generateFailed]);
+
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown <= 0) {
+      setCountdown(null);
+      if (stage === 'review') void confirmAndGenerate();
+      else next(false);
       return;
+    }
+    const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countdown]);
+
+  const startAnalysis = async (e?: FormEvent, target = url, fotos = allowImages) => {
+    e?.preventDefault();
+    if (!looksLikeUrl(target)) {
+      setUrlError('Informe uma URL válida.');
+      return false;
     }
     setUrlError(null);
     setStarting(true);
     try {
       let place: PlaceListing | undefined;
       try {
-        place = JSON.parse(sessionStorage.getItem(`lp:place:${url.trim()}`) ?? 'null') ?? undefined;
+        place = JSON.parse(sessionStorage.getItem(`lp:place:${target.trim()}`) ?? 'null') ?? undefined;
       } catch {
         place = undefined;
       }
-      const { jobId } = await analysisService.analyzeUrl(url.trim(), allowImages, place);
+      const { jobId } = await analysisService.analyzeUrl(target.trim(), fotos, place);
       setAnalyzeJobId(jobId);
       setStage('analyzing');
+      return true;
     } catch (err) {
       setUrlError(errorMessage(err));
+      return false;
     } finally {
       setStarting(false);
     }
   };
 
+  /** Começa a empresa atual do lote do zero (análise do link). */
+  const startItem = async (b: LpBatch) => {
+    const item = b.items[b.index];
+    setCountdown(null);
+    setUrl(item.url);
+    setAllowImages(b.fotos);
+    setDraft(emptyDraft());
+    setMeta(null);
+    setCompanyId(null);
+    setAnalyzeJobId(null);
+    setGenerateJobId(null);
+    setStage('url');
+    window.scrollTo({ top: 0 });
+    // Link recusado: pula para a próxima depois da contagem
+    if (!(await startAnalysis(undefined, item.url, b.fotos))) setCountdown(BATCH_WAIT);
+  };
+
+  /** Passa para a próxima empresa do lote; terminando, volta para a pesquisa. */
+  const next = (generated: boolean) => {
+    if (!batch) return;
+    const b = { ...batch, index: batch.index + 1, ok: batch.ok + (generated ? 1 : 0) };
+    if (b.index >= b.items.length) {
+      saveBatch(null);
+      setBatch(null);
+      toast.success(`Lote concluído: ${b.ok} de ${b.items.length} LP(s) gerada(s).`);
+      navigate('/buscar');
+      return;
+    }
+    saveBatch(b);
+    setBatch(b);
+    void startItem(b);
+  };
+
+  const cancelBatch = () => {
+    saveBatch(null);
+    setBatch(null);
+    setCountdown(null);
+    toast.info('Lote interrompido. A empresa atual continua aberta aqui.');
+  };
+
+  // Qualquer alteração nos dados para a contagem, como o botão "Alterar"
+  const changeDraft = (d: CompanyDraft) => {
+    setCountdown(null);
+    setDraft(d);
+  };
+
   const fillManually = () => {
+    setCountdown(null);
     setDraft({ ...emptyDraft(), reference_url: looksLikeUrl(url) ? url.trim() : null });
     setMeta(null);
     setStage('review');
   };
 
   const confirmAndGenerate = async () => {
+    setCountdown(null);
     if (!draft.name.trim()) {
       toast.error('Informe o nome da empresa.');
       return;
@@ -139,10 +226,28 @@ export function NewLandingPagePage() {
     }
   };
 
+  // Em qual empresa do lote está, com a contagem para pular quando deu erro
+  const failedHere = analyzeFailed || generateFailed || (stage === 'url' && !!urlError);
+  const batchBar = batch ? (
+    <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-brand-100 bg-brand-50 px-4 py-2.5 text-sm">
+      <Layers className="size-4 flex-none text-brand-600" />
+      <span className="min-w-0 flex-1">
+        <strong>Lote: empresa {batch.index + 1} de {batch.items.length}</strong>
+        <span className="text-zinc-600"> · {batch.items[batch.index].name}</span>
+        {failedHere && countdown !== null ? <span className="block text-xs text-red-700">Pulando para a próxima em {countdown}s…</span> : null}
+      </span>
+      <Button size="sm" variant="secondary" icon={<SkipForward className="size-3.5" />} onClick={() => { setCountdown(null); next(false); }} disabled={saving} title="Deixa esta empresa sem LP e passa para a próxima">
+        {failedHere ? 'Próxima' : 'Pular'}
+      </Button>
+      <Button size="sm" variant="ghost" icon={<X className="size-3.5" />} onClick={cancelBatch}>Parar lote</Button>
+    </div>
+  ) : null;
+
   // ─── Etapa 1: URL ────────────────────────────────────────────────
   if (stage === 'url') {
     return (
       <div className="mx-auto max-w-2xl pt-4 lg:pt-12">
+        {batchBar}
         <div className="mb-8 text-center">
           <div className="mx-auto mb-5 grid size-12 place-items-center rounded-2xl bg-ink text-white shadow-lg shadow-zinc-900/20">
             <Sparkles className="size-5" />
@@ -212,6 +317,7 @@ export function NewLandingPagePage() {
     const failed = j?.status === 'error' || !!analyze.networkError;
     return (
       <div className="mx-auto max-w-xl pt-4 lg:pt-10">
+        {batchBar}
         <h1 className="text-2xl font-semibold tracking-tight">Analisando empresa</h1>
         <p className="mt-1 truncate text-sm text-zinc-500" title={url}>{shortUrl(url, 70)}</p>
         <Card className="mt-6 p-5 sm:p-6">
@@ -227,7 +333,7 @@ export function NewLandingPagePage() {
                 <CircleSlash className="mt-0.5 size-4 flex-none" /> {j?.error ?? analyze.networkError}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button size="sm" icon={<RotateCcw className="size-3.5" />} onClick={() => { setAnalyzeJobId(null); setStage('url'); }}>
+                <Button size="sm" icon={<RotateCcw className="size-3.5" />} onClick={() => { setCountdown(null); setAnalyzeJobId(null); setStage('url'); }}>
                   Tentar outra URL
                 </Button>
                 <Button size="sm" variant="secondary" icon={<PencilLine className="size-3.5" />} onClick={fillManually}>
@@ -247,6 +353,7 @@ export function NewLandingPagePage() {
     const failed = j?.status === 'error' || !!generate.networkError;
     return (
       <div className="mx-auto max-w-xl pt-4 lg:pt-10">
+        {batchBar}
         <h1 className="text-2xl font-semibold tracking-tight">Gerando Landing Page</h1>
         <p className="mt-1 text-sm text-zinc-500">{draft.trade_name || draft.name}</p>
         <Card className="mt-6 p-5 sm:p-6">
@@ -293,6 +400,7 @@ export function NewLandingPagePage() {
 
   return (
     <div className="pb-28">
+      {batchBar}
       <div className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Revise as informações</h1>
         <p className="mt-1 text-sm text-zinc-500">Corrija o que for necessário. A Landing Page será gerada exatamente a partir destes dados.</p>
@@ -351,14 +459,20 @@ export function NewLandingPagePage() {
         </Card>
       )}
 
-      <CompanyForm value={draft} onChange={setDraft} />
+      <CompanyForm value={draft} onChange={changeDraft} />
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/90 backdrop-blur lg:left-64">
         <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-10">
-          <Button variant="ghost" onClick={() => setStage('url')} disabled={saving}>Voltar</Button>
+          <Button variant="ghost" onClick={() => { setCountdown(null); setStage('url'); }} disabled={saving}>Voltar</Button>
           <div className="flex flex-wrap items-center justify-end gap-3">
+            {/* Lote: confirma sozinho ao fim da contagem; "Alterar" para a contagem para editar com calma */}
+            {batch && countdown !== null ? (
+              <Button variant="secondary" size="lg" onClick={() => setCountdown(null)} disabled={saving} icon={<PencilLine className="size-4" />}>
+                ALTERAR
+              </Button>
+            ) : null}
             <Button variant="brand" size="lg" loading={saving} onClick={confirmAndGenerate} icon={<Sparkles className="size-4" />}>
-              CONFIRMAR E GERAR LANDING PAGE
+              {batch ? `CONFIRMAR${countdown !== null ? ` (${countdown}s)` : ''}` : 'CONFIRMAR E GERAR LANDING PAGE'}
             </Button>
           </div>
         </div>

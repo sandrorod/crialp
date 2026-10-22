@@ -7,6 +7,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
+import { saveBatch } from '@/lib/lpBatch';
 import { searchService } from '@/services';
 import type { FoundCompany, SavedSearchItem, SiteFilter } from '@/types';
 
@@ -72,13 +73,16 @@ function filterLabel(f: Filters) {
 
 const MATCH_REASON = { link: 'mesmo link', site: 'mesmo site e nome/telefone', nome_telefone: 'mesmo nome e telefone', nome_cep: 'mesmo nome e CEP' } as const;
 
-function ResultCard({ c, onGenerate, onIgnore }: { c: FoundCompany; onGenerate: () => void; onIgnore: () => void }) {
+/** Só entra no lote quem ainda não foi cadastrada (as demais têm "Abrir LP" / "Abrir empresa"). */
+const canBatch = (c: FoundCompany) => !c.existing && !!c.url;
+
+function ResultCard({ c, onGenerate, onIgnore, selected, onSelect }: { c: FoundCompany; onGenerate: () => void; onIgnore: () => void; selected: boolean; onSelect: (v: boolean) => void }) {
   const lp = c.existing?.landing_page;
   // Erro ao gerar a LP: na geração (empresa cadastrada) ou na leitura dos dados do link (antes do cadastro).
   // Dá para tentar de novo
   const lpError = !lp ? c.existing?.lp_error ?? c.analysis_error?.error ?? null : null;
   return (
-    <Card className={cn('relative flex min-w-0 flex-col p-4 [overflow-wrap:anywhere]', lp ? 'border-2 border-emerald-500 bg-emerald-50/40' : lpError ? 'border-2 border-red-500 bg-red-50/40' : c.existing ? 'border-2 border-amber-400' : '')}>
+    <Card className={cn('relative flex min-w-0 flex-col p-4 [overflow-wrap:anywhere]', lp ? 'border-2 border-emerald-500 bg-emerald-50/40' : lpError ? 'border-2 border-red-500 bg-red-50/40' : c.existing ? 'border-2 border-amber-400' : '', selected && 'ring-2 ring-brand-500')}>
       {/* Selo bem visível: já foi coletada / já tem LP, para não gerar de novo */}
       {c.existing || lpError ? (
         <span
@@ -91,9 +95,15 @@ function ResultCard({ c, onGenerate, onIgnore }: { c: FoundCompany; onGenerate: 
       ) : null}
       {lpError ? <p className="mb-2 rounded-md bg-red-50 px-2.5 py-1.5 text-xs text-red-700">Erro ao gerar: {lpError} Dá para tentar de novo.</p> : null}
       <div className="flex items-start gap-3">
-        <div className="grid size-9 flex-none place-items-center rounded-lg bg-zinc-100 text-zinc-500">
-          {c.source === 'maps' ? <MapPin className="size-4" /> : <Building2 className="size-4" />}
-        </div>
+        {canBatch(c) ? (
+          <label className="grid size-9 flex-none cursor-pointer place-items-center rounded-lg bg-zinc-100" title="Selecionar para gerar em lote">
+            <input type="checkbox" className="size-4 accent-zinc-900" checked={selected} onChange={(e) => onSelect(e.target.checked)} aria-label={`Selecionar ${c.name}`} />
+          </label>
+        ) : (
+          <div className="grid size-9 flex-none place-items-center rounded-lg bg-zinc-100 text-zinc-500">
+            {c.source === 'maps' ? <MapPin className="size-4" /> : <Building2 className="size-4" />}
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <h3 className="font-semibold leading-snug">{c.name}</h3>
           {c.rating != null ? (
@@ -173,6 +183,8 @@ export function SearchCompaniesPage() {
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [allowImages, setAllowImages] = useState(true);
+  // Empresas marcadas para "Gerar N LP" (pelo link)
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   // Pesquisa salva no histórico que está na tela
   const [searchId, setSearchId] = useState<string | null>(saved?.searchId ?? null);
   // Pesquisa no histórico: procura no servidor (todo o histórico), 300 ms depois de parar de digitar
@@ -304,14 +316,38 @@ export function SearchCompaniesPage() {
     }
   };
 
-  const generate = (c: FoundCompany) => {
-    // A análise usa os dados já trazidos pela pesquisa (sem consultar o Maps de novo)
+  // A análise usa os dados já trazidos pela pesquisa (sem consultar o Maps de novo)
+  const rememberPlace = (c: FoundCompany) => {
     try {
       sessionStorage.setItem(`lp:place:${c.url}`, JSON.stringify({ name: c.name, phone: c.phone, address: c.address, website: c.website, rating: c.rating, reviews: c.reviews, photos: c.photos ?? null, place_id: c.place_id ?? null, google_url: c.google_url }));
     } catch {
       /* sem armazenamento: a análise consulta o Maps pelo link */
     }
+  };
+
+  const generate = (c: FoundCompany) => {
+    rememberPlace(c);
     navigate(`/nova?url=${encodeURIComponent(c.url!)}&fotos=${allowImages ? 1 : 0}`);
+  };
+
+  const toggle = (c: FoundCompany, v: boolean) =>
+    setSelected((cur) => {
+      const next = new Set(cur);
+      if (v) next.add(c.url!);
+      else next.delete(c.url!);
+      return next;
+    });
+  // Marcadas que continuam na lista e ainda podem gerar (ex.: depois de ignorar uma)
+  const chosen = (items ?? []).filter((c) => canBatch(c) && selected.has(c.url!));
+  const selectable = shown.filter(canBatch);
+  const allSelected = selectable.length > 0 && selectable.every((c) => selected.has(c.url!));
+
+  /** Gera as selecionadas uma de cada vez: a tela "Nova Landing Page" passa para a próxima ao terminar cada uma. */
+  const generateBatch = () => {
+    if (!chosen.length) return;
+    chosen.forEach(rememberPlace);
+    saveBatch({ items: chosen.map((c) => ({ url: c.url!, name: c.name })), index: 0, fotos: allowImages, ok: 0 });
+    navigate('/nova?lote=1');
   };
 
   const waiting = (
@@ -391,9 +427,38 @@ export function SearchCompaniesPage() {
           {items.length ? `Nenhuma empresa ${filterLabel(filters)} entre as encontradas até agora. Use "Buscar mais" ou desmarque alguma opção.` : 'Nenhuma empresa encontrada. Tente outras palavras ou inclua a cidade.'}
         </Card>
       ) : null}
+      {selectable.length ? (
+        <div className="sticky top-0 z-10 mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-zinc-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur">
+          <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-zinc-700">
+            <input
+              type="checkbox"
+              className="size-4 accent-zinc-900"
+              checked={allSelected}
+              onChange={(e) =>
+                setSelected((cur) => {
+                  const next = new Set(cur);
+                  selectable.forEach((c) => (e.target.checked ? next.add(c.url!) : next.delete(c.url!)));
+                  return next;
+                })
+              }
+            />
+            Selecionar todas ({selectable.length})
+          </label>
+          {chosen.length ? (
+            <button type="button" onClick={() => setSelected(new Set())} className="text-xs text-zinc-500 underline hover:text-zinc-800">
+              Limpar seleção
+            </button>
+          ) : null}
+          <Button size="sm" variant="brand" className="ml-auto" disabled={!chosen.length} onClick={generateBatch} icon={<Sparkles className="size-3.5" />}>
+            Gerar {chosen.length} LP
+          </Button>
+        </div>
+      ) : null}
       {shown.length ? (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {shown.map((c, i) => <ResultCard key={`${c.url}-${i}`} c={c} onGenerate={() => generate(c)} onIgnore={() => void ignore(c)} />)}
+          {shown.map((c, i) => (
+            <ResultCard key={`${c.url}-${i}`} c={c} onGenerate={() => generate(c)} onIgnore={() => void ignore(c)} selected={!!c.url && selected.has(c.url)} onSelect={(v) => toggle(c, v)} />
+          ))}
         </div>
       ) : null}
       {warning && !loading ? (
