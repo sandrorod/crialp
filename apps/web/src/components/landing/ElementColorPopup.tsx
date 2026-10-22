@@ -88,7 +88,7 @@ function ColorRow({ label, value, original, changed, onChange, onReset, tones }:
         <span className="text-xs font-medium text-zinc-600">{label}</span>
         {changed ? (
           <button type="button" onClick={onReset} className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-ink">
-            <RotateCcw className="size-3" /> original
+            <RotateCcw className="size-3" /> voltar ao original
           </button>
         ) : null}
       </div>
@@ -145,10 +145,10 @@ function SizeRow({ value, changed, onChange, onReset }: { value: number; changed
   return (
     <div>
       <div className="mb-1 flex items-center justify-between">
-        <span className="text-xs font-medium text-zinc-600">Tamanho da fonte</span>
+        <span className="text-xs font-medium text-zinc-600">Tamanho da letra</span>
         {changed ? (
           <button type="button" onClick={onReset} className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-ink">
-            <RotateCcw className="size-3" /> original
+            <RotateCcw className="size-3" /> voltar ao original
           </button>
         ) : null}
       </div>
@@ -194,7 +194,8 @@ export function ElementColorPopup({
   tones?: ToneRow[];
 }) {
   const other: Device = device === 'mobile' ? 'desktop' : 'mobile';
-  const [scope, setScope] = useState<'exact' | 'similar'>(() => (colors[device][picked.similar] && !colors[device][picked.exact] ? 'similar' : 'exact'));
+  const hasSame = picked.similarCount > 1;
+  const [scope, setScope] = useState<'exact' | 'similar'>(() => (hasSame && colors[device][picked.similar] && !colors[device][picked.exact] ? 'similar' : 'exact'));
   const selector = scope === 'exact' ? picked.exact : picked.similar;
   const saved: ElementColor | undefined = colors[device][selector];
   const [text, setText] = useState<string | null>(saved?.text ?? null);
@@ -235,6 +236,13 @@ export function ElementColorPopup({
       const merged: ElementColor = { ...keep, ...(entry?.text ? { text: entry.text } : {}), ...(entry?.bg ? { bg: entry.bg } : {}), ...(entry?.size ? { size: entry.size } : {}) };
       if (Object.keys(merged).length) next[d][selector] = merged;
       else delete next[d][selector];
+      // "Todos iguais": a cor própria deste elemento (mais forte) sairia diferente dos outros
+      const own = scope === 'similar' ? next[d][picked.exact] : undefined;
+      if (own) {
+        const { text: _t, bg: _b, size: _s, ...rest } = own;
+        if (Object.keys(rest).length) next[d][picked.exact] = rest;
+        else delete next[d][picked.exact];
+      }
     }
     onSave(next);
   };
@@ -250,20 +258,32 @@ export function ElementColorPopup({
   return createPortal(
     <div ref={drag.ref} className="fixed z-50 max-h-[calc(100vh-16px)] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl" style={{ left: drag.pos.left, top: drag.pos.top, width }} role="dialog" aria-label="Alterar cor e tamanho do elemento">
       <PopupHeader onGrab={drag.onGrab} onClose={onClose}>
-        <p className="text-sm font-semibold">{picked.label}</p>
+        <p className="text-sm font-semibold">Editando: {picked.label}</p>
         <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-zinc-500">
           <DeviceIcon className="size-3" /> Layout de {device === 'mobile' ? 'celular' : 'computador'}
         </p>
       </PopupHeader>
 
-      {picked.similar !== picked.exact ? (
-        <div className="mb-3 flex rounded-lg bg-zinc-100 p-0.5 text-xs font-medium">
-          {([['exact', 'Só este'], ['similar', 'Todos iguais a este']] as const).map(([k, l]) => (
-            <button key={k} type="button" onClick={() => setScope(k)} className={cn('flex-1 rounded-md px-2 py-1.5', scope === k ? 'bg-white shadow-sm' : 'text-zinc-500')}>{l}</button>
-          ))}
-        </div>
-      ) : null}
+      {/* Primeiro: onde as mudanças valem */}
+      <div className="mb-3">
+        <p className="mb-1 text-xs font-medium text-zinc-600">Aplicar em</p>
+        {hasSame ? (
+          <div className="grid grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1 text-xs font-medium">
+            {([['exact', 'Só este'], ['similar', `Todos iguais (${picked.similarCount})`]] as const).map(([k, l]) => (
+              <button key={k} type="button" onClick={() => setScope(k)} className={cn('rounded-md px-2 py-1.5', scope === k ? 'bg-brand-600 text-white shadow-sm' : 'text-zinc-600 hover:bg-white')}>{l}</button>
+            ))}
+          </div>
+        ) : null}
+        <p className="mt-1 text-[11px] text-zinc-500">
+          {scope === 'similar'
+            ? `As mudanças valem para os ${picked.similarCount} elementos iguais a este na página.`
+            : hasSame
+              ? 'As mudanças valem só para este elemento.'
+              : 'Não há outros elementos iguais a este na página.'}
+        </p>
+      </div>
 
+      <p className="mb-2 border-t border-zinc-100 pt-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Cores e tamanho</p>
       <div className="space-y-3">
         <ColorRow label="Cor da fonte (texto)" value={text ?? picked.text} original={picked.text} changed={!!text} onChange={setText} onReset={() => setText(null)} tones={tones} />
         <ColorRow label={picked.bgTransparent ? 'Cor de fundo (hoje transparente)' : 'Cor de fundo'} value={bg ?? picked.bg} original={picked.bg} changed={!!bg} onChange={setBg} onReset={() => setBg(null)} tones={tones} />
@@ -277,11 +297,13 @@ export function ElementColorPopup({
 
       <div className="mt-4 flex items-center justify-between gap-2">
         {saved ? (
-          <button type="button" onClick={() => write(null)} className="text-xs text-zinc-500 hover:text-red-600">Remover cor salva</button>
+          <button type="button" onClick={() => write(null)} className="text-xs text-zinc-500 hover:text-red-600">Voltar às cores do modelo</button>
         ) : <span />}
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" onClick={() => write({ ...(text ? { text } : {}), ...(bg ? { bg } : {}), ...(size ? { size } : {}) })} disabled={!text && !bg && !size && !saved}>Salvar</Button>
+          <Button size="sm" onClick={() => write({ ...(text ? { text } : {}), ...(bg ? { bg } : {}), ...(size ? { size } : {}) })} disabled={!text && !bg && !size && !saved}>
+            {scope === 'similar' ? `Aplicar nos ${picked.similarCount}` : 'Aplicar'}
+          </Button>
         </div>
       </div>
     </div>,

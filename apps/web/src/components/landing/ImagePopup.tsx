@@ -60,7 +60,7 @@ const ZOOM_MAX = 300;
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="border-t border-zinc-100 pt-3 first:border-0 first:pt-0">
-      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{title}</p>
+      <p className="mb-2 text-xs font-semibold text-zinc-700">{title}</p>
       <div className="space-y-2">{children}</div>
     </div>
   );
@@ -164,11 +164,11 @@ export function ImagePopup({
   return createPortal(
     <div ref={drag.ref} className="fixed z-50 max-h-[calc(100vh-16px)] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl" style={{ left: drag.pos.left, top: drag.pos.top, width }} role="dialog" aria-label="Opções da foto">
       <PopupHeader onGrab={drag.onGrab} onClose={onClose}>
-        <p className="text-sm font-semibold">Foto</p>
-        <p className="mt-0.5 text-[11px] text-zinc-500">As mudanças aparecem na hora</p>
+        <p className="text-sm font-semibold">Editando: Foto</p>
+        <p className="mt-0.5 text-[11px] text-zinc-500">As mudanças aparecem na hora na prévia</p>
       </PopupHeader>
       <div className="space-y-3">
-        <Section title="Enquadramento">
+        <Section title="Zoom e enquadramento">
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => zoomTo(pct - (pct <= 100 ? 10 : 20))} className="size-8 flex-none rounded-md border border-zinc-200 text-sm hover:border-zinc-400" aria-label="Diminuir zoom">−</button>
             <input type="range" min={ZOOM_MIN} max={ZOOM_MAX} value={pct} onChange={(e) => zoomTo(Number(e.target.value))} className="w-full" aria-label="Zoom" />
@@ -183,13 +183,13 @@ export function ImagePopup({
           </div>
           <p className="text-[11px] text-zinc-400">Para enquadrar ou cortar, use o modo Fotos: arraste a foto ou as alças azuis das bordas.</p>
         </Section>
-        <Section title="Girar e flip">
+        <Section title="Girar e espelhar">
           <div className="flex flex-wrap gap-1">
             {[
               { label: '⟲ Girar 90°', title: 'Girar 90° para a esquerda', onClick: () => rotate(-90), active: false },
               { label: '⟳ Girar 90°', title: 'Girar 90° para a direita', onClick: () => rotate(90), active: false },
-              { label: '⇆ Flip horizontal', title: 'Flip horizontal', onClick: () => set({ fh: draft.fh ? undefined : true }), active: !!draft.fh },
-              { label: '⇅ Flip vertical', title: 'Flip vertical', onClick: () => set({ fv: draft.fv ? undefined : true }), active: !!draft.fv },
+              { label: '⇆ Espelhar na horizontal', title: 'Espelhar na horizontal', onClick: () => set({ fh: draft.fh ? undefined : true }), active: !!draft.fh },
+              { label: '⇅ Espelhar na vertical', title: 'Espelhar na vertical', onClick: () => set({ fv: draft.fv ? undefined : true }), active: !!draft.fv },
             ].map((b) => (
               <button
                 key={b.title}
@@ -204,13 +204,13 @@ export function ImagePopup({
           </div>
           {draft.rot || draft.fh || draft.fv ? (
             <p className="flex items-center gap-3 text-[11px] text-zinc-500">
-              <span>{[draft.rot ? `Girada ${draft.rot}°` : '', draft.fh ? 'flip horizontal' : '', draft.fv ? 'flip vertical' : ''].filter(Boolean).join(' · ')}</span>
+              <span>{[draft.rot ? `Girada ${draft.rot}°` : '', draft.fh ? 'espelhada na horizontal' : '', draft.fv ? 'espelhada na vertical' : ''].filter(Boolean).join(' · ')}</span>
               <button type="button" onClick={() => set({ rot: undefined, fh: undefined, fv: undefined })} className="text-zinc-500 hover:text-ink">⟲ Desfazer</button>
             </p>
           ) : null}
         </Section>
-        <Section title="Estilo">
-          <Slider label="Borda" value={draft.bw ?? 0} max={40} onChange={(v) => set({ bw: v || undefined })} />
+        <Section title="Borda, cantos, sombra e filtro">
+          <Slider label="Espessura da borda" value={draft.bw ?? 0} max={40} onChange={(v) => set({ bw: v || undefined })} />
           {draft.bw ? (
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-zinc-600">Cor da borda</span>
@@ -253,11 +253,11 @@ export function ImagePopup({
               }}
               className="text-[11px] text-zinc-500 hover:text-ink"
             >
-              Tirar estilo
+              Voltar ao estilo do modelo
             </button>
           ) : null}
         </Section>
-        <Section title="Link externo">
+        <Section title="Link (ao clicar na foto)">
           <div className="flex gap-2">
             <input
               value={linkText}

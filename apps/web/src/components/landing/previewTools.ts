@@ -822,8 +822,10 @@ export function attachSectionDrag(doc: Document, onReorder: (keys: string[]) => 
 export interface PickedElement {
   /** Seletor só deste elemento */
   exact: string;
-  /** Seletor de todos os elementos iguais (mesma estrutura) */
+  /** Seletor de todos os elementos iguais na página (mesmo tipo e mesmas classes) */
   similar: string;
+  /** Quantos elementos o seletor de iguais alcança (1 = só este) */
+  similarCount: number;
   label: string;
   text: string;
   bg: string;
@@ -875,6 +877,42 @@ export function selectorFor(el: HTMLElement, withIndex: boolean) {
   }
   parts.unshift('body');
   return parts.join('>');
+}
+
+const stableClasses = (e: Element) => Array.from(e.classList).filter((c) => !VOLATILE.has(c) && /^[A-Za-z0-9_-]{1,60}$/.test(c)).slice(0, 6);
+
+/** Quantos elementos da página (fora das barras do editor) o seletor alcança. */
+export function countMatches(doc: Document, selector: string) {
+  try {
+    return Array.from(doc.querySelectorAll(selector)).filter((e) => !e.closest('[data-lp-ui]')).length;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Seletor de "todos iguais a este" na página inteira (não só na mesma seção): mesmo tipo e mesmas classes,
+ * ex.: todos os botões principais. Classes de variação no fim (ex.: "header-cta") saem até aparecerem outros
+ * iguais. Sem classe, vale dentro do bloco com classe mais próximo (ex.: os textos dos cartões), senão pegaria
+ * todos os parágrafos da página.
+ */
+export function similarSelectorFor(el: HTMLElement) {
+  const tag = el.tagName.toLowerCase();
+  let classes = stableClasses(el);
+  let ctx = '';
+  if (!classes.length) {
+    for (let p = el.parentElement; p && p.tagName !== 'BODY'; p = p.parentElement) {
+      const pc = stableClasses(p);
+      if (pc.length) {
+        ctx = `${p.tagName.toLowerCase()}${pc.map((c) => `.${c}`).join('')} `;
+        break;
+      }
+    }
+  }
+  const build = () => `body ${ctx}${tag}${classes.map((c) => `.${c}`).join('')}`;
+  while (classes.length > 1 && countMatches(el.ownerDocument, build()) < 2) classes = classes.slice(0, -1);
+  const selector = build();
+  return { selector, count: countMatches(el.ownerDocument, selector) };
 }
 
 /** Converte a cor calculada pelo navegador (rgb/rgba/color(srgb …)) em #rrggbb; alfa 0 = null. */
@@ -972,9 +1010,11 @@ export function attachColorPick(doc: Document, onPick: (p: PickedElement) => voi
       const bgTransparent = !bg;
       // Fundo transparente: mostra o fundo que aparece por trás
       for (let p = el.parentElement; !bg && p; p = p.parentElement) bg = cssColorToHex(win.getComputedStyle(p).backgroundColor);
+      const similar = similarSelectorFor(el);
       onPick({
         exact: selectorFor(el, true),
-        similar: selectorFor(el, false),
+        similar: similar.selector,
+        similarCount: similar.count,
         label: describe(el),
         text: cssColorToHex(cs.color) ?? '#000000',
         bg: bg ?? '#ffffff',
@@ -1164,15 +1204,34 @@ export interface TextSizeOptions {
 
 const TEXT_STYLE_KEYS = ['text', 'bg', 'size', 'font', 'bold', 'italic', 'underline', 'hidden'] as const;
 
+/** Fundo dos botões e campos da barra (tema claro). */
+const SOFT = '#f4f4f5';
+/** Botão escolhido em azul; os demais, cinza claro. */
+function paintOn(b: HTMLElement, active: boolean) {
+  b.style.background = active ? '#2563eb' : SOFT;
+  b.style.color = active ? '#fff' : '#18181b';
+}
+
 /** Barra flutuante sobre o texto em edição: fonte, tamanho, negrito, itálico, sublinhado e cor (só na prévia). */
 function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extra: { onParent?: () => void; onRemoved?: () => void; onIcon?: () => void } = {}) {
   const win = doc.defaultView!;
   const px = (n: number) => `${Math.round(n * (opts.uiScale ?? 1))}px`;
   const exact = selectorFor(el, true);
-  const similar = selectorFor(el, false);
+  const { selector: similar, count: similarCount } = similarSelectorFor(el);
   const hasStyle = (sel: string) => TEXT_STYLE_KEYS.some((k) => opts.getStyle(sel)?.[k] !== undefined);
-  let scope: 'exact' | 'similar' = hasStyle(similar) && !hasStyle(exact) ? 'similar' : 'exact';
+  let scope: 'exact' | 'similar' = similarCount > 1 && hasStyle(similar) && !hasStyle(exact) ? 'similar' : 'exact';
   const sel = () => (scope === 'exact' ? exact : similar);
+  /**
+   * Grava o estilo no alcance escolhido. Em "Todos iguais", tira o mesmo item do "Só este" deste elemento:
+   * a regra só dele é mais forte e o deixaria diferente dos outros.
+   */
+  const style = (patch: Parameters<TextSizeOptions['setStyle']>[1]) => {
+    opts.setStyle(sel(), patch);
+    if (scope !== 'similar') return;
+    const own = opts.getStyle(exact);
+    const clear = Object.fromEntries(Object.keys(patch).filter((k) => own?.[k as keyof ElementColor] !== undefined).map((k) => [k, null]));
+    if (Object.keys(clear).length) opts.setStyle(exact, clear);
+  };
   const saved = () => opts.getStyle(sel()) ?? {};
   const cs = () => win.getComputedStyle(el);
   const computedSize = () => Math.round(parseFloat(cs().fontSize)) || 16;
@@ -1264,14 +1323,14 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
 
   const bar = doc.createElement('div');
   bar.dataset.lpUi = 'size';
-  bar.setAttribute('style', `position:fixed;z-index:9999;display:flex;flex-direction:column;gap:${px(2)};padding:${px(4)};border-radius:${px(10)};background:rgba(17,24,39,.94);color:#fff;font:500 ${px(12)}/1 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.3);white-space:nowrap;box-sizing:border-box;max-width:calc(100vw - ${px(8)})`);
+  bar.setAttribute('style', `position:fixed;z-index:9999;display:flex;flex-direction:column;gap:${px(2)};padding:${px(8)};border-radius:${px(12)};background:#fff;color:#18181b;border:1px solid #e4e4e7;font:500 ${px(12)}/1 system-ui,sans-serif;box-shadow:0 12px 32px rgba(0,0,0,.18);white-space:nowrap;box-sizing:border-box;max-width:calc(100vw - ${px(8)})`);
   // Linhas quebram quando a prévia é estreita (celular): a barra nunca passa da largura da tela
   const row = () => {
     const r = doc.createElement('div');
     r.setAttribute('style', `display:flex;flex-wrap:wrap;align-items:center;gap:${px(2)}`);
     return r;
   };
-  const btnCss = `height:${px(28)};min-width:${px(28)};padding:0 ${px(8)};border:0;border-radius:${px(7)};background:transparent;color:#fff;font:600 ${px(13)}/1 system-ui,sans-serif;cursor:pointer`;
+  const btnCss = `height:${px(28)};min-width:${px(28)};padding:0 ${px(8)};border:0;border-radius:${px(7)};background:${SOFT};color:#18181b;font:600 ${px(13)}/1 system-ui,sans-serif;cursor:pointer`;
   const mk = (label: string, title: string, onClick: () => void, extra = '') => {
     const b = doc.createElement('button');
     b.type = 'button';
@@ -1288,7 +1347,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     });
     return b;
   };
-  const fieldCss = `height:${px(28)};border:0;border-radius:${px(7)};background:rgba(255,255,255,.12);color:#fff;font:500 ${px(12)}/1 system-ui,sans-serif;cursor:pointer`;
+  const fieldCss = `height:${px(28)};border:1px solid #e4e4e7;border-radius:${px(7)};background:${SOFT};color:#18181b;font:500 ${px(12)}/1 system-ui,sans-serif;cursor:pointer`;
 
   // Fonte
   const font = doc.createElement('select');
@@ -1303,7 +1362,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   }
   font.addEventListener('change', () => {
     loadTextFont(doc, font.value || undefined);
-    opts.setStyle(sel(), { font: font.value || null });
+    style({ font: font.value || null });
     later(render);
   });
 
@@ -1317,7 +1376,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
       value.textContent = `${next}px`;
       return;
     }
-    opts.setStyle(sel(), { size: next });
+    style({ size: next });
     render();
   };
   // Tamanho de partida: o do trecho selecionado, ou o do texto inteiro
@@ -1328,9 +1387,9 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   const isBold = () => saved().bold ?? Number(cs().fontWeight) >= 600;
   const isItalic = () => saved().italic ?? cs().fontStyle === 'italic';
   const isUnderline = () => saved().underline ?? cs().textDecorationLine.includes('underline');
-  const bold = mk('B', 'Negrito (com um trecho selecionado, só nele)', () => (partial() ? inlineCmd('bold') : (opts.setStyle(sel(), { bold: !isBold() }), render())), ';font-weight:800');
-  const italic = mk('I', 'Itálico (com um trecho selecionado, só nele)', () => (partial() ? inlineCmd('italic') : (opts.setStyle(sel(), { italic: !isItalic() }), render())), ';font-style:italic;font-family:Georgia,serif');
-  const underline = mk('U', 'Sublinhado (com um trecho selecionado, só nele)', () => (partial() ? inlineCmd('underline') : (opts.setStyle(sel(), { underline: !isUnderline() }), render())), ';text-decoration:underline');
+  const bold = mk('B', 'Negrito (com um trecho selecionado, só nele)', () => (partial() ? inlineCmd('bold') : (style({ bold: !isBold() }), render())), ';font-weight:800');
+  const italic = mk('I', 'Itálico (com um trecho selecionado, só nele)', () => (partial() ? inlineCmd('italic') : (style({ italic: !isItalic() }), render())), ';font-style:italic;font-family:Georgia,serif');
+  const underline = mk('U', 'Sublinhado (com um trecho selecionado, só nele)', () => (partial() ? inlineCmd('underline') : (style({ underline: !isUnderline() }), render())), ';text-decoration:underline');
 
   // Cor do texto
   const color = doc.createElement('input');
@@ -1350,7 +1409,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   color.addEventListener('pointerdown', startColor);
   color.addEventListener('keydown', startColor);
   color.addEventListener('input', () => {
-    if (!colorPartial) return opts.setStyle(sel(), { text: color.value });
+    if (!colorPartial) return style({ text: color.value });
     colorSpan = inlineColor(color.value, colorSpan, colorRange);
   });
 
@@ -1359,7 +1418,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   bg.type = 'color';
   bg.title = 'Cor de fundo';
   bg.setAttribute('style', `${fieldCss};width:${px(34)};padding:${px(3)}`);
-  bg.addEventListener('input', () => opts.setStyle(sel(), { bg: bg.value }));
+  bg.addEventListener('input', () => style({ bg: bg.value }));
   const bgLabel = doc.createElement('span');
   bgLabel.textContent = 'Fundo';
   bgLabel.setAttribute('style', `opacity:.7;padding-left:${px(4)}`);
@@ -1373,14 +1432,22 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     if (hidden) extra.onRemoved?.();
   });
   // Elemento de fora (ex.: do texto para o cartão inteiro)
-  const iconBtn = extra.onIcon ? mk('◇ Trocar ícone', 'Escolher outro ícone', extra.onIcon, `;font-weight:500;font-size:${px(12)};background:rgba(255,255,255,.12)`) : null;
+  const iconBtn = extra.onIcon ? mk('◇ Trocar ícone', 'Escolher outro ícone', extra.onIcon, `;font-weight:500;font-size:${px(12)}`) : null;
   const parent = extra.onParent ? mk('↑ Elemento de fora', 'Selecionar o elemento que contém este', extra.onParent, `;font-weight:500;font-size:${px(12)}`) : null;
 
-  const scopeBtn = mk('', 'Aplicar só neste texto ou em todos os textos iguais a este', () => {
-    scope = scope === 'exact' ? 'similar' : 'exact';
+  const setScope = (next: 'exact' | 'similar') => {
+    scope = next;
     render();
-  });
-  const reset = mk('⟲', 'Voltar ao padrão (fonte, tamanho, estilo e cor do texto)', () => {
+  };
+  const onlyThis = mk('Só este', 'As mudanças valem só para este elemento', () => setScope('exact'), `;font-weight:500;font-size:${px(12)}`);
+  const allSame = mk(`Todos iguais (${similarCount})`, `As mudanças valem para os ${similarCount} elementos iguais a este na página`, () => setScope('similar'), `;font-weight:500;font-size:${px(12)}`);
+  const scopeHint = doc.createElement('div');
+  scopeHint.setAttribute('style', `padding:${px(2)} ${px(6)} ${px(4)};color:#71717a;font-size:${px(11)};white-space:normal;line-height:1.35`);
+  // Contorno tracejado nos iguais enquanto "Todos iguais" estiver escolhido: mostra o que vai mudar
+  const sameMark = doc.createElement('style');
+  sameMark.dataset.lpUi = 'same';
+  doc.head.appendChild(sameMark);
+  const reset = mk('⟲ Voltar ao original', 'Voltar ao padrão (fonte, tamanho, estilo e cor)', () => {
     opts.setStyle(sel(), { text: null, bg: null, size: null, font: null, bold: null, italic: null, underline: null, w: null, wc: null });
     later(render);
   });
@@ -1389,10 +1456,10 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   const effect = mk('', 'Efeito quando o texto aparece na tela (celular e computador)', () => {
     menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
     place();
-  }, `;background:rgba(255,255,255,.12);font-weight:500;font-size:${px(12)}`);
+  }, `;background:${SOFT};font-weight:500;font-size:${px(12)}`);
   const menu = doc.createElement('div');
   menu.setAttribute('style', `display:none;flex-direction:column;gap:${px(6)};padding:${px(6)} ${px(4)} ${px(2)};max-width:min(${px(330)}, 100%);box-sizing:border-box;white-space:normal`);
-  const chipCss = `height:${px(26)};padding:0 ${px(9)};border:0;border-radius:${px(13)};background:rgba(255,255,255,.1);color:#fff;font:500 ${px(12)}/1 system-ui,sans-serif;cursor:pointer`;
+  const chipCss = `height:${px(26)};padding:0 ${px(9)};border:0;border-radius:${px(13)};background:${SOFT};color:#18181b;font:500 ${px(12)}/1 system-ui,sans-serif;cursor:pointer`;
   const chips: [TextEffect | null, HTMLButtonElement][] = [];
   const chip = (value: TextEffect | null, label: string) => {
     const c = mk(label, value ? `Efeito: ${label}` : 'Sem efeito', () => {
@@ -1482,7 +1549,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   };
   const choice = (labels: [string, string], get: () => boolean, set: (v: boolean) => void) => {
     const [yes, no] = [true, false].map((v, i) => mk(labels[i], labels[i], () => (set(v), renderLink()), chipCss.replace(/^/, ';')));
-    return { el: [yes, no], paint: () => ([yes, no].forEach((b, i) => (b.style.background = get() === !i ? '#2563eb' : 'rgba(255,255,255,.1)'))) };
+    return { el: [yes, no], paint: () => ([yes, no].forEach((b, i) => paintOn(b, get() === !i))) };
   };
   const underlineChoice = choice(['Sublinhado', 'Sem sublinhado'], () => linkUnderline, (v) => (linkUnderline = v));
   const tabChoice = choice(['Nova aba', 'Mesma aba'], () => linkNewTab, (v) => (linkNewTab = v));
@@ -1534,7 +1601,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     closeLink();
     el.focus({ preventScroll: true });
   };
-  const applyBtn = mk('Aplicar link', 'Aplicar link', applyLink, `;background:#2563eb;font-weight:600;font-size:${px(12)}`);
+  const applyBtn = mk('Aplicar link', 'Aplicar link', applyLink, `;background:#2563eb;color:#fff;font-weight:600;font-size:${px(12)}`);
   const removeLink = mk('Remover link', 'Remover link', () => {
     if (elementMode) {
       opts.setLink?.(linkTarget(), null);
@@ -1544,7 +1611,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     }
     closeLink();
     if (el.isContentEditable) el.focus({ preventScroll: true });
-  }, `;background:rgba(239,68,68,.85);font-weight:500;font-size:${px(12)}`);
+  }, `;background:#fee2e2;color:#b91c1c;font-weight:500;font-size:${px(12)}`);
   linkUrl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -1589,7 +1656,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     place();
     linkUrl.focus();
     },
-    `;background:rgba(255,255,255,.12);font-weight:500;font-size:${px(12)}`,
+    `;background:${SOFT};font-weight:500;font-size:${px(12)}`,
   );
 
   const tag = doc.createElement('span');
@@ -1597,7 +1664,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   tag.textContent = opts.deviceLabel;
 
   const on = (b: HTMLButtonElement, active: boolean) => {
-    b.style.background = active ? 'rgba(255,255,255,.22)' : 'transparent';
+    paintOn(b, active);
     b.setAttribute('aria-pressed', String(active));
   };
   function render() {
@@ -1608,14 +1675,23 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     on(italic, isItalic());
     on(underline, isUnderline());
     color.value = s.text ?? cssColorToHex(cs().color) ?? '#000000';
-    scopeBtn.textContent = scope === 'exact' ? 'Só este' : 'Todos iguais';
+    paintOn(onlyThis, scope === 'exact');
+    paintOn(allSame, scope === 'similar');
+    scopeHint.textContent =
+      scope === 'similar'
+        ? `As mudanças valem para os ${similarCount} iguais (contornados em azul).`
+        : similarCount > 1
+          ? 'As mudanças valem só para este elemento.'
+          : 'Não há outros elementos iguais a este na página.';
+    sameMark.textContent = scope === 'similar' ? `${similar}{outline:2px dashed #2563eb!important;outline-offset:3px}` : '';
     bg.value = s.bg ?? cssColorToHex(cs().backgroundColor) ?? '#ffffff';
     speed.value = String(s.fxSpeed ?? 1);
     showSpeed();
-    remove.textContent = s.hidden ? '↺ Restaurar' : '🗑 Excluir';
-    remove.style.background = s.hidden ? '#16a34a' : 'rgba(239,68,68,.85)';
+    remove.textContent = s.hidden ? '↺ Restaurar elemento' : '🗑 Excluir da página';
+    remove.style.background = s.hidden ? '#dcfce7' : '#fee2e2';
+    remove.style.color = s.hidden ? '#15803d' : '#b91c1c';
     effect.textContent = `✦ Efeito: ${s.fx ? EFFECT_LABEL.get(s.fx) ?? s.fx : 'nenhum'} ▾`;
-    for (const [v, c] of chips) c.style.background = (s.fx ?? null) === v ? '#2563eb' : 'rgba(255,255,255,.1)';
+    for (const [v, c] of chips) paintOn(c, (s.fx ?? null) === v);
   }
   // Valores que dependem do CSS recém-aplicado: lê depois do navegador redesenhar
   const later = (fn: () => void) => win.requestAnimationFrame(() => win.requestAnimationFrame(fn));
@@ -1663,31 +1739,51 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   const hasText = !!el.innerText?.trim();
   const line = (label: string, ...items: HTMLElement[]) => {
     const r = doc.createElement('div');
-    r.setAttribute('style', `display:flex;flex-wrap:nowrap;align-items:center;gap:${px(2)}`);
+    r.setAttribute('style', `display:flex;flex-wrap:nowrap;align-items:center;gap:${px(4)}`);
     const name = doc.createElement('span');
     name.textContent = label;
-    name.setAttribute('style', `flex:none;min-width:${px(64)};padding:0 ${px(6)};opacity:.6;font-size:${px(11)}`);
+    name.setAttribute('style', `flex:none;min-width:${px(84)};padding:0 ${px(6)};color:#52525b;font-size:${px(12)}`);
     r.append(name, ...items);
     return r;
   };
+  // Título de cada grupo de opções, com uma linha separando do grupo de cima
+  const section = (title: string) => {
+    const t = doc.createElement('div');
+    t.textContent = title;
+    t.setAttribute('style', `margin-top:${px(4)};padding:${px(8)} ${px(6)} ${px(2)};border-top:1px solid #e4e4e7;color:#a1a1aa;font-size:${px(10)};font-weight:700;letter-spacing:.06em;text-transform:uppercase`);
+    return t;
+  };
   bgLabel.remove();
+  // Topo: alça, o que está sendo editado e o layout
+  const title = doc.createElement('span');
+  title.textContent = `Editando: ${describe(el)}`;
+  title.setAttribute('style', `font-weight:700;font-size:${px(13)};padding-right:${px(8)}`);
+  tag.setAttribute('style', `margin-left:auto;padding:${px(3)} ${px(8)};border-radius:999px;background:${SOFT};color:#52525b;font-size:${px(11)}`);
   const head = row();
   head.style.flexWrap = 'nowrap';
-  head.append(handle, tag);
+  head.append(handle, title, tag);
   bar.append(head);
+  // Primeiro decide onde as mudanças valem; só aparece quando há outros iguais
+  if (similarCount > 1) bar.append(line('Aplicar em', onlyThis, allSame));
+  bar.append(scopeHint);
   if (hasText) {
     bar.append(
-      line('Fonte', font, reset),
+      section('Texto'),
+      line('Fonte', font),
       line('Tamanho', mk('A−', 'Diminuir fonte (com um trecho selecionado, só nele)', () => setSize(Math.max(8, current() - step()))), value, mk('A+', 'Aumentar fonte (com um trecho selecionado, só nele)', () => setSize(Math.min(160, current() + step())))),
       line('Estilo', bold, italic, underline),
       line('Cor do texto', color),
     );
   }
+  bar.append(section('Aparência'), line('Cor de fundo', bg));
+  if (hasText) bar.append(line('', reset));
   // Link: trecho do texto em edição, ou o elemento inteiro (botão, emoji, ícone…)
-  if ((el.isContentEditable && hasText) || (elementMode && opts.setLink)) bar.append(line('Link', linkBtn), linkPanel);
-  bar.append(line('Fundo', bg), line('Aplicar em', scopeBtn));
+  const hasLink = (el.isContentEditable && hasText) || (elementMode && opts.setLink);
+  if (hasLink || opts.setEffect || iconBtn) bar.append(section('Mais opções'));
+  if (hasLink) bar.append(line('Link', linkBtn), linkPanel);
   if (opts.setEffect) bar.append(line('Efeito', effect), menu);
   if (iconBtn) bar.append(line('Ícone', iconBtn));
+  if (parent || opts.setHidden) bar.append(section('Elemento'));
   if (parent) bar.append(line('Selecionar', parent));
   if (opts.setHidden) bar.append(line('Excluir', remove));
   render();
@@ -1735,6 +1831,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
       parentWin?.removeEventListener('scroll', place, true);
       parentWin?.removeEventListener('resize', place);
       widthUi?.close();
+      sameMark.remove();
       bar.remove();
     },
   };
