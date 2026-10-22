@@ -5,6 +5,7 @@ import { Card, EmptyState, ErrorBlock, Input, LoadingBlock, Pagination, Select }
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
 import { usePagination } from '@/hooks/usePagination';
+import { WhatsAppIcon } from '@/components/crm/WhatsAppIcon';
 import { crmService, money, phone } from '@/services/crm';
 import { isCrmManager } from './CrmLayout';
 
@@ -66,7 +67,19 @@ export function CrmCompaniesPage() {
                       {c.unread ? <span className="ml-2 rounded-full bg-brand-600 px-1.5 text-[11px] font-semibold text-white">{c.unread}</span> : null}
                       <div className="text-xs text-zinc-500">{[c.segment, [c.city, c.state].filter(Boolean).join(' – ')].filter(Boolean).join(' · ')}</div>
                     </td>
-                    <td data-label="WhatsApp" className="px-3 py-3.5 text-zinc-600">{phone(c.whatsapp || c.mobile) || '—'}</td>
+                    <td data-label="WhatsApp" className="px-3 py-3.5 text-zinc-600">
+                      {c.whatsapp || c.mobile ? (
+                        <Link
+                          to={`/crm/whatsapp?empresa=${c.id}`}
+                          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[#128c7e] hover:bg-emerald-50"
+                          title="Conversar pelo WhatsApp do CRM"
+                          aria-label={`Conversar com ${c.name} pelo WhatsApp`}
+                        >
+                          <WhatsAppIcon className="size-4" />
+                          <span className="text-zinc-600">{phone(c.whatsapp || c.mobile)}</span>
+                        </Link>
+                      ) : '—'}
+                    </td>
                     <td data-label="Contatos" className="px-3 py-3.5 text-zinc-600">{c.contacts}</td>
                     <td data-label="Em negociação" className="px-3 py-3.5 text-zinc-600">{c.open_deals ? `${money(c.open_value)} (${c.open_deals})` : '—'}</td>
                     <td data-label="Tarefas" className="px-3 py-3.5 text-zinc-600">{c.pending_tasks || '—'}</td>
