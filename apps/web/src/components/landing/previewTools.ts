@@ -899,17 +899,21 @@ export function countMatches(doc: Document, selector: string) {
 export function similarSelectorFor(el: HTMLElement) {
   const tag = el.tagName.toLowerCase();
   let classes = stableClasses(el);
-  let ctx = '';
   if (!classes.length) {
-    for (let p = el.parentElement; p && p.tagName !== 'BODY'; p = p.parentElement) {
-      const pc = stableClasses(p);
+    // Sem classe: mesma posição dentro do bloco com classe mais próximo (ex.: o texto de todos os botões
+    // principais, sem pegar o ícone ao lado, que também é um <span>)
+    const path: string[] = [];
+    for (let cur: HTMLElement | null = el; cur && cur.tagName !== 'BODY'; cur = cur.parentElement) {
+      const pc = cur === el ? [] : stableClasses(cur);
       if (pc.length) {
-        ctx = `${p.tagName.toLowerCase()}${pc.map((c) => `.${c}`).join('')} `;
-        break;
+        const selector = `body ${cur.tagName.toLowerCase()}${pc.map((c) => `.${c}`).join('')}>${path.join('>')}`;
+        return { selector, count: countMatches(el.ownerDocument, selector) };
       }
+      path.unshift(segment(cur, true));
     }
+    return { selector: selectorFor(el, true), count: 1 };
   }
-  const build = () => `body ${ctx}${tag}${classes.map((c) => `.${c}`).join('')}`;
+  const build = () => `body ${tag}${classes.map((c) => `.${c}`).join('')}`;
   while (classes.length > 1 && countMatches(el.ownerDocument, build()) < 2) classes = classes.slice(0, -1);
   const selector = build();
   return { selector, count: countMatches(el.ownerDocument, selector) };
@@ -1553,7 +1557,17 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   };
   const underlineChoice = choice(['Sublinhado', 'Sem sublinhado'], () => linkUnderline, (v) => (linkUnderline = v));
   const tabChoice = choice(['Nova aba', 'Mesma aba'], () => linkNewTab, (v) => (linkNewTab = v));
+  // Link já colocado: aparece assim que a barra abre (sem precisar abrir o painel)
+  const linkNow = doc.createElement('span');
+  linkNow.setAttribute('style', `min-width:0;max-width:${px(170)};overflow:hidden;text-overflow:ellipsis;color:#2563eb;font-size:${px(12)}`);
+  const showLinkNow = () => {
+    const href = elementMode ? elementLink()?.href : el.querySelector('a[href]')?.getAttribute('href');
+    linkNow.textContent = href ? href.replace(/^https?:\/\//, '') : '';
+    linkNow.title = href ?? '';
+    linkBtn.textContent = href ? '🔗 Trocar link' : '🔗 Adicionar link';
+  };
   const renderLink = () => {
+    showLinkNow();
     underlineChoice.paint();
     tabChoice.paint();
     underlineRow.style.display = elementMode ? 'none' : '';
@@ -1561,6 +1575,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   };
   const closeLink = () => {
     linkPanel.style.display = 'none';
+    showLinkNow();
     place();
   };
   const applyLink = () => {
@@ -1780,13 +1795,14 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   // Link: trecho do texto em edição, ou o elemento inteiro (botão, emoji, ícone…)
   const hasLink = (el.isContentEditable && hasText) || (elementMode && opts.setLink);
   if (hasLink || opts.setEffect || iconBtn) bar.append(section('Mais opções'));
-  if (hasLink) bar.append(line('Link', linkBtn), linkPanel);
+  if (hasLink) bar.append(line('Link', linkBtn, linkNow), linkPanel);
   if (opts.setEffect) bar.append(line('Efeito', effect), menu);
   if (iconBtn) bar.append(line('Ícone', iconBtn));
   if (parent || opts.setHidden) bar.append(section('Elemento'));
   if (parent) bar.append(line('Selecionar', parent));
   if (opts.setHidden) bar.append(line('Excluir', remove));
   render();
+  if (hasLink) showLinkNow();
   doc.body.appendChild(bar);
 
   // A barra fica sempre na parte da prévia que aparece na tela, mesmo rolando a prévia ou a página do editor
@@ -1795,6 +1811,10 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     return Math.max(band.top + 4, Math.min(y, band.bottom - bar.offsetHeight - 4));
   };
   const place = () => {
+    // Prévia baixa: a barra rola por dentro em vez de cortar as últimas opções
+    const band = visibleBand(win);
+    bar.style.maxHeight = `${Math.max(120, band.bottom - band.top - 8)}px`;
+    bar.style.overflowY = 'auto';
     // Barra arrastada pelo usuário: fica onde ele deixou (dentro da parte visível)
     const fixed = barPositions.get(doc);
     if (fixed) {

@@ -2,7 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import { env } from '../config/env.js';
 import { getLandingPageByDomain, getLandingPageBySlug, type LandingPageRow } from '../repositories/landingPages.js';
 import { renderFromData } from '../landing/publish.js';
-import { renderUnavailablePage, REVEAL_SCRIPT_HASH } from '../landing/render.js';
+import { renderUnavailablePage, INLINE_SCRIPT_HASHES } from '../landing/render.js';
 
 /** Cabeçalhos das páginas públicas: CSP restritiva, cache amigável a CDN. */
 export function landingPageHeaders(res: Response, opts: { preview?: boolean } = {}) {
@@ -16,7 +16,7 @@ export function landingPageHeaders(res: Response, opts: { preview?: boolean } = 
       'font-src https://fonts.gstatic.com',
       // Mapa do endereço na seção de contato (Google Maps incorporado, sem chave)
       'frame-src https://www.google.com https://maps.google.com',
-      `script-src ${REVEAL_SCRIPT_HASH}`,
+      `script-src ${INLINE_SCRIPT_HASHES}`,
       "base-uri 'none'",
       "form-action 'none'",
       "frame-ancestors 'self'",

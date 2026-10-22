@@ -33,8 +33,16 @@ import {
 } from './sections/ContentSections.js';
 import { ContactSection, FinalCTA, Footer, WhatsAppFloat } from './sections/ContactSection.js';
 
-/** Hash do único script inline, usado na Content-Security-Policy das páginas públicas. */
-export const REVEAL_SCRIPT_HASH = `'sha256-${crypto.createHash('sha256').update(REVEAL_SCRIPT).digest('base64')}'`;
+/** Scripts dos links externos (elementos e fotos): só entram na página que tem algum link. */
+const ELEMENT_LINKS_INLINE = `addEventListener('DOMContentLoaded',function(){${ELEMENT_LINKS_SCRIPT}})`;
+const IMAGE_LINKS_INLINE = `addEventListener('DOMContentLoaded',function(){${IMAGE_LINKS_SCRIPT}})`;
+
+const sha256 = (code: string) => `'sha256-${crypto.createHash('sha256').update(code).digest('base64')}'`;
+/**
+ * Hashes dos scripts inline, usados na Content-Security-Policy das páginas públicas.
+ * Todo script inline novo precisa entrar aqui, senão o navegador o bloqueia.
+ */
+export const INLINE_SCRIPT_HASHES = [REVEAL_SCRIPT, ELEMENT_LINKS_INLINE, IMAGE_LINKS_INLINE].map(sha256).join(' ');
 
 const NAV_ITEMS: Partial<Record<SectionKey, [string, LabelKey]>> = {
   about: ['#sobre', 'nav_about'],
@@ -207,14 +215,14 @@ export function renderLandingPage(ctx: RenderContext): string {
         {!ctx.editable && elementLinksJson(theme.elementColors) ? (
           <>
             <script type="application/json" id="lp-el-links" dangerouslySetInnerHTML={{ __html: elementLinksJson(theme.elementColors)! }} />
-            <script dangerouslySetInnerHTML={{ __html: `addEventListener('DOMContentLoaded',function(){${ELEMENT_LINKS_SCRIPT}})` }} />
+            <script dangerouslySetInnerHTML={{ __html: ELEMENT_LINKS_INLINE }} />
           </>
         ) : null}
         {/* Links das fotos (só na página publicada: no editor o clique é para editar) */}
         {!ctx.editable && imageLinksJson(theme.imageStyle) ? (
           <>
             <script type="application/json" id="lp-links" dangerouslySetInnerHTML={{ __html: imageLinksJson(theme.imageStyle)! }} />
-            <script dangerouslySetInnerHTML={{ __html: `addEventListener('DOMContentLoaded',function(){${IMAGE_LINKS_SCRIPT}})` }} />
+            <script dangerouslySetInnerHTML={{ __html: IMAGE_LINKS_INLINE }} />
           </>
         ) : null}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ctx) }} />
