@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import { one, query } from '../db/pool.js';
@@ -44,8 +45,17 @@ miscRouter.get('/settings', async (req, res) => {
 // 2 MB — o painel já compacta antes de enviar (apps/web/src/lib/compressImage.ts)
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1 } });
 
+// Cada envio fica guardado (no banco, no Blob ou no disco): limita o volume por hora
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 300,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Limite de envios de imagens por hora atingido. Tente mais tarde.' },
+});
+
 /** Upload de imagens fornecidas pelo administrador (logotipo, fotos). */
-miscRouter.post('/uploads', upload.single('file'), async (req, res) => {
+miscRouter.post('/uploads', uploadLimiter, upload.single('file'), async (req, res) => {
   authUser(req);
   if (!req.file) throw new AppError(400, 'Nenhum arquivo enviado.');
   const ext = detectImageType(req.file.buffer);

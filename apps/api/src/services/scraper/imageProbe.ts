@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { assertPublicHost } from '../../lib/url.js';
+import { fetchPublic } from '../../lib/safeFetch.js';
 
 export interface ImageSize {
   width: number;
@@ -74,11 +74,12 @@ export function parseImageSize(buf: Uint8Array): ImageSize | null {
 export async function probeImage(url: string, referer?: string, timeoutMs = 7000): Promise<ImageSize | null> {
   try {
     const u = new URL(url);
-    await assertPublicHost(u);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(u, {
+      // Cada redirecionamento passa pela checagem de host (antes um redirect levava a endereços internos)
+      const { res } = await fetchPublic(u, {
+        maxRedirects: 4,
         signal: controller.signal,
         headers: {
           Range: `bytes=0-${HEAD_BYTES - 1}`,

@@ -3,6 +3,7 @@ import { one, query } from '../../db/pool.js';
 import { renderFromData } from '../../landing/publish.js';
 import type { LandingPageRow } from '../../repositories/landingPages.js';
 import { uploadJpgToDrive } from '../google/googleDrive.js';
+import { assertPublicHost } from '../../lib/url.js';
 
 const VIEWPORT = { width: 1366, height: 900 };
 const JPEG_QUALITY = 82;
@@ -18,6 +19,25 @@ export interface ScreenshotInfo {
   /** Cópia no Google Drive (pasta "lp"); drive_error quando o envio falhou */
   drive_file_id: string | null;
   drive_error: string | null;
+}
+
+/**
+ * O HTML da página traz URLs de imagens digitadas no cadastro: o navegador só busca endereços públicos
+ * (ou o próprio sistema, para /uploads), nunca a rede interna nem a metadata da nuvem.
+ */
+export async function allowBrowserRequest(raw: string, cache = new Map<string, Promise<boolean>>()): Promise<boolean> {
+  if (raw.startsWith('data:') || raw.startsWith('about:') || raw.startsWith('blob:')) return true;
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (!['http:', 'https:'].includes(u.protocol)) return false;
+  if (u.host === new URL(env.appUrl).host) return true;
+  const key = u.hostname;
+  if (!cache.has(key)) cache.set(key, assertPublicHost(u).then(() => true, () => false));
+  return cache.get(key)!;
 }
 
 async function launchBrowser() {
@@ -40,6 +60,12 @@ export async function captureHtml(html: string) {
   try {
     const page = await browser.newPage();
     await page.setViewport({ ...VIEWPORT, deviceScaleFactor: 1 });
+    const allowed = new Map<string, Promise<boolean>>();
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      if (req.isInterceptResolutionHandled()) return;
+      void allowBrowserRequest(req.url(), allowed).then((ok) => (ok ? req.continue() : req.abort('blockedbyclient')).catch(() => {}));
+    });
     // Movimento reduzido: os textos que "aparecem ao rolar" já ficam visíveis na foto
     await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
     // Caminhos relativos (/uploads, /lp...) resolvem no domínio do sistema

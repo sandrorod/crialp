@@ -3,20 +3,37 @@ import path from 'node:path';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Sem JWT_SECRET, deriva a chave da DATABASE_URL (que já contém a senha do banco).
-// Trocar a senha do banco encerra as sessões abertas. Validado em ensureReady(), não na importação.
+// Em produção o JWT_SECRET é obrigatório: assina as sessões e deriva a chave que criptografa as chaves
+// de API salvas no banco (services/ai/keyStore.ts). Antes, sem ele, a chave vinha da DATABASE_URL —
+// previsível para quem conhece a senha do banco. No desenvolvimento local continua opcional.
+// Validado em ensureReady(), não na importação, para o sistema exibir uma mensagem clara.
+// Sem trim: o valor é usado exatamente como está (trocar o segredo derruba as sessões e as chaves salvas)
 const explicitJwtSecret = process.env.JWT_SECRET || undefined;
 const jwtSecret =
   explicitJwtSecret ??
-  (process.env.DATABASE_URL
-    ? createHash('sha256').update(`lp-jwt:${process.env.DATABASE_URL}`).digest('hex')
-    : isProduction
-      ? ''
+  (isProduction
+    ? ''
+    : process.env.DATABASE_URL
+      ? createHash('sha256').update(`lp-jwt:${process.env.DATABASE_URL}`).digest('hex')
       : 'dev-only-secret-change-me');
-const jwtSecretError =
-  isProduction && explicitJwtSecret && explicitJwtSecret.length < 32
-    ? 'JWT_SECRET deve ter pelo menos 32 caracteres em produção.'
-    : null;
+// Valores de exemplo (.env.example, README) não servem como segredo
+const PLACEHOLDER_SECRETS = ['troque-por-um-segredo-longo-e-aleatorio', 'dev-only-secret-change-me'];
+const dbPassword = (() => {
+  try {
+    return decodeURIComponent(new URL(process.env.DATABASE_URL ?? '').password);
+  } catch {
+    return '';
+  }
+})();
+const jwtSecretError = !isProduction
+  ? null
+  : !explicitJwtSecret
+    ? 'JWT_SECRET não configurado. Em produção defina um segredo aleatório de pelo menos 32 caracteres (ex.: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))").'
+    : explicitJwtSecret.length < 32
+      ? 'JWT_SECRET deve ter pelo menos 32 caracteres em produção.'
+      : PLACEHOLDER_SECRETS.includes(explicitJwtSecret) || (dbPassword.length >= 8 && explicitJwtSecret.includes(dbPassword))
+        ? 'JWT_SECRET usa um valor de exemplo ou a senha do banco. Gere um segredo aleatório exclusivo.'
+        : null;
 
 // Modelo padrão por provedor; ignora um AI_MODEL de outro provedor esquecido no .env
 const aiProvider = (process.env.AI_PROVIDER ?? 'anthropic').toLowerCase();

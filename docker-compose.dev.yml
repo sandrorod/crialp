@@ -6,8 +6,9 @@ services:
       POSTGRES_USER: lp
       POSTGRES_PASSWORD: lp
       POSTGRES_DB: lp
+    # Só nesta máquina (127.0.0.1): a senha "lp" é de desenvolvimento e não pode ficar exposta na rede
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata-dev:/var/lib/postgresql/data
 volumes:

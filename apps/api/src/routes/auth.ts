@@ -18,9 +18,21 @@ const loginLimiter = rateLimit({
   message: { error: 'Muitas tentativas de login. Aguarde alguns minutos.' },
 });
 
+// Por conta (além do limite por IP): tentativas erradas de vários IPs contra o mesmo e-mail.
+// Só conta as que falham, para quem acerta a senha nunca ficar bloqueado por acessos normais.
+const loginAccountLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  skipSuccessfulRequests: true,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => `login:${String(req.body?.email ?? '').trim().toLowerCase().slice(0, 200)}`,
+  message: { error: 'Muitas tentativas de login. Aguarde alguns minutos.' },
+});
+
 const LoginSchema = z.object({ email: z.string().trim().toLowerCase().email('E-mail inválido.'), password: z.string().min(1).max(200) });
 
-authRouter.post('/login', loginLimiter, async (req, res) => {
+authRouter.post('/login', loginLimiter, loginAccountLimiter, async (req, res) => {
   const { email, password } = parseBody(LoginSchema, req.body);
   const user = await one<{ id: string; password_hash: string; name: string; email: string; role: string }>(
     'select id, password_hash, name, email, role from users where lower(email) = $1',
@@ -30,7 +42,7 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
   const ok = await bcrypt.compare(password, user?.password_hash ?? '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinva');
   if (!user || !ok) throw new AppError(401, 'E-mail ou senha incorretos.', 'INVALID_CREDENTIALS');
   await query('update users set last_login_at = now() where id = $1', [user.id]);
-  issueSession(res, user.id);
+  issueSession(res, user.id, user.password_hash);
   const pages = user.role === 'client' ? await clientPages(user.id) : user.role === 'seller' ? await sellerPages(user.id) : [];
   res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, landing_page_ids: pages.map((p) => p.id) } });
 });
@@ -64,7 +76,10 @@ authRouter.post('/password', requireAuth, async (req, res) => {
   if (!row || !(await bcrypt.compare(body.current_password, row.password_hash))) {
     throw new AppError(400, 'Senha atual incorreta.');
   }
-  await query('update users set password_hash = $2 where id = $1', [u.id, await bcrypt.hash(body.new_password, 12)]);
+  const newHash = await bcrypt.hash(body.new_password, 12);
+  await query('update users set password_hash = $2 where id = $1', [u.id, newHash]);
+  // As outras sessões (senha antiga) deixam de valer; esta continua com um token novo
+  issueSession(res, u.id, newHash);
   res.json({ ok: true });
 });
 

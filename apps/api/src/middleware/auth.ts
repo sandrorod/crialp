@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
@@ -24,8 +25,22 @@ declare module 'express-serve-static-core' {
   }
 }
 
-export function issueSession(res: Response, userId: string) {
-  const token = jwt.sign({ sub: userId }, env.jwtSecret, { expiresIn: SESSION_TTL_SECONDS });
+/** Tipo gravado no token de sessão: outros tokens assinados com o mesmo segredo (ex.: state do Google) não valem como login. */
+const SESSION_TYPE = 'session';
+
+/**
+ * Impressão da senha atual dentro do token: trocar a senha (ou o administrador redefini-la)
+ * invalida as sessões abertas com a senha antiga, sem tabela nova no banco.
+ */
+export function passwordVersion(passwordHash: string) {
+  return createHmac('sha256', env.jwtSecret).update(`pv:${passwordHash}`).digest('base64url').slice(0, 16);
+}
+
+export function issueSession(res: Response, userId: string, passwordHash: string) {
+  const token = jwt.sign({ sub: userId, typ: SESSION_TYPE, pv: passwordVersion(passwordHash) }, env.jwtSecret, {
+    expiresIn: SESSION_TTL_SECONDS,
+    algorithm: 'HS256',
+  });
   res.cookie(SESSION_COOKIE, token, {
     httpOnly: true, // inacessível ao JavaScript do navegador
     sameSite: 'lax',
@@ -43,12 +58,16 @@ async function loadUser(req: Request): Promise<AuthUser | null> {
   const token = req.cookies?.[SESSION_COOKIE];
   if (!token) return null;
   try {
-    const payload = jwt.verify(token, env.jwtSecret) as { sub: string };
-    const user = await one<{ id: string; organization_id: string; role: string; name: string; email: string }>(
-      'select id, organization_id, role, name, email from users where id = $1',
+    const payload = verifySessionToken(token);
+    if (!payload) return null;
+    const user = await one<{ id: string; organization_id: string; role: string; name: string; email: string; password_hash: string }>(
+      'select id, organization_id, role, name, email, password_hash from users where id = $1',
       [payload.sub],
     );
     if (!user) return null;
+    // Senha trocada depois do login: a sessão antiga deixa de valer.
+    // Tokens anteriores a esta versão (sem "pv") seguem válidos só até expirar (no máximo 12 h).
+    if (payload.pv !== undefined && payload.pv !== passwordVersion(user.password_hash)) return null;
     const pages = user.role === 'client' ? await clientPages(user.id) : user.role === 'seller' ? await sellerPages(user.id) : [];
     return {
       id: user.id,
@@ -59,6 +78,24 @@ async function loadUser(req: Request): Promise<AuthUser | null> {
       landingPageIds: pages.map((p) => p.id),
       companyIds: [...new Set(pages.map((p) => p.company_id))],
     };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Confere assinatura (só HS256), validade e formato do token de sessão.
+ * Recusa tokens de outro uso assinados com o mesmo segredo (o state do Google Drive tem "p").
+ */
+export function verifySessionToken(token: string): { sub: string; pv?: string } | null {
+  try {
+    const payload = jwt.verify(token, env.jwtSecret, { algorithms: ['HS256'] });
+    if (!payload || typeof payload !== 'object') return null;
+    const { sub, typ, pv, p } = payload as Record<string, unknown>;
+    if (typeof sub !== 'string' || !sub) return null;
+    if (p !== undefined || (typ !== undefined && typ !== SESSION_TYPE)) return null;
+    if (pv !== undefined && typeof pv !== 'string') return null;
+    return { sub, pv: pv as string | undefined };
   } catch {
     return null;
   }
@@ -119,15 +156,27 @@ export function requireSameOriginWrite(req: Request, _res: Response, next: NextF
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
   const type = req.headers['content-type'] ?? '';
   const okType = type.startsWith('application/json') || type.startsWith('multipart/form-data') || !req.headers['content-length'] || req.headers['content-length'] === '0';
-  const origin = req.headers.origin;
-  let okOrigin = !origin;
-  try {
-    okOrigin ||= env.isAppHost(new URL(origin!).hostname);
-  } catch {
-    okOrigin = false;
-  }
-  if (!okType || !okOrigin) return next(new AppError(403, 'Requisição não permitida.', 'CSRF'));
+  // Origin ausente (navegadores antigos, alguns modos de privacidade): vale o Referer, se houver
+  const source = req.headers.origin ?? req.headers.referer;
+  if (!okType || (source !== undefined && !isTrustedOrigin(source))) return next(new AppError(403, 'Requisição não permitida.', 'CSRF'));
   next();
+}
+
+/**
+ * Origem do próprio painel: host do sistema (APP_URL / APP_HOSTS / deploy do Vercel) e, em produção,
+ * só HTTPS — exceto localhost, para rodar o build de produção na própria máquina.
+ */
+export function isTrustedOrigin(value: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(value);
+  } catch {
+    return false; // inclui "null" (iframe isolado, arquivo local)
+  }
+  if (!env.isAppHost(u.hostname)) return false;
+  if (u.protocol === 'https:') return true;
+  const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+  return u.protocol === 'http:' && (!env.isProduction || local);
 }
 
 export function authUser(req: Request): AuthUser {

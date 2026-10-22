@@ -51,6 +51,12 @@ fs.writeFileSync(
     {
       version: 3,
       routes: [
+        // Painel estático: mesmos cabeçalhos básicos que a API envia (sem CSP aqui — ver SECURITY.md)
+        {
+          src: '^/admin(?:/.*)?$',
+          headers: { 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'SAMEORIGIN', 'Referrer-Policy': 'strict-origin-when-cross-origin' },
+          continue: true,
+        },
         { handle: 'filesystem' },
         { src: '^/admin(?:/.*)?$', dest: '/admin/index.html' },
         { src: '^/(.*)$', dest: '/_app?__lp_path=$1' },
