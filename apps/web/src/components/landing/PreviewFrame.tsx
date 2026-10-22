@@ -515,6 +515,26 @@ export function PreviewFrame({
                 colorsRef.current = next;
                 onColorsRef.current?.(next);
               },
+              // Link externo do elemento (botão, emoji/ícone): o mesmo no celular e no computador
+              setLink: (sel, link) => {
+                const all = colorsRef.current ?? { desktop: {}, mobile: {} };
+                const next = { ...all };
+                for (const layout of ['desktop', 'mobile'] as const) {
+                  const map = { ...all[layout] };
+                  const entry: ElementColor = { ...(map[sel] ?? {}) };
+                  delete entry.href;
+                  delete entry.nt;
+                  if (link) {
+                    entry.href = link.href;
+                    if (link.nt) entry.nt = true;
+                  }
+                  if (Object.keys(entry).length) map[sel] = entry;
+                  else delete map[sel];
+                  next[layout] = map;
+                }
+                colorsRef.current = next;
+                onColorsRef.current?.(next);
+              },
               // Velocidade do efeito: a mesma no celular e no computador
               setFxSpeed: (sel, speed) => {
                 const all = colorsRef.current ?? { desktop: {}, mobile: {} };

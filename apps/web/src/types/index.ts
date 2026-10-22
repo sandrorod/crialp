@@ -386,6 +386,9 @@ export interface ElementColor {
   /** Largura do bloco em % da área (arrastada na prévia), por layout; `wc` = centralizado */
   w?: number;
   wc?: boolean;
+  /** Link externo do elemento (botão, emoji/ícone…), igual no celular e no computador; `nt` = abre em nova aba */
+  href?: string;
+  nt?: boolean;
 }
 
 export type TextEffect =

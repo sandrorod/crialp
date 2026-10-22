@@ -26,6 +26,9 @@ export interface ElementColor {
   /** Largura do bloco em % da área (arrastada na prévia), por layout; `wc` = centralizado (margens automáticas) */
   w?: number;
   wc?: boolean;
+  /** Link externo do elemento (botão, emoji/ícone…), igual no celular e no computador; `nt` = abre em nova aba */
+  href?: string;
+  nt?: boolean;
 }
 
 /** Efeitos de movimento dos textos. Mantenha igual em apps/web/src/components/landing/previewTools.ts. */
@@ -79,6 +82,9 @@ export function isElementSelector(sel: unknown): sel is string {
   return typeof sel === 'string' && sel.length <= 600 && sel.split('>').every((s) => SEGMENT_RE.test(s));
 }
 
+/** Link de elemento: só http(s), e-mail e telefone, sem espaços. */
+const isElementLink = (href: string) => href.length <= 2048 && /^(https?:\/\/|mailto:|tel:)\S+$/i.test(href);
+
 const hex = (v: unknown) => (isHex(v) ? (String(v).startsWith('#') ? String(v) : `#${v}`).toLowerCase() : null);
 
 /** Limite do deslocamento do modo "Mover" (px) */
@@ -117,6 +123,7 @@ function normalizeMap(input: unknown): Record<string, ElementColor> {
       ...(mx !== null ? { mx } : {}),
       ...(my !== null ? { my } : {}),
       ...(width !== null ? { w: width, ...(value?.wc === true ? { wc: true } : {}) } : {}),
+      ...(typeof value?.href === 'string' && isElementLink(value.href) ? { href: value.href, ...(value?.nt === true ? { nt: true } : {}) } : {}),
       ...(Number.isFinite(Number(value?.fxSpeed)) && value?.fxSpeed != null && Number(value.fxSpeed) !== 1
         ? { fxSpeed: Math.round(Math.min(2, Math.max(0.1, Number(value.fxSpeed))) * 100) / 100 }
         : {}),
@@ -200,3 +207,19 @@ export function elementFontsHref(colors: ElementColors): string | null {
   const families = [...used].map((k) => TEXT_FONTS[k]?.google).filter(Boolean);
   return families.length ? `https://fonts.googleapis.com/css2?${families.map((f) => `family=${f}`).join('&')}&display=swap` : null;
 }
+
+/** Links dos elementos para o script da página: [seletor, link, nova aba]. */
+export function elementLinksJson(colors: ElementColors): string | null {
+  const seen = new Map<string, [string, string, 0 | 1]>();
+  for (const map of [colors.desktop, colors.mobile]) {
+    for (const [sel, c] of Object.entries(map)) if (c.href && !seen.has(sel)) seen.set(sel, [sel, c.href, c.nt ? 1 : 0]);
+  }
+  // Evita fechar a tag <script> dentro do JSON
+  return seen.size ? JSON.stringify([...seen.values()]).replace(/</g, '\\u003c') : null;
+}
+
+/**
+ * Elemento com link: botão (ou o que está dentro de um link) troca o endereço do próprio link;
+ * emoji, ícone e demais elementos ficam clicáveis (mouse e teclado) e abrem o link.
+ */
+export const ELEMENT_LINKS_SCRIPT = `(function(){var j=document.getElementById('lp-el-links');if(!j)return;var L=[];try{L=JSON.parse(j.textContent)}catch(_){return}L.forEach(function(x){try{document.querySelectorAll(x[0]).forEach(function(n){var a=n.tagName==='A'?n:n.closest('a');if(a){a.setAttribute('href',x[1]);if(x[2]){a.setAttribute('target','_blank');a.setAttribute('rel','noopener noreferrer')}else{a.removeAttribute('target');a.removeAttribute('rel')}return}function go(e){if(e)e.preventDefault();if(x[2])window.open(x[1],'_blank','noopener');else location.href=x[1]}n.style.cursor='pointer';n.setAttribute('role','link');n.setAttribute('tabindex','0');n.addEventListener('click',go);n.addEventListener('keydown',function(e){if(e.key==='Enter')go(e)})})}catch(_){}})})();`;

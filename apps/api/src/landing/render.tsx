@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { SectionKey, SectionOrderKey } from '../services/ai/schemas.js';
 import { CustomSectionView } from './sections/CustomSection.js';
 import { finalCtaVars, sectionVars } from './sectionColors.js';
-import { elementColorsCss, elementFontsHref, MOBILE_MAX, textEffectsJson } from './elementColors.js';
+import { ELEMENT_LINKS_SCRIPT, elementColorsCss, elementFontsHref, elementLinksJson, MOBILE_MAX, textEffectsJson } from './elementColors.js';
 import { sectionSpacingCss } from './spacing.js';
 import { imageSizesCss } from './imageSize.js';
 import { IMAGE_LINKS_SCRIPT, imageLinksJson, imageStylesCss } from './imageStyle.js';
@@ -203,6 +203,13 @@ export function renderLandingPage(ctx: RenderContext): string {
         {/* Efeitos de movimento dos textos (lidos pelo script abaixo) */}
         {textEffectsJson(theme.elementColors) ? <script type="application/json" id="lp-fx" dangerouslySetInnerHTML={{ __html: textEffectsJson(theme.elementColors)! }} /> : null}
         <script dangerouslySetInnerHTML={{ __html: REVEAL_SCRIPT }} />
+        {/* Links de botões, emojis e ícones (só na página publicada) */}
+        {!ctx.editable && elementLinksJson(theme.elementColors) ? (
+          <>
+            <script type="application/json" id="lp-el-links" dangerouslySetInnerHTML={{ __html: elementLinksJson(theme.elementColors)! }} />
+            <script dangerouslySetInnerHTML={{ __html: `addEventListener('DOMContentLoaded',function(){${ELEMENT_LINKS_SCRIPT}})` }} />
+          </>
+        ) : null}
         {/* Links das fotos (só na página publicada: no editor o clique é para editar) */}
         {!ctx.editable && imageLinksJson(theme.imageStyle) ? (
           <>

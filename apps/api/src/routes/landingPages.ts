@@ -156,6 +156,9 @@ const ElementStyleSchema = z.object({
   // Largura do bloco arrastada na prévia (% da área) e se fica centralizado
   w: z.number().min(0).max(400).nullish(),
   wc: z.boolean().nullish(),
+  // Link externo do elemento (botão, emoji/ícone) e se abre em nova aba
+  href: z.string().max(2048).nullish(),
+  nt: z.boolean().nullish(),
 });
 
 const ContentUpdateSchema = z.object({

@@ -1157,6 +1157,8 @@ export interface TextSizeOptions {
   setFxSpeed?: (selector: string, speed: number | null) => void;
   /** Excluir (true) ou restaurar (null) o elemento: vale para celular e computador */
   setHidden?: (selector: string, hidden: true | null) => void;
+  /** Link externo do elemento (botão, emoji/ícone); `null` remove. Vale para celular e computador */
+  setLink?: (selector: string, link: { href: string; nt: boolean } | null) => void;
   uiScale?: number;
 }
 
@@ -1459,6 +1461,15 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     while (a.firstChild) a.parentNode!.insertBefore(a.firstChild, a);
     a.remove();
   };
+  // Botão (texto dentro de um link) ou elemento escolhido sem edição de texto (emoji, ícone, botão): o link vai
+  // para o elemento — no botão, troca o endereço do próprio botão — em vez de um trecho do texto
+  const anchorOf = (el.tagName === 'A' ? el : el.parentElement?.closest('a')) as HTMLElement | null;
+  const elementMode = !el.isContentEditable || !!anchorOf;
+  const linkTarget = () => (anchorOf ? selectorFor(anchorOf, true) : sel());
+  const elementLink = () => {
+    const s = opts.getStyle(linkTarget());
+    return s?.href ? { href: s.href, nt: !!s.nt } : null;
+  };
   /** Link onde está o trecho guardado; sem trecho, o link que ocupa o texto inteiro. */
   const currentLink = (): HTMLAnchorElement | null => {
     if (linkRange) {
@@ -1478,7 +1489,8 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   const renderLink = () => {
     underlineChoice.paint();
     tabChoice.paint();
-    removeLink.style.display = currentLink() ? '' : 'none';
+    underlineRow.style.display = elementMode ? 'none' : '';
+    removeLink.style.display = (elementMode ? elementLink() : currentLink()) ? '' : 'none';
   };
   const closeLink = () => {
     linkPanel.style.display = 'none';
@@ -1489,6 +1501,12 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     if (!href) {
       linkUrl.style.outline = '2px solid #ef4444';
       linkUrl.focus();
+      return;
+    }
+    if (elementMode) {
+      opts.setLink?.(linkTarget(), { href, nt: linkNewTab });
+      closeLink();
+      if (el.isContentEditable) el.focus({ preventScroll: true });
       return;
     }
     let a = currentLink();
@@ -1518,10 +1536,14 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   };
   const applyBtn = mk('Aplicar link', 'Aplicar link', applyLink, `;background:#2563eb;font-weight:600;font-size:${px(12)}`);
   const removeLink = mk('Remover link', 'Remover link', () => {
-    const a = currentLink();
-    if (a) unwrap(a);
+    if (elementMode) {
+      opts.setLink?.(linkTarget(), null);
+    } else {
+      const a = currentLink();
+      if (a) unwrap(a);
+    }
     closeLink();
-    el.focus({ preventScroll: true });
+    if (el.isContentEditable) el.focus({ preventScroll: true });
   }, `;background:rgba(239,68,68,.85);font-weight:500;font-size:${px(12)}`);
   linkUrl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
@@ -1534,9 +1556,28 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     r.append(...items);
     return r;
   };
-  linkPanel.append(linkUrl, linkRow(...underlineChoice.el), linkRow(...tabChoice.el), linkRow(applyBtn, removeLink));
-  const linkBtn = mk('🔗 Link', 'Link externo (com um trecho selecionado, só nele; sem seleção, no texto inteiro)', () => {
+  const underlineRow = linkRow(...underlineChoice.el);
+  linkPanel.append(linkUrl, underlineRow, linkRow(...tabChoice.el), linkRow(applyBtn, removeLink));
+  const linkBtn = mk(
+    '🔗 Link',
+    elementMode
+      ? anchorOf
+        ? 'Link do botão: troca o endereço para onde ele leva'
+        : 'Link externo: clicar neste elemento abre o endereço'
+      : 'Link externo (com um trecho selecionado, só nele; sem seleção, no texto inteiro)',
+    () => {
     if (linkPanel.style.display !== 'none') return closeLink();
+    if (elementMode) {
+      const cur = elementLink();
+      linkUrl.value = cur?.href ?? '';
+      linkNewTab = cur ? cur.nt : true;
+      linkUrl.style.outline = '';
+      renderLink();
+      linkPanel.style.display = 'flex';
+      place();
+      linkUrl.focus();
+      return;
+    }
     linkRange = partial() ? lastRange!.cloneRange() : null;
     const a = currentLink();
     linkUrl.value = a?.getAttribute('href') ?? '';
@@ -1547,7 +1588,9 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     linkPanel.style.display = 'flex';
     place();
     linkUrl.focus();
-  }, `;background:rgba(255,255,255,.12);font-weight:500;font-size:${px(12)}`);
+    },
+    `;background:rgba(255,255,255,.12);font-weight:500;font-size:${px(12)}`,
+  );
 
   const tag = doc.createElement('span');
   tag.setAttribute('style', `opacity:.6;padding:0 ${px(6)}`);
@@ -1639,9 +1682,9 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
       line('Estilo', bold, italic, underline),
       line('Cor do texto', color),
     );
-    // Link só no texto em edição (dá para escolher o trecho)
-    if (el.isContentEditable) bar.append(line('Link', linkBtn), linkPanel);
   }
+  // Link: trecho do texto em edição, ou o elemento inteiro (botão, emoji, ícone…)
+  if ((el.isContentEditable && hasText) || (elementMode && opts.setLink)) bar.append(line('Link', linkBtn), linkPanel);
   bar.append(line('Fundo', bg), line('Aplicar em', scopeBtn));
   if (opts.setEffect) bar.append(line('Efeito', effect), menu);
   if (iconBtn) bar.append(line('Ícone', iconBtn));
