@@ -77,6 +77,27 @@ function InfoCard({ ctx }: { ctx: RenderContext }) {
 }
 
 export function HeroSection({ ctx }: { ctx: RenderContext }) {
+  // Modelo Banner: faixa larga com a foto do topo (ou degradê com o nome da empresa) e o texto centralizado abaixo
+  if (ctx.theme.template === 'banner') {
+    const name = cad(ctx, 'company.name', ctx.displayName);
+    return (
+      <section id="inicio" className="hero hero-centered hero-banner">
+        <div className="banner-media reveal">
+          {ctx.heroImage ? (
+            <img referrerPolicy="no-referrer" src={ctx.heroImage.url} alt={ctx.heroImage.alt} fetchPriority="high" data-lp-img={ctx.heroImage.url} style={ctx.heroImage.style} />
+          ) : (
+            <div className="banner-fill">
+              <span {...name.attrs}>{name.text}</span>
+            </div>
+          )}
+        </div>
+        <div className="container">
+          <Copy ctx={ctx} />
+        </div>
+      </section>
+    );
+  }
+
   // Foto escolhida para o topo aparece mesmo em página criada com topo "Centralizado" (sem foto)
   const variant = ctx.theme.heroVariant === 'centered' && ctx.heroChosen ? 'split' : ctx.theme.heroVariant;
 

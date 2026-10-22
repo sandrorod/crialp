@@ -642,6 +642,18 @@ p{margin:0;text-wrap:pretty}
 
 /* ─── Degradê: cor principal → destaque no topo, botões, ícones e CTA final ─── */
 /* ── Ofício: prestadores de serviço (cabeçalho escuro, mosaico no topo, depoimentos em faixa escura) ── */
+/* Banner: faixa larga com a foto do topo de ponta a ponta (sem texto por cima) e o texto centralizado abaixo */
+.tpl-banner .hero-banner{padding-top:0}
+.tpl-banner .banner-media{position:relative;width:100%;aspect-ratio:21/8;max-height:min(62vh,600px);min-height:220px;overflow:hidden;background:var(--surface)}
+.tpl-banner .banner-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tpl-banner .banner-fill{position:absolute;inset:0;display:grid;place-items:center;padding:24px;background:linear-gradient(120deg,var(--primary),var(--accent));color:#fff;text-align:center}
+.tpl-banner .banner-fill span{font-family:var(--font-heading);font-weight:var(--heading-weight);text-transform:var(--heading-case);font-size:calc(clamp(2rem,1rem + 4vw,4rem) * var(--title-scale));line-height:1.1;text-shadow:0 2px 18px rgba(0,0,0,.25)}
+.tpl-banner .banner-media::after{content:"";position:absolute;inset:auto 0 0;height:6px;background:linear-gradient(90deg,var(--primary),var(--accent))}
+.tpl-banner .hero-banner .container{max-width:900px;margin-top:clamp(32px,5vw,56px)}
+@media(min-width:768px){.tpl-banner .hero-banner .hero-actions .btn{flex:0 1 auto}}
+.tpl-banner .card{border-top:3px solid var(--primary)}
+.tpl-banner .section-head{text-align:center;margin-left:auto;margin-right:auto}
+@media(max-width:767px){.tpl-banner .banner-media{aspect-ratio:16/10;min-height:0}}
 .tpl-oficio{--radius:14px;--radius-sm:12px;--btn-radius:999px;--deep:color-mix(in srgb,var(--primary) 55%,#0b130d)}
 .tpl-oficio .site-header{background:var(--deep);border-bottom:0;box-shadow:0 4px 18px -8px rgba(0,0,0,.45);-webkit-backdrop-filter:none;backdrop-filter:none}
 .tpl-oficio .site-header .brand,.tpl-oficio .site-header .brand span,.tpl-oficio .site-header summary{color:#fff}

@@ -627,6 +627,13 @@ function TemplateThumb({ template }: { template: TemplateKey }) {
         </div>
       </div>
     ),
+    banner: (
+      <div>
+        <div className="h-7 bg-gradient-to-r from-sky-300 via-zinc-300 to-amber-200" />
+        <div className="h-0.5 bg-gradient-to-r from-sky-600 to-amber-500" />
+        <div className="flex flex-col items-center space-y-1 p-2">{bar('70%', 'bg-zinc-600')}{bar('45%')}<span className="mt-1 block h-2 w-8 rounded-full bg-zinc-700" /></div>
+      </div>
+    ),
   }[template];
   const body = {
     classico: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded border border-zinc-300 bg-white" />)}</div>,
@@ -644,6 +651,7 @@ function TemplateThumb({ template }: { template: TemplateKey }) {
     estudio: <div className="flex gap-2"><div className="w-1/3 space-y-1">{bar('90%', 'bg-zinc-500')}{bar('60%')}</div><div className="flex-1 space-y-1.5">{[0, 1].map((i) => <div key={i} className="border-t border-zinc-700 pt-1">{bar('70%')}</div>)}</div></div>,
     degrade: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded-md border border-zinc-200 bg-white p-0.5"><span className="block size-2.5 rounded bg-gradient-to-br from-indigo-500 to-pink-500" /></div>)}</div>,
     oficio: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded-md border border-zinc-200 bg-white p-0.5"><span className="block size-2.5 rounded bg-emerald-100 ring-1 ring-emerald-700/40" /></div>)}</div>,
+    banner: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded border border-t-2 border-zinc-200 border-t-sky-600 bg-white" />)}</div>,
     impacto: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="relative h-5 rounded border-t-2 border-zinc-800 bg-white shadow-sm"><span className="absolute right-0.5 top-0.5 text-[6px] font-bold leading-none text-zinc-300">0{i + 1}</span></div>)}</div>,
   }[template];
   return (
