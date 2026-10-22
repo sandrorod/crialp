@@ -97,6 +97,10 @@ export interface CrmMessage {
   can_react: boolean;
   media_mime: string | null;
   file_name: string | null;
+  /** Apagada para todos (por vocês ou pelo cliente) */
+  revoked: boolean;
+  /** Dá para apagar para todos (enviada por vocês, há menos de ~2 dias) */
+  can_revoke: boolean;
 }
 
 export interface CrmCompanyDetail {

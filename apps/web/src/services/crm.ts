@@ -60,6 +60,7 @@ export const crmService = {
   sync: () => api.post<{ added: number; skipped?: string }>('/crm/sync'),
   unread: () => api.get<{ total: number }>('/crm/unread'),
   messages: (conversationId: string) => api.get<CrmMessage[]>(`/crm/conversations/${conversationId}/messages`),
+  removeMessage: (messageId: string, everyone: boolean) => api.del(`/crm/messages/${messageId}${everyone ? '?everyone=true' : ''}`),
   react: (messageId: string, emoji: string) => api.post(`/crm/messages/${messageId}/reaction`, { emoji }),
   markRead: (conversationId: string) => api.post(`/crm/conversations/${conversationId}/read`),
   send: (to: SendTo, text: string) => api.post<{ conversation_id: string }>('/crm/messages', { ...to, text }),

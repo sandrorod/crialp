@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router';
-import { AlertTriangle, ArrowLeft, Building2, Check, CheckCheck, Clock, MessageCircle, MessageSquarePlus, FileText, Mic, Paperclip, Search, Send, Smile, Trash2, User, UserPlus, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Ban, ChevronDown, Building2, Check, CheckCheck, Clock, MessageCircle, MessageSquarePlus, FileText, Mic, Paperclip, Search, Send, Smile, Trash2, User, UserPlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card, Input, Modal, Spinner, Textarea } from '@/components/ui';
 import { ContactForm } from '@/components/crm/CrmForms';
@@ -235,6 +235,21 @@ function Chat({ conversation, manager, onBack, onChanged }: { conversation: CrmC
   const [linking, setLinking] = useState(false);
   const end = useRef<HTMLDivElement>(null);
 
+  const removeMessage = async (m: CrmMessage, everyone: boolean) => {
+    const question = everyone
+      ? 'Apagar esta mensagem para todos? Ela some também do WhatsApp do cliente.'
+      : 'Apagar esta mensagem só aqui no CRM? Ela continua no WhatsApp do cliente.';
+    if (!window.confirm(question)) return;
+    try {
+      await crmService.removeMessage(m.id, everyone);
+      setData(await crmService.messages(conversation.id));
+      onChanged();
+      toast.success(everyone ? 'Mensagem apagada para todos.' : 'Mensagem apagada do CRM.');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  };
+
   // Reação aparece na hora; se o WhatsApp recusar, volta como estava
   const react = async (m: CrmMessage, emoji: string) => {
     const before = messages;
@@ -284,7 +299,7 @@ function Chat({ conversation, manager, onBack, onChanged }: { conversation: CrmC
           return (
             <div key={m.id}>
               {newDay ? <p className="my-3 text-center text-[11px] text-zinc-400">{new Date(m.created_at).toLocaleDateString('pt-BR')}</p> : null}
-              <Bubble m={m} onReact={react} />
+              <Bubble m={m} onReact={react} onDelete={removeMessage} />
             </div>
           );
         })}
@@ -698,9 +713,9 @@ const MEDIA_TYPES = new Set(['image', 'gif', 'video', 'audio', 'sticker', 'docum
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
-function Bubble({ m, onReact }: { m: CrmMessage; onReact: (m: CrmMessage, emoji: string) => void }) {
+function Bubble({ m, onReact, onDelete }: { m: CrmMessage; onReact: (m: CrmMessage, emoji: string) => void; onDelete: (m: CrmMessage, everyone: boolean) => void }) {
   const out = m.direction === 'out';
-  const [picker, setPicker] = useState<'quick' | 'full' | null>(null);
+  const [picker, setPicker] = useState<'quick' | 'full' | 'menu' | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const reactions = [m.their_reaction, m.my_reaction].filter(Boolean) as string[];
 
@@ -725,8 +740,16 @@ function Bubble({ m, onReact }: { m: CrmMessage; onReact: (m: CrmMessage, emoji:
   return (
     <div className={cn('group flex items-center gap-1', out ? 'flex-row-reverse' : 'flex-row', reactions.length > 0 && 'mb-3')}>
       <div className={cn('relative max-w-[80%] rounded-xl px-3 py-2 text-sm shadow-xs', out ? 'bg-brand-50 text-ink' : 'bg-white text-ink')}>
-        {MEDIA_TYPES.has(m.type) ? <div className="mb-1"><MediaView m={m} /></div> : m.type !== 'text' ? <div className="text-xs italic text-zinc-500">[{TYPE_LABEL[m.type] ?? m.type}]</div> : null}
-        {m.body ? <div className="whitespace-pre-wrap break-words"><Linkified text={m.body} /></div> : null}
+        {m.revoked ? (
+          <div className="flex items-center gap-1.5 italic text-zinc-500">
+            <Ban className="size-3.5" /> {out ? 'Você apagou esta mensagem' : 'Esta mensagem foi apagada'}
+          </div>
+        ) : (
+          <>
+            {MEDIA_TYPES.has(m.type) ? <div className="mb-1"><MediaView m={m} /></div> : m.type !== 'text' ? <div className="text-xs italic text-zinc-500">[{TYPE_LABEL[m.type] ?? m.type}]</div> : null}
+            {m.body ? <div className="whitespace-pre-wrap break-words"><Linkified text={m.body} /></div> : null}
+          </>
+        )}
         <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-zinc-400">
           {out && m.sent_by_name ? <span>{m.sent_by_name} ·</span> : null}
           {new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
@@ -744,12 +767,34 @@ function Bubble({ m, onReact }: { m: CrmMessage; onReact: (m: CrmMessage, emoji:
         ) : null}
       </div>
 
-      {m.can_react ? (
-        <div ref={box} className="relative">
+      <div ref={box} className={cn('relative flex items-center', out ? 'flex-row-reverse' : 'flex-row')}>
           <button
             type="button"
-            onClick={() => setPicker(picker ? null : 'quick')}
-            className={cn('grid size-7 place-items-center rounded-full text-zinc-400 hover:bg-white hover:text-ink', picker ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-60')}
+            onClick={() => setPicker(picker === 'menu' ? null : 'menu')}
+            className={cn('grid size-7 place-items-center rounded-full text-zinc-400 hover:bg-white hover:text-ink', picker === 'menu' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-60')}
+            title="Mais opções"
+            aria-label="Mais opções da mensagem"
+          >
+            <ChevronDown className="size-4" />
+          </button>
+          {picker === 'menu' ? (
+            <div className={cn('absolute bottom-full z-20 mb-1 w-48 overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-lg', out ? 'right-0' : 'left-0')}>
+              <button type="button" onClick={() => { setPicker(null); onDelete(m, false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50">
+                <Trash2 className="size-4" /> Apagar para mim
+              </button>
+              {m.can_revoke ? (
+                <button type="button" onClick={() => { setPicker(null); onDelete(m, true); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">
+                  <Ban className="size-4" /> Apagar para todos
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        {m.can_react ? (
+          <>
+          <button
+            type="button"
+            onClick={() => setPicker(picker === 'quick' || picker === 'full' ? null : 'quick')}
+            className={cn('grid size-7 place-items-center rounded-full text-zinc-400 hover:bg-white hover:text-ink', picker === 'quick' || picker === 'full' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-60')}
             title="Reagir"
             aria-label="Reagir"
           >
@@ -779,8 +824,9 @@ function Bubble({ m, onReact }: { m: CrmMessage; onReact: (m: CrmMessage, emoji:
               </Suspense>
             </div>
           ) : null}
-        </div>
-      ) : null}
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }

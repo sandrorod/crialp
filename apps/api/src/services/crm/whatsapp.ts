@@ -186,9 +186,38 @@ export async function applyEvolutionReaction(m: any): Promise<boolean> {
   return !!rowCount;
 }
 
+/** Mensagem apagada para todos (pelo cliente, ou pelo celular do número central): fica só o aviso. */
+export async function markRevoked(waMessageId: string): Promise<boolean> {
+  const msg = await one<{ id: string; conversation_id: string }>(
+    `update lp_crm_messages set revoked_at = now(), body = null where wa_message_id = $1 and revoked_at is null returning id, conversation_id`,
+    [waMessageId],
+  );
+  if (!msg) return false;
+  await query('delete from lp_crm_media where message_id = $1', [msg.id]);
+  await refreshConversationSummary(msg.conversation_id);
+  return true;
+}
+
+/** Resumo da conversa (última mensagem visível) depois de apagar mensagens. */
+export async function refreshConversationSummary(conversationId: string) {
+  await query(
+    `update lp_crm_conversations cv set last_message = coalesce((
+       select case when m.revoked_at is not null then '🚫 Mensagem apagada'
+                   else left(coalesce(m.body, ''), 200) end
+         from lp_crm_messages m
+        where m.conversation_id = cv.id and m.hidden_at is null
+        order by m.created_at desc limit 1), '')
+      where cv.id = $1`,
+    [conversationId],
+  );
+}
+
 /** Registro da Evolution (webhook, sincronização ou histórico): mensagem nova ou reação. Devolve se mudou algo. */
 export async function ingestEvolutionRecord(orgId: string, m: any, extra: Partial<IncomingMessage> = {}): Promise<boolean> {
   if (m.message?.reactionMessage) return applyEvolutionReaction(m);
+  // "Apagar para todos" chega como protocolMessage do tipo REVOKE (0) apontando a mensagem apagada
+  const proto = m.message?.protocolMessage;
+  if (proto && (proto.type === 'REVOKE' || proto.type === 0) && proto.key?.id) return markRevoked(proto.key.id);
   const parsed = parseEvolutionMessage(m);
   if (!parsed) return false;
   const { inserted } = await registerMessage({ orgId, ...parsed, ...extra, pushName: extra.pushName ?? parsed.pushName });

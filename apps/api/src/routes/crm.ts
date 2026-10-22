@@ -8,7 +8,9 @@ import {
   evolution,
   importHistory,
   loadMedia,
+  markRevoked,
   MEDIA_TYPES,
+  refreshConversationSummary,
   jidNumber,
   loadConfig,
   markReadOnWhatsapp,
@@ -576,9 +578,11 @@ crmRouter.get('/conversations/:id/messages', async (req, res) => {
   const { rows } = await query(
     `select * from (
        select m.id, m.direction, m.type, m.body, m.status, m.created_at, u.name as sent_by_name, m.media_mime, m.file_name,
-              m.my_reaction, m.their_reaction, m.wa_message_id is not null as can_react
+              m.my_reaction, m.their_reaction, m.wa_message_id is not null and m.revoked_at is null as can_react,
+              m.revoked_at is not null as revoked,
+              (m.direction = 'out' and m.wa_message_id is not null and m.revoked_at is null and m.created_at > now() - interval '2 days') as can_revoke
          from lp_crm_messages m left join users u on u.id = m.sent_by
-        where m.conversation_id = $1 order by m.created_at desc limit 200
+        where m.conversation_id = $1 and m.hidden_at is null order by m.created_at desc limit 200
      ) x order by created_at`,
     [conv.id],
   );
@@ -591,6 +595,39 @@ crmRouter.post('/conversations/:id/read', async (req, res) => {
   await query('update lp_crm_conversations set unread = 0 where id = $1', [conv.id]);
   // Confirmação de leitura para o cliente; se o WhatsApp falhar, a conversa continua marcada como lida aqui
   await markReadOnWhatsapp(user.organizationId, conv.id).catch((err) => console.error('[crm] markRead', err));
+  res.json({ ok: true });
+});
+
+// Apagar mensagem: "para mim" some do CRM; "para todos" apaga também no WhatsApp do cliente
+crmRouter.delete('/messages/:id', async (req, res) => {
+  const user = authUser(req);
+  const { everyone } = z.object({ everyone: z.enum(['true', 'false']).optional() }).parse(req.query);
+  const msg = await one<{ id: string; conversation_id: string; direction: string; wa_message_id: string | null; revoked_at: string | null; created_at: string }>(
+    'select id, conversation_id, direction, wa_message_id, revoked_at, created_at from lp_crm_messages where id = $1 and hidden_at is null',
+    [uuidParam.parse(req.params.id)],
+  );
+  if (!msg) throw notFound('Mensagem não encontrada.');
+  const conv = await ensureConversation(user, msg.conversation_id);
+
+  if (everyone === 'true') {
+    if (msg.direction !== 'out' || !msg.wa_message_id) throw badRequest('Só dá para apagar para todos as mensagens enviadas por vocês.');
+    if (msg.revoked_at) throw badRequest('Esta mensagem já foi apagada para todos.');
+    if (Date.now() - new Date(msg.created_at).getTime() > 2 * 24 * 3600 * 1000) {
+      throw badRequest('O WhatsApp só deixa apagar para todos até cerca de 2 dias depois do envio.');
+    }
+    const cfg = await loadConfig(user.organizationId);
+    await evolution(cfg, 'DELETE', `/chat/deleteMessageForEveryone/${cfg?.instance}`, {
+      id: msg.wa_message_id,
+      remoteJid: conv.remote_jid ?? `${normalizeNumber(conv.phone)}@s.whatsapp.net`,
+      fromMe: true,
+    });
+    await markRevoked(msg.wa_message_id);
+    return res.json({ ok: true });
+  }
+
+  await query('update lp_crm_messages set hidden_at = now() where id = $1', [msg.id]);
+  await query('delete from lp_crm_media where message_id = $1', [msg.id]);
+  await refreshConversationSummary(msg.conversation_id);
   res.json({ ok: true });
 });
 

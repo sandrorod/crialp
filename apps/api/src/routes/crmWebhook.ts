@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { uuidParam } from '../lib/validation.js';
-import { ingestEvolutionRecord, STATUS, updateMessageStatus, validWebhookToken } from '../services/crm/whatsapp.js';
+import { ingestEvolutionRecord, markRevoked, STATUS, updateMessageStatus, validWebhookToken } from '../services/crm/whatsapp.js';
 
 /** Eventos da Evolution API (sem sessão: autenticado pelo token da URL). */
 export const crmWebhookRouter = Router();
@@ -17,6 +17,12 @@ crmWebhookRouter.post('/:orgId', async (req, res) => {
 
   if (event === 'messages.upsert') {
     for (const m of list) await ingestEvolutionRecord(orgId.data, m);
+  } else if (event === 'messages.delete') {
+    // Mensagem apagada para todos (a Evolution manda a chave dela)
+    for (const d of list) {
+      const id = d.id ?? d.keyId ?? d.key?.id;
+      if (id) await markRevoked(id);
+    }
   } else if (event === 'messages.update') {
     for (const u of list) {
       const id = u.keyId ?? u.key?.id ?? u.messageId;
