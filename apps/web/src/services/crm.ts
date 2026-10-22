@@ -19,6 +19,8 @@ const qs = (params: Record<string, string | undefined>) => {
 
 export type ContactInput = Omit<CrmContact, 'id'>;
 export type DealInput = { company_id: string; contact_id: string | null; stage_id: string; title: string; value: number; expected_close: string | null; notes: string | null };
+export type SendTo = { conversation_id?: string; contact_id?: string; company_id?: string };
+export type OutgoingMedia = { kind: 'image' | 'gif' | 'video' | 'audio' | 'document'; mime: string; file_name?: string; data: string; caption?: string };
 export type StageInput = { name: string; color: string; kind: 'open' | 'won' | 'lost' };
 export type TaskInput = { title: string; description: string | null; due_at: string | null; company_id: string | null; assignee_id: string | null };
 
@@ -60,8 +62,10 @@ export const crmService = {
   messages: (conversationId: string) => api.get<CrmMessage[]>(`/crm/conversations/${conversationId}/messages`),
   react: (messageId: string, emoji: string) => api.post(`/crm/messages/${messageId}/reaction`, { emoji }),
   markRead: (conversationId: string) => api.post(`/crm/conversations/${conversationId}/read`),
-  send: (to: { conversation_id?: string; contact_id?: string; company_id?: string }, text: string) =>
-    api.post<{ conversation_id: string }>('/crm/messages', { ...to, text }),
+  send: (to: SendTo, text: string) => api.post<{ conversation_id: string }>('/crm/messages', { ...to, text }),
+  sendMedia: (to: SendTo, media: OutgoingMedia) => api.post<{ conversation_id: string }>('/crm/messages/media', { ...to, ...media }),
+  /** Endereço do arquivo de uma mensagem com mídia (exige login; o servidor confere o acesso à conversa). */
+  mediaUrl: (messageId: string) => `/api/crm/media/${messageId}`,
 
   whatsapp: () => api.get<CrmWhatsAppStatus>('/crm/whatsapp'),
   saveWhatsapp: (c: { api_url: string; api_key?: string; instance: string }) => api.put('/crm/whatsapp', c),

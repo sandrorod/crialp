@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router';
-import { AlertTriangle, ArrowLeft, Building2, Check, CheckCheck, Clock, MessageCircle, MessageSquarePlus, Search, Send, Smile, User, UserPlus } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Building2, Check, CheckCheck, Clock, MessageCircle, MessageSquarePlus, FileText, Mic, Paperclip, Search, Send, Smile, Trash2, User, UserPlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card, Input, Modal, Spinner, Textarea } from '@/components/ui';
 import { ContactForm } from '@/components/crm/CrmForms';
@@ -8,7 +8,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { crmService, dateTime, phone, waKey } from '@/services/crm';
+import { crmService, dateTime, phone, waKey, type OutgoingMedia, type SendTo } from '@/services/crm';
 import type { CrmConversation, CrmMessage } from '@/types/crm';
 import { isCrmManager } from './CrmLayout';
 
@@ -292,8 +292,8 @@ function Chat({ conversation, manager, onBack, onChanged }: { conversation: CrmC
       </div>
 
       <Composer
-        onSend={async (text) => {
-          await crmService.send({ conversation_id: conversation.id }, text);
+        to={{ conversation_id: conversation.id }}
+        onSent={async () => {
           setData(await crmService.messages(conversation.id));
           onChanged();
         }}
@@ -334,22 +334,68 @@ function NewConversation({ contactId, companyId, onBack, onSent }: { contactId: 
         {error ?? (data && !data.number ? 'Sem WhatsApp cadastrado.' : 'Nenhuma mensagem ainda. Envie a primeira abaixo.')}
       </div>
       {data?.number ? (
-        <Composer
-          onSend={async (text) => {
-            const r = await crmService.send(contactId ? { contact_id: contactId } : { company_id: companyId! }, text);
-            onSent(r.conversation_id);
-          }}
-        />
+        <Composer to={contactId ? { contact_id: contactId } : { company_id: companyId! }} onSent={onSent} />
       ) : null}
     </>
   );
 }
 
-function Composer({ onSend }: { onSend: (text: string) => Promise<void> }) {
+const MAX_MEDIA_BYTES = 3 * 1024 * 1024;
+
+type Attachment = OutgoingMedia & { preview: string | null; size: number };
+
+const toBase64 = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1] ?? '');
+    r.onerror = () => reject(new Error('Não foi possível ler o arquivo.'));
+    r.readAsDataURL(blob);
+  });
+
+/** Foto grande vira JPEG de até 1600px (o WhatsApp recomprime de qualquer jeito); GIF fica como está. */
+async function shrinkImage(file: File): Promise<Blob> {
+  if (file.type === 'image/gif' || (file.size < 900 * 1024 && /jpe?g|png/.test(file.type))) return file;
+  const bmp = await createImageBitmap(file).catch(() => null);
+  if (!bmp) return file;
+  const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bmp.width * k);
+  canvas.height = Math.round(bmp.height * k);
+  canvas.getContext('2d')!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  return new Promise((resolve) => canvas.toBlob((b) => resolve(b ?? file), 'image/jpeg', 0.82));
+}
+
+function kindOf(file: File): OutgoingMedia['kind'] {
+  if (file.type === 'image/gif') return 'gif';
+  if (file.type.startsWith('image/')) return 'image';
+  if (file.type.startsWith('video/')) return 'video';
+  if (file.type.startsWith('audio/')) return 'audio';
+  return 'document';
+}
+
+async function toAttachment(file: File | Blob, name: string, kind: OutgoingMedia['kind']): Promise<Attachment> {
+  const blob = kind === 'image' && file instanceof File ? await shrinkImage(file) : file;
+  if (blob.size > MAX_MEDIA_BYTES) throw new Error(`O arquivo tem ${(blob.size / 1024 / 1024).toFixed(1).replace('.', ',')} MB — o limite é 3 MB.`);
+  const mime = (blob.type || 'application/octet-stream').split(';')[0];
+  return {
+    kind,
+    mime: kind === 'image' && blob !== file ? 'image/jpeg' : mime,
+    file_name: kind === 'image' && blob !== file ? name.replace(/\.[^.]+$/, '') + '.jpg' : name,
+    data: await toBase64(blob),
+    preview: ['image', 'gif', 'video'].includes(kind) ? URL.createObjectURL(blob) : null,
+    size: blob.size,
+  };
+}
+
+function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string) => void | Promise<void> }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [attachment, setAttachment] = useState<Attachment | null>(null);
+  const [recording, setRecording] = useState<{ started: number; seconds: number } | null>(null);
+  const recorder = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream; cancel: boolean } | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const box = useRef<HTMLFormElement>(null);
 
   // Fecha o seletor ao clicar fora ou apertar Esc
@@ -365,6 +411,19 @@ function Composer({ onSend }: { onSend: (text: string) => Promise<void> }) {
     };
   }, [emojiOpen]);
 
+  // Cronômetro da gravação
+  useEffect(() => {
+    if (!recording) return;
+    const t = setInterval(() => setRecording((r) => (r ? { ...r, seconds: Math.floor((Date.now() - r.started) / 1000) } : r)), 500);
+    return () => clearInterval(t);
+  }, [recording?.started]);
+
+  // Libera a prévia e o microfone ao sair
+  useEffect(() => () => {
+    if (attachment?.preview) URL.revokeObjectURL(attachment.preview);
+  }, [attachment]);
+  useEffect(() => () => recorder.current?.stream.getTracks().forEach((t) => t.stop()), []);
+
   /** Emoji entra onde está o cursor (ou no lugar do trecho selecionado), e o cursor fica depois dele. */
   const insertEmoji = (emoji: string) => {
     const el = input.current;
@@ -378,22 +437,100 @@ function Composer({ onSend }: { onSend: (text: string) => Promise<void> }) {
     });
   };
 
-  const submit = async (e?: FormEvent) => {
-    e?.preventDefault();
-    if (!text.trim() || sending) return;
+  const sendMedia = async (media: OutgoingMedia) => {
     setSending(true);
     try {
-      await onSend(text);
+      const r = await crmService.sendMedia(to, media);
+      await onSent(r.conversation_id);
+      return true;
+    } catch (err) {
+      toast.error(errorMessage(err));
+      return false;
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const pickFile = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      setAttachment(await toAttachment(file, file.name, kindOf(file)));
+      input.current?.focus();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  };
+
+  const submit = async (e?: FormEvent) => {
+    e?.preventDefault();
+    if (sending) return;
+    if (attachment) {
+      const { preview: _p, size: _s, ...media } = attachment;
+      // Áudio vai como mensagem de voz (sem legenda): o texto, se houver, segue em outra mensagem
+      const ok = await sendMedia({ ...media, caption: media.kind === 'audio' ? undefined : text.trim() || undefined });
+      if (!ok) return;
+      setAttachment(null);
+      if (media.kind !== 'audio' || !text.trim()) {
+        setText('');
+        setEmojiOpen(false);
+        return;
+      }
+    }
+    if (!text.trim()) return;
+    setSending(true);
+    try {
+      const r = await crmService.send(to, text);
       setText('');
       setEmojiOpen(false);
+      await onSent(r.conversation_id);
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
       setSending(false);
     }
   };
+
+  const startRecording = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      return toast.error('Este navegador não grava áudio.');
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const type = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'].find((t) => MediaRecorder.isTypeSupported(t));
+      const rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+      const state = { rec, chunks: [] as Blob[], stream, cancel: false };
+      rec.ondataavailable = (e) => e.data.size && state.chunks.push(e.data);
+      rec.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        recorder.current = null;
+        setRecording(null);
+        if (state.cancel || !state.chunks.length) return;
+        const blob = new Blob(state.chunks, { type: rec.mimeType || type || 'audio/webm' });
+        try {
+          const a = await toAttachment(blob, 'audio', 'audio');
+          await sendMedia(a);
+        } catch (err) {
+          toast.error(errorMessage(err));
+        }
+      };
+      recorder.current = state;
+      rec.start();
+      setRecording({ started: Date.now(), seconds: 0 });
+    } catch {
+      toast.error('Não foi possível usar o microfone. Libere o acesso no navegador.');
+    }
+  };
+  const stopRecording = (cancel: boolean) => {
+    if (!recorder.current) return;
+    recorder.current.cancel = cancel;
+    recorder.current.rec.stop();
+  };
+
+  const iconBtn = 'grid size-10 place-items-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-ink disabled:opacity-40';
+  const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
   return (
-    <form ref={box} onSubmit={submit} className="relative flex items-end gap-2 border-t border-zinc-100 bg-white p-3">
+    <form ref={box} onSubmit={submit} className="relative border-t border-zinc-100 bg-white p-3">
       {emojiOpen ? (
         <div className="absolute bottom-full right-3 z-20 mb-2 max-w-[calc(100vw-24px)] overflow-hidden rounded-xl shadow-2xl">
           <Suspense fallback={<div className="grid h-[380px] w-[340px] place-items-center bg-white"><Spinner /></div>}>
@@ -401,34 +538,130 @@ function Composer({ onSend }: { onSend: (text: string) => Promise<void> }) {
           </Suspense>
         </div>
       ) : null}
-      <Textarea
-        ref={input}
-        rows={1}
-        className="max-h-40 min-h-10 resize-none py-2"
-        placeholder="Digite uma mensagem (Enter envia, Shift+Enter quebra linha)"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            void submit();
-          }
-        }}
-      />
-      <div className="flex flex-col gap-1">
-        <button
-          type="button"
-          onClick={() => setEmojiOpen((o) => !o)}
-          className={cn('grid size-10 place-items-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-ink', emojiOpen && 'bg-zinc-100 text-ink')}
-          title="Emojis"
-          aria-label="Emojis"
-          aria-expanded={emojiOpen}
-        >
-          <Smile className="size-5" />
-        </button>
-        <Button type="submit" loading={sending} disabled={!text.trim()} aria-label="Enviar" icon={<Send className="size-4" />} />
-      </div>
+
+      {attachment ? (
+        <div className="mb-2 flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-2">
+          {attachment.preview && attachment.kind === 'video' ? (
+            <video src={attachment.preview} className="size-14 rounded object-cover" muted />
+          ) : attachment.preview ? (
+            <img src={attachment.preview} alt="" className="size-14 rounded object-cover" />
+          ) : (
+            <span className="grid size-14 place-items-center rounded bg-white text-zinc-400">{attachment.kind === 'audio' ? <Mic className="size-5" /> : <FileText className="size-5" />}</span>
+          )}
+          <div className="min-w-0 flex-1 text-sm">
+            <div className="truncate font-medium text-ink">{attachment.file_name}</div>
+            <div className="text-xs text-zinc-500">
+              {MEDIA_LABEL[attachment.kind]} · {Math.max(1, Math.round(attachment.size / 1024))} KB
+              {attachment.kind === 'audio' ? ' · vai como mensagem de voz' : ' · o texto abaixo vira a legenda'}
+            </div>
+          </div>
+          <button type="button" onClick={() => setAttachment(null)} className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-200 hover:text-ink" aria-label="Tirar anexo" title="Tirar anexo">
+            <X className="size-4" />
+          </button>
+        </div>
+      ) : null}
+
+      {recording ? (
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => stopRecording(true)} className={iconBtn} aria-label="Descartar áudio" title="Descartar">
+            <Trash2 className="size-5" />
+          </button>
+          <div className="flex flex-1 items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            <span className="size-2.5 animate-pulse rounded-full bg-red-500" /> Gravando… {clock(recording.seconds)}
+          </div>
+          <Button type="button" onClick={() => stopRecording(false)} aria-label="Enviar áudio" icon={<Send className="size-4" />} />
+        </div>
+      ) : (
+        <div className="flex items-end gap-2">
+          <input
+            ref={fileInput}
+            type="file"
+            className="hidden"
+            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip"
+            onChange={(e) => {
+              void pickFile(e.target.files?.[0]);
+              e.target.value = '';
+            }}
+          />
+          <button type="button" onClick={() => fileInput.current?.click()} className={iconBtn} title="Anexar foto, GIF, vídeo, áudio ou documento" aria-label="Anexar" disabled={sending}>
+            <Paperclip className="size-5" />
+          </button>
+          <Textarea
+            ref={input}
+            rows={1}
+            className="max-h-40 min-h-10 resize-none py-2"
+            placeholder={attachment ? 'Legenda (opcional)' : 'Digite uma mensagem (Enter envia, Shift+Enter quebra linha)'}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onPaste={(e) => {
+              // Colar uma imagem (print) vira anexo
+              const file = [...e.clipboardData.files].find((f) => f.type.startsWith('image/'));
+              if (file) {
+                e.preventDefault();
+                void pickFile(file);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                void submit();
+              }
+            }}
+          />
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => setEmojiOpen((o) => !o)}
+              className={cn(iconBtn, emojiOpen && 'bg-zinc-100 text-ink')}
+              title="Emojis"
+              aria-label="Emojis"
+              aria-expanded={emojiOpen}
+            >
+              <Smile className="size-5" />
+            </button>
+            {text.trim() || attachment ? (
+              <Button type="submit" loading={sending} aria-label="Enviar" icon={<Send className="size-4" />} />
+            ) : (
+              <Button type="button" variant="secondary" loading={sending} onClick={() => void startRecording()} aria-label="Gravar áudio" title="Gravar áudio" icon={<Mic className="size-4" />} />
+            )}
+          </div>
+        </div>
+      )}
     </form>
+  );
+}
+
+const MEDIA_LABEL: Record<string, string> = { image: 'Foto', gif: 'GIF', video: 'Vídeo', audio: 'Áudio', document: 'Documento', sticker: 'Figurinha' };
+
+/** Mídia da mensagem: carrega do servidor (que baixa da Evolution na primeira vez). */
+function MediaView({ m }: { m: CrmMessage }) {
+  const [failed, setFailed] = useState(false);
+  const url = crmService.mediaUrl(m.id);
+  if (failed) {
+    return <div className="text-xs italic text-zinc-500">[{MEDIA_LABEL[m.type] ?? m.type} indisponível — veja no celular]</div>;
+  }
+  if (m.type === 'image' || m.type === 'sticker') {
+    return (
+      <a href={url} target="_blank" rel="noreferrer" className="block">
+        <img src={url} alt={MEDIA_LABEL[m.type]} loading="lazy" onError={() => setFailed(true)} className={cn('rounded-lg', m.type === 'sticker' ? 'size-32 object-contain' : 'max-h-72 w-auto max-w-full object-cover')} />
+      </a>
+    );
+  }
+  if (m.type === 'gif') {
+    // GIF do WhatsApp é um vídeo curto; GIF enviado pelo CRM é imagem animada
+    return m.media_mime?.startsWith('image/') ? (
+      <img src={url} alt="GIF" loading="lazy" onError={() => setFailed(true)} className="max-h-72 max-w-full rounded-lg" />
+    ) : (
+      <video src={url} autoPlay loop muted playsInline onError={() => setFailed(true)} className="max-h-72 max-w-full rounded-lg" />
+    );
+  }
+  if (m.type === 'video') return <video src={url} controls preload="metadata" onError={() => setFailed(true)} className="max-h-72 max-w-full rounded-lg" />;
+  if (m.type === 'audio') return <audio src={url} controls preload="none" onError={() => setFailed(true)} className="w-64 max-w-full" />;
+  return (
+    <a href={url} className="flex items-center gap-2 rounded-lg bg-white/60 px-2 py-1.5 text-sm text-brand-700 hover:underline">
+      <FileText className="size-4 flex-none" />
+      <span className="truncate">{m.file_name || 'Documento'}</span>
+    </a>
   );
 }
 
@@ -461,6 +694,8 @@ function Linkified({ text }: { text: string }) {
   );
 }
 
+const MEDIA_TYPES = new Set(['image', 'gif', 'video', 'audio', 'sticker', 'document']);
+
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 function Bubble({ m, onReact }: { m: CrmMessage; onReact: (m: CrmMessage, emoji: string) => void }) {
@@ -490,7 +725,7 @@ function Bubble({ m, onReact }: { m: CrmMessage; onReact: (m: CrmMessage, emoji:
   return (
     <div className={cn('group flex items-center gap-1', out ? 'flex-row-reverse' : 'flex-row', reactions.length > 0 && 'mb-3')}>
       <div className={cn('relative max-w-[80%] rounded-xl px-3 py-2 text-sm shadow-xs', out ? 'bg-brand-50 text-ink' : 'bg-white text-ink')}>
-        {m.type !== 'text' ? <div className="text-xs italic text-zinc-500">[{TYPE_LABEL[m.type] ?? m.type}]</div> : null}
+        {MEDIA_TYPES.has(m.type) ? <div className="mb-1"><MediaView m={m} /></div> : m.type !== 'text' ? <div className="text-xs italic text-zinc-500">[{TYPE_LABEL[m.type] ?? m.type}]</div> : null}
         {m.body ? <div className="whitespace-pre-wrap break-words"><Linkified text={m.body} /></div> : null}
         <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-zinc-400">
           {out && m.sent_by_name ? <span>{m.sent_by_name} ·</span> : null}

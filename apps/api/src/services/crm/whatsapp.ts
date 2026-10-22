@@ -119,6 +119,14 @@ export const STATUS: Record<string, string> = {
   PLAYED: 'read',
 };
 
+/** Dados da mídia (tipo do arquivo e nome, no documento) quando a mensagem tem anexo. */
+function mediaInfo(m: any): { mime: string | null; fileName: string | null } {
+  const msg = m.message ?? {};
+  const media =
+    msg.imageMessage ?? msg.videoMessage ?? msg.audioMessage ?? msg.stickerMessage ?? msg.documentMessage ?? msg.documentWithCaptionMessage?.message?.documentMessage;
+  return { mime: media?.mimetype ?? null, fileName: media?.fileName ?? null };
+}
+
 function messageText(m: any): string | null {
   const msg = m.message ?? {};
   return (
@@ -127,7 +135,6 @@ function messageText(m: any): string | null {
     msg.imageMessage?.caption ??
     msg.videoMessage?.caption ??
     msg.documentMessage?.caption ??
-    msg.documentMessage?.fileName ??
     msg.documentWithCaptionMessage?.message?.documentMessage?.caption ??
     msg.buttonsResponseMessage?.selectedDisplayText ??
     msg.listResponseMessage?.title ??
@@ -139,8 +146,17 @@ function messageText(m: any): string | null {
 function messageType(m: any): string | null {
   const t = m.messageType ?? Object.keys(m.message ?? {}).find((k) => !IGNORED.has(k));
   if (!t || IGNORED.has(t)) return null;
+  // GIF no WhatsApp é um vídeo curto que toca em repetição
+  if (t === 'videoMessage' && m.message?.videoMessage?.gifPlayback) return 'gif';
   return TYPES[t] ?? 'other';
 }
+
+/** Resumo da última mensagem na lista de conversas quando não há texto. */
+export const MEDIA_SUMMARY: Record<string, string> = {
+  image: '📷 Foto', gif: 'GIF', video: '🎥 Vídeo', audio: '🎤 Áudio', sticker: 'Figurinha', document: '📄 Documento',
+  location: '📍 Localização', contact: '👤 Contato', other: 'Mídia',
+};
+export const MEDIA_TYPES = new Set(['image', 'gif', 'video', 'audio', 'sticker', 'document']);
 
 /** JID de telefone; com endereçamento LID o número vem em campos alternativos. Grupos e status são ignorados. */
 function phoneJid(m: any): string | null {
@@ -208,6 +224,7 @@ export function parseEvolutionMessage(m: any): Omit<IncomingMessage, 'orgId'> | 
   if (!jid || !type) return null;
   const fromMe = !!m.key?.fromMe;
   const ts = Number(m.messageTimestamp);
+  const media = mediaInfo(m);
   return {
     phone: jidNumber(jid),
     remoteJid: jid,
@@ -217,6 +234,8 @@ export function parseEvolutionMessage(m: any): Omit<IncomingMessage, 'orgId'> | 
     body: messageText(m),
     waMessageId: m.key?.id ?? null,
     at: ts ? new Date(ts * 1000) : new Date(),
+    mediaMime: media.mime,
+    fileName: media.fileName,
   };
 }
 
@@ -266,10 +285,12 @@ export interface IncomingMessage {
   status?: string;
   /** Histórico importado: não conta como não lida */
   history?: boolean;
+  mediaMime?: string | null;
+  fileName?: string | null;
 }
 
 /** Grava a mensagem (idempotente pelo id do WhatsApp) e atualiza o resumo da conversa. */
-export async function registerMessage(m: IncomingMessage): Promise<{ conversationId: string; inserted: boolean }> {
+export async function registerMessage(m: IncomingMessage): Promise<{ conversationId: string; messageId: string | null; inserted: boolean }> {
   const conv = await one<{ id: string; inserted: boolean }>(
     `insert into lp_crm_conversations (organization_id, phone, remote_jid, push_name) values ($1, $2, $3, $4)
      on conflict (organization_id, wa_key) do update set
@@ -282,24 +303,25 @@ export async function registerMessage(m: IncomingMessage): Promise<{ conversatio
   if (conv.inserted) await relinkConversations(m.orgId, { conversationId: conv.id });
 
   const at = m.at ?? new Date();
-  const msg = await one<{ inserted: boolean }>(
-    `insert into lp_crm_messages (conversation_id, direction, type, body, wa_message_id, status, sent_by, created_at)
-     values ($1, $2, $3, $4, $5, $6, $7, $8)
-     on conflict (wa_message_id) do update set sent_by = coalesce(lp_crm_messages.sent_by, excluded.sent_by)
-     returning (xmax = 0) as inserted`,
-    [conv.id, m.direction, m.type, m.body, m.waMessageId, m.status ?? (m.direction === 'in' ? 'received' : 'sent'), m.sentBy ?? null, at],
+  const msg = await one<{ id: string; inserted: boolean }>(
+    `insert into lp_crm_messages (conversation_id, direction, type, body, wa_message_id, status, sent_by, created_at, media_mime, file_name)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     on conflict (wa_message_id) do update set sent_by = coalesce(lp_crm_messages.sent_by, excluded.sent_by),
+       media_mime = coalesce(lp_crm_messages.media_mime, excluded.media_mime)
+     returning id, (xmax = 0) as inserted`,
+    [conv.id, m.direction, m.type, m.body, m.waMessageId, m.status ?? (m.direction === 'in' ? 'received' : 'sent'), m.sentBy ?? null, at, m.mediaMime ?? null, m.fileName ?? null],
   );
   if (msg?.inserted) {
     await query(
       `update lp_crm_conversations set
-         last_message = left(coalesce($2, '[' || $3 || ']'), 200),
+         last_message = left(coalesce($2, $3), 200),
          last_message_at = greatest(coalesce(last_message_at, '-infinity'), $4),
          unread = case when $6 then unread when $5 = 'in' then unread + 1 else 0 end
        where id = $1`,
-      [conv.id, m.body, m.type, at, m.direction, !!m.history],
+      [conv.id, m.body || null, MEDIA_SUMMARY[m.type] ?? `[${m.type}]`, at, m.direction, !!m.history],
     );
   }
-  return { conversationId: conv.id, inserted: !!msg?.inserted };
+  return { conversationId: conv.id, messageId: msg?.id ?? null, inserted: !!msg?.inserted };
 }
 
 const STATUS_RANK = ['error', 'pending', 'sent', 'delivered', 'read'];
@@ -378,4 +400,30 @@ export async function syncRecent(orgId: string): Promise<{ added: number; skippe
   let added = 0;
   for (const m of records) if (await ingestEvolutionRecord(orgId, m)) added++;
   return { added };
+}
+
+// ─── Arquivos das mídias ────────────────────────────────────────────
+
+/** Limite do arquivo guardado/entregue pelo CRM (a resposta de uma função da Vercel tem ~4,5 MB). */
+export const MEDIA_MAX_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Arquivo da mensagem: o que já está guardado ou, na primeira vez, baixado da Evolution (que busca no WhatsApp).
+ * Áudio vem convertido para MP4/AAC, que toca em todos os navegadores.
+ */
+export async function loadMedia(orgId: string, msg: { id: string; type: string; wa_message_id: string | null; media_mime: string | null }) {
+  const stored = await one<{ mime: string; data: Buffer }>('select mime, data from lp_crm_media where message_id = $1', [msg.id]);
+  if (stored) return stored;
+  if (!msg.wa_message_id) return null;
+  const cfg = await loadConfig(orgId);
+  const r = await evolution<{ base64?: string; mimetype?: string }>(cfg, 'POST', `/chat/getBase64FromMediaMessage/${cfg?.instance}`, {
+    message: { key: { id: msg.wa_message_id } },
+    convertToMp4: msg.type === 'audio',
+  });
+  if (!r?.base64) return null;
+  const data = Buffer.from(r.base64, 'base64');
+  const mime = (msg.type === 'audio' ? 'audio/mp4' : r.mimetype || msg.media_mime || 'application/octet-stream').split(';')[0];
+  if (data.length > MEDIA_MAX_BYTES) return { mime, data: null as unknown as Buffer, tooBig: true };
+  await query('insert into lp_crm_media (message_id, mime, data) values ($1, $2, $3) on conflict (message_id) do nothing', [msg.id, mime, data]);
+  return { mime, data };
 }

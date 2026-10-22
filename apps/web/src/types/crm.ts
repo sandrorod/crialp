@@ -95,6 +95,8 @@ export interface CrmMessage {
   my_reaction: string | null;
   their_reaction: string | null;
   can_react: boolean;
+  media_mime: string | null;
+  file_name: string | null;
 }
 
 export interface CrmCompanyDetail {

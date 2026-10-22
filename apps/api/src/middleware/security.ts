@@ -25,6 +25,8 @@ export function securityHeaders(opts: { csp?: string } = {}) {
 export const ADMIN_CSP = [
   "default-src 'self'",
   "img-src 'self' https: data: blob:",
+  // Áudio e vídeo do WhatsApp do CRM (arquivos da API e prévia do anexo antes de enviar)
+  "media-src 'self' blob:",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   // Prévia do editor: mapa do Google na seção de contato

@@ -7,6 +7,8 @@ import { authUser, MANAGER_ROLES, requireRole, type AuthUser } from '../middlewa
 import {
   evolution,
   importHistory,
+  loadMedia,
+  MEDIA_TYPES,
   jidNumber,
   loadConfig,
   markReadOnWhatsapp,
@@ -573,7 +575,7 @@ crmRouter.get('/conversations/:id/messages', async (req, res) => {
   const conv = await ensureConversation(user, uuidParam.parse(req.params.id));
   const { rows } = await query(
     `select * from (
-       select m.id, m.direction, m.type, m.body, m.status, m.created_at, u.name as sent_by_name,
+       select m.id, m.direction, m.type, m.body, m.status, m.created_at, u.name as sent_by_name, m.media_mime, m.file_name,
               m.my_reaction, m.their_reaction, m.wa_message_id is not null as can_react
          from lp_crm_messages m left join users u on u.id = m.sent_by
         where m.conversation_id = $1 order by m.created_at desc limit 200
@@ -619,33 +621,34 @@ const SendSchema = z.object({
   text: z.string().trim().min(1, 'Mensagem vazia.').max(4000),
 });
 
-crmRouter.post('/messages', async (req, res) => {
-  const user = authUser(req);
-  const b = parseBody(SendSchema, req.body);
-  let number: string;
+type SendTarget = { conversation_id?: string; contact_id?: string; company_id?: string };
+
+/** Número de destino (conversa, contato ou WhatsApp da empresa), respeitando a carteira do vendedor. */
+async function resolveTarget(user: AuthUser, b: SendTarget) {
   // Enviando pelo WhatsApp da empresa: a conversa fica com ela (o número pode estar em mais de uma empresa)
-  let companyTarget: string | null = null;
   if (b.conversation_id) {
     const conv = await ensureConversation(user, b.conversation_id);
-    number = conv.remote_jid ? jidNumber(conv.remote_jid) : normalizeNumber(conv.phone);
-  } else if (b.contact_id) {
+    return { number: conv.remote_jid ? jidNumber(conv.remote_jid) : normalizeNumber(conv.phone), companyTarget: null };
+  }
+  if (b.contact_id) {
     const ct = await ensureContact(user, b.contact_id);
     if (!ct.whatsapp) throw badRequest('Este contato não tem WhatsApp cadastrado.');
-    number = normalizeNumber(ct.whatsapp);
-  } else if (b.company_id) {
+    return { number: normalizeNumber(ct.whatsapp), companyTarget: null };
+  }
+  if (b.company_id) {
     const co = await ensureCompany(user, b.company_id);
     const n = co.whatsapp || co.mobile;
     if (!n) throw badRequest('Esta empresa não tem WhatsApp cadastrado.');
-    number = normalizeNumber(n);
-    companyTarget = co.id;
-  } else {
-    throw badRequest('Informe a conversa, o contato ou a empresa.');
+    return { number: normalizeNumber(n), companyTarget: co.id as string | null };
   }
+  throw badRequest('Informe a conversa, o contato ou a empresa.');
+}
 
-  const cfg = await loadConfig(user.organizationId);
-  let sent: any;
+/** Envia pela Evolution traduzindo "número sem WhatsApp" para uma mensagem clara. */
+async function sendViaEvolution(orgId: string, path: string, body: unknown) {
+  const cfg = await loadConfig(orgId);
   try {
-    sent = await evolution(cfg, 'POST', `/message/sendText/${cfg?.instance}`, { number, text: b.text });
+    return await evolution<any>(cfg, 'POST', `${path}/${cfg?.instance}`, body);
   } catch (err) {
     const status = (err as { evolutionStatus?: number }).evolutionStatus;
     if (status === 400 && /exists|not.*whatsapp/i.test((err as { evolutionMessage?: string }).evolutionMessage ?? '')) {
@@ -653,22 +656,104 @@ crmRouter.post('/messages', async (req, res) => {
     }
     throw err;
   }
+}
+
+/** Grava a mensagem enviada e liga a conversa à empresa escolhida. */
+async function recordSent(user: AuthUser, number: string, companyTarget: string | null, sent: any, msg: { type: string; body: string | null; mediaMime?: string | null; fileName?: string | null }) {
   const jid: string = sent?.key?.remoteJid ?? `${number}@s.whatsapp.net`;
-  const { conversationId } = await registerMessage({
+  const r = await registerMessage({
     orgId: user.organizationId,
     phone: jidNumber(jid),
     remoteJid: jid,
     pushName: null,
     direction: 'out',
-    type: 'text',
-    body: b.text,
     waMessageId: sent?.key?.id ?? null,
     sentBy: user.id,
+    ...msg,
   });
   if (companyTarget) {
-    await query('update lp_crm_conversations set company_id = $2 where id = $1 and contact_id is null', [conversationId, companyTarget]);
+    await query('update lp_crm_conversations set company_id = $2 where id = $1 and contact_id is null', [r.conversationId, companyTarget]);
   }
+  return r;
+}
+
+crmRouter.post('/messages', async (req, res) => {
+  const user = authUser(req);
+  const b = parseBody(SendSchema, req.body);
+  const { number, companyTarget } = await resolveTarget(user, b);
+  const sent = await sendViaEvolution(user.organizationId, '/message/sendText', { number, text: b.text });
+  const { conversationId } = await recordSent(user, number, companyTarget, sent, { type: 'text', body: b.text });
   res.status(201).json({ conversation_id: conversationId });
+});
+
+// Imagem, GIF, vídeo, documento ou áudio (o áudio vai como mensagem de voz). Arquivo em base64, até ~3 MB.
+const MediaSchema = z.object({
+  conversation_id: uuidParam.optional(),
+  contact_id: uuidParam.optional(),
+  company_id: uuidParam.optional(),
+  kind: z.enum(['image', 'gif', 'video', 'audio', 'document']),
+  mime: z.string().max(100).regex(/^[\w.+-]+\/[\w.+-]+$/, 'Tipo de arquivo inválido.'),
+  file_name: z.string().trim().max(200).optional(),
+  data: z.string().min(1).max(4_300_000),
+  caption: z.string().trim().max(1000).optional(),
+});
+
+crmRouter.post('/messages/media', async (req, res) => {
+  const user = authUser(req);
+  const b = parseBody(MediaSchema, req.body);
+  const bytes = Buffer.from(b.data, 'base64');
+  if (!bytes.length) throw badRequest('Arquivo vazio.');
+  const { number, companyTarget } = await resolveTarget(user, b);
+  const caption = b.caption || undefined;
+  const sent =
+    b.kind === 'audio'
+      ? await sendViaEvolution(user.organizationId, '/message/sendWhatsAppAudio', { number, audio: b.data })
+      : await sendViaEvolution(user.organizationId, '/message/sendMedia', {
+          number,
+          // GIF vai como imagem animada (image/gif); vídeo e documento com o tipo próprio
+          mediatype: b.kind === 'gif' ? 'image' : b.kind,
+          mimetype: b.mime,
+          media: b.data,
+          caption,
+          fileName: b.file_name || undefined,
+        });
+  const r = await recordSent(user, number, companyTarget, sent, {
+    type: b.kind,
+    body: caption ?? null,
+    mediaMime: b.mime,
+    fileName: b.file_name ?? null,
+  });
+  // Guarda o arquivo enviado para mostrar no CRM sem baixar de novo
+  if (r.messageId) {
+    await query('insert into lp_crm_media (message_id, mime, data) values ($1, $2, $3) on conflict (message_id) do nothing', [
+      r.messageId,
+      b.kind === 'audio' ? b.mime.split(';')[0] : b.mime,
+      bytes,
+    ]);
+  }
+  res.status(201).json({ conversation_id: r.conversationId });
+});
+
+// Arquivo da mídia de uma mensagem (só para quem acessa a conversa)
+crmRouter.get('/media/:id', async (req, res) => {
+  const user = authUser(req);
+  const msg = await one<{ id: string; conversation_id: string; type: string; wa_message_id: string | null; media_mime: string | null; file_name: string | null }>(
+    'select id, conversation_id, type, wa_message_id, media_mime, file_name from lp_crm_messages where id = $1',
+    [uuidParam.parse(req.params.id)],
+  );
+  if (!msg || !MEDIA_TYPES.has(msg.type)) throw notFound('Arquivo não encontrado.');
+  await ensureConversation(user, msg.conversation_id);
+  const media = await loadMedia(user.organizationId, msg);
+  if (!media) throw notFound('O arquivo não está mais disponível no WhatsApp.');
+  if ('tooBig' in media) throw new AppError(413, 'Arquivo grande demais para abrir no CRM. Veja no celular.', 'CRM_MEDIA_TOO_BIG');
+  res.set({
+    'Content-Type': media.mime,
+    'Cache-Control': 'private, max-age=86400',
+    'X-Content-Type-Options': 'nosniff',
+    // Documento baixa com o nome original; o resto abre na página
+    'Content-Disposition': msg.type === 'document' ? `attachment; filename*=UTF-8''${encodeURIComponent(msg.file_name || 'arquivo')}` : 'inline',
+  });
+  res.send(media.data);
 });
 
 // ─── WhatsApp: conexão (somente gerência) ───────────────────────────
