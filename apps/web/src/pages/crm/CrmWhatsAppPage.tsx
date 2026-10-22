@@ -530,7 +530,7 @@ function NewChatPicker({ onClose, onPick }: { onClose: () => void; onPick: (p: {
     return () => clearTimeout(t);
   }, [search]);
   const { data, loading } = useAsync(() => crmService.whatsappTargets(debounced || undefined), [debounced]);
-  const empty = data && !data.companies.length && !data.contacts.length;
+  const [tab, setTab] = useState<'contatos' | 'empresas'>('contatos');
   const Item = ({ icon, title, sub, onClick }: { icon: React.ReactNode; title: string; sub: string; onClick: () => void }) => (
     <li>
       <button type="button" onClick={onClick} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-zinc-50">
@@ -542,32 +542,49 @@ function NewChatPicker({ onClose, onPick }: { onClose: () => void; onPick: (p: {
       </button>
     </li>
   );
+  const tabs = [
+    { key: 'contatos' as const, label: 'Contatos', count: data?.contacts.length ?? 0 },
+    { key: 'empresas' as const, label: 'Empresas', count: data?.companies.length ?? 0 },
+  ];
+  const items =
+    tab === 'contatos'
+      ? (data?.contacts ?? []).map((c) => (
+          <Item key={c.id} icon={<User className="size-4" />} title={c.name} sub={`${phone(c.whatsapp)} · ${c.company_name}`} onClick={() => onPick({ contato: c.id })} />
+        ))
+      : (data?.companies ?? []).map((c) => (
+          <Item key={c.id} icon={<Building2 className="size-4" />} title={c.name} sub={[phone(c.whatsapp), c.city].filter(Boolean).join(' · ')} onClick={() => onPick({ empresa: c.id })} />
+        ));
   return (
     <Modal open title="Nova conversa" tight="more" onClose={onClose}>
       <Input autoFocus placeholder="Buscar por nome ou número…" value={search} onChange={(e) => setSearch(e.target.value)} />
-      <div className="mt-3 max-h-[50vh] overflow-y-auto">
+      {/* Abas: mostra só a lista escolhida */}
+      <div className="mt-3 flex gap-1 border-b border-zinc-200" role="tablist">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.key}
+            onClick={() => setTab(t.key)}
+            className={cn(
+              '-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium',
+              tab === t.key ? 'border-ink text-ink' : 'border-transparent text-zinc-500 hover:text-ink',
+            )}
+          >
+            {t.label}
+            {data ? <span className="rounded-full bg-zinc-100 px-1.5 text-[11px] text-zinc-600">{t.count}</span> : null}
+          </button>
+        ))}
+      </div>
+      <div className="mt-2 h-[min(50vh,360px)] overflow-y-auto">
         {loading && !data ? <div className="grid place-items-center p-6"><Spinner /></div> : null}
-        {empty ? <p className="p-6 text-center text-sm text-zinc-500">Nada encontrado com WhatsApp cadastrado.</p> : null}
-        {data?.contacts.length ? (
-          <>
-            <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Contatos</p>
-            <ul>
-              {data.contacts.map((c) => (
-                <Item key={c.id} icon={<User className="size-4" />} title={c.name} sub={`${phone(c.whatsapp)} · ${c.company_name}`} onClick={() => onPick({ contato: c.id })} />
-              ))}
-            </ul>
-          </>
-        ) : null}
-        {data?.companies.length ? (
-          <>
-            <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Empresas</p>
-            <ul>
-              {data.companies.map((c) => (
-                <Item key={c.id} icon={<Building2 className="size-4" />} title={c.name} sub={[phone(c.whatsapp), c.city].filter(Boolean).join(' · ')} onClick={() => onPick({ empresa: c.id })} />
-              ))}
-            </ul>
-          </>
-        ) : null}
+        {data && !items.length ? (
+          <p className="p-6 text-center text-sm text-zinc-500">
+            {tab === 'contatos' ? 'Nenhum contato com WhatsApp cadastrado.' : 'Nenhuma empresa com WhatsApp cadastrado.'}
+          </p>
+        ) : (
+          <ul>{items}</ul>
+        )}
       </div>
     </Modal>
   );
