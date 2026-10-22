@@ -74,12 +74,13 @@ export const MOBILE_MAX = 767;
 
 /**
  * Seletores gerados pelo editor: segmentos "tag.classe:nth-child(n)" ou [data-section="…"]
- * ligados por ">". A gramática fechada impede injetar CSS (sem chaves, ponto e vírgula, @ etc.).
+ * ligados por ">" ou por um espaço (os "Todos iguais", ex.: "body a.btn.btn-primary").
+ * A gramática fechada impede injetar CSS (sem chaves, ponto e vírgula, @ etc.).
  */
 const SEGMENT_RE = /^(?:\[data-section="[a-z0-9:_-]{1,60}"\]|[a-z][a-z0-9]{0,15}(?:\.[A-Za-z0-9_-]{1,60}){0,6}(?::nth-child\(\d{1,3}\))?)$/;
 
 export function isElementSelector(sel: unknown): sel is string {
-  return typeof sel === 'string' && sel.length <= 600 && sel.split('>').every((s) => SEGMENT_RE.test(s));
+  return typeof sel === 'string' && sel.length <= 600 && sel.split(/>| /).every((s) => SEGMENT_RE.test(s));
 }
 
 /** Link de elemento: só http(s), e-mail e telefone, sem espaços. */

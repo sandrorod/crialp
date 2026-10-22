@@ -1323,7 +1323,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
 
   const bar = doc.createElement('div');
   bar.dataset.lpUi = 'size';
-  bar.setAttribute('style', `position:fixed;z-index:9999;display:flex;flex-direction:column;gap:${px(2)};padding:${px(8)};border-radius:${px(12)};background:#fff;color:#18181b;border:1px solid #e4e4e7;font:500 ${px(12)}/1 system-ui,sans-serif;box-shadow:0 12px 32px rgba(0,0,0,.18);white-space:nowrap;box-sizing:border-box;max-width:calc(100vw - ${px(8)})`);
+  bar.setAttribute('style', `position:fixed;z-index:9999;display:flex;flex-direction:column;gap:${px(2)};width:${px(340)};padding:${px(8)};border-radius:${px(12)};background:#fff;color:#18181b;border:1px solid #e4e4e7;font:500 ${px(12)}/1 system-ui,sans-serif;box-shadow:0 12px 32px rgba(0,0,0,.18);white-space:nowrap;box-sizing:border-box;max-width:calc(100vw - ${px(8)})`);
   // Linhas quebram quando a prévia é estreita (celular): a barra nunca passa da largura da tela
   const row = () => {
     const r = doc.createElement('div');
