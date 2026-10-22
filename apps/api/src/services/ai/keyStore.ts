@@ -56,8 +56,8 @@ export function quotaFromHeaders(headers: Headers): Record<string, KeyQuota> | n
 }
 
 // Criptografia simétrica derivada do segredo do servidor
-function cipherKey() {
-  return crypto.createHash('sha256').update(`lp-ai-keys:${env.jwtSecret}`).digest();
+function cipherKey(secret = env.jwtSecret) {
+  return crypto.createHash('sha256').update(`lp-ai-keys:${secret}`).digest();
 }
 
 export function encrypt(plain: string) {
@@ -68,14 +68,40 @@ export function encrypt(plain: string) {
 }
 
 export function decrypt(payload: string): string | null {
+  // Durante a troca do segredo, o que foi gravado com o anterior ainda abre
+  return decryptWith(payload, env.jwtSecret) ?? (env.jwtSecretPrevious ? decryptWith(payload, env.jwtSecretPrevious) : null);
+}
+
+function decryptWith(payload: string, secret: string): string | null {
   try {
     const [iv, tag, data] = payload.split('.').map((p) => Buffer.from(p, 'base64'));
-    const d = crypto.createDecipheriv('aes-256-gcm', cipherKey(), iv);
+    const d = crypto.createDecipheriv('aes-256-gcm', cipherKey(secret), iv);
     d.setAuthTag(tag);
     return Buffer.concat([d.update(data), d.final()]).toString('utf8');
   } catch {
     return null; // segredo do servidor mudou: a chave precisa ser cadastrada de novo
   }
+}
+
+/**
+ * Troca do segredo (JWT_SECRET_PREVIOUS definido): regrava com o segredo novo tudo o que ainda está
+ * criptografado com o anterior (chaves de IA/RapidAPI, chave da Evolution, acesso ao Google Drive).
+ * Roda na inicialização; quando nada mais usa o anterior, JWT_SECRET_PREVIOUS pode ser apagado.
+ */
+export async function reencryptWithCurrentSecret() {
+  if (!env.jwtSecretPrevious) return;
+  const previous = env.jwtSecretPrevious;
+  const redo = async (table: string, column: string, idColumn: string, extraWhere = '') => {
+    const { rows } = await query<{ id: string; v: string }>(`select ${idColumn}::text as id, ${column} as v from ${table} where ${column} is not null ${extraWhere}`);
+    for (const r of rows) {
+      if (decryptWith(r.v, env.jwtSecret) !== null) continue;
+      const plain = decryptWith(r.v, previous);
+      if (plain !== null) await query(`update ${table} set ${column} = $2 where ${idColumn}::text = $1`, [r.id, encrypt(plain)]);
+    }
+  };
+  await redo('ai_api_keys', 'key_encrypted', 'id');
+  await redo('lp_crm_whatsapp', 'api_key_encrypted', 'organization_id');
+  await redo('lp_settings', 'value', 'key', "and key = 'google_drive_refresh_token'");
 }
 
 /**

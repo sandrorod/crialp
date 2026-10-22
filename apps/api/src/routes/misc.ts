@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import rateLimit from 'express-rate-limit';
+import { PgRateLimitStore } from '../lib/rateLimitStore.js';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import { one, query } from '../db/pool.js';
@@ -47,6 +48,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 *
 
 // Cada envio fica guardado (no banco, no Blob ou no disco): limita o volume por hora
 const uploadLimiter = rateLimit({
+  store: new PgRateLimitStore('upload'),
   windowMs: 60 * 60 * 1000,
   limit: 300,
   standardHeaders: 'draft-7',

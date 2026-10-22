@@ -6,6 +6,8 @@ process.env.DATABASE_SSL = 'false';
 process.env.APP_URL = 'http://localhost:5173';
 process.env.APP_HOSTS = 'localhost,127.0.0.1';
 process.env.JWT_SECRET = 'segredo-de-teste-com-mais-de-32-caracteres-0123456789';
+// Troca de segredo em andamento: o anterior ainda vale (sessões, chaves criptografadas, webhooks)
+process.env.JWT_SECRET_PREVIOUS = 'segredo-anterior-de-teste-com-mais-de-32-caracteres';
 process.env.STORAGE_DRIVER = 'database';
 process.env.AI_PROVIDER = 'gemini';
 delete process.env.GEMINI_API_KEY;

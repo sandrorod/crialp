@@ -4,6 +4,8 @@ import { one, query } from '../db/pool.js';
 import { AppError, badRequest, notFound } from '../lib/errors.js';
 import { longText, parseBody, text, uuidParam } from '../lib/validation.js';
 import { authUser, MANAGER_ROLES, requireRole, type AuthUser } from '../middleware/auth.js';
+import { env } from '../config/env.js';
+import { assertPublicHost } from '../lib/url.js';
 import {
   evolution,
   importHistory,
@@ -719,7 +721,7 @@ crmRouter.delete('/messages/:id', async (req, res) => {
       remoteJid: conv.remote_jid ?? `${normalizeNumber(conv.phone)}@s.whatsapp.net`,
       fromMe: true,
     });
-    await markRevoked(msg.wa_message_id);
+    await markRevoked(user.organizationId, msg.wa_message_id);
     return res.json({ ok: true });
   }
 
@@ -869,6 +871,9 @@ crmRouter.post('/messages/media', async (req, res) => {
   res.status(201).json({ conversation_id: r.conversationId });
 });
 
+/** Tipos que podem abrir direto no navegador (não executam script). */
+const SAFE_INLINE_MIME = /^(image\/(jpeg|png|webp|gif)|audio\/[\w.+-]+|video\/(mp4|webm|ogg|quicktime))$/i;
+
 // Arquivo da mídia de uma mensagem (só para quem acessa a conversa)
 crmRouter.get('/media/:id', async (req, res) => {
   const user = authUser(req);
@@ -881,12 +886,16 @@ crmRouter.get('/media/:id', async (req, res) => {
   const media = await loadMedia(user.organizationId, msg);
   if (!media) throw notFound('O arquivo não está mais disponível no WhatsApp.');
   if ('tooBig' in media) throw new AppError(413, 'Arquivo grande demais para abrir no CRM. Veja no celular.', 'CRM_MEDIA_TOO_BIG');
+  // O tipo do arquivo vem de quem mandou a mensagem: só foto, áudio e vídeo comuns abrem na página.
+  // Qualquer outro (HTML, SVG, PDF…) baixa como anexo, e a resposta não executa script (sandbox),
+  // senão um arquivo mandado pelo WhatsApp poderia rodar código no painel
+  const inline = msg.type !== 'document' && SAFE_INLINE_MIME.test(media.mime);
   res.set({
-    'Content-Type': media.mime,
+    'Content-Type': inline ? media.mime : 'application/octet-stream',
     'Cache-Control': 'private, max-age=86400',
     'X-Content-Type-Options': 'nosniff',
-    // Documento baixa com o nome original; o resto abre na página
-    'Content-Disposition': msg.type === 'document' ? `attachment; filename*=UTF-8''${encodeURIComponent(msg.file_name || 'arquivo')}` : 'inline',
+    'Content-Security-Policy': "default-src 'none'; sandbox",
+    'Content-Disposition': inline ? 'inline' : `attachment; filename*=UTF-8''${encodeURIComponent(msg.file_name || 'arquivo')}`,
   });
   res.send(media.data);
 });
@@ -925,6 +934,10 @@ wa.put('/', async (req, res) => {
     }),
     req.body,
   );
+  const url = new URL(b.api_url);
+  if (!['http:', 'https:'].includes(url.protocol)) throw new AppError(400, 'A URL da Evolution API deve começar com https://.', 'BAD_REQUEST');
+  // Em produção, endereço interno (localhost, rede privada, metadata da nuvem) é recusado já ao salvar
+  if (env.isProduction) await assertPublicHost(url);
   await saveConfig(user.organizationId, b.api_url, b.api_key || null, b.instance);
   res.json({ ok: true });
 });

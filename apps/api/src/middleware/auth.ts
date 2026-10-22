@@ -32,8 +32,8 @@ const SESSION_TYPE = 'session';
  * Impressão da senha atual dentro do token: trocar a senha (ou o administrador redefini-la)
  * invalida as sessões abertas com a senha antiga, sem tabela nova no banco.
  */
-export function passwordVersion(passwordHash: string) {
-  return createHmac('sha256', env.jwtSecret).update(`pv:${passwordHash}`).digest('base64url').slice(0, 16);
+export function passwordVersion(passwordHash: string, secret = env.jwtSecret) {
+  return createHmac('sha256', secret).update(`pv:${passwordHash}`).digest('base64url').slice(0, 16);
 }
 
 export function issueSession(res: Response, userId: string, passwordHash: string) {
@@ -67,7 +67,7 @@ async function loadUser(req: Request): Promise<AuthUser | null> {
     if (!user) return null;
     // Senha trocada depois do login: a sessão antiga deixa de valer.
     // Tokens anteriores a esta versão (sem "pv") seguem válidos só até expirar (no máximo 12 h).
-    if (payload.pv !== undefined && payload.pv !== passwordVersion(user.password_hash)) return null;
+    if (payload.pv !== undefined && payload.pv !== passwordVersion(user.password_hash, payload.secret)) return null;
     const pages = user.role === 'client' ? await clientPages(user.id) : user.role === 'seller' ? await sellerPages(user.id) : [];
     return {
       id: user.id,
@@ -87,9 +87,18 @@ async function loadUser(req: Request): Promise<AuthUser | null> {
  * Confere assinatura (só HS256), validade e formato do token de sessão.
  * Recusa tokens de outro uso assinados com o mesmo segredo (o state do Google Drive tem "p").
  */
-export function verifySessionToken(token: string): { sub: string; pv?: string } | null {
+export function verifySessionToken(token: string): { sub: string; pv?: string; secret: string } | null {
+  // Durante a troca do segredo, sessões assinadas com o anterior seguem valendo até expirar
+  for (const secret of [env.jwtSecret, env.jwtSecretPrevious].filter((s): s is string => !!s)) {
+    const r = verifyWith(token, secret);
+    if (r) return { ...r, secret };
+  }
+  return null;
+}
+
+function verifyWith(token: string, secret: string): { sub: string; pv?: string } | null {
   try {
-    const payload = jwt.verify(token, env.jwtSecret, { algorithms: ['HS256'] });
+    const payload = jwt.verify(token, secret, { algorithms: ['HS256'] });
     if (!payload || typeof payload !== 'object') return null;
     const { sub, typ, pv, p } = payload as Record<string, unknown>;
     if (typeof sub !== 'string' || !sub) return null;

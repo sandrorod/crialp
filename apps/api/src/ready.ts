@@ -2,6 +2,7 @@ import { env } from './config/env.js';
 import { ensureAdmin } from './db/bootstrap.js';
 import { runMigrations } from './db/migrate.js';
 import { jobService } from './services/jobs/JobService.js';
+import { reencryptWithCurrentSecret } from './services/ai/keyStore.js';
 
 let ready: Promise<void> | null = null;
 
@@ -14,6 +15,8 @@ export function ensureReady(): Promise<void> {
     if (env.jwtSecretError) throw Object.assign(new Error(env.jwtSecretError), { setupMessage: env.jwtSecretError });
     if (!env.databaseUrl) throw new Error('DATABASE_URL não configurada.');
     await runMigrations();
+    if (env.jwtSecretWarning) console.warn(`[segurança] ${env.jwtSecretWarning}`);
+    await reencryptWithCurrentSecret();
     await ensureAdmin();
     await jobService.failStale();
   })().catch((err) => {

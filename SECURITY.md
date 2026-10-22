@@ -1,5 +1,60 @@
 # Segurança do CriaLP
 
+## Auditoria de 22/10/2026 (checklist completo)
+
+A auditoria de 18/10 (seções A–G abaixo) nunca tinha ido para produção: foi mesclada na versão atual
+e revisada junto com tudo o que entrou depois dela (CRM/WhatsApp, avaliações do Google, lote de LPs,
+editor). Testes: 119 (107 anteriores + 12 novos em `apps/api/test/security.test.ts`).
+
+### Checklist
+
+| Item | Situação | Como está |
+|---|---|---|
+| Chave de API protegida | OK | Chaves de IA/RapidAPI/Evolution/Drive só no servidor, criptografadas (AES-256-GCM) no banco; nenhuma no JavaScript do painel (bundle de produção verificado) |
+| `.env` nunca exposto | OK | `.env*` no `.gitignore`; só `.env.example` versionado; `/.env` e `/.git/config` em produção dão 404 |
+| Nenhuma senha no código | OK | Varredura do código e de todo o histórico do Git: só valores de exemplo e o banco descartável de teste |
+| Login de verdade | OK | bcrypt custo 12, cookie `httpOnly`/`SameSite=Lax`/`Secure`, HS256 fixo, sessão cai ao trocar a senha |
+| Permissões no servidor | OK | `requireRole` por rota (dono/admin/vendedor/cliente); testes de papéis |
+| Não confiar no ID da tela | Corrigido (V19) | Toda rota confere se o registro é da organização; o webhook do WhatsApp não conferia |
+| Cada usuário só vê seus dados | OK | Filtro por `organization_id` + escopo do vendedor; testes A×B nas páginas, empresas e CRM |
+| Banco protegido | Corrigido (V01, V22) | RLS em todas as tabelas do sistema (3 estavam abertas à chave `anon` em produção) |
+| Firebase / Supabase / Storage | OK | Firebase não é usado; o lp não usa Supabase Storage nem a chave `anon`. Buckets públicos existentes (BASQUETE, comunicados, tracking-audio) são de outros sistemas do mesmo projeto |
+| Área administrativa protegida | Corrigido (V18) | Sessão + papéis no servidor; o painel na Vercel passou a ter CSP e cabeçalhos de segurança |
+| Debug desligado em produção | OK | Sem `debugger`/logs de segredos; `NODE_ENV=production` na Vercel; `x-powered-by` desligado |
+| Erros sem detalhes sensíveis | OK | Erro interno → "Erro interno. Tente novamente."; detalhes só no log do servidor |
+| Validar tudo no servidor | OK | `zod` em corpo, parâmetros e consultas; IDs como UUID |
+| Limpar o que o usuário envia | OK | React escapa texto; texto formatado só gera tags fixas e links `https:`/`mailto:`/`tel:`; `<style>` com escape central |
+| Upload protegido | Corrigido (V20) | Imagens validadas pelos bytes, 2 MB, servidas com `nosniff`/sandbox; anexos do CRM podiam executar script |
+| Injeção de SQL | OK | Só consultas parametrizadas; o que entra no texto do SQL são nomes fixos de colunas |
+| Limite de tentativas | Corrigido (V21) | Login por IP e por conta, IA, coleta, upload — agora compartilhado entre instâncias |
+| Repositório sem segredos | OK | Ver "Nenhuma senha no código" |
+| Headers e CORS | Corrigido (V18) | Sem CORS liberado (só o próprio site); CSP com hash nas páginas, na API e no painel |
+| Teste como usuário externo | Feito | Produção: rotas protegidas → 401 sem dados; teste automático com token forjado e `alg: none` |
+| Auditoria completa com IA | Feito | Este relatório |
+
+### Vulnerabilidades novas
+
+| Id | Gravidade | Status | Onde | Causa → impacto | Correção | Teste |
+|---|---|---|---|---|---|---|
+| V19 | Média | Corrigido | `routes/crmWebhook.ts`, `services/crm/whatsapp.ts` | Apagar/atualizar status/reação por id do WhatsApp sem filtrar a organização → com o token de uma organização, mexer em mensagens de outra | Filtro pela organização dona da conversa | `security.test.ts` › Webhook |
+| V20 | Média | Corrigido | `routes/crm.ts` (`/crm/media/:id`) | O tipo do anexo vem de quem manda a mensagem: HTML/SVG abria no domínio do painel → script rodando com a sessão de quem abriu | Só foto/áudio/vídeo comuns abrem na página; o resto baixa como anexo, com `CSP: sandbox` | `security.test.ts` › Anexos |
+| V21 | Média | Corrigido | `lib/rateLimitStore.ts` (novo) | Limites em memória: na Vercel cada instância contava separado | Contador no Postgres (`lp_rate_limits`, migration 041) | `security.test.ts` › duas instâncias somam |
+| V22 | Média | Corrigido | `services/crm/whatsapp.ts`, `routes/crm.ts` | URL da Evolution API digitada no painel era chamada sem checagem → SSRF (rede interna/metadata) | Em produção: só endereço público, conferido ao salvar e a cada chamada, sem redirecionamento | Revisão de código |
+| V23 | Baixa | Corrigido (requer ação) | `JWT_SECRET` na Vercel | Segredo de produção com menos de 32 caracteres. A regra da V05 derrubaria o sistema no deploy | Segredo curto vira aviso; troca sem perda com `JWT_SECRET_PREVIOUS` (sessões, chaves criptografadas e webhook antigos continuam valendo; tudo é regravado com o novo na inicialização) | `security.test.ts` › Troca do JWT_SECRET |
+| V24 | Baixa | Corrigido | `package-lock.json` | Vite 8.3.2 (só no desenvolvimento) | 8.3.5 via `npm audit fix` | `npm audit`: 0 |
+
+### Riscos que continuam
+
+| Risco | Motivo | Ação sugerida |
+|---|---|---|
+| `JWT_SECRET` curto em produção | A troca muda a configuração da Vercel | Gerar um novo (48 bytes aleatórios), mover o atual para `JWT_SECRET_PREVIOUS` e fazer o deploy; depois de alguns dias, apagar `JWT_SECRET_PREVIOUS` |
+| `atendimento_lp` sem organização | Tabela global lida por integração externa; hoje há 1 organização | Ter coluna de organização se o sistema passar a ter várias |
+| Outros sistemas no mesmo Supabase | Tabelas e buckets públicos de outros projetos não fazem parte desta auditoria | Revisar RLS e buckets desses sistemas |
+| Posse de domínio personalizado | Igual à seção G | Registro TXT |
+
+---
+
+
 Auditoria de 18/10/2026 (branch `security/auditoria`). Correções pontuais: arquitetura, telas,
 contratos da API e papéis de usuário não mudaram.
 

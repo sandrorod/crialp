@@ -21,13 +21,13 @@ crmWebhookRouter.post('/:orgId', async (req, res) => {
     // Mensagem apagada para todos (a Evolution manda a chave dela)
     for (const d of list) {
       const id = d.id ?? d.keyId ?? d.key?.id;
-      if (id) await markRevoked(id);
+      if (id) await markRevoked(orgId.data, id);
     }
   } else if (event === 'messages.update') {
     for (const u of list) {
       const id = u.keyId ?? u.key?.id ?? u.messageId;
       const status = STATUS[String(u.status ?? u.update?.status ?? '').toUpperCase()];
-      if (id && status) await updateMessageStatus(id, status);
+      if (id && status) await updateMessageStatus(orgId.data, id, status);
     }
   }
   res.json({ ok: true });

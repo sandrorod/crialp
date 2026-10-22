@@ -45,16 +45,30 @@ fs.writeFileSync(
   JSON.stringify({ runtime: 'nodejs22.x', handler: 'index.mjs', launcherType: 'Nodejs', shouldAddHelpers: false, maxDuration: 300 }, null, 2),
 );
 
+// CSP do painel: a mesma do servidor (apps/api/src/middleware/security.ts), com os hashes dos scripts da página
+const adminCsp = execSync(
+  `node --import tsx -e "import('./src/middleware/security.ts').then((m) => process.stdout.write(m.ADMIN_CSP))"`,
+  { cwd: path.join(repoRoot, 'apps', 'api'), env: { ...process.env, NODE_ENV: 'development' } },
+).toString();
+if (!adminCsp.includes("default-src 'self'")) throw new Error('[vercel-build] CSP do painel não gerada');
+
 fs.writeFileSync(
   path.join(out, 'config.json'),
   JSON.stringify(
     {
       version: 3,
       routes: [
-        // Painel estático: mesmos cabeçalhos básicos que a API envia (sem CSP aqui — ver SECURITY.md)
+        // Painel estático: mesmos cabeçalhos de segurança que o servidor envia, com a CSP do painel
         {
           src: '^/admin(?:/.*)?$',
-          headers: { 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'SAMEORIGIN', 'Referrer-Policy': 'strict-origin-when-cross-origin' },
+          headers: {
+            'Content-Security-Policy': adminCsp,
+            'X-Content-Type-Options': 'nosniff',
+            'X-Frame-Options': 'SAMEORIGIN',
+            'Referrer-Policy': 'strict-origin-when-cross-origin',
+            'Cross-Origin-Opener-Policy': 'same-origin',
+            'Permissions-Policy': 'camera=(), geolocation=(), payment=(), usb=()',
+          },
           continue: true,
         },
         { handle: 'filesystem' },

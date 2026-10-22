@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
+import { PgRateLimitStore } from '../lib/rateLimitStore.js';
 import { z } from 'zod';
 import { AppError, Messages, notFound } from '../lib/errors.js';
 import { normalizeInputUrl } from '../lib/url.js';
@@ -18,6 +19,7 @@ import { ignoreCompany, unignoreCompany, withoutIgnored } from '../repositories/
 export const analyzeRouter = Router();
 
 const aiLimiter = rateLimit({
+  store: new PgRateLimitStore('ai'),
   windowMs: 60 * 60 * 1000,
   limit: 60,
   standardHeaders: 'draft-7',
@@ -108,6 +110,7 @@ analyzeRouter.post('/jobs/:id/cancel', async (req, res) => {
 });
 
 const searchLimiter = rateLimit({
+  store: new PgRateLimitStore('search'),
   windowMs: 60 * 60 * 1000,
   limit: 120,
   standardHeaders: 'draft-7',

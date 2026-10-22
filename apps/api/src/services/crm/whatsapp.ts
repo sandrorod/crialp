@@ -3,6 +3,8 @@ import { env } from '../../config/env.js';
 import { one, query } from '../../db/pool.js';
 import { AppError } from '../../lib/errors.js';
 import { decrypt, encrypt } from '../ai/keyStore.js';
+import { fetchPublic } from '../../lib/safeFetch.js';
+import { assertPublicHost } from '../../lib/url.js';
 
 // ─── Configuração da Evolution API (por organização) ────────────────
 
@@ -37,8 +39,8 @@ export async function saveConfig(orgId: string, apiUrl: string, apiKey: string |
 }
 
 /** Token do webhook derivado do segredo do sistema: nada para guardar nem vazar no banco. */
-export function webhookToken(orgId: string) {
-  return crypto.createHmac('sha256', env.jwtSecret).update(`lp-crm-webhook:${orgId}`).digest('hex').slice(0, 40);
+export function webhookToken(orgId: string, secret = env.jwtSecret) {
+  return crypto.createHmac('sha256', secret).update(`lp-crm-webhook:${orgId}`).digest('hex').slice(0, 40);
 }
 
 export function webhookUrl(orgId: string) {
@@ -46,9 +48,13 @@ export function webhookUrl(orgId: string) {
 }
 
 export function validWebhookToken(orgId: string, token: string) {
-  const expected = Buffer.from(webhookToken(orgId));
   const got = Buffer.from(token);
-  return got.length === expected.length && crypto.timingSafeEqual(got, expected);
+  // Durante a troca do segredo, o endereço antigo cadastrado na Evolution continua valendo
+  return [env.jwtSecret, env.jwtSecretPrevious].some((secret) => {
+    if (!secret) return false;
+    const expected = Buffer.from(webhookToken(orgId, secret));
+    return got.length === expected.length && crypto.timingSafeEqual(got, expected);
+  });
 }
 
 const notConfigured = () => new AppError(400, 'Configure a conexão com o WhatsApp (Evolution API) na aba Conexão.', 'CRM_WA_NOT_CONFIGURED');
@@ -57,12 +63,15 @@ export async function evolution<T = any>(cfg: EvolutionConfig | null, method: st
   if (!cfg) throw notConfigured();
   let res: Response;
   try {
-    res = await fetch(`${cfg.apiUrl}${path}`, {
+    const init = {
       method,
       headers: { apikey: cfg.apiKey, 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(20_000),
-    });
+    };
+    // A URL é digitada no painel: em produção só endereço público, sem seguir redirecionamento
+    // (senão daria para fazer o servidor acessar a rede interna). Em desenvolvimento vale Evolution local.
+    res = env.isProduction ? (await fetchPublic(new URL(`${cfg.apiUrl}${path}`), { ...init, maxRedirects: 0 })).res : await fetch(`${cfg.apiUrl}${path}`, init);
   } catch {
     throw new AppError(502, 'Não foi possível falar com o servidor do WhatsApp (Evolution API). Confira a URL.', 'CRM_WA_UNREACHABLE');
   }
@@ -174,23 +183,29 @@ function phoneJid(m: any): string | null {
  * Reação (reactionMessage): o emoji vale para a mensagem de `key.id`; texto vazio = reação removida.
  * `fromMe`: reação do número central (pelo CRM ou pelo celular).
  */
-export async function applyEvolutionReaction(m: any): Promise<boolean> {
+export async function applyEvolutionReaction(orgId: string, m: any): Promise<boolean> {
   const r = m.message?.reactionMessage;
   const target: string | undefined = r?.key?.id;
   if (!target) return false;
   const column = m.key?.fromMe ? 'my_reaction' : 'their_reaction';
-  const { rowCount } = await query(`update lp_crm_messages set ${column} = $2 where wa_message_id = $1 and ${column} is distinct from $2`, [
-    target,
-    String(r.text ?? '').slice(0, 16) || null,
-  ]);
+  // Só mensagens da própria organização (o id do WhatsApp vem de fora)
+  const { rowCount } = await query(
+    `update lp_crm_messages set ${column} = $2
+      where wa_message_id = $1 and ${column} is distinct from $2
+        and conversation_id in (select id from lp_crm_conversations where organization_id = $3)`,
+    [target, String(r.text ?? '').slice(0, 16) || null, orgId],
+  );
   return !!rowCount;
 }
 
 /** Mensagem apagada para todos (pelo cliente, ou pelo celular do número central): fica só o aviso. */
-export async function markRevoked(waMessageId: string): Promise<boolean> {
+export async function markRevoked(orgId: string, waMessageId: string): Promise<boolean> {
   const msg = await one<{ id: string; conversation_id: string }>(
-    `update lp_crm_messages set revoked_at = now(), body = null where wa_message_id = $1 and revoked_at is null returning id, conversation_id`,
-    [waMessageId],
+    `update lp_crm_messages set revoked_at = now(), body = null
+      where wa_message_id = $1 and revoked_at is null
+        and conversation_id in (select id from lp_crm_conversations where organization_id = $2)
+      returning id, conversation_id`,
+    [waMessageId, orgId],
   );
   if (!msg) return false;
   await query('delete from lp_crm_media where message_id = $1', [msg.id]);
@@ -214,10 +229,10 @@ export async function refreshConversationSummary(conversationId: string) {
 
 /** Registro da Evolution (webhook, sincronização ou histórico): mensagem nova ou reação. Devolve se mudou algo. */
 export async function ingestEvolutionRecord(orgId: string, m: any, extra: Partial<IncomingMessage> = {}): Promise<boolean> {
-  if (m.message?.reactionMessage) return applyEvolutionReaction(m);
+  if (m.message?.reactionMessage) return applyEvolutionReaction(orgId, m);
   // "Apagar para todos" chega como protocolMessage do tipo REVOKE (0) apontando a mensagem apagada
   const proto = m.message?.protocolMessage;
-  if (proto && (proto.type === 'REVOKE' || proto.type === 0) && proto.key?.id) return markRevoked(proto.key.id);
+  if (proto && (proto.type === 'REVOKE' || proto.type === 0) && proto.key?.id) return markRevoked(orgId, proto.key.id);
   const parsed = parseEvolutionMessage(m);
   if (!parsed) return false;
   const { inserted } = await registerMessage({ orgId, ...parsed, ...extra, pushName: extra.pushName ?? parsed.pushName });
@@ -225,7 +240,7 @@ export async function ingestEvolutionRecord(orgId: string, m: any, extra: Partia
   if (parsed.direction === 'out' && parsed.waMessageId) {
     const statuses = (Array.isArray(m.MessageUpdate) ? m.MessageUpdate : []).map((u: any) => STATUS[String(u?.status ?? '').toUpperCase()]).filter(Boolean);
     const best = statuses.sort((a: string, b: string) => STATUS_RANK.indexOf(b) - STATUS_RANK.indexOf(a))[0];
-    if (best) await updateMessageStatus(parsed.waMessageId, best);
+    if (best) await updateMessageStatus(orgId, parsed.waMessageId, best);
   }
   return inserted;
 }
@@ -356,12 +371,13 @@ export async function registerMessage(m: IncomingMessage): Promise<{ conversatio
 const STATUS_RANK = ['error', 'pending', 'sent', 'delivered', 'read'];
 
 /** Atualiza o status de entrega sem nunca rebaixar (eventos podem chegar fora de ordem). */
-export async function updateMessageStatus(waMessageId: string, status: string) {
+export async function updateMessageStatus(orgId: string, waMessageId: string, status: string) {
   await query(
     `update lp_crm_messages set status = $2
       where wa_message_id = $1
-        and array_position($3::text[], $2) > coalesce(array_position($3::text[], status), 0)`,
-    [waMessageId, status, STATUS_RANK],
+        and array_position($3::text[], $2) > coalesce(array_position($3::text[], status), 0)
+        and conversation_id in (select id from lp_crm_conversations where organization_id = $4)`,
+    [waMessageId, status, STATUS_RANK, orgId],
   );
 }
 

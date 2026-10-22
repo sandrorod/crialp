@@ -173,10 +173,10 @@ describe('SSRF: redirecionamentos', () => {
 describe('Sessão (JWT)', () => {
   it('aceita token de sessão válido', () => {
     const t = jwt.sign({ sub: 'u1', typ: 'session', pv: 'abc' }, SECRET, { expiresIn: 60 });
-    assert.deepEqual(verifySessionToken(t), { sub: 'u1', pv: 'abc' });
+    assert.deepEqual(verifySessionToken(t), { sub: 'u1', pv: 'abc', secret: SECRET });
   });
   it('aceita token antigo (sem typ/pv) até expirar', () => {
-    assert.deepEqual(verifySessionToken(jwt.sign({ sub: 'u1' }, SECRET, { expiresIn: 60 })), { sub: 'u1', pv: undefined });
+    assert.deepEqual(verifySessionToken(jwt.sign({ sub: 'u1' }, SECRET, { expiresIn: 60 })), { sub: 'u1', pv: undefined, secret: SECRET });
   });
   it('recusa token expirado', () => {
     assert.equal(verifySessionToken(jwt.sign({ sub: 'u1', typ: 'session', exp: Math.floor(Date.now() / 1000) - 10 }, SECRET)), null);
@@ -278,16 +278,22 @@ describe('HTML das páginas: conteúdo malicioso não fecha <style>', () => {
 
 describe('Configuração de produção', () => {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const envError = (vars: Record<string, string | undefined>) => {
+  const envField = (field: string) => (vars: Record<string, string | undefined>) => {
     const out = execFileSync(
       process.execPath,
-      ['--import', 'tsx', '-e', "import('./src/config/env.ts').then(({ env }) => process.stdout.write(JSON.stringify(env.jwtSecretError)))"],
+      ['--import', 'tsx', '-e', `import('./src/config/env.ts').then(({ env }) => process.stdout.write(JSON.stringify(env.${field} ?? null)))`],
       { cwd: path.resolve(here, '..'), env: { PATH: process.env.PATH, NODE_ENV: 'production', DATABASE_URL: 'postgres://lp:senha-forte-do-banco@db:5432/lp', ...vars } },
     ).toString();
     return JSON.parse(out) as string | null;
   };
+  const envError = envField('jwtSecretError');
+  const envWarning = envField('jwtSecretWarning');
   it('sem JWT_SECRET em produção: falha com mensagem clara', () => assert.match(envError({})!, /JWT_SECRET não configurado/));
-  it('JWT_SECRET curto: falha', () => assert.match(envError({ JWT_SECRET: 'curto' })!, /32 caracteres/));
+  // Sistema já no ar com segredo curto: não para (derrubaria tudo), avisa para trocar com JWT_SECRET_PREVIOUS
+  it('JWT_SECRET curto: inicia com aviso', () => {
+    assert.equal(envError({ JWT_SECRET: 'curto' }), null);
+    assert.match(envWarning({ JWT_SECRET: 'curto' })!, /32 caracteres/);
+  });
   it('JWT_SECRET de exemplo: falha', () => assert.match(envError({ JWT_SECRET: 'troque-por-um-segredo-longo-e-aleatorio' })!, /exemplo/));
   it('JWT_SECRET igual à senha do banco: falha', () => assert.match(envError({ JWT_SECRET: 'xx-senha-forte-do-banco-xxxxxxxxxxxxxxxx' })!, /senha do banco/));
   it('JWT_SECRET forte: inicia', () => assert.equal(envError({ JWT_SECRET: 'b'.repeat(16) + 'f1e2d3c4b5a69788' + 'c'.repeat(16) }), null));

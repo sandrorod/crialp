@@ -1,3 +1,4 @@
+import { INLINE_SCRIPT_HASHES } from '../landing/render.js';
 import type { NextFunction, Request, Response } from 'express';
 
 /**
@@ -22,8 +23,13 @@ export function securityHeaders(opts: { csp?: string } = {}) {
   };
 }
 
+/**
+ * CSP do painel. A prévia de rascunho do editor (iframe srcdoc) herda esta política: os scripts da página
+ * (animações e links) entram pelo hash, igual à página publicada.
+ */
 export const ADMIN_CSP = [
   "default-src 'self'",
+  `script-src 'self' ${INLINE_SCRIPT_HASHES}`,
   "img-src 'self' https: data: blob:",
   // Áudio e vídeo do WhatsApp do CRM (arquivos da API e prévia do anexo antes de enviar)
   "media-src 'self' blob:",

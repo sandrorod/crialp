@@ -29,11 +29,17 @@ const jwtSecretError = !isProduction
   ? null
   : !explicitJwtSecret
     ? 'JWT_SECRET não configurado. Em produção defina um segredo aleatório de pelo menos 32 caracteres (ex.: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))").'
-    : explicitJwtSecret.length < 32
-      ? 'JWT_SECRET deve ter pelo menos 32 caracteres em produção.'
-      : PLACEHOLDER_SECRETS.includes(explicitJwtSecret) || (dbPassword.length >= 8 && explicitJwtSecret.includes(dbPassword))
-        ? 'JWT_SECRET usa um valor de exemplo ou a senha do banco. Gere um segredo aleatório exclusivo.'
-        : null;
+    : PLACEHOLDER_SECRETS.includes(explicitJwtSecret) || (dbPassword.length >= 8 && explicitJwtSecret.includes(dbPassword))
+      ? 'JWT_SECRET usa um valor de exemplo ou a senha do banco. Gere um segredo aleatório exclusivo.'
+      : null;
+// Segredo curto num sistema que já está no ar: só avisa (parar derrubaria o sistema). Para trocar sem perder
+// sessões nem as chaves salvas, defina o novo em JWT_SECRET e o atual em JWT_SECRET_PREVIOUS.
+const jwtSecretWarning =
+  isProduction && explicitJwtSecret && explicitJwtSecret.length < 32
+    ? 'JWT_SECRET com menos de 32 caracteres: troque por um segredo aleatório longo (o atual vai para JWT_SECRET_PREVIOUS).'
+    : null;
+/** Segredo anterior, durante a troca: sessões, chaves criptografadas e webhooks antigos continuam valendo. */
+const jwtSecretPrevious = process.env.JWT_SECRET_PREVIOUS || undefined;
 
 // Modelo padrão por provedor; ignora um AI_MODEL de outro provedor esquecido no .env
 const aiProvider = (process.env.AI_PROVIDER ?? 'anthropic').toLowerCase();
@@ -87,6 +93,8 @@ export const env = {
   appHosts,
   jwtSecret,
   jwtSecretError,
+  jwtSecretWarning,
+  jwtSecretPrevious,
   admin: {
     email: process.env.ADMIN_EMAIL,
     password: process.env.ADMIN_PASSWORD,

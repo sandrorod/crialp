@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
+import { PgRateLimitStore } from '../lib/rateLimitStore.js';
 import { z } from 'zod';
 import { query } from '../db/pool.js';
 import { AppError, notFound } from '../lib/errors.js';
@@ -20,6 +21,7 @@ import { relinkConversations } from '../services/crm/whatsapp.js';
 
 // Reler o site (e classificar as fotos pela IA) custa tempo e cota: mesmo limite da análise de links
 const scrapeLimiter = rateLimit({
+  store: new PgRateLimitStore('scrape'),
   windowMs: 60 * 60 * 1000,
   limit: 60,
   standardHeaders: 'draft-7',

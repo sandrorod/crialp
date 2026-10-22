@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
+import { PgRateLimitStore } from '../lib/rateLimitStore.js';
 import { z } from 'zod';
 import { one, query } from '../db/pool.js';
 import { AppError } from '../lib/errors.js';
@@ -11,6 +12,7 @@ import { publicUrl } from '../landing/publish.js';
 export const authRouter = Router();
 
 const loginLimiter = rateLimit({
+  store: new PgRateLimitStore('login-ip'),
   windowMs: 15 * 60 * 1000,
   limit: 10,
   standardHeaders: 'draft-7',
@@ -21,6 +23,7 @@ const loginLimiter = rateLimit({
 // Por conta (além do limite por IP): tentativas erradas de vários IPs contra o mesmo e-mail.
 // Só conta as que falham, para quem acerta a senha nunca ficar bloqueado por acessos normais.
 const loginAccountLimiter = rateLimit({
+  store: new PgRateLimitStore('login-account'),
   windowMs: 15 * 60 * 1000,
   limit: 20,
   skipSuccessfulRequests: true,
