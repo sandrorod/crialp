@@ -13,7 +13,7 @@ import type { ColorPalette, CompanyImage, ElementColor, HeroVariant, ImagePlacem
 // ─── Visual ─────────────────────────────────────────────────────────
 const HERO_VARIANTS: { value: HeroVariant; label: string; hint: string }[] = [
   { value: 'split', label: 'Dividido', hint: 'Texto + foto emoldurada (ou cartão de contato)' },
-  { value: 'centered', label: 'Centralizado', hint: 'Mensagem direta, sem foto' },
+  { value: 'centered', label: 'Centralizado', hint: 'Mensagem direta, quando não há foto no topo' },
 ];
 
 const SECTION_NAMES: Record<string, string> = {
@@ -1040,7 +1040,7 @@ export function PhotosTab({
         Escolha onde cada foto aparece e arraste pela alça para mudar a ordem. Em "Automático", as fotos preenchem o topo, a seção "Sobre" e a galeria, seguindo a ordem da lista. Seções criadas em "Textos" também aparecem na lista e podem receber fotos.
       </p>
       {theme.heroVariant === 'centered' ? (
-        <p className="text-xs text-amber-700">O topo está no estilo "Centralizado", que não exibe foto. Escolha uma foto em "Topo" (o topo passa para "Dividido") ou mude o estilo do topo em "Cores e estilo".</p>
+        <p className="text-xs text-amber-700">O topo está no estilo "Centralizado": com uma foto em "Automático" ou "Topo", ela aparece e o topo fica "Dividido". Para o topo sem foto, coloque as fotos em outra posição (Sobre, Galeria ou Oculta).</p>
       ) : null}
       {galleryCount === 1 ? <p className="text-xs text-amber-700">A galeria só aparece com pelo menos 2 fotos.</p> : null}
 

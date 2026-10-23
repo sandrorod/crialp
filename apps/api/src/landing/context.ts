@@ -23,8 +23,6 @@ export interface RenderContext {
   heroImage: LpImage | null;
   /** Fotos extras do topo em mosaico (modelo Ofício): saem da galeria para não repetir */
   heroExtras: LpImage[];
-  /** Foto escolhida no editor para o topo (não só a primeira do automático) */
-  heroChosen: boolean;
   aboutImage: LpImage | null;
   gallery: LpImage[];
   /** Fotos escolhidas para cada seção personalizada (id da seção → fotos, na ordem do editor) */
@@ -262,7 +260,6 @@ export function buildContext(opts: {
     logo: logoImg ? { url: logoImg.url, alt: logoImg.alt_text || displayName } : null,
     heroImage,
     heroExtras,
-    heroChosen: !!heroImage && place(heroImage.url) === 'hero',
     aboutImage,
     gallery,
     customPhotos,

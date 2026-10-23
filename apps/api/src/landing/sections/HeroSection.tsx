@@ -98,8 +98,10 @@ export function HeroSection({ ctx }: { ctx: RenderContext }) {
     );
   }
 
-  // Foto escolhida para o topo aparece mesmo em página criada com topo "Centralizado" (sem foto)
-  const variant = ctx.theme.heroVariant === 'centered' && ctx.heroChosen ? 'split' : ctx.theme.heroVariant;
+  // Havendo foto para o topo (escolhida em "Topo" ou em "Automático"), ela aparece mesmo com o topo
+  // "Centralizado": esse estilo vale só para topo sem foto (ex.: página criada antes de ter fotos).
+  // Para o topo sem foto, as fotos vão para outra posição (Sobre, Galeria ou Oculta)
+  const variant = ctx.theme.heroVariant === 'centered' && ctx.heroImage ? 'split' : ctx.theme.heroVariant;
 
   if (variant === 'centered') {
     return (
