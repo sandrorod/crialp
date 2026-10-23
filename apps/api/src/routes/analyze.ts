@@ -11,7 +11,7 @@ import { jobService } from '../services/jobs/JobService.js';
 import { analyzeUrl } from '../services/pipeline/analyzeUrl.js';
 import { generateLanding } from '../services/pipeline/generateLanding.js';
 import { findDuplicateCompany, getCompanyFull, matchRegisteredCompanies } from '../repositories/companies.js';
-import { nationalHasMore, searchCompanies, searchCompanySites, type FoundCompany } from '../services/search/companySearch.js';
+import { MAX_NATIONAL_PAGE, nationalHasMore, searchCompanies, searchCompanySites, type FoundCompany } from '../services/search/companySearch.js';
 import { aiKeyStore } from '../services/ai/keyStore.js';
 import { env } from '../config/env.js';
 import { appendSearch, createSearch, deleteSearch, getSearch, listSearches } from '../repositories/companySearches.js';
@@ -133,7 +133,7 @@ analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
       lat: z.coerce.number().min(-90).max(90).optional(),
       lng: z.coerce.number().min(-180).max(180).optional(),
       // "Buscar mais locais": anéis cada vez mais largos ao redor do mesmo centro
-      page: z.coerce.number().int().min(0).max(10).default(0),
+      page: z.coerce.number().int().min(0).max(MAX_NATIONAL_PAGE).default(0),
       // Pesquisa salva que recebe os locais de "Buscar mais locais"
       search_id: z.string().uuid().optional(),
     })

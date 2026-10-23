@@ -463,8 +463,11 @@ const MAX_PER_QUERY = 500;
  * Pesquisa sem cidade pela Local Business Data: depois da última cidade da lista, "Buscar mais" volta à
  * primeira trazendo os próximos locais de cada uma (antes, a pesquisa parava na 6ª página).
  */
-export const nationalHasMore = (query: string, page: number) =>
-  !mentionsPlace(query) && PER_CITY * (Math.floor((page + 1) / PAGES_PER_ROUND) + 1) <= MAX_PER_QUERY;
+export const nationalHasMore = (query: string, page: number) => !mentionsPlace(query) && nationalPageExists(page + 1);
+/** Página da pesquisa sem cidade que ainda traz locais novos (cada passada pede mais locais por cidade). */
+const nationalPageExists = (page: number) => PER_CITY * (Math.floor(page / PAGES_PER_ROUND) + 1) <= MAX_PER_QUERY;
+/** Última página possível da pesquisa sem cidade. */
+export const MAX_NATIONAL_PAGE = PAGES_PER_ROUND * Math.floor(MAX_PER_QUERY / PER_CITY) - 1;
 
 const UFS = 'AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO';
 /** A pesquisa já diz o lugar? ("… em Campinas", "… Campinas SP", "… São Paulo") */
@@ -616,8 +619,10 @@ export async function searchCompanies(
 ): Promise<{ items: FoundCompany[]; center: LatLng | null; hasMore: boolean; warning: string | null }> {
   const variant = WEB_VARIANTS[page];
   const wantWeb = filter !== 'sem_site' && variant !== undefined && (await aiKeyStore.hasAny('rapidapi', env.rapidApiKey));
-  // Páginas além das que o Maps cobre (4 anéis na cidade / todas as cidades do país) só trazem sites
-  const mapsDone = page > (mentionsPlace(query) ? 3 : MAX_SEARCH_PAGE);
+  // Páginas além das que o Maps cobre (4 anéis na cidade / passadas pelas cidades do país) só trazem sites.
+  // Sem a Local Business Data, a pesquisa sem cidade (pelo Gemini) para na última cidade da lista
+  const hasRapid = await aiKeyStore.hasAny('rapidapi', env.rapidApiKey);
+  const mapsDone = mentionsPlace(query) ? page > 3 : hasRapid ? !nationalPageExists(page) : page > MAX_SEARCH_PAGE;
   const [places, web] = await Promise.all([
     mapsDone
       ? Promise.resolve({ items: [] as FoundCompany[], center: savedCenter ?? null, hasMore: false, warning: null })
