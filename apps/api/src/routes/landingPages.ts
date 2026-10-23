@@ -9,7 +9,10 @@ import { parseBody, safeUrl, uuidParam } from '../lib/validation.js';
 import { one, query } from '../db/pool.js';
 import { authUser, MANAGER_ROLES, requireRole } from '../middleware/auth.js';
 import { ICON_CATEGORIES, iconSvg, PICKABLE_ICONS } from '../landing/icons.js';
+import rateLimit from 'express-rate-limit';
 import { getCompanyFull } from '../repositories/companies.js';
+import { PgRateLimitStore } from '../lib/rateLimitStore.js';
+import { ensureGoogleReviews } from '../services/pipeline/generateLanding.js';
 import * as repo from '../repositories/landingPages.js';
 import { LandingContentEditSchema, type LandingContent } from '../services/ai/schemas.js';
 import { DEFAULT_LABELS } from '../landing/labels.js';
@@ -84,6 +87,27 @@ landingPagesRouter.get('/:id', async (req, res) => {
     screenshot: await getScreenshotInfo(lp.id),
     seller_name: lp.seller_id ? ((await one<{ name: string }>('select name from users where id = $1', [lp.seller_id]))?.name ?? null) : null,
   });
+});
+
+// Cada busca gasta consultas do RapidAPI
+const reviewsLimiter = rateLimit({
+  store: new PgRateLimitStore('reviews'),
+  windowMs: 60 * 60 * 1000,
+  limit: 60,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Muitas buscas de avaliações. Aguarde alguns minutos.' },
+});
+
+/** "Buscar avaliações agora" no editor: busca as avaliações do Google da empresa e atualiza a página. */
+landingPagesRouter.post('/:id/google-reviews', reviewsLimiter, async (req, res) => {
+  const user = authUser(req);
+  const lp = await loadOr404(user.organizationId, String(req.params.id));
+  const company = await getCompanyFull(user.organizationId, lp.company_id);
+  if (!company) throw notFound('Empresa não encontrada.');
+  const reviews = await ensureGoogleReviews(company, true);
+  await refreshSnapshot(lp);
+  res.json({ count: reviews?.items.length ?? 0, error: reviews?.error ?? null, rating: reviews?.rating ?? null, total: reviews?.total ?? null });
 });
 
 /** Prévia (funciona mesmo com a página inativa; exige login). */

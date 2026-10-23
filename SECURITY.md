@@ -40,14 +40,14 @@ editor). Testes: 119 (107 anteriores + 12 novos em `apps/api/test/security.test.
 | V20 | Média | Corrigido | `routes/crm.ts` (`/crm/media/:id`) | O tipo do anexo vem de quem manda a mensagem: HTML/SVG abria no domínio do painel → script rodando com a sessão de quem abriu | Só foto/áudio/vídeo comuns abrem na página; o resto baixa como anexo, com `CSP: sandbox` | `security.test.ts` › Anexos |
 | V21 | Média | Corrigido | `lib/rateLimitStore.ts` (novo) | Limites em memória: na Vercel cada instância contava separado | Contador no Postgres (`lp_rate_limits`, migration 041) | `security.test.ts` › duas instâncias somam |
 | V22 | Média | Corrigido | `services/crm/whatsapp.ts`, `routes/crm.ts` | URL da Evolution API digitada no painel era chamada sem checagem → SSRF (rede interna/metadata) | Em produção: só endereço público, conferido ao salvar e a cada chamada, sem redirecionamento | Revisão de código |
-| V23 | Baixa | Corrigido (requer ação) | `JWT_SECRET` na Vercel | Segredo de produção com menos de 32 caracteres. A regra da V05 derrubaria o sistema no deploy | Segredo curto vira aviso; troca sem perda com `JWT_SECRET_PREVIOUS` (sessões, chaves criptografadas e webhook antigos continuam valendo; tudo é regravado com o novo na inicialização) | `security.test.ts` › Troca do JWT_SECRET |
+| V23 | Baixa | Prevenção | `JWT_SECRET` na Vercel | O valor é "Sensitive" e não pode ser lido fora do servidor, então a regra de 32+ caracteres da V05 não pôde ser conferida antes do deploy — se não valesse, o sistema cairia | Segredo curto vira aviso; troca sem perda com `JWT_SECRET_PREVIOUS` (sessões, chaves criptografadas e webhook antigos continuam valendo; tudo é regravado com o novo na inicialização) | `security.test.ts` › Troca do JWT_SECRET |
 | V24 | Baixa | Corrigido | `package-lock.json` | Vite 8.3.2 (só no desenvolvimento) | 8.3.5 via `npm audit fix` | `npm audit`: 0 |
 
 ### Riscos que continuam
 
 | Risco | Motivo | Ação sugerida |
 |---|---|---|
-| `JWT_SECRET` curto em produção | A troca muda a configuração da Vercel | Gerar um novo (48 bytes aleatórios), mover o atual para `JWT_SECRET_PREVIOUS` e fazer o deploy; depois de alguns dias, apagar `JWT_SECRET_PREVIOUS` |
+| Tamanho do `JWT_SECRET` de produção | Não dá para ler o valor; se tiver menos de 32 caracteres, o log da função mostra o aviso `[segurança]` | Se aparecer o aviso: gerar um novo (48 bytes aleatórios), mover o atual para `JWT_SECRET_PREVIOUS` e fazer o deploy; depois de alguns dias, apagar `JWT_SECRET_PREVIOUS` |
 | `atendimento_lp` sem organização | Tabela global lida por integração externa; hoje há 1 organização | Ter coluna de organização se o sistema passar a ter várias |
 | Outros sistemas no mesmo Supabase | Tabelas e buckets públicos de outros projetos não fazem parte desta auditoria | Revisar RLS e buckets desses sistemas |
 | Posse de domínio personalizado | Igual à seção G | Registro TXT |

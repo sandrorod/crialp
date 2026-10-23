@@ -68,26 +68,32 @@ function enforceFacts(content: Omit<LandingContent, 'section_order'> & { section
 
 /** Avaliações do Google buscadas há mais tempo que isso são buscadas de novo ao gerar a LP. */
 const REVIEWS_MAX_AGE_MS = 30 * 24 * 3600_000;
+/** Busca que falhou (cota, limite por segundo, API fora): tenta de novo logo. */
+const REVIEWS_RETRY_MS = 3600_000;
 
 /**
- * Busca as avaliações do Google da empresa (as 5 melhores com nota máxima) e guarda no cadastro.
- * Falha na busca não impede gerar a página: ela só sai sem a seção de avaliações.
+ * Busca as avaliações do Google da empresa (as 5 melhores com nota máxima) e guarda no cadastro,
+ * junto com o motivo quando não vieram. Falha na busca não impede gerar a página.
  */
-async function ensureGoogleReviews(company: CompanyFull) {
+export async function ensureGoogleReviews(company: CompanyFull, force = false) {
   const cur = company.google_reviews;
-  if (cur && Date.now() - new Date(cur.fetched_at).getTime() < REVIEWS_MAX_AGE_MS) return;
+  const age = cur ? Date.now() - new Date(cur.fetched_at).getTime() : Infinity;
+  if (!force && cur && age < (cur.items.length || !cur.error ? REVIEWS_MAX_AGE_MS : REVIEWS_RETRY_MS)) return cur;
   const where = [company.address, company.number, company.neighborhood, company.city, company.state].filter(Boolean).join(', ');
   try {
     const found = await googlePlaceReviews({
       businessId: typeof company.source_meta?.google_place_id === 'string' ? company.source_meta.google_place_id : null,
       query: [company.trade_name || company.name, where].filter(Boolean).join(', '),
     });
-    if (!found) return;
-    await saveGoogleReviews(company.id, found);
-    company.google_reviews = found;
+    // Busca que não trouxe nada não apaga avaliações que já estavam guardadas
+    const keep = !found.items.length && cur?.items.length ? { ...cur, error: found.error, fetched_at: found.fetched_at } : found;
+    if (found.error) console.warn(`[avaliações] ${company.trade_name || company.name}: ${found.error}`);
+    await saveGoogleReviews(company.id, keep);
+    company.google_reviews = keep;
   } catch (err) {
-    console.error('[generate] avaliações do Google:', err instanceof Error ? err.message : err);
+    console.error('[avaliações] erro inesperado:', err instanceof Error ? err.message : err);
   }
+  return company.google_reviews;
 }
 
 function themeFromContent(content: LandingContent): ThemeSettings {

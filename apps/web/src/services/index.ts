@@ -127,6 +127,8 @@ export const landingPageService = {
   previewUrl: (id: string) => `/api/landing-pages/${id}/preview`,
   /** HTML da prévia com conteúdo e tema ainda não salvos. */
   previewDraft: (id: string, body: { content: LandingContent; theme: ThemeSettings }) => api.post<{ html: string }>(`/landing-pages/${id}/preview`, body),
+  refreshGoogleReviews: (id: string) =>
+    api.post<{ count: number; error: string | null; rating: number | null; total: number | null }>(`/landing-pages/${id}/google-reviews`),
   exportUrl: (id: string) => `/api/landing-pages/${id}/export`,
   /** Imagem (JPG) das 3 primeiras seções da página, para download */
   screenshotUrl: (id: string) => `/api/landing-pages/${id}/screenshot`,

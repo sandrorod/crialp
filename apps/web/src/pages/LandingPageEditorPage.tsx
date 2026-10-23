@@ -590,7 +590,7 @@ export function LandingPageEditorPage() {
             ))}
           </div>
           <div ref={panelRef} className="xl:h-[max(420px,calc(100vh-300px))] xl:overflow-y-auto xl:pr-1">
-            {tab === 'textos' ? <ContentTab content={content} onChange={change(setContent)} company={company} theme={theme} onThemeChange={change(setTheme)} /> : null}
+            {tab === 'textos' ? <ContentTab content={content} onChange={change(setContent)} company={company} theme={theme} onThemeChange={change(setTheme)} lpId={lp.id} onReviewsUpdated={() => { void reloadCompany(); refresh(); }} /> : null}
             {tab === 'modelo' ? <Card className="p-5"><TemplateTab theme={theme} onChange={change(setTheme)} hasPhoto={!!company?.images.some((i) => i.usage_allowed && i.type !== 'logo')} /></Card> : null}
             {tab === 'fotos' ? <Card className="p-5"><PhotosTab theme={theme} onChange={change(setTheme)} images={company?.images ?? null} onAddPhotos={addPhotos} onRemovePhotos={removePhotos} sectionOrder={content.section_order} customSections={content.custom_sections} /></Card> : null}
             {tab === 'visual' ? <Card className="p-5"><DesignTab theme={theme} onChange={change(setTheme)} content={content} /></Card> : null}

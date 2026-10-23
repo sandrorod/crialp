@@ -1,8 +1,10 @@
 import { useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, Plus, Search, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, Plus, Search, Star, Trash2, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button, Field, Input, ListEditor, Select, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
-import { cn, confirmDelete } from '@/lib/utils';
+import { cn, confirmDelete, formatDate } from '@/lib/utils';
+import { errorMessage } from '@/lib/api';
 import { companyService, landingPageService } from '@/services';
 import { BlocksEditor, NewSectionButton, newId } from './SectionBlocks';
 import type { Company, CustomSection, LandingContent, SectionKey, SectionOrderKey, ThemeSettings } from '@/types';
@@ -254,13 +256,34 @@ export function ContentTab({
   company,
   theme,
   onThemeChange,
+  lpId,
+  onReviewsUpdated,
 }: {
   content: LandingContent;
   onChange: (c: LandingContent) => void;
   company?: Company | null;
   theme?: ThemeSettings;
   onThemeChange?: (t: ThemeSettings) => void;
+  /** Página em edição: habilita "Buscar avaliações agora" */
+  lpId?: string;
+  onReviewsUpdated?: () => void;
 }) {
+  const [fetchingReviews, setFetchingReviews] = useState(false);
+  const fetchReviews = async () => {
+    if (!lpId) return;
+    setFetchingReviews(true);
+    try {
+      const r = await landingPageService.refreshGoogleReviews(lpId);
+      if (r.count) toast.success(`${r.count} avaliação(ões) 5 estrelas do Google na página.`);
+      else toast.error(r.error ?? 'Nenhuma avaliação 5 estrelas com texto encontrada.');
+      onReviewsUpdated?.();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setFetchingReviews(false);
+    }
+  };
+  const reviews = company?.google_reviews ?? null;
   const { data: defaults } = useAsync(() => landingPageService.labels(), []);
   const set = <K extends keyof LandingContent>(key: K, v: LandingContent[K]) => onChange({ ...content, [key]: v });
   const order = content.section_order;
@@ -540,6 +563,19 @@ export function ContentTab({
         <p className="text-xs text-zinc-500">
           As 5 melhores avaliações reais do Google (nota máxima), buscadas ao gerar ou regerar a página. A seção só aparece se a empresa tiver avaliações 5 estrelas com texto.
         </p>
+        <div className={cn('rounded-lg px-3 py-2 text-xs', reviews?.items.length ? 'bg-emerald-50 text-emerald-800' : reviews ? 'bg-amber-50 text-amber-800' : 'bg-zinc-50 text-zinc-600')}>
+          {reviews?.items.length
+            ? `${reviews.items.length} avaliação(ões) na página${reviews.rating != null ? ` · nota ${reviews.rating.toFixed(1).replace('.', ',')}` : ''}${reviews.total ? ` · ${reviews.total} no Google` : ''}.`
+            : reviews
+              ? `Sem avaliações na página: ${reviews.error ?? 'nenhuma 5 estrelas com texto.'}`
+              : 'Ainda não buscadas para esta empresa.'}
+          {reviews ? <span className="block opacity-70">Última busca: {formatDate(reviews.fetched_at, true)}</span> : null}
+        </div>
+        {lpId ? (
+          <Button size="sm" variant="secondary" loading={fetchingReviews} onClick={() => void fetchReviews()} icon={<Star className="size-3.5" />}>
+            Buscar avaliações agora
+          </Button>
+        ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
           {[
             { key: 'title_reviews', label: 'Título' },

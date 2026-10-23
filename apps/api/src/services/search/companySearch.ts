@@ -209,42 +209,71 @@ const REVIEWS_SHOWN = 5;
  * Avaliações do Google com nota máxima, pela "Local Business Data" do RapidAPI: maiores notas
  * primeiro, só as 5 estrelas com texto, sem repetir. Só avaliações reais (nada é escrito pela IA).
  * Identifica o local pelo código (place_id / google_id) ou, sem ele, pelo nome + endereço.
- * Devolve `null` quando não há como buscar (sem chave, sem assinatura da API ou local não encontrado).
+ * Sempre devolve o resultado; quando não deu para buscar, `error` diz o motivo (mostrado no editor).
  */
-export async function googlePlaceReviews(p: { businessId?: string | null; query?: string | null }): Promise<GoogleReviews | null> {
-  if (!(await aiKeyStore.hasAny('rapidapi', env.rapidApiKey))) return null;
+export async function googlePlaceReviews(p: { businessId?: string | null; query?: string | null }): Promise<GoogleReviews> {
+  const empty = (error: string | null): GoogleReviews => ({ rating: null, total: null, url: null, items: [], fetched_at: new Date().toISOString(), error });
+  if (!(await aiKeyStore.hasAny('rapidapi', env.rapidApiKey))) return empty('Nenhuma chave do RapidAPI cadastrada em Configurações.');
   const host = 'local-business-data.p.rapidapi.com';
+  const call = async (path: string) => {
+    try {
+      return await rapid(host, path);
+    } catch (err) {
+      return { status: 0, body: { message: err instanceof Error ? err.message : String(err) } };
+    }
+  };
+  const fail = (r: { status: number; body: any }, what: string) =>
+    notSubscribed(r)
+      ? `As chaves do RapidAPI não assinam a "Local Business Data" (${what}).`
+      : `${what}: ${String(r.body?.message ?? `HTTP ${r.status}`).slice(0, 200)}`;
+  const firstPlace = (body: any) => (Array.isArray(body?.data) ? body.data[0] : body?.data && typeof body.data === 'object' ? body.data : null) ?? null;
+
+  // Local: pelo código (vindo de "Buscar empresas"); sem ele, pela busca com nome + endereço
   let id = p.businessId ?? null;
   let place: any = null;
-  if (p.query) {
-    const r = await rapid(host, `/search?query=${encodeURIComponent(p.query)}&limit=1&region=br&language=pt`);
-    if (notSubscribed(r)) return null;
-    place = r.status === 200 ? r.body?.data?.[0] ?? null : null;
+  if (id) {
+    const r = await call(`/business-details?business_id=${encodeURIComponent(id)}&region=br&language=pt`);
+    if (r.status === 200) place = firstPlace(r.body);
+  }
+  if (!place && p.query) {
+    const r = await call(`/search?query=${encodeURIComponent(p.query)}&limit=1&region=br&language=pt`);
+    if (r.status !== 200) return empty(fail(r, 'busca do local'));
+    place = firstPlace(r.body);
     id ??= place?.business_id || place?.google_id || place?.place_id || null;
   }
-  if (!id) return null;
-  if (!place) {
-    const r = await rapid(host, `/business-details?business_id=${encodeURIComponent(id)}&region=br&language=pt`);
-    if (notSubscribed(r)) return null;
-    place = r.status === 200 ? r.body?.data?.[0] ?? null : null;
+  if (!id) return empty('Local não encontrado no Google Maps (confira nome e endereço da empresa).');
+
+  // Avaliações: versão nova do endpoint e, se ela não responder, a antiga. Maiores notas primeiro
+  const params = `business_id=${encodeURIComponent(id)}&limit=50&sort_by=highest_ranking&region=br&language=pt`;
+  let r = await call(`/business-reviews-v2?${params}`);
+  if (r.status !== 200) {
+    const v1 = await call(`/business-reviews?${params}`);
+    if (v1.status === 200 || r.status === 404 || notSubscribed(r)) r = v1;
   }
-  const r = await rapid(host, `/business-reviews?business_id=${encodeURIComponent(id)}&limit=40&sort_by=highest_ranking&region=br&language=pt`);
-  if (notSubscribed(r)) return null;
-  if (r.status !== 200) return null;
-  // Ordem: maiores notas primeiro. Versões da API: lista direta em "data" ou dentro de "data.reviews"
-  const list: any[] = Array.isArray(r.body?.data) ? r.body.data : Array.isArray(r.body?.data?.reviews) ? r.body.data.reviews : [];
+  if (r.status !== 200) return empty(fail(r, 'avaliações'));
+  // Formatos da resposta: lista em "data", em "data.reviews" ou no primeiro item ("data[0].reviews")
+  const d = r.body?.data;
+  const list: any[] = Array.isArray(d?.reviews)
+    ? d.reviews
+    : Array.isArray(d?.[0]?.reviews)
+      ? d[0].reviews
+      : Array.isArray(d)
+        ? d
+        : [];
   const seen = new Set<string>();
   const items: GoogleReviews['items'] = [];
   for (const x of list) {
-    const text = String(x?.review_text ?? '').replace(/\s+/g, ' ').trim();
-    const author = String(x?.author_name ?? '').trim();
-    if (Number(x?.rating) !== 5 || text.length < 15 || !author || seen.has(text)) continue;
+    const text = String(x?.review_text ?? x?.text ?? '').replace(/\s+/g, ' ').trim();
+    const author = String(x?.author_name ?? x?.author_title ?? '').trim();
+    if (Number(x?.rating ?? x?.review_rating) !== 5 || text.length < 15 || !author || seen.has(text)) continue;
     seen.add(text);
+    const photo = x?.author_photo_url ?? x?.author_image;
+    const when = x?.review_datetime_utc ?? x?.review_datetime ?? null;
     items.push({
       author,
-      photo: typeof x?.author_photo_url === 'string' && /^https:\/\//.test(x.author_photo_url) ? x.author_photo_url : null,
+      photo: typeof photo === 'string' && /^https:\/\//.test(photo) ? photo : null,
       text: text.slice(0, 1500),
-      date: x?.review_datetime_utc ? new Date(x.review_datetime_utc).toISOString() : null,
+      date: when && !Number.isNaN(new Date(when).getTime()) ? new Date(when).toISOString() : null,
       link: typeof x?.review_link === 'string' && /^https:\/\//.test(x.review_link) ? x.review_link : null,
     });
     if (items.length >= REVIEWS_SHOWN) break;
@@ -255,6 +284,7 @@ export async function googlePlaceReviews(p: { businessId?: string | null; query?
     url: typeof place?.place_link === 'string' ? place.place_link : null,
     items,
     fetched_at: new Date().toISOString(),
+    error: items.length ? null : list.length ? `Nenhuma das ${list.length} avaliações lidas tem 5 estrelas com texto.` : 'O Google não devolveu avaliações para este local.',
   };
 }
 

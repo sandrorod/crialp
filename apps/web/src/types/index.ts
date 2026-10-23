@@ -149,8 +149,19 @@ export interface CompanyDraft {
   testimonials: Testimonial[];
 }
 
+/** Avaliações do Google guardadas na empresa (null = ainda não buscadas). */
+export interface GoogleReviews {
+  rating: number | null;
+  total: number | null;
+  url: string | null;
+  items: { author: string; photo: string | null; text: string; date: string | null; link: string | null }[];
+  fetched_at: string;
+  error?: string | null;
+}
+
 export interface Company extends CompanyDraft {
   id: string;
+  google_reviews?: GoogleReviews | null;
   logo_url: string | null;
   source_meta: AnalysisMeta | Record<string, never>;
   created_at: string;
