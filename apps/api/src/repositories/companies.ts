@@ -19,6 +19,8 @@ export interface GoogleReviews {
   url: string | null;
   items: { author: string; photo: string | null; text: string; date: string | null; link: string | null }[];
   fetched_at: string;
+  /** Limite de avaliações usado na busca (buscas antigas: 5) */
+  shown?: number;
   /** Por que não vieram avaliações (sem chave, local não encontrado, erro da API…); null = deu certo */
   error?: string | null;
 }

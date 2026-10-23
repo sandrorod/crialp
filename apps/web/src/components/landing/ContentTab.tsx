@@ -561,7 +561,7 @@ export function ContentTab({
 
       <Group id="reviews" title="Avaliações do Google" actions={hideBtn('reviews')}>
         <p className="text-xs text-zinc-500">
-          As 5 melhores avaliações reais do Google (nota máxima), buscadas ao gerar ou regerar a página. A seção só aparece se a empresa tiver avaliações 5 estrelas com texto.
+          As 6 melhores avaliações reais do Google (nota máxima), buscadas ao gerar ou regerar a página. A seção só aparece se a empresa tiver avaliações 5 estrelas com texto.
         </p>
         <div className={cn('rounded-lg px-3 py-2 text-xs', reviews?.items.length ? 'bg-emerald-50 text-emerald-800' : reviews ? 'bg-amber-50 text-amber-800' : 'bg-zinc-50 text-zinc-600')}>
           {reviews?.items.length

@@ -203,7 +203,7 @@ export async function googlePlacePhotos(p: { businessId?: string | null; query?:
 }
 
 /** Quantas avaliações do Google entram na página (as melhores com nota máxima). */
-const REVIEWS_SHOWN = 5;
+export const REVIEWS_SHOWN = 6;
 
 /**
  * Avaliações do Google com nota máxima, pela "Local Business Data" do RapidAPI: maiores notas
@@ -284,6 +284,7 @@ export async function googlePlaceReviews(p: { businessId?: string | null; query?
     url: typeof place?.place_link === 'string' ? place.place_link : null,
     items,
     fetched_at: new Date().toISOString(),
+    shown: REVIEWS_SHOWN,
     error: items.length ? null : list.length ? `Nenhuma das ${list.length} avaliações lidas tem 5 estrelas com texto.` : 'O Google não devolveu avaliações para este local.',
   };
 }

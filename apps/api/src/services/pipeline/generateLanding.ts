@@ -1,6 +1,6 @@
 import { AppError, Messages } from '../../lib/errors.js';
 import { getCompanyFull, saveGoogleReviews, type CompanyFull } from '../../repositories/companies.js';
-import { googlePlaceReviews } from '../search/companySearch.js';
+import { googlePlaceReviews, REVIEWS_SHOWN } from '../search/companySearch.js';
 import { createLandingPage, getLandingPage, saveVersion } from '../../repositories/landingPages.js';
 import { normalizeThemeSettings, type ThemeSettings } from '../../landing/theme.js';
 import { refreshSnapshot } from '../../landing/publish.js';
@@ -72,13 +72,15 @@ const REVIEWS_MAX_AGE_MS = 30 * 24 * 3600_000;
 const REVIEWS_RETRY_MS = 3600_000;
 
 /**
- * Busca as avaliações do Google da empresa (as 5 melhores com nota máxima) e guarda no cadastro,
+ * Busca as avaliações do Google da empresa (as 6 melhores com nota máxima) e guarda no cadastro,
  * junto com o motivo quando não vieram. Falha na busca não impede gerar a página.
  */
 export async function ensureGoogleReviews(company: CompanyFull, force = false) {
   const cur = company.google_reviews;
   const age = cur ? Date.now() - new Date(cur.fetched_at).getTime() : Infinity;
-  if (!force && cur && age < (cur.items.length || !cur.error ? REVIEWS_MAX_AGE_MS : REVIEWS_RETRY_MS)) return cur;
+  // Busca feita com limite menor que o atual e que bateu nele: pode haver mais avaliações para mostrar
+  const belowLimit = !!cur && (cur.shown ?? 5) < REVIEWS_SHOWN && cur.items.length >= (cur.shown ?? 5);
+  if (!force && cur && !belowLimit && age < (cur.items.length || !cur.error ? REVIEWS_MAX_AGE_MS : REVIEWS_RETRY_MS)) return cur;
   const where = [company.address, company.number, company.neighborhood, company.city, company.state].filter(Boolean).join(', ');
   try {
     const found = await googlePlaceReviews({
