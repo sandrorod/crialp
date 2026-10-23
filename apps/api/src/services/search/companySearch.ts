@@ -452,6 +452,19 @@ const BRAZIL_CITIES: [string, number, number][] = [
 ];
 const CITIES_PER_PAGE = 7;
 export const MAX_SEARCH_PAGE = Math.ceil(BRAZIL_CITIES.length / CITIES_PER_PAGE) - 1;
+/** Páginas para passar uma vez por todas as cidades. */
+const PAGES_PER_ROUND = MAX_SEARCH_PAGE + 1;
+/** Locais por cidade em cada passada (≈ 50 por página com 7 cidades). */
+const PER_CITY = Math.ceil(PAGE_SIZE / CITIES_PER_PAGE) + 3;
+/** A Local Business Data devolve até 500 locais por consulta. */
+const MAX_PER_QUERY = 500;
+
+/**
+ * Pesquisa sem cidade pela Local Business Data: depois da última cidade da lista, "Buscar mais" volta à
+ * primeira trazendo os próximos locais de cada uma (antes, a pesquisa parava na 6ª página).
+ */
+export const nationalHasMore = (query: string, page: number) =>
+  !mentionsPlace(query) && PER_CITY * (Math.floor((page + 1) / PAGES_PER_ROUND) + 1) <= MAX_PER_QUERY;
 
 const UFS = 'AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO';
 /** A pesquisa já diz o lugar? ("… em Campinas", "… Campinas SP", "… São Paulo") */
@@ -494,9 +507,13 @@ export async function searchCompanyPlaces(
   // Sem cidade na pesquisa a Local Business Data procura só perto de um ponto fixo (vinham 3 ou 4 locais de
   // uma cidade só): percorre as maiores cidades do país, 7 por página, como na consulta pelo Gemini
   if (hasRapid && !located) {
-    const cities = BRAZIL_CITIES.slice(page * CITIES_PER_PAGE, (page + 1) * CITIES_PER_PAGE);
-    const perCity = Math.ceil(PAGE_SIZE / CITIES_PER_PAGE) + 3;
-    const results = await pool(cities, 2, ([city]) => searchMaps(`${query} em ${city}`, perCity));
+    // Passada 0: os primeiros locais de cada cidade; passada 1: os seguintes; e assim por diante
+    const round = Math.floor(page / PAGES_PER_ROUND);
+    const at = (page % PAGES_PER_ROUND) * CITIES_PER_PAGE;
+    const cities = BRAZIL_CITIES.slice(at, at + CITIES_PER_PAGE);
+    const results = await pool(cities, 2, ([city]) =>
+      searchMaps(`${query} em ${city}`, PER_CITY * (round + 1)).then((list) => list && list.slice(PER_CITY * round)),
+    );
     // null = nenhuma chave assina a Local Business Data: segue para o Gemini
     if (results.some((r) => r.status === 'fulfilled' && r.value)) {
       const items: FoundCompany[] = [];
@@ -514,7 +531,7 @@ export async function searchCompanyPlaces(
       return {
         items,
         center: null,
-        hasMore: page < MAX_SEARCH_PAGE,
+        hasMore: nationalHasMore(query, page),
         warning: failed ? `Só ${results.length - failed} de ${results.length} cidades foram consultadas (o RapidAPI não respondeu nas demais). Use "Buscar mais" ou tente de novo.` : null,
       };
     }

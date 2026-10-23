@@ -11,7 +11,9 @@ import { jobService } from '../services/jobs/JobService.js';
 import { analyzeUrl } from '../services/pipeline/analyzeUrl.js';
 import { generateLanding } from '../services/pipeline/generateLanding.js';
 import { findDuplicateCompany, getCompanyFull, matchRegisteredCompanies } from '../repositories/companies.js';
-import { searchCompanies, searchCompanySites, type FoundCompany } from '../services/search/companySearch.js';
+import { nationalHasMore, searchCompanies, searchCompanySites, type FoundCompany } from '../services/search/companySearch.js';
+import { aiKeyStore } from '../services/ai/keyStore.js';
+import { env } from '../config/env.js';
 import { appendSearch, createSearch, deleteSearch, getSearch, listSearches } from '../repositories/companySearches.js';
 import { urlErrorsFor } from '../repositories/urlErrors.js';
 import { ignoreCompany, unignoreCompany, withoutIgnored } from '../repositories/ignoredCompanies.js';
@@ -200,7 +202,9 @@ analyzeRouter.get('/company-searches/:id', async (req, res) => {
   if (!search) throw notFound('Pesquisa não encontrada.');
   const items = await withoutIgnored(user.organizationId, search.results as FoundCompany[]);
   const [registered, failures] = await Promise.all([matchRegisteredCompanies(user.organizationId, items), urlErrorsFor(user.organizationId, items.map((c) => c.url))]);
-  res.json({ ...search, results: items.map((c, i) => ({ ...c, existing: registered[i], analysis_error: registered[i] ? null : failures[i] })) });
+  // Pesquisas sem cidade que pararam na última cidade da lista (antes do "Buscar mais" continuar): seguem
+  const has_more = search.has_more || ((await aiKeyStore.hasAny('rapidapi', env.rapidApiKey)) && nationalHasMore(search.query, search.page));
+  res.json({ ...search, has_more, results: items.map((c, i) => ({ ...c, existing: registered[i], analysis_error: registered[i] ? null : failures[i] })) });
 });
 
 analyzeRouter.delete('/company-searches/:id', async (req, res) => {
