@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { AlertTriangle, ArrowRight, Check, CircleSlash, FileSearch, Globe, Layers, PencilLine, RotateCcw, SkipForward, Sparkles, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, CircleSlash, Clock, FileSearch, Globe, Layers, Minus, Pause, PencilLine, Play, Plus, RotateCcw, SkipForward, Sparkles, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { CompanyForm, emptyDraft } from '@/components/company/CompanyForm';
 import { SellerPicker } from '@/components/SellerCell';
@@ -10,7 +10,7 @@ import { StopJobButton } from '@/components/StopJobButton';
 import { Button, Card, Input } from '@/components/ui';
 import { useJob } from '@/hooks/useJob';
 import { errorMessage } from '@/lib/api';
-import { loadBatch, saveBatch, type LpBatch } from '@/lib/lpBatch';
+import { GAP_MAX, loadBatch, loadGap, saveBatch, saveGap, type LpBatch } from '@/lib/lpBatch';
 import { shortUrl } from '@/lib/utils';
 import { analysisService, companyService } from '@/services';
 import type { AnalysisMeta, AnalysisResult, CompanyDraft, PlaceListing } from '@/types';
@@ -53,6 +53,10 @@ export function NewLandingPagePage() {
   const [batch, setBatch] = useState<LpBatch | null>(() => (params.get('lote') ? loadBatch() : null));
   // Contagem do lote: na revisão confirma sozinha ao chegar a zero; com erro, pula para a próxima empresa
   const [countdown, setCountdown] = useState<number | null>(null);
+  // Intervalo entre as LPs do lote (minutos) e a contagem da pausa depois de cada LP gerada (segundos)
+  const [gap, setGap] = useState(loadGap);
+  const [rest, setRest] = useState<number | null>(null);
+  const [restPaused, setRestPaused] = useState(false);
 
   const analyze = useJob<AnalysisResult>(analyzeJobId);
   const generate = useJob<{ landingPageId: string }>(generateJobId);
@@ -76,7 +80,11 @@ export function NewLandingPagePage() {
     if (j?.status === 'done' && j.result) {
       if (batch) {
         toast.success(`LP de “${draft.trade_name || draft.name}” gerada.`);
-        next(true);
+        // Intervalo antes da próxima empresa (a última encerra o lote na hora)
+        if (gap > 0 && batch.index + 1 < batch.items.length) {
+          setRestPaused(false);
+          setRest(gap * 60);
+        } else next(true);
         return;
       }
       toast.success('Landing Page gerada! Revise a prévia e publique.');
@@ -111,6 +119,27 @@ export function NewLandingPagePage() {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countdown]);
+
+  // Pausa entre as LPs: ao chegar a zero, começa a próxima empresa
+  useEffect(() => {
+    if (rest === null || restPaused) return;
+    if (rest <= 0) {
+      setRest(null);
+      next(true);
+      return;
+    }
+    const t = setTimeout(() => setRest((r) => (r === null ? null : r - 1)), 1000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rest, restPaused]);
+
+  /** Muda o intervalo (também durante a pausa: o tempo que falta acompanha a mudança). */
+  const changeGap = (minutes: number) => {
+    const v = Math.min(GAP_MAX, Math.max(0, minutes));
+    setRest((r) => (r === null ? null : Math.max(0, r + (v - gap) * 60)));
+    setGap(v);
+    saveGap(v);
+  };
 
   const startAnalysis = async (e?: FormEvent, target = url, fotos = allowImages) => {
     e?.preventDefault();
@@ -176,6 +205,7 @@ export function NewLandingPagePage() {
     saveBatch(null);
     setBatch(null);
     setCountdown(null);
+    setRest(null);
     toast.info('Lote interrompido. A empresa atual continua aberta aqui.');
   };
 
@@ -236,12 +266,52 @@ export function NewLandingPagePage() {
         <span className="text-zinc-600"> · {batch.items[batch.index].name}</span>
         {failedHere && countdown !== null ? <span className="block text-xs text-red-700">Pulando para a próxima em {countdown}s…</span> : null}
       </span>
-      <Button size="sm" variant="secondary" icon={<SkipForward className="size-3.5" />} onClick={() => { setCountdown(null); next(false); }} disabled={saving} title="Deixa esta empresa sem LP e passa para a próxima">
-        {failedHere ? 'Próxima' : 'Pular'}
-      </Button>
+      {rest === null ? (
+        <Button size="sm" variant="secondary" icon={<SkipForward className="size-3.5" />} onClick={() => { setCountdown(null); next(false); }} disabled={saving} title="Deixa esta empresa sem LP e passa para a próxima">
+          {failedHere ? 'Próxima' : 'Pular'}
+        </Button>
+      ) : null}
       <Button size="sm" variant="ghost" icon={<X className="size-3.5" />} onClick={cancelBatch}>Parar lote</Button>
+      {/* Intervalo entre as LPs: muda a qualquer momento, inclusive durante a pausa */}
+      <div className="flex w-full items-center gap-2 border-t border-brand-100 pt-2 text-xs text-zinc-600">
+        <Clock className="size-3.5 flex-none" />
+        <span>Intervalo entre as LPs:</span>
+        <button type="button" onClick={() => changeGap(gap - 1)} disabled={gap <= 0} className="grid size-7 place-items-center rounded-md border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40" aria-label="Diminuir intervalo">
+          <Minus className="size-3.5" />
+        </button>
+        <span className="min-w-14 text-center font-semibold text-ink tabular-nums">{gap ? `${gap} min` : 'sem pausa'}</span>
+        <button type="button" onClick={() => changeGap(gap + 1)} disabled={gap >= GAP_MAX} className="grid size-7 place-items-center rounded-md border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40" aria-label="Aumentar intervalo">
+          <Plus className="size-3.5" />
+        </button>
+      </div>
     </div>
   ) : null;
+
+  // Pausa depois de uma LP gerada: contagem para a próxima empresa
+  const restBox =
+    batch && rest !== null ? (
+      <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+        <p className="flex items-center gap-2 text-sm font-medium text-emerald-800">
+          <Check className="size-4" /> LP gerada. Próxima empresa ({batch.items[batch.index + 1]?.name}) em
+          <span className="font-mono text-base tabular-nums">{`${Math.floor(rest / 60)}:${String(rest % 60).padStart(2, '0')}`}</span>
+          {restPaused ? <span className="text-xs font-normal">(pausado)</span> : null}
+        </p>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-emerald-100">
+          <div className="h-full bg-emerald-500 transition-[width] duration-1000 ease-linear" style={{ width: `${gap ? Math.min(100, 100 - (rest / (gap * 60)) * 100) : 100}%` }} />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button size="sm" icon={<Play className="size-3.5" />} onClick={() => { setRest(null); next(true); }}>Começar agora</Button>
+          <Button size="sm" variant="secondary" icon={restPaused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />} onClick={() => setRestPaused((p) => !p)}>
+            {restPaused ? 'Continuar contagem' : 'Pausar'}
+          </Button>
+          {generate.job?.result ? (
+            <Link to={`/landing-pages/${generate.job.result.landingPageId}`} target="_blank">
+              <Button size="sm" variant="ghost">Ver a LP gerada</Button>
+            </Link>
+          ) : null}
+        </div>
+      </div>
+    ) : null;
 
   // ─── Etapa 1: URL ────────────────────────────────────────────────
   if (stage === 'url') {
@@ -354,7 +424,7 @@ export function NewLandingPagePage() {
     return (
       <div className="mx-auto max-w-xl pt-4 lg:pt-10">
         {batchBar}
-        <h1 className="text-2xl font-semibold tracking-tight">Gerando Landing Page</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{rest !== null ? 'Landing Page gerada' : 'Gerando Landing Page'}</h1>
         <p className="mt-1 text-sm text-zinc-500">{draft.trade_name || draft.name}</p>
         <Card className="mt-6 p-5 sm:p-6">
           <ProgressSteps current={Math.max(j?.step ?? 7, 7)} range={[1, 9]} failed={failed} done={j?.status === 'done'} />
@@ -363,6 +433,7 @@ export function NewLandingPagePage() {
               <StopJobButton jobId={generateJobId} />
             </div>
           ) : null}
+          {restBox}
           {failed ? (
             <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4">
               <p className="text-sm font-medium text-red-700">{j?.error ?? generate.networkError}</p>
