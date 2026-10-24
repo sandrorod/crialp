@@ -1,0 +1,16 @@
+# Cobertura informativa (não bloqueia o PR); separada por parte do sistema
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+flags:
+  api:
+    paths: [apps/api/]
+  painel:
+    paths: [apps/web/]
+comment:
+  layout: 'diff, flags, files'
