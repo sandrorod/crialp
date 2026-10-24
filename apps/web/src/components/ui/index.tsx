@@ -369,6 +369,7 @@ export function Modal({
   size = 'md',
   actions,
   tight,
+  persistent,
 }: {
   open: boolean;
   title: string;
@@ -382,6 +383,8 @@ export function Modal({
   actions?: ReactNode;
   /** Conteúdo colado no título (sem a linha divisória): true ≈ 8px entre eles; 'more' ≈ 4px */
   tight?: boolean | 'more';
+  /** Só fecha pelos botões: clique fora e Esc não fecham */
+  persistent?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   // Título como nome da janela (leitores de tela e testes)
@@ -397,8 +400,8 @@ export function Modal({
       ref={ref}
       aria-labelledby={titleId}
       onClose={(e) => e.target === e.currentTarget && onClose()} // ignora o "close" repassado por diálogos aninhados
-      onCancel={(e) => busy && e.preventDefault()}
-      onClick={(e) => e.target === ref.current && !busy && onClose()}
+      onCancel={(e) => (busy || persistent) && e.preventDefault()}
+      onClick={(e) => e.target === ref.current && !busy && !persistent && onClose()}
       className={cn(
         'm-auto w-[calc(100%-32px)] rounded-2xl p-0 shadow-2xl backdrop:bg-zinc-950/40 backdrop:backdrop-blur-[2px]',
         size === 'lg' ? 'max-w-2xl' : 'max-w-md',

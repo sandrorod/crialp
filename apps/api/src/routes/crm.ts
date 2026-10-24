@@ -40,6 +40,20 @@ const sellerScope = (u: AuthUser) => (isManager(u) ? null : u.id);
 const visible = (alias: string, p: string) =>
   `(${p}::uuid is null or exists (select 1 from landing_pages lpv where lpv.company_id = ${alias} and lpv.seller_id = ${p}))`;
 
+/** Conversa `alias` visível ao vendedor `p`: da carteira dele, ou sem empresa e iniciada por ele (número fora do cadastro). */
+const convVisible = (alias: string, p: string) =>
+  `(${p}::uuid is null or (${alias}.company_id is not null and ${visible(`${alias}.company_id`, p)}) or (${alias}.company_id is null and ${alias}.started_by = ${p}))`;
+
+/** Pode iniciar conversa com número fora do cadastro: o dono sempre; os demais conforme a configuração (padrão: só admin). */
+async function canChatFreeNumber(user: AuthUser) {
+  if (user.role === 'owner') return true;
+  const row = await one<{ allowed: boolean }>('select allowed from lp_crm_free_number_users where user_id = $1 and organization_id = $2', [
+    user.id,
+    user.organizationId,
+  ]);
+  return row ? row.allowed : user.role === 'admin';
+}
+
 async function ensureCompany(user: AuthUser, id: string) {
   const company = await one<{ id: string; name: string; whatsapp: string | null; mobile: string | null }>(
     `select c.id, coalesce(c.trade_name, c.name) as name, c.whatsapp, c.mobile from companies c
@@ -64,7 +78,7 @@ async function ensureConversation(user: AuthUser, id: string) {
   const conv = await one<{ id: string; phone: string; remote_jid: string | null; company_id: string | null }>(
     `select cv.id, cv.phone, cv.remote_jid, cv.company_id from lp_crm_conversations cv
       where cv.id = $1 and cv.organization_id = $2
-        and ($3::uuid is null or (cv.company_id is not null and ${visible('cv.company_id', '$3')}))`,
+        and ${convVisible('cv', '$3')}`,
     [id, user.organizationId, sellerScope(user)],
   );
   if (!conv) throw notFound('Conversa não encontrada.');
@@ -89,6 +103,41 @@ crmRouter.get('/users', async (req, res) => {
     [user.organizationId, sellerScope(user)],
   );
   res.json(rows);
+});
+
+// O que a pessoa pode fazer no CRM além do padrão do papel
+crmRouter.get('/permissions', async (req, res) => {
+  res.json({ free_number: await canChatFreeNumber(authUser(req)) });
+});
+
+// Quem pode iniciar conversa com número fora do cadastro (configurado pela gerência na aba Conexão)
+crmRouter.get('/free-number-users', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const user = authUser(req);
+  const { rows } = await query(
+    `select u.id, u.name, u.role, (u.role = 'owner' or coalesce(p.allowed, u.role = 'admin')) as allowed
+       from users u left join lp_crm_free_number_users p on p.user_id = u.id
+      where u.organization_id = $1 and u.role in ('owner', 'admin', 'seller')
+      order by case u.role when 'owner' then 0 when 'admin' then 1 else 2 end, u.name`,
+    [user.organizationId],
+  );
+  res.json(rows);
+});
+
+crmRouter.put('/free-number-users/:id', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const user = authUser(req);
+  const { allowed } = parseBody(z.object({ allowed: z.boolean() }), req.body);
+  const target = await one<{ id: string; role: string }>(
+    "select id, role from users where id = $1 and organization_id = $2 and role in ('owner', 'admin', 'seller')",
+    [uuidParam.parse(req.params.id), user.organizationId],
+  );
+  if (!target) throw notFound('Usuário não encontrado.');
+  if (target.role === 'owner') throw badRequest('O dono sempre pode iniciar conversa com número fora do cadastro.');
+  await query(
+    `insert into lp_crm_free_number_users (user_id, organization_id, allowed, updated_by) values ($1, $2, $3, $4)
+     on conflict (user_id) do update set allowed = excluded.allowed, updated_by = excluded.updated_by, updated_at = now()`,
+    [target.id, user.organizationId, allowed, user.id],
+  );
+  res.json({ ok: true });
 });
 
 // ─── Empresas ───────────────────────────────────────────────────────
@@ -481,7 +530,41 @@ crmRouter.post('/tasks', async (req, res) => {
      values ($1, $2, $3, $4, $5, $6, $7) returning *`,
     [user.organizationId, b.title, b.description, b.due_at ?? null, b.company_id ?? null, await taskAssignee(user, b.assignee_id), user.id],
   );
+  // Aviso no CRM para quem criou, o responsável pela tarefa e o(s) vendedor(es) da empresa (cliente)
+  await query(
+    `insert into lp_crm_task_alerts (task_id, user_id)
+     select $1, u.id from users u
+      where u.organization_id = $2
+        and (u.id = $3 or u.id = $4 or exists (select 1 from landing_pages lpv where lpv.company_id = $5 and lpv.seller_id = u.id))
+     on conflict do nothing`,
+    [created.id, user.organizationId, user.id, created.assignee_id, b.company_id ?? null],
+  );
   res.status(201).json(created);
+});
+
+// Tarefas novas que a pessoa ainda não fechou no popup do CRM
+crmRouter.get('/task-alerts', async (req, res) => {
+  const user = authUser(req);
+  const { rows } = await query(
+    `select t.id, t.title, t.description, t.due_at, t.company_id, coalesce(c.trade_name, c.name) as company_name,
+            u.name as assignee_name, cb.name as created_by_name, a.created_at
+       from lp_crm_task_alerts a
+       join lp_crm_tasks t on t.id = a.task_id
+       left join companies c on c.id = t.company_id
+       left join users u on u.id = t.assignee_id
+       left join users cb on cb.id = t.created_by
+      where a.user_id = $1 and a.dismissed_at is null and t.organization_id = $2
+      order by a.created_at`,
+    [user.id, user.organizationId],
+  );
+  res.json(rows);
+});
+
+crmRouter.post('/task-alerts/dismiss', async (req, res) => {
+  const user = authUser(req);
+  const { ids } = parseBody(z.object({ ids: z.array(uuidParam).min(1).max(200) }), req.body);
+  await query('update lp_crm_task_alerts set dismissed_at = now() where user_id = $1 and task_id = any($2::uuid[]) and dismissed_at is null', [user.id, ids]);
+  res.json({ ok: true });
 });
 
 crmRouter.put('/tasks/:id', async (req, res) => {
@@ -545,7 +628,7 @@ crmRouter.get('/conversations', async (req, res) => {
        left join lp_crm_contacts ct on ct.id = cv.contact_id
        left join companies c on c.id = cv.company_id
       where cv.organization_id = $1
-        and ($2::uuid is null or (cv.company_id is not null and ${visible('cv.company_id', '$2')}))
+        and ${convVisible('cv', '$2')}
         and (not $3 or cv.company_id is null)
         and ($4::text is null
              or ct.name ilike $4 or cv.push_name ilike $4 or c.name ilike $4 or c.trade_name ilike $4
@@ -790,7 +873,7 @@ crmRouter.get('/unread', async (req, res) => {
   const r = await one<{ total: number }>(
     `select coalesce(sum(cv.unread), 0)::int as total from lp_crm_conversations cv
       where cv.organization_id = $1 and cv.unread > 0
-        and ($2::uuid is null or (cv.company_id is not null and ${visible('cv.company_id', '$2')}))`,
+        and ${convVisible('cv', '$2')}`,
     [user.organizationId, sellerScope(user)],
   );
   res.json({ total: r?.total ?? 0 });
@@ -924,30 +1007,56 @@ const SendSchema = z.object({
   conversation_id: uuidParam.optional(),
   contact_id: uuidParam.optional(),
   company_id: uuidParam.optional(),
+  phone: z.string().trim().max(30).optional(),
   text: z.string().trim().min(1, 'Mensagem vazia.').max(4000),
 });
 
-type SendTarget = { conversation_id?: string; contact_id?: string; company_id?: string };
+type SendTarget = { conversation_id?: string; contact_id?: string; company_id?: string; phone?: string };
 
-/** Número de destino (conversa, contato ou WhatsApp da empresa), respeitando a carteira do vendedor. */
+/** Número de destino (conversa, contato, WhatsApp da empresa ou número avulso), respeitando a carteira do vendedor. */
 async function resolveTarget(user: AuthUser, b: SendTarget) {
   // Enviando pelo WhatsApp da empresa: a conversa fica com ela (o número pode estar em mais de uma empresa)
   if (b.conversation_id) {
     const conv = await ensureConversation(user, b.conversation_id);
-    return { number: conv.remote_jid ? jidNumber(conv.remote_jid) : normalizeNumber(conv.phone), companyTarget: null };
+    return { number: conv.remote_jid ? jidNumber(conv.remote_jid) : normalizeNumber(conv.phone), companyTarget: null, startedBy: null };
   }
   if (b.contact_id) {
     const ct = await ensureContact(user, b.contact_id);
     if (!ct.whatsapp) throw badRequest('Este contato não tem WhatsApp cadastrado.');
-    return { number: normalizeNumber(ct.whatsapp), companyTarget: null };
+    return { number: normalizeNumber(ct.whatsapp), companyTarget: null, startedBy: null };
   }
   if (b.company_id) {
     const co = await ensureCompany(user, b.company_id);
     const n = co.whatsapp || co.mobile;
     if (!n) throw badRequest('Esta empresa não tem WhatsApp cadastrado.');
-    return { number: normalizeNumber(n), companyTarget: co.id as string | null };
+    return { number: normalizeNumber(n), companyTarget: co.id as string | null, startedBy: null };
   }
-  throw badRequest('Informe a conversa, o contato ou a empresa.');
+  // Número fora do cadastro: a conversa nasce sem empresa e fica com quem a iniciou (started_by)
+  if (b.phone) {
+    if (!(await canChatFreeNumber(user))) throw new AppError(403, 'Você não tem permissão para conversar com número fora do cadastro.', 'FORBIDDEN');
+    const number = normalizeNumber(b.phone);
+    if (number.length < 10 || number.length > 15) throw badRequest('Número de WhatsApp inválido.');
+    // Vendedor: o número não pode ser de empresa, contato ou conversa de outra carteira
+    const scope = sellerScope(user);
+    if (scope) {
+      const taken = await one(
+        `select 1 from (
+           select cv.company_id, cv.started_by from lp_crm_conversations cv where cv.organization_id = $1 and cv.wa_key = lp_crm_wa_key($2)
+           union all
+           select ct.company_id, null from lp_crm_contacts ct where ct.organization_id = $1 and ct.wa_key = lp_crm_wa_key($2)
+           union all
+           select co.id, null from companies co
+            where co.organization_id = $1 and (lp_crm_wa_key(co.whatsapp) = lp_crm_wa_key($2) or lp_crm_wa_key(co.mobile) = lp_crm_wa_key($2))
+         ) x
+         where (x.company_id is not null and not ${visible('x.company_id', '$3')}) or (x.company_id is null and x.started_by <> $3)
+         limit 1`,
+        [user.organizationId, number, scope],
+      );
+      if (taken) throw new AppError(409, 'Este número já é de um cliente de outra carteira.', 'CRM_NUMBER_TAKEN');
+    }
+    return { number, companyTarget: null, startedBy: user.id as string | null };
+  }
+  throw badRequest('Informe a conversa, o contato, a empresa ou o número.');
 }
 
 /** Envia pela Evolution traduzindo "número sem WhatsApp" para uma mensagem clara. */
@@ -969,6 +1078,7 @@ async function recordSent(
   user: AuthUser,
   number: string,
   companyTarget: string | null,
+  startedBy: string | null,
   sent: any,
   msg: { type: string; body: string | null; mediaMime?: string | null; fileName?: string | null },
 ) {
@@ -986,15 +1096,16 @@ async function recordSent(
   if (companyTarget) {
     await query('update lp_crm_conversations set company_id = $2 where id = $1 and contact_id is null', [r.conversationId, companyTarget]);
   }
+  if (startedBy) await query('update lp_crm_conversations set started_by = coalesce(started_by, $2) where id = $1', [r.conversationId, startedBy]);
   return r;
 }
 
 crmRouter.post('/messages', async (req, res) => {
   const user = authUser(req);
   const b = parseBody(SendSchema, req.body);
-  const { number, companyTarget } = await resolveTarget(user, b);
+  const { number, companyTarget, startedBy } = await resolveTarget(user, b);
   const sent = await sendViaEvolution(user.organizationId, '/message/sendText', { number, text: b.text });
-  const { conversationId } = await recordSent(user, number, companyTarget, sent, { type: 'text', body: b.text });
+  const { conversationId } = await recordSent(user, number, companyTarget, startedBy, sent, { type: 'text', body: b.text });
   res.status(201).json({ conversation_id: conversationId });
 });
 
@@ -1003,6 +1114,7 @@ const MediaSchema = z.object({
   conversation_id: uuidParam.optional(),
   contact_id: uuidParam.optional(),
   company_id: uuidParam.optional(),
+  phone: z.string().trim().max(30).optional(),
   kind: z.enum(['image', 'gif', 'video', 'audio', 'document']),
   mime: z
     .string()
@@ -1018,7 +1130,7 @@ crmRouter.post('/messages/media', async (req, res) => {
   const b = parseBody(MediaSchema, req.body);
   const bytes = Buffer.from(b.data, 'base64');
   if (!bytes.length) throw badRequest('Arquivo vazio.');
-  const { number, companyTarget } = await resolveTarget(user, b);
+  const { number, companyTarget, startedBy } = await resolveTarget(user, b);
   const caption = b.caption || undefined;
   const sent =
     b.kind === 'audio'
@@ -1032,7 +1144,7 @@ crmRouter.post('/messages/media', async (req, res) => {
           caption,
           fileName: b.file_name || undefined,
         });
-  const r = await recordSent(user, number, companyTarget, sent, {
+  const r = await recordSent(user, number, companyTarget, startedBy, sent, {
     type: b.kind,
     body: caption ?? null,
     mediaMime: b.mime,

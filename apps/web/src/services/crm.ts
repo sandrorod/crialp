@@ -10,7 +10,9 @@ import type {
   CrmQuickReply,
   CrmQuickReplyInput,
   CrmStage,
+  CrmFreeNumberUser,
   CrmTask,
+  CrmTaskAlert,
   CrmUser,
   CrmWhatsAppStatus,
 } from '@/types/crm';
@@ -30,13 +32,18 @@ export type DealInput = {
   expected_close: string | null;
   notes: string | null;
 };
-export type SendTo = { conversation_id?: string; contact_id?: string; company_id?: string };
+export type SendTo = { conversation_id?: string; contact_id?: string; company_id?: string; phone?: string };
 export type OutgoingMedia = { kind: 'image' | 'gif' | 'video' | 'audio' | 'document'; mime: string; file_name?: string; data: string; caption?: string };
 export type StageInput = { name: string; color: string; kind: 'open' | 'won' | 'lost' };
 export type TaskInput = { title: string; description: string | null; due_at: string | null; company_id: string | null; assignee_id: string | null };
 
+export const TASK_CREATED_EVENT = 'crm:task-created';
+
 export const crmService = {
   users: () => api.get<CrmUser[]>('/crm/users'),
+  permissions: () => api.get<{ free_number: boolean }>('/crm/permissions'),
+  freeNumberUsers: () => api.get<CrmFreeNumberUser[]>('/crm/free-number-users'),
+  setFreeNumberUser: (id: string, allowed: boolean) => api.put(`/crm/free-number-users/${id}`, { allowed }),
   companies: (f: { search?: string; seller?: string }) => api.get<CrmCompanyItem[]>(`/crm/companies${qs(f)}`),
   company: (id: string) => api.get<CrmCompanyDetail>(`/crm/companies/${id}`),
 
@@ -57,10 +64,17 @@ export const crmService = {
   removeDeal: (id: string) => api.del(`/crm/deals/${id}`),
 
   tasks: (f: { done?: string; due_from?: string; due_to?: string; assignee?: string }) => api.get<CrmTask[]>(`/crm/tasks${qs(f)}`),
-  createTask: (t: TaskInput) => api.post<CrmTask>('/crm/tasks', t),
+  // Avisa o layout do CRM para mostrar o popup da tarefa na hora (sem esperar a próxima consulta)
+  createTask: (t: TaskInput) =>
+    api.post<CrmTask>('/crm/tasks', t).then((r) => {
+      window.dispatchEvent(new Event(TASK_CREATED_EVENT));
+      return r;
+    }),
   updateTask: (id: string, t: TaskInput) => api.put<CrmTask>(`/crm/tasks/${id}`, t),
   setTaskDone: (id: string, done: boolean) => api.patch(`/crm/tasks/${id}/done`, { done }),
   removeTask: (id: string) => api.del(`/crm/tasks/${id}`),
+  taskAlerts: () => api.get<CrmTaskAlert[]>('/crm/task-alerts'),
+  dismissTaskAlerts: (ids: string[]) => api.post('/crm/task-alerts/dismiss', { ids }),
 
   conversations: (f: { unlinked?: boolean; label?: string; search?: string } = {}) =>
     api.get<CrmConversation[]>(

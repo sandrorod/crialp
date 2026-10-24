@@ -4,6 +4,11 @@ export interface CrmUser {
   role: string;
 }
 
+/** Quem pode iniciar conversa com número fora do cadastro (o dono sempre pode). */
+export interface CrmFreeNumberUser extends CrmUser {
+  allowed: boolean;
+}
+
 export interface CrmCompanyItem {
   id: string;
   name: string;
@@ -68,6 +73,18 @@ export interface CrmTask {
   assignee_id: string;
   assignee_name?: string | null;
   company_name?: string | null;
+}
+
+/** Tarefa nova ainda não fechada no popup do CRM (para quem criou, o responsável e o vendedor da empresa). */
+export interface CrmTaskAlert {
+  id: string;
+  title: string;
+  description: string | null;
+  due_at: string | null;
+  company_id: string | null;
+  company_name: string | null;
+  assignee_name: string | null;
+  created_by_name: string | null;
 }
 
 /** Mensagem pronta do WhatsApp: "/shortcut" no campo de mensagem puxa o texto (body). */

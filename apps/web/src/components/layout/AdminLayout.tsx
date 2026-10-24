@@ -170,12 +170,15 @@ export function AdminLayout() {
       {/* Editor da LP: margem de cima 80% menor (linha da versão colada no topo) */}
       <main
         className={cn(
-          'mx-auto px-4 pb-6 sm:px-6 lg:pb-8',
+          'mx-auto px-4 sm:px-6',
+          location.pathname.startsWith('/crm') ? 'pb-[2px]' : 'pb-6 lg:pb-8',
           /^\/landing-pages\/[^/]+/.test(location.pathname)
             ? 'max-w-none pt-[5px] lg:px-8 lg:pt-[6px]'
-            : // WhatsApp do CRM: 320px a mais para a coluna da empresa, sem apertar lista e conversa
-              location.pathname.startsWith('/crm/whatsapp')
-              ? 'max-w-[1600px] pt-6 lg:px-10 lg:pt-8'
+            : // CRM: todas as abas com a mesma largura, a do WhatsApp (1600px para lista + conversa + coluna da empresa,
+              // +104px para a coluna de abas: 88px + 16px de espaço), assim a tela não muda de tamanho ao trocar de aba
+              // e margens de cima e de baixo 95% menores (2px em vez de 32px)
+              location.pathname.startsWith('/crm')
+              ? 'max-w-[1704px] pt-[2px] lg:px-10'
               : 'max-w-[1280px] pt-6 lg:px-10 lg:pt-8',
         )}
       >

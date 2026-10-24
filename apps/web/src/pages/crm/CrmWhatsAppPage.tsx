@@ -16,6 +16,7 @@ import {
   Mic,
   Paperclip,
   Pencil,
+  Phone,
   Plus,
   Search,
   Send,
@@ -97,14 +98,17 @@ export function CrmWhatsAppPage() {
   const selectedId = params.get('id');
   const contactParam = params.get('contato');
   const companyParam = params.get('empresa');
+  const numberParam = params.get('numero');
 
   // Vindo de um contato/empresa: abre a conversa do número cadastrado ATUAL (se já existir) ou prepara uma nova
   useEffect(() => {
-    if (!conversations || selectedId || (!contactParam && !companyParam)) return;
+    if (!conversations || selectedId || (!contactParam && !companyParam && !numberParam)) return;
     let alive = true;
     const number = contactParam
       ? crmService.contact(contactParam).then((c) => c.whatsapp)
-      : crmService.company(companyParam!).then((d) => d.company.whatsapp || d.company.mobile);
+      : companyParam
+        ? crmService.company(companyParam).then((d) => d.company.whatsapp || d.company.mobile)
+        : Promise.resolve(numberParam);
     void number
       .then((n) => {
         const key = waKey(n);
@@ -115,8 +119,11 @@ export function CrmWhatsAppPage() {
     return () => {
       alive = false;
     };
-  }, [conversations, contactParam, companyParam, selectedId, setParams]);
-  const [picking, setPicking] = useState(false);
+  }, [conversations, contactParam, companyParam, numberParam, selectedId, setParams]);
+  // Lista de contatos/empresas, ou direto o campo do número fora do cadastro
+  const [picking, setPicking] = useState<false | 'list' | 'number'>(false);
+  const { data: permissions } = useAsync(() => crmService.permissions(), []);
+  const freeNumber = !!permissions?.free_number;
 
   const list = conversations ?? [];
   // A conversa aberta continua na tela mesmo se a busca/etiqueta tirar ela da lista
@@ -124,11 +131,12 @@ export function CrmWhatsAppPage() {
   const found = conversations?.find((c) => c.id === selectedId) ?? null;
   if (found) lastSelected.current = found;
   const selected = found ?? (lastSelected.current?.id === selectedId ? lastSelected.current : null);
-  const starting = !selectedId && (contactParam || companyParam);
+  const starting = !selectedId && (contactParam || companyParam || numberParam);
   const open = !!selectedId || !!starting;
 
+  // Altura da tela menos o cabeçalho (56px) e ~10px de folga; no celular, menos também as abas em cima
   return (
-    <Card className="flex h-[calc(100dvh-260px)] min-h-[480px] overflow-hidden">
+    <Card className="flex h-[calc(100dvh-128px)] min-h-[480px] overflow-hidden md:h-[calc(100dvh-66px)]">
       <aside className={cn('w-full flex-col border-r border-zinc-100 md:flex md:w-80', open ? 'hidden' : 'flex')}>
         <div className="space-y-2 border-b border-zinc-100 p-3">
           {/* Uma linha: pesquisa, filtro de etiqueta (só as cores), nova conversa e editar etiquetas */}
@@ -144,9 +152,20 @@ export function CrmWhatsAppPage() {
               />
             </div>
             <LabelFilter labels={labels ?? []} value={labelFilter} onChange={setLabelFilter} />
-            <button type="button" onClick={() => setPicking(true)} className={TOOL_BTN} title="Nova conversa" aria-label="Nova conversa">
+            <button type="button" onClick={() => setPicking('list')} className={TOOL_BTN} title="Nova conversa" aria-label="Nova conversa">
               <MessageSquarePlus className="size-4" />
             </button>
+            {freeNumber ? (
+              <button
+                type="button"
+                onClick={() => setPicking('number')}
+                className={TOOL_BTN}
+                title="Conversar com número fora do cadastro"
+                aria-label="Conversar com número fora do cadastro"
+              >
+                <Phone className="size-4" />
+              </button>
+            ) : null}
             <button type="button" onClick={() => setManagingLabels(true)} className={TOOL_BTN} title="Editar etiquetas" aria-label="Editar etiquetas">
               <Tag className="size-4" />
             </button>
@@ -234,6 +253,7 @@ export function CrmWhatsAppPage() {
           <NewConversation
             contactId={contactParam}
             companyId={companyParam}
+            number={numberParam}
             onBack={() => setParams({})}
             onSent={(id) => {
               void reload();
@@ -272,6 +292,8 @@ export function CrmWhatsAppPage() {
       ) : null}
       {picking ? (
         <NewChatPicker
+          allowNumber={freeNumber}
+          startTyping={picking === 'number'}
           onClose={() => setPicking(false)}
           onPick={(p) => {
             setPicking(false);
@@ -653,8 +675,27 @@ function LabelEditRow({
 }
 
 /** Escolhe uma empresa ou contato com WhatsApp cadastrado para começar (ou abrir) a conversa. */
-function NewChatPicker({ onClose, onPick }: { onClose: () => void; onPick: (p: { empresa: string } | { contato: string }) => void }) {
+function NewChatPicker({
+  allowNumber,
+  startTyping,
+  onClose,
+  onPick,
+}: {
+  allowNumber: boolean;
+  startTyping: boolean;
+  onClose: () => void;
+  onPick: (p: { empresa: string } | { contato: string } | { numero: string }) => void;
+}) {
   const [search, setSearch] = useState('');
+  // Número fora do cadastro (quem a gerência liberou na aba Conexão)
+  const [typing, setTyping] = useState(startTyping);
+  const [number, setNumber] = useState('');
+  const digits = number.replace(/\D/g, '');
+  const validNumber = digits.length >= 10 && digits.length <= 15;
+  const startNumber = (e: FormEvent) => {
+    e.preventDefault();
+    if (validNumber) onPick({ numero: digits });
+  };
   const [debounced, setDebounced] = useState('');
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search), 250);
@@ -699,7 +740,42 @@ function NewChatPicker({ onClose, onPick }: { onClose: () => void; onPick: (p: {
         ));
   return (
     <Modal open title="Nova conversa" tight="more" onClose={onClose}>
-      <Input autoFocus placeholder="Buscar por nome ou número…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      <Input autoFocus={!startTyping} placeholder="Buscar por nome ou número…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      {allowNumber ? (
+        typing ? (
+          <form onSubmit={startNumber} className="mt-3 flex items-center gap-2">
+            <Input
+              autoFocus
+              type="tel"
+              inputMode="tel"
+              placeholder="(11) 91234-5678"
+              aria-label="Número de WhatsApp"
+              value={number}
+              onChange={(e) => setNumber(e.target.value)}
+              className="flex-1"
+            />
+            <Button type="submit" size="sm" disabled={!validNumber}>
+              Começar conversa
+            </Button>
+            <button type="button" onClick={() => setTyping(false)} className={TOOL_BTN} title="Cancelar" aria-label="Cancelar">
+              <X className="size-4" />
+            </button>
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setTyping(true);
+              // Já aproveita o que foi digitado na busca, se for um número
+              if (/^[\d\s()+-]+$/.test(search.trim())) setNumber(search.trim());
+            }}
+            className="mt-3 flex w-full items-center gap-3 rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-left text-sm font-medium text-zinc-600 hover:border-zinc-400 hover:text-ink"
+          >
+            <Phone className="size-4 text-zinc-400" />
+            Conversar com número fora do cadastro
+          </button>
+        )
+      ) : null}
       {/* Abas: mostra só a lista escolhida */}
       <div className="mt-3 flex gap-1 border-b border-zinc-200" role="tablist">
         {tabs.map((t) => (
@@ -902,22 +978,25 @@ function Chat({
 function NewConversation({
   contactId,
   companyId,
+  number,
   onBack,
   onSent,
 }: {
   contactId: string | null;
   companyId: string | null;
+  number: string | null;
   onBack: () => void;
   onSent: (conversationId: string) => void;
 }) {
   const { data, error } = useAsync(async () => {
+    if (number) return { name: phone(number), sub: 'Fora do cadastro', number };
     if (contactId) {
       const c = await crmService.contact(contactId);
       return { name: c.name, sub: c.company_name, number: c.whatsapp };
     }
     const d = await crmService.company(companyId!);
     return { name: d.company.name, sub: 'WhatsApp da empresa', number: d.company.whatsapp || d.company.mobile };
-  }, [contactId, companyId]);
+  }, [contactId, companyId, number]);
 
   return (
     <>
@@ -933,7 +1012,7 @@ function NewConversation({
       <div className="grid flex-1 place-items-center p-6 text-center text-sm text-zinc-500">
         {error ?? (data && !data.number ? 'Sem WhatsApp cadastrado.' : 'Nenhuma mensagem ainda. Envie a primeira abaixo.')}
       </div>
-      {data?.number ? <Composer to={contactId ? { contact_id: contactId } : { company_id: companyId! }} onSent={onSent} /> : null}
+      {data?.number ? <Composer to={number ? { phone: number } : contactId ? { contact_id: contactId } : { company_id: companyId! }} onSent={onSent} /> : null}
     </>
   );
 }

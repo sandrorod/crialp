@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { RefreshCw, Smartphone } from 'lucide-react';
+import { Phone, RefreshCw, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card, ConfirmDialog, Field, Input, LoadingBlock } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { crmService } from '@/services/crm';
+import type { CrmFreeNumberUser } from '@/types/crm';
 
 const STATES: Record<string, { label: string; cls: string }> = {
   open: { label: 'Conectado', cls: 'bg-emerald-50 text-emerald-700' },
@@ -210,6 +211,8 @@ export function CrmConnectionPage() {
         ) : null}
       </Card>
 
+      <FreeNumberCard />
+
       <ConfirmDialog
         open={confirmLogout}
         title="Desconectar o WhatsApp?"
@@ -221,5 +224,58 @@ export function CrmConnectionPage() {
         onClose={() => setConfirmLogout(false)}
       />
     </div>
+  );
+}
+
+const ROLE_LABELS: Record<string, string> = { owner: 'Dono', admin: 'Admin', seller: 'Vendedor' };
+
+/** Quem pode iniciar conversa com número fora do cadastro. Padrão: dono e admins; o dono não pode ser desmarcado. */
+function FreeNumberCard() {
+  const { data: users, setData } = useAsync(() => crmService.freeNumberUsers(), []);
+  const [saving, setSaving] = useState<string | null>(null);
+  const toggle = async (u: CrmFreeNumberUser) => {
+    setSaving(u.id);
+    try {
+      await crmService.setFreeNumberUser(u.id, !u.allowed);
+      setData((list) => list?.map((x) => (x.id === u.id ? { ...x, allowed: !u.allowed } : x)) ?? list);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSaving(null);
+    }
+  };
+  return (
+    <Card className="p-5">
+      <h3 className="flex items-center gap-2 font-semibold text-ink">
+        <Phone className="size-4 text-zinc-400" />
+        Conversa com número fora do cadastro
+      </h3>
+      <p className="mt-1 text-sm text-zinc-500">
+        Quem estiver marcado pode iniciar conversa no WhatsApp com um número que não é de nenhuma empresa ou contato. A conversa fica com quem a iniciou.
+      </p>
+      {!users ? (
+        <div className="mt-4">
+          <LoadingBlock rows={3} />
+        </div>
+      ) : (
+        <ul className="mt-4 divide-y divide-zinc-100">
+          {users.map((u) => (
+            <li key={u.id}>
+              <label className={cn('flex items-center gap-3 py-2.5', u.role === 'owner' ? 'cursor-default' : 'cursor-pointer')}>
+                <input
+                  type="checkbox"
+                  className="size-4 accent-brand-600"
+                  checked={u.allowed}
+                  disabled={u.role === 'owner' || saving === u.id}
+                  onChange={() => void toggle(u)}
+                />
+                <span className="min-w-0 flex-1 truncate text-sm text-ink">{u.name}</span>
+                <span className="text-xs text-zinc-500">{u.role === 'owner' ? 'Dono · sempre pode' : (ROLE_LABELS[u.role] ?? u.role)}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }
