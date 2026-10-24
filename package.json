@@ -19,7 +19,8 @@
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check": "biome ci .",
-    "knip": "knip"
+    "knip": "knip",
+    "arch": "depcruise apps/api/src apps/web/src --config .dependency-cruiser.cjs"
   },
   "engines": {
     "node": ">=20"
@@ -27,6 +28,7 @@
   "type": "module",
   "devDependencies": {
     "@biomejs/biome": "^2.2.4",
+    "dependency-cruiser": "^17.0.1",
     "esbuild": "^0.28.2",
     "knip": "^5.64.1"
   }

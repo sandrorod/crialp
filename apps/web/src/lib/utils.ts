@@ -53,3 +53,7 @@ export function shortUrl(url: string | null | undefined, max = 48): string {
 export function confirmDelete(what: string) {
   return window.confirm(`Tem certeza de que deseja apagar ${what}?`);
 }
+
+const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+/** Preço em reais ("R$ 1.234,56"); sem preço = null */
+export const formatPrice = (v: number | null) => (v == null ? null : brl.format(v));

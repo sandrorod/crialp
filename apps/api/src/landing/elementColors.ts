@@ -1,4 +1,4 @@
-import { isHex } from './theme.js';
+import { isHex } from './color.js';
 
 /** Cor escolhida para um elemento clicado na prévia do editor. */
 export interface ElementColor {

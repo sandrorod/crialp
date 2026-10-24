@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/lib/api';
 import { clientLevelService, landingPageService } from '@/services';
 import { Select } from '@/components/ui';
-import { formatPrice } from '@/pages/ClientLevelsPage';
+import { formatPrice } from '@/lib/utils';
 
 /** Níveis de cliente da organização; só administradores trocam o nível de uma página. */
 export function useClientLevels() {

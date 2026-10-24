@@ -4,12 +4,9 @@ import { toast } from 'sonner';
 import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Field, Input, LoadingBlock, Modal, PageHeader, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatPrice } from '@/lib/utils';
 import { clientLevelService } from '@/services';
 import type { ClientLevel } from '@/types';
-
-const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-export const formatPrice = (v: number | null) => (v == null ? null : brl.format(v));
 
 /** "1.234,56" / "1234.56" / "R$ 99,90" → número; "" → null; inválido → NaN */
 function parsePrice(text: string): number | null {

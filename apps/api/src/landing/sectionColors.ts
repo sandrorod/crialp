@@ -1,4 +1,5 @@
-import { contrast, ensureContrast, isHex, mix, type ResolvedTheme } from './theme.js';
+import { contrast, ensureContrast, isHex, mix } from './color.js';
+import type { ResolvedTheme } from './theme.js';
 
 /** Cores escolhidas para uma seção específica (sobrepõem as cores do projeto). */
 export interface SectionColors {
