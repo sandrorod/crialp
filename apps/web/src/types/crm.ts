@@ -70,6 +70,14 @@ export interface CrmTask {
   company_name?: string | null;
 }
 
+/** Mensagem pronta do WhatsApp: "/shortcut" no campo de mensagem puxa o texto (body). */
+export interface CrmQuickReply {
+  id: string;
+  shortcut: string;
+  body: string;
+  updated_at: string;
+}
+
 export interface CrmLabel {
   id: string;
   name: string;

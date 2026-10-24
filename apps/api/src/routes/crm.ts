@@ -615,6 +615,72 @@ crmRouter.delete('/labels/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── Mensagens prontas do WhatsApp ("/atalho" no campo de mensagem) ─────────
+
+const QuickReplySchema = z.object({
+  // Atalho sem a barra e sem espaços: "/valor" → "valor"
+  shortcut: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/^\/+/, '').toLowerCase())
+    .pipe(
+      z
+        .string()
+        .min(1, 'Informe o nome (atalho) da mensagem.')
+        .max(30, 'Nome muito longo (máximo de 30 caracteres).')
+        .regex(/^[\p{L}\p{N}_-]+$/u, 'Use só letras, números, - ou _ no nome (sem espaços).'),
+    ),
+  body: z.string().trim().min(1, 'Escreva o texto da mensagem.').max(4000, 'Texto muito longo (máximo de 4.000 caracteres).'),
+});
+const QUICK_REPLY_COLUMNS = 'id, shortcut, body, updated_at';
+
+function quickReplyError(err: unknown): never {
+  if ((err as { constraint?: string }).constraint === 'lp_crm_quick_replies_shortcut_uniq') {
+    throw new AppError(409, 'Já existe uma mensagem pronta com esse nome.', 'CRM_DUP_QUICK_REPLY');
+  }
+  throw err;
+}
+
+crmRouter.get('/quick-replies', async (req, res) => {
+  const user = authUser(req);
+  const { rows } = await query(`select ${QUICK_REPLY_COLUMNS} from lp_crm_quick_replies where organization_id = $1 order by lower(shortcut)`, [
+    user.organizationId,
+  ]);
+  res.json(rows);
+});
+
+crmRouter.post('/quick-replies', async (req, res) => {
+  const user = authUser(req);
+  const b = parseBody(QuickReplySchema, req.body);
+  const created = await one(`insert into lp_crm_quick_replies (organization_id, shortcut, body) values ($1, $2, $3) returning ${QUICK_REPLY_COLUMNS}`, [
+    user.organizationId,
+    b.shortcut,
+    b.body,
+  ]).catch(quickReplyError);
+  res.status(201).json(created);
+});
+
+crmRouter.put('/quick-replies/:id', async (req, res) => {
+  const user = authUser(req);
+  const b = parseBody(QuickReplySchema, req.body);
+  const updated = await one(
+    `update lp_crm_quick_replies set shortcut = $3, body = $4, updated_at = now() where id = $1 and organization_id = $2 returning ${QUICK_REPLY_COLUMNS}`,
+    [uuidParam.parse(req.params.id), user.organizationId, b.shortcut, b.body],
+  ).catch(quickReplyError);
+  if (!updated) throw notFound('Mensagem pronta não encontrada.');
+  res.json(updated);
+});
+
+crmRouter.delete('/quick-replies/:id', async (req, res) => {
+  const user = authUser(req);
+  const { rowCount } = await query('delete from lp_crm_quick_replies where id = $1 and organization_id = $2', [
+    uuidParam.parse(req.params.id),
+    user.organizationId,
+  ]);
+  if (!rowCount) throw notFound('Mensagem pronta não encontrada.');
+  res.json({ ok: true });
+});
+
 // Etiquetas de uma conversa: a lista enviada substitui a anterior
 crmRouter.put('/conversations/:id/labels', async (req, res) => {
   const user = authUser(req);

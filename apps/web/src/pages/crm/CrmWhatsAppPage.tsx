@@ -25,6 +25,7 @@ import {
   User,
   UserPlus,
   X,
+  Zap,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card, Input, Modal, Spinner, Textarea } from '@/components/ui';
@@ -32,9 +33,10 @@ import { ContactForm } from '@/components/crm/CrmForms';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/lib/api';
+import { applyQuickReply, matchQuickReplies, shortcutAt } from '@/lib/quickReplies';
 import { cn } from '@/lib/utils';
 import { crmService, dateTime, phone, waKey, type OutgoingMedia, type SendTo } from '@/services/crm';
-import type { CrmConversation, CrmLabel, CrmMessage } from '@/types/crm';
+import type { CrmConversation, CrmLabel, CrmMessage, CrmQuickReply } from '@/types/crm';
 import { isCrmManager } from './CrmLayout';
 
 const LIST_POLL = 6_000;
@@ -960,6 +962,12 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
   const input = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const box = useRef<HTMLFormElement>(null);
+  // Mensagens prontas: "/atalho" digitado puxa o texto salvo
+  const { data: quickReplies, reload: reloadQuickReplies } = useAsync(() => crmService.quickReplies(), []);
+  const [slash, setSlash] = useState<{ start: number; query: string } | null>(null);
+  const [slashIndex, setSlashIndex] = useState(0);
+  const [managing, setManaging] = useState<{ shortcut?: string } | null>(null);
+  const suggestions = slash ? matchQuickReplies(quickReplies ?? [], slash.query) : [];
 
   // Fecha o seletor ao clicar fora ou apertar Esc
   useEffect(() => {
@@ -989,6 +997,26 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
     [attachment],
   );
   useEffect(() => () => recorder.current?.stream.getTracks().forEach((t) => t.stop()), []);
+
+  const updateSlash = (value: string, cursor: number) => {
+    const found = shortcutAt(value, cursor);
+    setSlash((cur) => (cur?.start === found?.start && cur?.query === found?.query ? cur : found));
+    if (found?.query !== slash?.query) setSlashIndex(0);
+  };
+
+  /** Troca o "/atalho" pelo texto da mensagem pronta; o cursor fica no fim, para revisar antes de enviar. */
+  const pickQuickReply = (r: CrmQuickReply) => {
+    if (!slash) return;
+    const el = input.current;
+    const n = applyQuickReply(text, slash.start, el?.selectionStart ?? text.length, r.body);
+    setText(n.text);
+    setSlash(null);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(n.cursor, n.cursor);
+    });
+  };
 
   /** Emoji entra onde está o cursor (ou no lugar do trecho selecionado), e o cursor fica depois dele. */
   const insertEmoji = (emoji: string) => {
@@ -1096,133 +1124,381 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
   const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
   return (
-    <form ref={box} onSubmit={submit} className="relative border-t border-zinc-100 bg-white p-3">
-      {emojiOpen ? (
-        <div className="absolute bottom-full right-3 z-20 mb-2 max-w-[calc(100vw-24px)] overflow-hidden rounded-xl shadow-2xl">
-          <Suspense
-            fallback={
-              <div className="grid h-[380px] w-[340px] place-items-center bg-white">
-                <Spinner />
-              </div>
-            }
-          >
-            <EmojiPanel onPick={insertEmoji} />
-          </Suspense>
-        </div>
+    <>
+      {/* Fora do <form>: o envio do formulário do modal não pode chegar ao envio da mensagem */}
+      {managing ? (
+        <QuickRepliesManager
+          initialShortcut={managing.shortcut}
+          onClose={() => {
+            setManaging(null);
+            input.current?.focus();
+          }}
+          onChanged={() => void reloadQuickReplies()}
+        />
       ) : null}
-
-      {attachment ? (
-        <div className="mb-2 flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-2">
-          {attachment.preview && attachment.kind === 'video' ? (
-            <video src={attachment.preview} className="size-14 rounded object-cover" muted />
-          ) : attachment.preview ? (
-            <img src={attachment.preview} alt="" className="size-14 rounded object-cover" />
-          ) : (
-            <span className="grid size-14 place-items-center rounded bg-white text-zinc-400">
-              {attachment.kind === 'audio' ? <Mic className="size-5" /> : <FileText className="size-5" />}
-            </span>
-          )}
-          <div className="min-w-0 flex-1 text-sm">
-            <div className="truncate font-medium text-ink">{attachment.file_name}</div>
-            <div className="text-xs text-zinc-500">
-              {MEDIA_LABEL[attachment.kind]} · {Math.max(1, Math.round(attachment.size / 1024))} KB
-              {attachment.kind === 'audio' ? ' · vai como mensagem de voz' : ' · o texto abaixo vira a legenda'}
+      <form ref={box} onSubmit={submit} className="relative border-t border-zinc-100 bg-white p-3">
+        {slash && !recording ? (
+          <div
+            className="absolute inset-x-3 bottom-full z-20 mb-2 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl"
+            role="listbox"
+            aria-label="Mensagens prontas"
+          >
+            {suggestions.length ? (
+              <ul className="max-h-72 overflow-y-auto py-1">
+                {suggestions.map((r, i) => (
+                  <li key={r.id}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={i === slashIndex}
+                      // Não tira o foco do campo antes do clique
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => pickQuickReply(r)}
+                      onMouseEnter={() => setSlashIndex(i)}
+                      className={cn('flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left', i === slashIndex ? 'bg-zinc-100' : 'hover:bg-zinc-50')}
+                    >
+                      <span className="text-sm font-semibold text-ink">/{r.shortcut}</span>
+                      <span className="line-clamp-2 whitespace-pre-line text-xs text-zinc-500">{r.body}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="px-3 py-2.5 text-sm text-zinc-500">
+                {quickReplies?.length ? `Nenhuma mensagem pronta com "/${slash.query}".` : 'Nenhuma mensagem pronta ainda.'}
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-2 border-t border-zinc-100 bg-zinc-50 px-3 py-1.5 text-[11px] text-zinc-500">
+              <span>{suggestions.length ? '↑↓ escolhe · Enter ou Tab usa · Esc fecha' : 'Esc fecha'}</span>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setManaging({ shortcut: suggestions.length ? undefined : slash.query || undefined })}
+                className="font-medium text-ink hover:underline"
+              >
+                {suggestions.length || !slash.query ? 'Gerenciar mensagens prontas' : `Criar /${slash.query}`}
+              </button>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setAttachment(null)}
-            className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-200 hover:text-ink"
-            aria-label="Tirar anexo"
-            title="Tirar anexo"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      ) : null}
-
-      {recording ? (
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={() => stopRecording(true)} className={iconBtn} aria-label="Descartar áudio" title="Descartar">
-            <Trash2 className="size-5" />
-          </button>
-          <div className="flex flex-1 items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-            <span className="size-2.5 animate-pulse rounded-full bg-red-500" /> Gravando… {clock(recording.seconds)}
+        ) : null}
+        {emojiOpen ? (
+          <div className="absolute bottom-full right-3 z-20 mb-2 max-w-[calc(100vw-24px)] overflow-hidden rounded-xl shadow-2xl">
+            <Suspense
+              fallback={
+                <div className="grid h-[380px] w-[340px] place-items-center bg-white">
+                  <Spinner />
+                </div>
+              }
+            >
+              <EmojiPanel onPick={insertEmoji} />
+            </Suspense>
           </div>
-          <Button type="button" onClick={() => stopRecording(false)} aria-label="Enviar áudio" icon={<Send className="size-4" />} />
-        </div>
-      ) : (
-        <div className="flex items-end gap-2">
-          <input
-            ref={fileInput}
-            type="file"
-            className="hidden"
-            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip"
-            onChange={(e) => {
-              void pickFile(e.target.files?.[0]);
-              e.target.value = '';
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => fileInput.current?.click()}
-            className={iconBtn}
-            title="Anexar foto, GIF, vídeo, áudio ou documento"
-            aria-label="Anexar"
-            disabled={sending}
-          >
-            <Paperclip className="size-5" />
-          </button>
-          <Textarea
-            ref={input}
-            rows={1}
-            className="max-h-40 min-h-10 resize-none py-2"
-            placeholder={attachment ? 'Legenda (opcional)' : 'Digite uma mensagem (Enter envia, Shift+Enter quebra linha)'}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onPaste={(e) => {
-              // Colar uma imagem (print) vira anexo
-              const file = [...e.clipboardData.files].find((f) => f.type.startsWith('image/'));
-              if (file) {
-                e.preventDefault();
-                void pickFile(file);
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                void submit();
-              }
-            }}
-          />
-          <div className="flex flex-col gap-1">
+        ) : null}
+
+        {attachment ? (
+          <div className="mb-2 flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-2">
+            {attachment.preview && attachment.kind === 'video' ? (
+              <video src={attachment.preview} className="size-14 rounded object-cover" muted />
+            ) : attachment.preview ? (
+              <img src={attachment.preview} alt="" className="size-14 rounded object-cover" />
+            ) : (
+              <span className="grid size-14 place-items-center rounded bg-white text-zinc-400">
+                {attachment.kind === 'audio' ? <Mic className="size-5" /> : <FileText className="size-5" />}
+              </span>
+            )}
+            <div className="min-w-0 flex-1 text-sm">
+              <div className="truncate font-medium text-ink">{attachment.file_name}</div>
+              <div className="text-xs text-zinc-500">
+                {MEDIA_LABEL[attachment.kind]} · {Math.max(1, Math.round(attachment.size / 1024))} KB
+                {attachment.kind === 'audio' ? ' · vai como mensagem de voz' : ' · o texto abaixo vira a legenda'}
+              </div>
+            </div>
             <button
               type="button"
-              onClick={() => setEmojiOpen((o) => !o)}
-              className={cn(iconBtn, emojiOpen && 'bg-zinc-100 text-ink')}
-              title="Emojis"
-              aria-label="Emojis"
-              aria-expanded={emojiOpen}
+              onClick={() => setAttachment(null)}
+              className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-200 hover:text-ink"
+              aria-label="Tirar anexo"
+              title="Tirar anexo"
             >
-              <Smile className="size-5" />
+              <X className="size-4" />
             </button>
-            {text.trim() || attachment ? (
-              <Button type="submit" loading={sending} aria-label="Enviar" icon={<Send className="size-4" />} />
-            ) : (
-              <Button
-                type="button"
-                variant="secondary"
-                loading={sending}
-                onClick={() => void startRecording()}
-                aria-label="Gravar áudio"
-                title="Gravar áudio"
-                icon={<Mic className="size-4" />}
-              />
-            )}
           </div>
+        ) : null}
+
+        {recording ? (
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => stopRecording(true)} className={iconBtn} aria-label="Descartar áudio" title="Descartar">
+              <Trash2 className="size-5" />
+            </button>
+            <div className="flex flex-1 items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+              <span className="size-2.5 animate-pulse rounded-full bg-red-500" /> Gravando… {clock(recording.seconds)}
+            </div>
+            <Button type="button" onClick={() => stopRecording(false)} aria-label="Enviar áudio" icon={<Send className="size-4" />} />
+          </div>
+        ) : (
+          <div className="flex items-end gap-2">
+            <input
+              ref={fileInput}
+              type="file"
+              className="hidden"
+              accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip"
+              onChange={(e) => {
+                void pickFile(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInput.current?.click()}
+              className={iconBtn}
+              title="Anexar foto, GIF, vídeo, áudio ou documento"
+              aria-label="Anexar"
+              disabled={sending}
+            >
+              <Paperclip className="size-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setManaging({})}
+              className={iconBtn}
+              title="Mensagens prontas (digite / no campo para usar)"
+              aria-label="Mensagens prontas"
+              disabled={sending}
+            >
+              <Zap className="size-5" />
+            </button>
+            <Textarea
+              ref={input}
+              rows={1}
+              className="max-h-40 min-h-10 resize-none py-2"
+              placeholder={attachment ? 'Legenda (opcional)' : 'Digite uma mensagem (Enter envia, Shift+Enter quebra linha)'}
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                updateSlash(e.target.value, e.target.selectionStart);
+              }}
+              // Cursor movido (clique, setas): a lista de mensagens prontas acompanha
+              onSelect={(e) => updateSlash(e.currentTarget.value, e.currentTarget.selectionStart)}
+              onBlur={() => setSlash(null)}
+              onPaste={(e) => {
+                // Colar uma imagem (print) vira anexo
+                const file = [...e.clipboardData.files].find((f) => f.type.startsWith('image/'));
+                if (file) {
+                  e.preventDefault();
+                  void pickFile(file);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (slash && e.key === 'Escape') {
+                  e.preventDefault();
+                  setSlash(null);
+                  return;
+                }
+                if (slash && suggestions.length) {
+                  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const step = e.key === 'ArrowDown' ? 1 : -1;
+                    setSlashIndex((i) => (i + step + suggestions.length) % suggestions.length);
+                    return;
+                  }
+                  if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
+                    e.preventDefault();
+                    pickQuickReply(suggestions[Math.min(slashIndex, suggestions.length - 1)]);
+                    return;
+                  }
+                }
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  void submit();
+                }
+              }}
+            />
+            <div className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => setEmojiOpen((o) => !o)}
+                className={cn(iconBtn, emojiOpen && 'bg-zinc-100 text-ink')}
+                title="Emojis"
+                aria-label="Emojis"
+                aria-expanded={emojiOpen}
+              >
+                <Smile className="size-5" />
+              </button>
+              {text.trim() || attachment ? (
+                <Button type="submit" loading={sending} aria-label="Enviar" icon={<Send className="size-4" />} />
+              ) : (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  loading={sending}
+                  onClick={() => void startRecording()}
+                  aria-label="Gravar áudio"
+                  title="Gravar áudio"
+                  icon={<Mic className="size-4" />}
+                />
+              )}
+            </div>
+          </div>
+        )}
+      </form>
+    </>
+  );
+}
+
+/**
+ * Mensagens prontas: nome (o atalho chamado com "/" no campo de mensagem) e texto. Valem para toda a equipe.
+ * `initialShortcut`: abre já criando uma com esse nome (vindo de "/nome" sem mensagem).
+ */
+function QuickRepliesManager({ initialShortcut, onClose, onChanged }: { initialShortcut?: string; onClose: () => void; onChanged: () => void }) {
+  const { data, error, loading, reload } = useAsync(() => crmService.quickReplies(), []);
+  const list = data ?? [];
+  const [editing, setEditing] = useState<{ id: string | null; shortcut: string; body: string } | null>(
+    initialShortcut !== undefined ? { id: null, shortcut: initialShortcut, body: '' } : null,
+  );
+  const [busy, setBusy] = useState(false);
+  const [search, setSearch] = useState('');
+  const q = search.trim().toLowerCase().replace(/^\//, '');
+  const shown = q ? list.filter((r) => r.shortcut.includes(q) || r.body.toLowerCase().includes(q)) : list;
+
+  const save = async (e?: FormEvent) => {
+    e?.preventDefault();
+    if (!editing) return;
+    const shortcut = editing.shortcut.trim().replace(/^\/+/, '');
+    if (!shortcut || !editing.body.trim()) return toast.error('Preencha o nome e o texto da mensagem.');
+    setBusy(true);
+    try {
+      if (editing.id) await crmService.updateQuickReply(editing.id, { shortcut, body: editing.body });
+      else await crmService.createQuickReply({ shortcut, body: editing.body });
+      toast.success(`Mensagem /${shortcut.toLowerCase()} salva.`);
+      setEditing(null);
+      await reload();
+      onChanged();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async (r: CrmQuickReply) => {
+    if (!window.confirm(`Excluir a mensagem pronta "/${r.shortcut}"?`)) return;
+    try {
+      await crmService.removeQuickReply(r.id);
+      await reload();
+      onChanged();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  };
+
+  return (
+    <Modal
+      open
+      title="Mensagens prontas"
+      onClose={onClose}
+      busy={busy}
+      actions={
+        <button
+          type="button"
+          onClick={() => setEditing({ id: null, shortcut: '', body: '' })}
+          disabled={!!editing}
+          className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-ink disabled:opacity-40"
+          aria-label="Nova mensagem pronta"
+          title="Nova mensagem pronta"
+        >
+          <Plus className="size-5" />
+        </button>
+      }
+    >
+      {editing ? (
+        <form onSubmit={save} className="space-y-3">
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-zinc-600">Nome (atalho)</span>
+            <div className="flex items-center rounded-lg border border-zinc-200 focus-within:border-zinc-400">
+              <span className="pl-3 text-sm font-semibold text-zinc-400">/</span>
+              <input
+                // biome-ignore lint/a11y/noAutofocus: formulário recém-aberto no modal; o foco vai para o primeiro campo vazio, como no resto do painel
+                autoFocus={!editing.shortcut}
+                value={editing.shortcut}
+                maxLength={31}
+                onChange={(e) => setEditing({ ...editing, shortcut: e.target.value.replace(/\s+/g, '-') })}
+                placeholder="valor"
+                className="h-10 min-w-0 flex-1 bg-transparent px-1 text-sm outline-none"
+                aria-label="Nome (atalho)"
+              />
+            </div>
+            <span className="mt-1 block text-[11px] text-zinc-400">
+              No WhatsApp, digite /{editing.shortcut.trim().replace(/^\/+/, '').toLowerCase() || 'nome'} para puxar o texto. Sem espaços.
+            </span>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-zinc-600">Texto</span>
+            <Textarea
+              autoFocus={!!editing.shortcut}
+              rows={7}
+              maxLength={4000}
+              value={editing.body}
+              onChange={(e) => setEditing({ ...editing, body: e.target.value })}
+              placeholder="Texto completo que vai para o campo de mensagem"
+            />
+          </label>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setEditing(null)} disabled={busy}>
+              Cancelar
+            </Button>
+            <Button type="submit" loading={busy}>
+              Salvar
+            </Button>
+          </div>
+        </form>
+      ) : loading && !data ? (
+        <div className="grid place-items-center py-8">
+          <Spinner />
+        </div>
+      ) : error ? (
+        <p className="py-4 text-center text-sm text-red-600">{error}</p>
+      ) : (
+        <div className="space-y-2">
+          {list.length > 5 ? (
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nome ou texto" aria-label="Buscar mensagem pronta" />
+          ) : null}
+          <ul className="max-h-[55vh] space-y-1 overflow-y-auto">
+            {shown.map((r) => (
+              <li key={r.id} className="flex items-start gap-2 rounded-lg px-2 py-2 hover:bg-zinc-50">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold text-ink">/{r.shortcut}</div>
+                  <div className="line-clamp-2 whitespace-pre-line text-xs text-zinc-500">{r.body}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditing({ id: r.id, shortcut: r.shortcut, body: r.body })}
+                  className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink"
+                  aria-label={`Editar /${r.shortcut}`}
+                  title="Editar"
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void remove(r)}
+                  className="rounded-md p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600"
+                  aria-label={`Excluir /${r.shortcut}`}
+                  title="Excluir"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </li>
+            ))}
+            {!list.length ? (
+              <li className="py-4 text-center text-sm text-zinc-500">
+                Nenhuma mensagem pronta ainda. Clique no + para criar e depois digite /nome no campo de mensagem.
+              </li>
+            ) : !shown.length ? (
+              <li className="py-4 text-center text-sm text-zinc-500">Nada encontrado.</li>
+            ) : null}
+          </ul>
         </div>
       )}
-    </form>
+    </Modal>
   );
 }
 

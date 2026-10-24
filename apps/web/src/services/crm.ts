@@ -7,6 +7,7 @@ import type {
   CrmDeal,
   CrmLabel,
   CrmMessage,
+  CrmQuickReply,
   CrmStage,
   CrmTask,
   CrmUser,
@@ -64,6 +65,10 @@ export const crmService = {
     api.get<CrmConversation[]>(
       `/crm/conversations${qs({ unlinked: f.unlinked ? 'true' : undefined, label: f.label || undefined, search: f.search?.trim() || undefined })}`,
     ),
+  quickReplies: () => api.get<CrmQuickReply[]>('/crm/quick-replies'),
+  createQuickReply: (r: { shortcut: string; body: string }) => api.post<CrmQuickReply>('/crm/quick-replies', r),
+  updateQuickReply: (id: string, r: { shortcut: string; body: string }) => api.put<CrmQuickReply>(`/crm/quick-replies/${id}`, r),
+  removeQuickReply: (id: string) => api.del(`/crm/quick-replies/${id}`),
   labels: () => api.get<CrmLabel[]>('/crm/labels'),
   createLabel: (l: { name: string; color: string }) => api.post<CrmLabel>('/crm/labels', l),
   updateLabel: (id: string, l: { name: string; color: string }) => api.put<CrmLabel>(`/crm/labels/${id}`, l),

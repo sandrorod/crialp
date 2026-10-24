@@ -21,5 +21,11 @@ const { resetDb, seed } = await import('./helpers.js');
 const { createApp } = await import('../src/app.js');
 
 await resetDb();
-await seed();
+const s = await seed();
+// Conversa do WhatsApp do CRM (org A) para os testes da tela do WhatsApp
+const { query } = await import('../src/db/pool.js');
+await query(
+  `insert into lp_crm_conversations (organization_id, phone, push_name, company_id, last_message, last_message_at) values ($1, '5511988887777', 'Cliente Teste', $2, 'Olá, qual o valor?', now())`,
+  [s.orgA, s.a1.companyId],
+);
 createApp().listen(PORT, '127.0.0.1', () => console.log(`[e2e] sistema em http://localhost:${PORT}`));

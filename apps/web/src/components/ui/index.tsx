@@ -1,6 +1,7 @@
 import {
   createContext,
   useContext,
+  useId,
   type ComponentProps,
   useEffect,
   useRef,
@@ -323,6 +324,7 @@ export function ConfirmDialog({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
@@ -332,12 +334,15 @@ export function ConfirmDialog({
   return (
     <dialog
       ref={ref}
+      aria-labelledby={titleId}
       onClose={(e) => e.target === e.currentTarget && onClose()} // ignora o "close" repassado por diálogos aninhados
       onClick={(e) => e.target === ref.current && !loading && onClose()}
       className="m-auto w-[calc(100%-32px)] max-w-md rounded-2xl p-0 shadow-2xl backdrop:bg-zinc-950/40 backdrop:backdrop-blur-[2px]"
     >
       <div className="p-6">
-        <h2 className="text-lg font-semibold text-ink">{title}</h2>
+        <h2 id={titleId} className="text-lg font-semibold text-ink">
+          {title}
+        </h2>
         <div className="mt-2 text-sm leading-relaxed text-zinc-600">{description}</div>
         <div className="mt-6 flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose} disabled={loading}>
@@ -379,6 +384,8 @@ export function Modal({
   tight?: boolean | 'more';
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  // Título como nome da janela (leitores de tela e testes)
+  const titleId = useId();
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
@@ -388,6 +395,7 @@ export function Modal({
   return (
     <dialog
       ref={ref}
+      aria-labelledby={titleId}
       onClose={(e) => e.target === e.currentTarget && onClose()} // ignora o "close" repassado por diálogos aninhados
       onCancel={(e) => busy && e.preventDefault()}
       onClick={(e) => e.target === ref.current && !busy && onClose()}
@@ -400,7 +408,9 @@ export function Modal({
         <div className="flex max-h-[calc(100dvh-48px)] flex-col">
           <div className={cn('flex items-start gap-2 pl-6 pr-4', tight ? 'pb-1 pt-4' : 'border-b border-zinc-100 py-4')}>
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-semibold text-ink">{title}</h2>
+              <h2 id={titleId} className="text-lg font-semibold text-ink">
+                {title}
+              </h2>
               {description ? <div className="mt-0.5 text-sm text-zinc-500">{description}</div> : null}
             </div>
             {actions}
