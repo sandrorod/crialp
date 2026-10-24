@@ -1,3 +1,4 @@
+import { initObservability } from './lib/observability.js';
 import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { ensureReady } from './ready.js';
@@ -5,6 +6,7 @@ import { jobService } from './services/jobs/JobService.js';
 import { aiService } from './services/ai/index.js';
 
 async function main() {
+  initObservability();
   await ensureReady();
   // Servidor contínuo: nada mais está rodando, então qualquer tarefa pendente foi interrompida
   await jobService.failInterrupted();

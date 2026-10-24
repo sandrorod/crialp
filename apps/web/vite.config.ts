@@ -26,6 +26,8 @@ function adminRedirect(): Plugin {
 
 export default defineConfig({
   base: '/admin/',
+  // Versão publicada (commit) nos relatórios de erro do Sentry
+  define: { 'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA ?? 'dev') },
   plugins: [adminRedirect(), react(), tailwindcss()],
   // Saída em <raiz>/dist/admin: no Vercel a pasta "dist" da raiz é publicada como estática e o painel fica em /admin
   build: { outDir: path.resolve(import.meta.dirname, '../../dist/admin'), emptyOutDir: true },

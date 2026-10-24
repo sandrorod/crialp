@@ -1,3 +1,4 @@
+import { withSpan } from '../../lib/observability.js';
 import type { AIProvider } from './AIProvider.js';
 import {
   DESIGN_PRESETS,
@@ -122,13 +123,20 @@ export class AIService {
   get model() {
     return this.provider.model;
   }
+
+  /** Chamada à IA medida (span "ia.<etapa>"): provedor, modelo e tamanho do pedido — nunca o conteúdo. */
+  private structured<T>(step: string, input: Parameters<AIProvider['generateStructured']>[0] & { schema: { parse: (v: unknown) => T } }): Promise<T> {
+    return withSpan(`ia.${step}`, { 'ai.provider': this.provider.name, 'ai.model': this.provider.model, 'ai.prompt_chars': input.prompt.length }, () =>
+      this.provider.generateStructured(input),
+    ) as Promise<T>;
+  }
   isConfigured(): Promise<boolean> {
     return this.provider.isConfigured();
   }
 
   /** Analisa o conteúdo bruto do site e devolve o cadastro estruturado. */
   async extractCompanyData(document: string): Promise<ExtractedCompany> {
-    return this.provider.generateStructured({
+    return this.structured('extrair_cadastro', {
       system: EXTRACTION_SYSTEM,
       prompt: `Analise o material abaixo, coletado do site da empresa, e produza o cadastro estruturado.\n\n<material_do_site>\n${document}\n</material_do_site>`,
       schema: ExtractedCompanySchema,
@@ -137,7 +145,7 @@ export class AIService {
 
   /** Seleciona e classifica as fotos úteis de um site para a Landing Page. */
   async classifyImages(companyName: string, segment: string | null, imageList: string): Promise<ImageClassification> {
-    return this.provider.generateStructured({
+    return this.structured('classificar_fotos', {
       system: `Você seleciona fotos para a Landing Page de uma empresa. Classifique pelo índice TODAS as fotos úteis
 (fachada, ambiente, equipe, atendimento, procedimentos, produtos, pratos, imóveis...) com texto alternativo descritivo
 em português. Ignore ícones, selos, prêmios em forma de logo, banners com muito texto, formulários, mapas e marcas de
@@ -155,7 +163,7 @@ terceiros. Indique o índice do logotipo da própria empresa quando identificáv
           { hero: previous.hero, design: previous.design, section_order: previous.section_order },
         )}\n</versao_anterior>`
       : '';
-    return this.provider.generateStructured({
+    return this.structured('gerar_conteudo', {
       system: GENERATION_SYSTEM,
       prompt: `Cadastro estruturado da empresa (fonte única de verdade):\n<cadastro>\n${JSON.stringify(profile, null, 2)}\n</cadastro>${regen}`,
       schema: LandingContentSchema,

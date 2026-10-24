@@ -17,6 +17,7 @@ import { UsersPage } from '@/pages/UsersPage';
 import { ClientLevelsPage } from '@/pages/ClientLevelsPage';
 import { SearchCompaniesPage } from '@/pages/SearchCompaniesPage';
 import { MySitesPage } from '@/pages/MySitesPage';
+import { initMonitoring, rootErrorHandlers } from '@/lib/monitoring';
 import { CrmLayout } from '@/pages/crm/CrmLayout';
 import { CrmCompaniesPage } from '@/pages/crm/CrmCompaniesPage';
 import { CrmCompanyPage } from '@/pages/crm/CrmCompanyPage';
@@ -62,7 +63,9 @@ const router = createBrowserRouter(
   { basename: '/admin' },
 );
 
-createRoot(document.getElementById('root')!).render(
+initMonitoring();
+
+createRoot(document.getElementById('root')!, rootErrorHandlers()).render(
   <StrictMode>
     <AuthProvider>
       <RouterProvider router={router} />

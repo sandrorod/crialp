@@ -2,7 +2,10 @@
 // O painel (/admin) é servido como estático a partir de dist/admin.
 import { createApp } from '../apps/api/dist/app.js';
 import { ensureReady } from '../apps/api/dist/ready.js';
+import { captureError, initObservability } from '../apps/api/dist/lib/observability.js';
 
+// Sentry / OpenTelemetry (só com SENTRY_DSN ou OTEL_EXPORTER_OTLP_ENDPOINT definidos)
+initObservability();
 const app = createApp();
 
 function setupError(req, res, err) {
@@ -13,6 +16,7 @@ function setupError(req, res, err) {
     ? 'Banco de dados não configurado: defina DATABASE_URL nas variáveis de ambiente do projeto no Vercel e faça um novo deploy.'
     : 'Falha ao conectar ao banco de dados. Verifique DATABASE_URL e DATABASE_SSL.';
   console.error('[vercel] falha ao preparar o banco:', err);
+  captureError(err, { stage: 'ensureReady' });
   res.statusCode = 503;
   if ((req.url || '').startsWith('/api/')) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');

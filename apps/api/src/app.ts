@@ -20,6 +20,7 @@ import { clientLevelsRouter } from './routes/clientLevels.js';
 import { colorPalettesRouter } from './routes/colorPalettes.js';
 import { customDomainMiddleware, publicRouter } from './routes/public.js';
 import { readDbUpload } from './services/storage/StorageService.js';
+import { monitoringRouter } from './routes/monitoring.js';
 
 /** Arquivos enviados são só imagens: nunca interpretados como página nem executados se abertos direto. */
 const UPLOAD_HEADERS = {
@@ -71,6 +72,8 @@ export function createApp() {
   // Mídias do WhatsApp do CRM também vêm em base64 no corpo
   api.use((req, res, next) => (req.path.startsWith('/settings/atendimento') || req.path === '/crm/messages/media' ? jsonLarge : jsonDefault)(req, res, next));
   api.use(cookieParser());
+  // Relatórios de erro do painel (text/plain, formato do Sentry): conferem a origem na própria rota
+  api.use('/monitoring', monitoringRouter);
   api.use(requireSameOriginWrite);
   // Versão publicada (commit) para conferir se um deploy já está no ar
   api.get('/health', (_req, res) => res.json({ ok: true, version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null }));

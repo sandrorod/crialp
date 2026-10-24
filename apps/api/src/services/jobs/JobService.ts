@@ -3,6 +3,7 @@ import { waitUntil } from '@vercel/functions';
 import { env } from '../../config/env.js';
 import { AppError, Messages } from '../../lib/errors.js';
 import { clearUrlError, recordUrlError } from '../../repositories/urlErrors.js';
+import { captureError, flushObservability, withSpan } from '../../lib/observability.js';
 
 export type JobType = 'analyze_url' | 'generate_landing_page';
 
@@ -70,7 +71,7 @@ export class JobService {
     const task = (async () => {
       try {
         await query(`update jobs set status = 'running' where id = $1 and status <> 'error'`, [id]);
-        const result = await fn(handle);
+        const result = await withSpan('job', { 'job.id': id }, () => fn(handle));
         await query(`update jobs set status = 'done', result = $2 where id = $1 and status <> 'error'`, [id, JSON.stringify(result ?? null)]);
         await this.urlOutcome(id, null);
         // Gerou: tira a marca de erro da empresa
@@ -82,14 +83,17 @@ export class JobService {
       } catch (err) {
         if (err instanceof JobCanceled) return;
         const message = err instanceof AppError ? err.message : Messages.aiFailed;
-        if (!(err instanceof AppError)) console.error(`[job ${id}]`, err);
+        if (!(err instanceof AppError)) {
+          console.error(`[job ${id}]`, err);
+          captureError(err, { job: id });
+        }
         await query(`update jobs set status = 'error', error = $2 where id = $1 and status <> 'error'`, [id, message]).catch(() => {});
         await query(MARK_LP_ERROR('select id, type, input, error from jobs where id = $1'), [id]).catch(() => {});
         await this.urlOutcome(id, message);
       }
     })();
-    // No Vercel a função continua viva até a tarefa terminar, mesmo após a resposta
-    if (env.isVercel) waitUntil(task);
+    // No Vercel a função continua viva até a tarefa terminar (e o envio do erro/trace), mesmo após a resposta
+    if (env.isVercel) waitUntil(task.then(() => flushObservability()));
   }
 
   /** Análise de link: grava (ou apaga, se deu certo) o erro pelo link, para "Buscar empresas" mostrar. */

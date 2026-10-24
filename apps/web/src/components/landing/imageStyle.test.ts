@@ -34,7 +34,7 @@ describe('imageStylesCss (mesmo CSS da página publicada)', () => {
   });
 
   it('endereço com aspas ou "<" não fecha o seletor nem o <style>', () => {
-    const css = imageStylesCss({ ['https://x.com/a"b<script>.jpg']: { r: 4 } }, undefined);
+    const css = imageStylesCss({ 'https://x.com/a"b<script>.jpg': { r: 4 } }, undefined);
     expect(css).toContain('img[data-lp-img="https://x.com/a\\"bscript.jpg"]');
     expect(css).not.toContain('<');
   });

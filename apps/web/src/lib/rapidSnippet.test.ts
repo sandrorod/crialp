@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseRapidSnippet } from './rapidSnippet';
 
-const KEY = 'a'.repeat(20) + '0123456789abcdefghij';
+const KEY = `${'a'.repeat(20)}0123456789abcdefghij`;
 
 describe('parseRapidSnippet', () => {
   it('cURL do Playground no formato OpenAI: host, chave, caminho, modelo e extras do corpo', () => {

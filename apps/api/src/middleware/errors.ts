@@ -1,8 +1,9 @@
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { AppError } from '../lib/errors.js';
+import { captureError } from '../lib/observability.js';
 
-export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
+export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
   if (err instanceof AppError) {
     return res.status(err.status).json({ error: err.message, code: err.code, ...(err.details ? { details: err.details } : {}) });
   }
@@ -22,5 +23,6 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return res.status(409).json({ error: 'Já existe um registro com esse valor.', code: 'CONFLICT' });
   }
   console.error('[erro]', err);
+  captureError(err, { method: req.method, path: req.path });
   res.status(500).json({ error: 'Erro interno. Tente novamente.', code: 'INTERNAL' });
 }
