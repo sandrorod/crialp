@@ -47,6 +47,9 @@ export function webhookToken(orgId: string, secret = env.jwtSecret) {
   return crypto.createHmac('sha256', secret).update(`lp-crm-webhook:${orgId}`).digest('hex').slice(0, 40);
 }
 
+/** Eventos da Evolution que o CRM recebe pelo webhook (MESSAGES_EDITED: edições do cliente e do celular). */
+export const CRM_WEBHOOK_EVENTS = ['MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'MESSAGES_EDITED', 'CONNECTION_UPDATE'];
+
 export function webhookUrl(orgId: string) {
   return `${env.appUrl}/api/crm-webhook/${orgId}?token=${webhookToken(orgId)}`;
 }
@@ -232,6 +235,42 @@ export async function markRevoked(orgId: string, waMessageId: string): Promise<b
   return true;
 }
 
+/** O WhatsApp só deixa editar uma mensagem enviada até 15 minutos depois do envio. */
+export const EDIT_WINDOW_MS = 15 * 60 * 1000;
+
+/** Texto novo de uma edição (protocolMessage do tipo MESSAGE_EDIT): texto puro, texto com link ou legenda. */
+export function editedText(proto: any): string | null {
+  const e = proto?.editedMessage;
+  const text = e?.conversation ?? e?.extendedTextMessage?.text ?? e?.imageMessage?.caption ?? e?.videoMessage?.caption ?? e?.documentMessage?.caption;
+  return typeof text === 'string' ? text : null;
+}
+
+/** Mensagem editada (pelo CRM, pelo celular do número central ou pelo cliente): troca o texto e marca como editada. */
+export async function markEdited(orgId: string, waMessageId: string, text: string): Promise<boolean> {
+  const msg = await one<{ id: string; conversation_id: string }>(
+    `update lp_crm_messages set body = $2, edited_at = now()
+      where wa_message_id = $1 and revoked_at is null and body is distinct from $2
+        and conversation_id in (select id from lp_crm_conversations where organization_id = $3)
+      returning id, conversation_id`,
+    [waMessageId, text.slice(0, 4000), orgId],
+  );
+  if (!msg) return false;
+  await refreshConversationSummary(msg.conversation_id);
+  return true;
+}
+
+/** Edição ou "apagar para todos" que chega como protocolMessage (webhook messages.edited ou sincronização). */
+export async function applyProtocolMessage(orgId: string, proto: any): Promise<boolean> {
+  const id: string | undefined = proto?.key?.id;
+  if (!id) return false;
+  if (proto.type === 'REVOKE' || proto.type === 0) return markRevoked(orgId, id);
+  if (proto.type === 'MESSAGE_EDIT' || proto.type === 14) {
+    const text = editedText(proto);
+    return text !== null ? markEdited(orgId, id, text) : false;
+  }
+  return false;
+}
+
 /** Resumo da conversa (última mensagem visível) depois de apagar mensagens. */
 export async function refreshConversationSummary(conversationId: string) {
   await query(
@@ -249,9 +288,9 @@ export async function refreshConversationSummary(conversationId: string) {
 /** Registro da Evolution (webhook, sincronização ou histórico): mensagem nova ou reação. Devolve se mudou algo. */
 export async function ingestEvolutionRecord(orgId: string, m: any, extra: Partial<IncomingMessage> = {}): Promise<boolean> {
   if (m.message?.reactionMessage) return applyEvolutionReaction(orgId, m);
-  // "Apagar para todos" chega como protocolMessage do tipo REVOKE (0) apontando a mensagem apagada
-  const proto = m.message?.protocolMessage;
-  if (proto && (proto.type === 'REVOKE' || proto.type === 0) && proto.key?.id) return markRevoked(orgId, proto.key.id);
+  // "Apagar para todos" (REVOKE) e edições (MESSAGE_EDIT) chegam como protocolMessage apontando a mensagem original
+  const proto = m.message?.protocolMessage ?? m.message?.editedMessage?.message?.protocolMessage;
+  if (proto?.key?.id && ['REVOKE', 0, 'MESSAGE_EDIT', 14].includes(proto.type)) return applyProtocolMessage(orgId, proto);
   const parsed = parseEvolutionMessage(m);
   if (!parsed) return false;
   const { inserted } = await registerMessage({ orgId, ...parsed, ...extra, pushName: extra.pushName ?? parsed.pushName });
@@ -464,12 +503,36 @@ const lastSync = new Map<string, number>();
  * Garante o recebimento mesmo quando o webhook não alcança o sistema (ex.: rodando no computador)
  * ou um aviso se perde. Chamado pelas telas do CRM enquanto estão abertas; no máximo a cada 5 s por organização.
  */
+/**
+ * Números conectados antes de um evento novo entrar na lista continuam com o webhook antigo: na primeira
+ * sincronização de cada instância do servidor, confere e completa os eventos (sem trocar o endereço).
+ */
+const webhookChecked = new Set<string>();
+async function ensureWebhookEvents(orgId: string, cfg: NonNullable<Awaited<ReturnType<typeof loadConfig>>>) {
+  if (webhookChecked.has(orgId)) return;
+  webhookChecked.add(orgId);
+  try {
+    const current = await evolution<any>(cfg, 'GET', `/webhook/find/${cfg.instance}`);
+    const events: string[] = (current?.events ?? current?.webhook?.events ?? []).map((e: string) => String(e).toUpperCase());
+    if (!current?.enabled && !current?.webhook?.enabled) return; // sem webhook ativo: quem liga é o "Conectar"
+    if (CRM_WEBHOOK_EVENTS.every((e) => events.includes(e))) return;
+    await evolution(cfg, 'POST', `/webhook/set/${cfg.instance}`, {
+      webhook: { enabled: true, url: webhookUrl(orgId), byEvents: false, base64: false, events: CRM_WEBHOOK_EVENTS },
+    });
+    console.log('[crm] webhook atualizado com os eventos', CRM_WEBHOOK_EVENTS.join(', '));
+  } catch (err) {
+    webhookChecked.delete(orgId);
+    console.error('[crm] conferir eventos do webhook', err);
+  }
+}
+
 export async function syncRecent(orgId: string): Promise<{ added: number; skipped?: string }> {
   const now = Date.now();
   if (now - (lastSync.get(orgId) ?? 0) < SYNC_MIN_INTERVAL) return { added: 0, skipped: 'recent' };
   lastSync.set(orgId, now);
   const cfg = await loadConfig(orgId);
   if (!cfg) return { added: 0, skipped: 'not_configured' };
+  await ensureWebhookEvents(orgId, cfg);
   const r = await evolution<any>(cfg, 'POST', `/chat/findMessages/${cfg.instance}`, { where: {}, page: 1, offset: 50 });
   const records: any[] = (r?.messages?.records ?? []).slice().sort((a: any, b: any) => Number(a.messageTimestamp) - Number(b.messageTimestamp));
   let added = 0;

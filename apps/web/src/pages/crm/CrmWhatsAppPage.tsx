@@ -766,6 +766,20 @@ function Chat({
     }
   };
 
+  /** Edita o texto no WhatsApp do cliente; devolve se deu certo (o balão sai do modo de edição). */
+  const editMessage = async (m: CrmMessage, text: string) => {
+    try {
+      await crmService.editMessage(m.id, text);
+      setData(await crmService.messages(conversation.id));
+      onChanged();
+      toast.success('Mensagem editada.');
+      return true;
+    } catch (err) {
+      toast.error(errorMessage(err));
+      return false;
+    }
+  };
+
   // Reação aparece na hora; se o WhatsApp recusar, volta como estava
   const react = async (m: CrmMessage, emoji: string) => {
     const before = messages;
@@ -839,7 +853,7 @@ function Chat({
           return (
             <div key={m.id}>
               {newDay ? <p className="my-3 text-center text-[11px] text-zinc-400">{new Date(m.created_at).toLocaleDateString('pt-BR')}</p> : null}
-              <Bubble m={m} onReact={react} onDelete={removeMessage} />
+              <Bubble m={m} onReact={react} onDelete={removeMessage} onEdit={editMessage} />
             </div>
           );
         })}
@@ -1247,26 +1261,29 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
                 e.target.value = '';
               }}
             />
-            <button
-              type="button"
-              onClick={() => fileInput.current?.click()}
-              className={iconBtn}
-              title="Anexar foto, GIF, vídeo, áudio ou documento"
-              aria-label="Anexar"
-              disabled={sending}
-            >
-              <Paperclip className="size-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setManaging({})}
-              className={iconBtn}
-              title="Mensagens prontas (digite / no campo para usar)"
-              aria-label="Mensagens prontas"
-              disabled={sending}
-            >
-              <Zap className="size-5" />
-            </button>
+            {/* Mensagens prontas em cima, anexar embaixo (como emojis e enviar, do outro lado) */}
+            <div className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => setManaging({})}
+                className={iconBtn}
+                title="Mensagens prontas (digite / no campo para usar)"
+                aria-label="Mensagens prontas"
+                disabled={sending}
+              >
+                <Zap className="size-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInput.current?.click()}
+                className={iconBtn}
+                title="Anexar foto, GIF, vídeo, áudio ou documento"
+                aria-label="Anexar"
+                disabled={sending}
+              >
+                <Paperclip className="size-5" />
+              </button>
+            </div>
             <Textarea
               ref={input}
               rows={1}
@@ -1586,13 +1603,28 @@ function Bubble({
   m,
   onReact,
   onDelete,
+  onEdit,
 }: {
   m: CrmMessage;
   onReact: (m: CrmMessage, emoji: string) => void;
   onDelete: (m: CrmMessage, everyone: boolean) => void;
+  onEdit: (m: CrmMessage, text: string) => Promise<boolean>;
 }) {
   const out = m.direction === 'out';
   const [picker, setPicker] = useState<'quick' | 'full' | 'menu' | null>(null);
+  // Editando o texto dentro do próprio balão (Enter salva, Shift+Enter quebra linha, Esc cancela)
+  const [draft, setDraft] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const saveEdit = async () => {
+    if (draft === null || saving) return;
+    const text = draft.trim();
+    if (!text) return toast.error('A mensagem não pode ficar vazia.');
+    if (text === m.body) return setDraft(null);
+    setSaving(true);
+    const ok = await onEdit(m, text);
+    setSaving(false);
+    if (ok) setDraft(null);
+  };
   const box = useRef<HTMLDivElement>(null);
   const reactions = [m.their_reaction, m.my_reaction].filter(Boolean) as string[];
 
@@ -1630,7 +1662,34 @@ function Bubble({
             ) : m.type !== 'text' ? (
               <div className="text-xs italic text-zinc-500">[{TYPE_LABEL[m.type] ?? m.type}]</div>
             ) : null}
-            {m.body ? (
+            {draft !== null ? (
+              <div className="w-[min(420px,70vw)] space-y-2">
+                <Textarea
+                  autoFocus
+                  rows={Math.min(8, Math.max(2, draft.split('\n').length))}
+                  value={draft}
+                  maxLength={4000}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setDraft(null);
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      void saveEdit();
+                    }
+                  }}
+                  aria-label="Editar mensagem"
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <span className="mr-auto text-[11px] text-zinc-400">Enter salva · Esc cancela</span>
+                  <Button type="button" size="sm" variant="secondary" onClick={() => setDraft(null)} disabled={saving}>
+                    Cancelar
+                  </Button>
+                  <Button type="button" size="sm" onClick={() => void saveEdit()} loading={saving}>
+                    Salvar
+                  </Button>
+                </div>
+              </div>
+            ) : m.body ? (
               <div className="whitespace-pre-wrap break-words">
                 <Linkified text={m.body} />
               </div>
@@ -1639,6 +1698,7 @@ function Bubble({
         )}
         <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-zinc-400">
           {out && m.sent_by_name ? <span>{m.sent_by_name} ·</span> : null}
+          {m.edited_at && !m.revoked ? <span title={`Editada em ${new Date(m.edited_at).toLocaleString('pt-BR')}`}>editada ·</span> : null}
           {new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           {out ? <StatusIcon status={m.status} /> : null}
         </div>
@@ -1679,6 +1739,18 @@ function Bubble({
               out ? 'right-0' : 'left-0',
             )}
           >
+            {m.can_edit ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setPicker(null);
+                  setDraft(m.body ?? '');
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50"
+              >
+                <Pencil className="size-4" /> Editar
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => {

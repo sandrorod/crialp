@@ -120,6 +120,10 @@ export interface CrmMessage {
   revoked: boolean;
   /** Dá para apagar para todos (enviada por vocês, há menos de ~2 dias) */
   can_revoke: boolean;
+  /** Quando o texto foi editado (por vocês, pelo celular ou pelo cliente) */
+  edited_at: string | null;
+  /** Dá para editar (texto enviado por vocês há menos de 15 minutos) */
+  can_edit: boolean;
 }
 
 export interface CrmCompanyDetail {

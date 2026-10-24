@@ -11,6 +11,9 @@ import {
   importHistory,
   loadMedia,
   markRevoked,
+  markEdited,
+  EDIT_WINDOW_MS,
+  CRM_WEBHOOK_EVENTS,
   MEDIA_TYPES,
   refreshConversationSummary,
   jidNumber,
@@ -758,7 +761,10 @@ crmRouter.get('/conversations/:id/messages', async (req, res) => {
        select m.id, m.direction, m.type, m.body, m.status, m.created_at, u.name as sent_by_name, m.media_mime, m.file_name,
               m.my_reaction, m.their_reaction, m.wa_message_id is not null and m.revoked_at is null as can_react,
               m.revoked_at is not null as revoked,
-              (m.direction = 'out' and m.wa_message_id is not null and m.revoked_at is null and m.created_at > now() - interval '2 days') as can_revoke
+              (m.direction = 'out' and m.wa_message_id is not null and m.revoked_at is null and m.created_at > now() - interval '2 days') as can_revoke,
+              m.edited_at,
+              (m.direction = 'out' and m.type = 'text' and m.wa_message_id is not null and m.revoked_at is null
+                and m.created_at > now() - interval '15 minutes') as can_edit
          from lp_crm_messages m left join users u on u.id = m.sent_by
         where m.conversation_id = $1 and m.hidden_at is null order by m.created_at desc limit 200
      ) x order by created_at`,
@@ -812,6 +818,42 @@ crmRouter.delete('/messages/:id', async (req, res) => {
   await query('update lp_crm_messages set hidden_at = now() where id = $1', [msg.id]);
   await query('delete from lp_crm_media where message_id = $1', [msg.id]);
   await refreshConversationSummary(msg.conversation_id);
+  res.json({ ok: true });
+});
+
+// Editar mensagem enviada (só texto, até 15 minutos depois do envio, como no WhatsApp)
+crmRouter.put('/messages/:id', async (req, res) => {
+  const user = authUser(req);
+  const { text } = parseBody(z.object({ text: z.string().trim().min(1, 'A mensagem não pode ficar vazia.').max(4000) }), req.body);
+  const msg = await one<{
+    id: string;
+    conversation_id: string;
+    direction: string;
+    type: string;
+    body: string | null;
+    wa_message_id: string | null;
+    revoked_at: string | null;
+    created_at: string;
+  }>('select id, conversation_id, direction, type, body, wa_message_id, revoked_at, created_at from lp_crm_messages where id = $1 and hidden_at is null', [
+    uuidParam.parse(req.params.id),
+  ]);
+  if (!msg) throw notFound('Mensagem não encontrada.');
+  const conv = await ensureConversation(user, msg.conversation_id);
+  if (msg.direction !== 'out' || !msg.wa_message_id) throw badRequest('Só dá para editar as mensagens enviadas por vocês.');
+  if (msg.type !== 'text') throw badRequest('Só dá para editar mensagens de texto.');
+  if (msg.revoked_at) throw badRequest('Esta mensagem foi apagada.');
+  if (Date.now() - new Date(msg.created_at).getTime() > EDIT_WINDOW_MS) {
+    throw badRequest('O WhatsApp só deixa editar até 15 minutos depois do envio.');
+  }
+  if (text === msg.body) return res.json({ ok: true });
+  const remoteJid = conv.remote_jid ?? `${normalizeNumber(conv.phone)}@s.whatsapp.net`;
+  const cfg = await loadConfig(user.organizationId);
+  await evolution(cfg, 'POST', `/chat/updateMessage/${cfg?.instance}`, {
+    number: jidNumber(remoteJid),
+    key: { remoteJid, fromMe: true, id: msg.wa_message_id },
+    text,
+  });
+  await markEdited(user.organizationId, msg.wa_message_id, text);
   res.json({ ok: true });
 });
 
@@ -1042,7 +1084,7 @@ wa.put('/', async (req, res) => {
   res.json({ ok: true });
 });
 
-const WEBHOOK_EVENTS = ['MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'CONNECTION_UPDATE'];
+const WEBHOOK_EVENTS = CRM_WEBHOOK_EVENTS;
 
 wa.post('/connect', async (req, res) => {
   const user = authUser(req);
