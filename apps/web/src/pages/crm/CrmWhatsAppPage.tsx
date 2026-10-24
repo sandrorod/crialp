@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card, Input, Modal, Spinner, Textarea } from '@/components/ui';
+import { CompanyInfoPanel } from '@/components/crm/CompanyInfoPanel';
 import { ContactForm } from '@/components/crm/CrmForms';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
@@ -68,6 +69,8 @@ export function CrmWhatsAppPage() {
   const [debounced, setDebounced] = useState('');
   const [labelFilter, setLabelFilter] = useState('');
   const [managingLabels, setManagingLabels] = useState(false);
+  // Telas menores que 1600px: painel da empresa aberto por cima da conversa
+  const [companyOpen, setCompanyOpen] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 300);
     return () => clearTimeout(t);
@@ -212,10 +215,11 @@ export function CrmWhatsAppPage() {
         </ul>
       </aside>
 
-      <section className={cn('min-w-0 flex-1 flex-col bg-zinc-50', open ? 'flex' : 'hidden md:flex')}>
+      <section className={cn('relative min-w-0 flex-1 flex-col bg-zinc-50', open ? 'flex' : 'hidden md:flex')}>
         {selected ? (
           <Chat
             key={selected.id}
+            onShowCompany={() => setCompanyOpen(true)}
             conversation={selected}
             labels={labels ?? []}
             onManageLabels={() => setManagingLabels(true)}
@@ -244,7 +248,17 @@ export function CrmWhatsAppPage() {
             </div>
           </div>
         )}
+        {/* Telas menores que 1600px: dados da empresa por cima da conversa (sem apertar nada) */}
+        {companyOpen && selected ? (
+          <div className="absolute inset-y-0 right-0 z-30 w-80 max-w-full border-l border-zinc-200 shadow-2xl min-[1600px]:hidden">
+            <CompanyInfoPanel conversation={selected} onClose={() => setCompanyOpen(false)} />
+          </div>
+        ) : null}
       </section>
+      {/* Coluna da empresa, da mesma largura da lista de conversas (a página fica 320px mais larga) */}
+      <aside className="hidden w-80 flex-none border-l border-zinc-100 min-[1600px]:flex min-[1600px]:flex-col" aria-label="Dados da empresa">
+        <CompanyInfoPanel conversation={selected ?? null} />
+      </aside>
       {managingLabels ? (
         <LabelsManager
           labels={labels ?? []}
@@ -730,7 +744,9 @@ function Chat({
   manager,
   onBack,
   onChanged,
+  onShowCompany,
 }: {
+  onShowCompany: () => void;
   conversation: CrmConversation;
   labels: CrmLabel[];
   onManageLabels: () => void;
@@ -834,6 +850,9 @@ function Chat({
           ) : null}
         </div>
         <LabelPicker conversation={conversation} labels={labels} onManage={onManageLabels} onChanged={onChanged} />
+        <Button variant="secondary" size="sm" className="min-[1600px]:hidden" icon={<Building2 className="size-4" />} onClick={onShowCompany}>
+          Empresa
+        </Button>
         {manager && !conversation.contact_id ? (
           <Button variant="secondary" size="sm" icon={<UserPlus className="size-4" />} onClick={() => setLinking(true)}>
             {conversation.company_id ? 'Salvar como contato' : 'Vincular a uma empresa'}
@@ -981,7 +1000,8 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
   const [slash, setSlash] = useState<{ start: number; query: string } | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
   const [managing, setManaging] = useState<{ shortcut?: string } | null>(null);
-  const suggestions = slash ? matchQuickReplies(quickReplies ?? [], slash.query) : [];
+  const usable = (quickReplies ?? []).filter((r) => r.can_use);
+  const suggestions = slash ? matchQuickReplies(usable, slash.query) : [];
 
   // Fecha o seletor ao clicar fora ou apertar Esc
   useEffect(() => {
@@ -1179,7 +1199,7 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
               </ul>
             ) : (
               <div className="px-3 py-2.5 text-sm text-zinc-500">
-                {quickReplies?.length ? `Nenhuma mensagem pronta com "/${slash.query}".` : 'Nenhuma mensagem pronta ainda.'}
+                {usable.length ? `Nenhuma mensagem pronta com "/${slash.query}".` : 'Nenhuma mensagem pronta ainda.'}
               </div>
             )}
             <div className="flex items-center justify-between gap-2 border-t border-zinc-100 bg-zinc-50 px-3 py-1.5 text-[11px] text-zinc-500">
@@ -1362,6 +1382,9 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
   );
 }
 
+type QuickReplyDraft = { id: string | null; shortcut: string; body: string; visibility: 'all' | 'users'; user_ids: string[]; created_by: string | null };
+const ROLE_LABEL: Record<string, string> = { owner: 'dono', admin: 'admin', seller: 'vendedor' };
+
 /**
  * Mensagens prontas: nome (o atalho chamado com "/" no campo de mensagem) e texto. Valem para toda a equipe.
  * `initialShortcut`: abre já criando uma com esse nome (vindo de "/nome" sem mensagem).
@@ -1369,9 +1392,12 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
 function QuickRepliesManager({ initialShortcut, onClose, onChanged }: { initialShortcut?: string; onClose: () => void; onChanged: () => void }) {
   const { data, error, loading, reload } = useAsync(() => crmService.quickReplies(), []);
   const list = data ?? [];
-  const [editing, setEditing] = useState<{ id: string | null; shortcut: string; body: string } | null>(
-    initialShortcut !== undefined ? { id: null, shortcut: initialShortcut, body: '' } : null,
-  );
+  const { user } = useAuth();
+  // Subusuários para "Só quem eu escolher" (vendedor só enxerga a si mesmo)
+  const { data: team } = useAsync(() => crmService.users(), []);
+  const others = (team ?? []).filter((u) => u.id !== user?.id);
+  const blank = (shortcut = ''): QuickReplyDraft => ({ id: null, shortcut, body: '', visibility: 'all', user_ids: [], created_by: user?.id ?? null });
+  const [editing, setEditing] = useState<QuickReplyDraft | null>(initialShortcut !== undefined ? blank(initialShortcut) : null);
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState('');
   const q = search.trim().toLowerCase().replace(/^\//, '');
@@ -1384,8 +1410,9 @@ function QuickRepliesManager({ initialShortcut, onClose, onChanged }: { initialS
     if (!shortcut || !editing.body.trim()) return toast.error('Preencha o nome e o texto da mensagem.');
     setBusy(true);
     try {
-      if (editing.id) await crmService.updateQuickReply(editing.id, { shortcut, body: editing.body });
-      else await crmService.createQuickReply({ shortcut, body: editing.body });
+      const input = { shortcut, body: editing.body, visibility: editing.visibility, user_ids: editing.visibility === 'users' ? editing.user_ids : [] };
+      if (editing.id) await crmService.updateQuickReply(editing.id, input);
+      else await crmService.createQuickReply(input);
       toast.success(`Mensagem /${shortcut.toLowerCase()} salva.`);
       setEditing(null);
       await reload();
@@ -1411,12 +1438,13 @@ function QuickRepliesManager({ initialShortcut, onClose, onChanged }: { initialS
     <Modal
       open
       title="Mensagens prontas"
+      tight="more"
       onClose={onClose}
       busy={busy}
       actions={
         <button
           type="button"
-          onClick={() => setEditing({ id: null, shortcut: '', body: '' })}
+          onClick={() => setEditing(blank())}
           disabled={!!editing}
           className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-ink disabled:opacity-40"
           aria-label="Nova mensagem pronta"
@@ -1458,6 +1486,63 @@ function QuickRepliesManager({ initialShortcut, onClose, onChanged }: { initialS
               placeholder="Texto completo que vai para o campo de mensagem"
             />
           </label>
+          <fieldset className="space-y-2">
+            <legend className="mb-1 text-xs font-medium text-zinc-600">Quem pode usar</legend>
+            <div className="flex flex-wrap gap-1">
+              {(
+                [
+                  { value: 'all', label: 'Todos da equipe' },
+                  { value: 'users', label: 'Só quem eu escolher' },
+                ] as const
+              ).map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  aria-pressed={editing.visibility === o.value}
+                  onClick={() => setEditing({ ...editing, visibility: o.value })}
+                  className={cn(
+                    'rounded-md border px-2.5 py-1 text-xs',
+                    editing.visibility === o.value ? 'border-ink bg-ink text-white' : 'border-zinc-200 text-zinc-600 hover:border-zinc-400',
+                  )}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            {editing.visibility === 'users' ? (
+              <div className="rounded-lg border border-zinc-200 p-2">
+                <p className="mb-1 text-[11px] text-zinc-500">
+                  {editing.created_by === user?.id ? 'Você criou, então sempre pode usar. ' : ''}Marque os subusuários que também podem usar:
+                </p>
+                {others.length ? (
+                  <ul className="max-h-40 space-y-0.5 overflow-y-auto">
+                    {others.map((u) => {
+                      const checked = editing.user_ids.includes(u.id);
+                      return (
+                        <li key={u.id}>
+                          <label className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm hover:bg-zinc-50">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() =>
+                                setEditing({ ...editing, user_ids: checked ? editing.user_ids.filter((x) => x !== u.id) : [...editing.user_ids, u.id] })
+                              }
+                            />
+                            <span className="min-w-0 flex-1 truncate">{u.name}</span>
+                            <span className="text-[11px] text-zinc-400">{ROLE_LABEL[u.role] ?? u.role}</span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="py-1 text-xs text-zinc-500">Sem outros subusuários para escolher: a mensagem fica só para você.</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-[11px] text-zinc-400">Todos os subusuários da equipe podem usar com /.</p>
+            )}
+          </fieldset>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setEditing(null)} disabled={busy}>
               Cancelar
@@ -1482,27 +1567,53 @@ function QuickRepliesManager({ initialShortcut, onClose, onChanged }: { initialS
             {shown.map((r) => (
               <li key={r.id} className="flex items-start gap-2 rounded-lg px-2 py-2 hover:bg-zinc-50">
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold text-ink">/{r.shortcut}</div>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span className="text-sm font-semibold text-ink">/{r.shortcut}</span>
+                    <span
+                      className={cn(
+                        'rounded px-1.5 py-px text-[10px] font-medium',
+                        r.visibility === 'all' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700',
+                      )}
+                      title={
+                        r.visibility === 'users' ? `Podem usar: ${[r.created_by_name, ...r.users.map((u) => u.name)].filter(Boolean).join(', ')}` : undefined
+                      }
+                    >
+                      {r.visibility === 'all' ? 'Todos' : `Privada · ${1 + r.users.length} ${r.users.length ? 'pessoas' : 'pessoa'}`}
+                    </span>
+                  </div>
                   <div className="line-clamp-2 whitespace-pre-line text-xs text-zinc-500">{r.body}</div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setEditing({ id: r.id, shortcut: r.shortcut, body: r.body })}
-                  className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink"
-                  aria-label={`Editar /${r.shortcut}`}
-                  title="Editar"
-                >
-                  <Pencil className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void remove(r)}
-                  className="rounded-md p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600"
-                  aria-label={`Excluir /${r.shortcut}`}
-                  title="Excluir"
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
+                {r.can_edit ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditing({
+                          id: r.id,
+                          shortcut: r.shortcut,
+                          body: r.body,
+                          visibility: r.visibility,
+                          user_ids: r.users.map((u) => u.id),
+                          created_by: r.created_by,
+                        })
+                      }
+                      className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink"
+                      aria-label={`Editar /${r.shortcut}`}
+                      title="Editar"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void remove(r)}
+                      className="rounded-md p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600"
+                      aria-label={`Excluir /${r.shortcut}`}
+                      title="Excluir"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </>
+                ) : null}
               </li>
             ))}
             {!list.length ? (

@@ -619,6 +619,8 @@ crmRouter.delete('/labels/:id', async (req, res) => {
 });
 
 // ─── Mensagens prontas do WhatsApp ("/atalho" no campo de mensagem) ─────────
+// Visibilidade: "all" = toda a equipe; "users" = quem criou e os subusuários escolhidos.
+// Editar/excluir: quem criou, dono ou admin. Dono/admin veem todas (para gerenciar).
 
 const QuickReplySchema = z.object({
   // Atalho sem a barra e sem espaços: "/valor" → "valor"
@@ -634,8 +636,9 @@ const QuickReplySchema = z.object({
         .regex(/^[\p{L}\p{N}_-]+$/u, 'Use só letras, números, - ou _ no nome (sem espaços).'),
     ),
   body: z.string().trim().min(1, 'Escreva o texto da mensagem.').max(4000, 'Texto muito longo (máximo de 4.000 caracteres).'),
+  visibility: z.enum(['all', 'users']).default('all'),
+  user_ids: z.array(uuidParam).max(200).default([]),
 });
-const QUICK_REPLY_COLUMNS = 'id, shortcut, body, updated_at';
 
 function quickReplyError(err: unknown): never {
   if ((err as { constraint?: string }).constraint === 'lp_crm_quick_replies_shortcut_uniq') {
@@ -644,43 +647,83 @@ function quickReplyError(err: unknown): never {
   throw err;
 }
 
-crmRouter.get('/quick-replies', async (req, res) => {
-  const user = authUser(req);
-  const { rows } = await query(`select ${QUICK_REPLY_COLUMNS} from lp_crm_quick_replies where organization_id = $1 order by lower(shortcut)`, [
+/** Mensagens que o usuário vê, com quem pode usar e se ele pode usar/editar. */
+async function listQuickReplies(user: AuthUser, id?: string) {
+  const manager = isManager(user);
+  const { rows } = await query(
+    `select q.id, q.shortcut, q.body, q.updated_at, q.visibility, q.created_by, cu.name as created_by_name,
+            coalesce((select json_agg(json_build_object('id', u.id, 'name', u.name) order by u.name)
+                        from lp_crm_quick_reply_users qu join users u on u.id = qu.user_id
+                       where qu.quick_reply_id = q.id), '[]') as users,
+            (q.visibility = 'all' or q.created_by = $2
+               or exists (select 1 from lp_crm_quick_reply_users qu where qu.quick_reply_id = q.id and qu.user_id = $2)) as can_use,
+            ($3 or q.created_by = $2) as can_edit
+       from lp_crm_quick_replies q left join users cu on cu.id = q.created_by
+      where q.organization_id = $1 and ($4::uuid is null or q.id = $4)
+        and ($3 or q.visibility = 'all' or q.created_by = $2
+             or exists (select 1 from lp_crm_quick_reply_users qu where qu.quick_reply_id = q.id and qu.user_id = $2))
+      order by lower(q.shortcut)`,
+    [user.organizationId, user.id, manager, id ?? null],
+  );
+  return rows;
+}
+
+/** Subusuários escolhidos: só da própria organização (e sem repetir quem criou). */
+async function saveQuickReplyUsers(user: AuthUser, quickReplyId: string, visibility: string, userIds: string[], createdBy: string | null) {
+  await query('delete from lp_crm_quick_reply_users where quick_reply_id = $1', [quickReplyId]);
+  if (visibility !== 'users' || !userIds.length) return;
+  await query(
+    `insert into lp_crm_quick_reply_users (quick_reply_id, user_id)
+     select $1, u.id from users u where u.organization_id = $2 and u.id = any($3::uuid[]) and u.id is distinct from $4
+     on conflict do nothing`,
+    [quickReplyId, user.organizationId, userIds, createdBy],
+  );
+}
+
+/** Mensagem que o usuário pode editar (criou, ou é dono/admin); senão 404. */
+async function editableQuickReply(user: AuthUser, id: string) {
+  const row = await one<{ id: string; created_by: string | null }>('select id, created_by from lp_crm_quick_replies where id = $1 and organization_id = $2', [
+    id,
     user.organizationId,
   ]);
-  res.json(rows);
+  if (!row) throw notFound('Mensagem pronta não encontrada.');
+  if (!isManager(user) && row.created_by !== user.id) throw new AppError(403, 'Só quem criou esta mensagem pode alterá-la.', 'FORBIDDEN');
+  return row;
+}
+
+crmRouter.get('/quick-replies', async (req, res) => {
+  res.json(await listQuickReplies(authUser(req)));
 });
 
 crmRouter.post('/quick-replies', async (req, res) => {
   const user = authUser(req);
   const b = parseBody(QuickReplySchema, req.body);
-  const created = await one(`insert into lp_crm_quick_replies (organization_id, shortcut, body) values ($1, $2, $3) returning ${QUICK_REPLY_COLUMNS}`, [
-    user.organizationId,
-    b.shortcut,
-    b.body,
-  ]).catch(quickReplyError);
-  res.status(201).json(created);
+  const created = await one<{ id: string }>(
+    `insert into lp_crm_quick_replies (organization_id, shortcut, body, visibility, created_by) values ($1, $2, $3, $4, $5) returning id`,
+    [user.organizationId, b.shortcut, b.body, b.visibility, user.id],
+  ).catch(quickReplyError);
+  await saveQuickReplyUsers(user, created!.id, b.visibility, b.user_ids, user.id);
+  res.status(201).json((await listQuickReplies(user, created!.id))[0]);
 });
 
 crmRouter.put('/quick-replies/:id', async (req, res) => {
   const user = authUser(req);
+  const current = await editableQuickReply(user, uuidParam.parse(req.params.id));
   const b = parseBody(QuickReplySchema, req.body);
-  const updated = await one(
-    `update lp_crm_quick_replies set shortcut = $3, body = $4, updated_at = now() where id = $1 and organization_id = $2 returning ${QUICK_REPLY_COLUMNS}`,
-    [uuidParam.parse(req.params.id), user.organizationId, b.shortcut, b.body],
-  ).catch(quickReplyError);
-  if (!updated) throw notFound('Mensagem pronta não encontrada.');
-  res.json(updated);
+  await query(`update lp_crm_quick_replies set shortcut = $2, body = $3, visibility = $4, updated_at = now() where id = $1`, [
+    current.id,
+    b.shortcut,
+    b.body,
+    b.visibility,
+  ]).catch(quickReplyError);
+  await saveQuickReplyUsers(user, current.id, b.visibility, b.user_ids, current.created_by);
+  res.json((await listQuickReplies(user, current.id))[0]);
 });
 
 crmRouter.delete('/quick-replies/:id', async (req, res) => {
   const user = authUser(req);
-  const { rowCount } = await query('delete from lp_crm_quick_replies where id = $1 and organization_id = $2', [
-    uuidParam.parse(req.params.id),
-    user.organizationId,
-  ]);
-  if (!rowCount) throw notFound('Mensagem pronta não encontrada.');
+  const current = await editableQuickReply(user, uuidParam.parse(req.params.id));
+  await query('delete from lp_crm_quick_replies where id = $1', [current.id]);
   res.json({ ok: true });
 });
 

@@ -43,3 +43,19 @@ test('"/nome" que não existe oferece criar a mensagem', async ({ page }) => {
   await page.getByRole('button', { name: 'Criar /pix' }).click();
   await expect(page.getByRole('dialog', { name: 'Mensagens prontas' }).getByLabel('Nome (atalho)')).toHaveValue('pix');
 });
+
+test('mensagem privada: escolhe o subusuário que pode usar', async ({ page }, info) => {
+  await page.goto('/admin/crm/whatsapp');
+  await page.getByText('Cliente Teste').first().click();
+  await page.getByRole('button', { name: 'Mensagens prontas' }).click();
+  const modal = page.getByRole('dialog', { name: 'Mensagens prontas' });
+  await modal.getByRole('button', { name: 'Nova mensagem pronta' }).click();
+  const nome = `vip-${info.project.name}`;
+  await modal.getByLabel('Nome (atalho)').fill(nome);
+  await modal.getByPlaceholder('Texto completo que vai para o campo de mensagem').fill('Condição especial para clientes VIP');
+  await modal.getByRole('button', { name: 'Só quem eu escolher' }).click();
+  await modal.getByRole('checkbox', { name: /vendedor-a/ }).check();
+  await modal.getByRole('button', { name: 'Salvar' }).click();
+  const item = modal.getByRole('listitem').filter({ hasText: `/${nome}` });
+  await expect(item.getByText('Privada · 2 pessoas')).toBeVisible();
+});

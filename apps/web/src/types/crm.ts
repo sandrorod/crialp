@@ -76,7 +76,19 @@ export interface CrmQuickReply {
   shortcut: string;
   body: string;
   updated_at: string;
+  /** "all" = toda a equipe; "users" = quem criou e os subusuários escolhidos */
+  visibility: 'all' | 'users';
+  created_by: string | null;
+  created_by_name: string | null;
+  /** Subusuários escolhidos (quando "users") */
+  users: { id: string; name: string }[];
+  /** Pode usar com "/" no campo de mensagem */
+  can_use: boolean;
+  /** Pode editar/excluir (quem criou, dono ou admin) */
+  can_edit: boolean;
 }
+
+export type CrmQuickReplyInput = { shortcut: string; body: string; visibility: 'all' | 'users'; user_ids: string[] };
 
 export interface CrmLabel {
   id: string;

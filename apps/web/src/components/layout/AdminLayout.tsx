@@ -171,7 +171,12 @@ export function AdminLayout() {
       <main
         className={cn(
           'mx-auto px-4 pb-6 sm:px-6 lg:pb-8',
-          /^\/landing-pages\/[^/]+/.test(location.pathname) ? 'max-w-none pt-[5px] lg:px-8 lg:pt-[6px]' : 'max-w-[1280px] pt-6 lg:px-10 lg:pt-8',
+          /^\/landing-pages\/[^/]+/.test(location.pathname)
+            ? 'max-w-none pt-[5px] lg:px-8 lg:pt-[6px]'
+            : // WhatsApp do CRM: 320px a mais para a coluna da empresa, sem apertar lista e conversa
+              location.pathname.startsWith('/crm/whatsapp')
+              ? 'max-w-[1600px] pt-6 lg:px-10 lg:pt-8'
+              : 'max-w-[1280px] pt-6 lg:px-10 lg:pt-8',
         )}
       >
         <Outlet />
