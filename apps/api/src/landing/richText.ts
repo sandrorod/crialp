@@ -10,10 +10,6 @@
 const TOKEN = /\[\[(\/?)(b|n|i|u|c|s|a)(?:=(#[0-9a-fA-F]{6}|\d{1,3}|[ux][ns]\|[^\]\s"<>]{1,2000}))?\]\]/g;
 const RAW_TAGS = new Set(['title', 'script', 'style', 'textarea']);
 
-export function hasRich(text: string | null | undefined): boolean {
-  return !!text && /\[\[\/?(?:b|n|i|u|c|s|a)(?:=[^\]]*)?\]\]/.test(text);
-}
-
 /** Texto sem os códigos de formatação (para atributos, SEO e textos que não aceitam formatação). */
 export function stripRich(text: string): string {
   return text.replace(TOKEN, '');

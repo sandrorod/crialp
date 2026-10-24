@@ -68,7 +68,6 @@ export const ICONS = [
   'map-pin',
   'message',
 ] as const;
-export type IconName = (typeof ICONS)[number];
 
 export const IMAGE_TYPES = ['logo', 'company', 'product', 'service', 'institutional', 'gallery', 'other'] as const;
 

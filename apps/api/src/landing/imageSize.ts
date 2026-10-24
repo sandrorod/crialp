@@ -78,9 +78,6 @@ const cssString = (s: string) => s.replace(/[\\"]/g, (c) => `\\${c}`).replace(/[
  * só "<url>" (páginas antigas) vale para a foto em qualquer seção, com prioridade menor.
  */
 const SECTION_KEY = /^([a-z0-9:_-]{1,60})\|(.+)$/s;
-export function imageSizeKey(section: string | undefined, url: string) {
-  return section && /^[a-z0-9:_-]{1,60}$/.test(section) ? `${section}|${url}` : url;
-}
 function frameSelector(key: string) {
   const m = SECTION_KEY.exec(key);
   const img = (url: string) => `:has(>img[data-lp-img="${cssString(url)}"])`;

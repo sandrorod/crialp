@@ -31,13 +31,6 @@ export async function copyToClipboard(text: string) {
   }
 }
 
-/** Remove chaves de UI e normaliza strings vazias antes de enviar ao backend. */
-export function emptyToNull<T extends Record<string, unknown>>(obj: T): T {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(obj)) out[k] = typeof v === 'string' && !v.trim() ? null : v;
-  return out as T;
-}
-
 /** Link curto para exibição: sem protocolo/www e, se longo, com "…" no meio (o link completo fica no href/title). */
 export function shortUrl(url: string | null | undefined, max = 48): string {
   if (!url) return '';

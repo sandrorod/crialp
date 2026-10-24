@@ -1,6 +1,5 @@
 import dns from 'node:dns';
 import type { LookupAddress } from 'node:dns';
-import net from 'node:net';
 import { Agent, fetch as undiciFetch, type Dispatcher } from 'undici';
 import { AppError, Messages } from './errors.js';
 import { assertPublicHost, isPrivateIp } from './url.js';
@@ -30,9 +29,6 @@ export function publicOnlyLookup(
 
 /** Agente HTTP das requisições a sites de terceiros (coleta e imagens): só conecta em IP público. */
 export const publicAgent = new Agent({ connect: { lookup: publicOnlyLookup as never } });
-
-/** IP literal na URL não passa pelo lookup: assertPublicHost já o confere antes de conectar. */
-export const isIpLiteral = (url: URL) => net.isIP(url.hostname.replace(/^\[|\]$/g, '')) !== 0;
 
 /** fetch de um único passo pelo publicAgent (quem chama trata os redirecionamentos e chama assertPublicHost). */
 export async function fetchViaPublicAgent(url: URL, init: RequestInit, dispatcher: Dispatcher = publicAgent): Promise<Response> {
