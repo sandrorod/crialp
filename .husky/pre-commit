@@ -1,0 +1,2 @@
+# Lint e formato só dos arquivos do commit (rápido); o CI roda tudo
+npx --no -- biome check --staged --no-errors-on-unmatched

@@ -20,7 +20,8 @@
     "format": "biome format --write .",
     "check": "biome ci .",
     "knip": "knip",
-    "arch": "depcruise apps/api/src apps/web/src --config .dependency-cruiser.cjs"
+    "arch": "depcruise apps/api/src apps/web/src --config .dependency-cruiser.cjs",
+    "prepare": "husky"
   },
   "engines": {
     "node": ">=20"
@@ -28,8 +29,10 @@
   "type": "module",
   "devDependencies": {
     "@biomejs/biome": "^2.2.4",
+    "@commitlint/cli": "^19.8.1",
     "dependency-cruiser": "^17.0.1",
     "esbuild": "^0.28.2",
+    "husky": "^9.1.7",
     "knip": "^5.64.1"
   }
 }
