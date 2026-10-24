@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { errorMessage } from '@/lib/api';
+import { later } from '@/lib/backgroundTimer';
 import { analysisService } from '@/services';
 import type { Job } from '@/types';
 
@@ -13,7 +14,7 @@ export function useJob<T>(jobId: string | null) {
     setJob(null);
     if (!jobId) return;
     let active = true;
-    let timer: ReturnType<typeof setTimeout>;
+    let cancel = () => {};
     let failures = 0;
     const tick = async () => {
       try {
@@ -30,12 +31,13 @@ export function useJob<T>(jobId: string | null) {
           return;
         }
       }
-      timer = setTimeout(tick, 1200);
+      // Timer do Worker: com a aba em segundo plano a consulta segue no mesmo ritmo
+      cancel = later(tick, 1200);
     };
     void tick();
     return () => {
       active = false;
-      clearTimeout(timer);
+      cancel();
     };
   }, [jobId]);
 

@@ -10,6 +10,7 @@ import { StopJobButton } from '@/components/StopJobButton';
 import { Button, Card, Input } from '@/components/ui';
 import { useJob } from '@/hooks/useJob';
 import { errorMessage } from '@/lib/api';
+import { elapsedSeconds, keepAwake, later } from '@/lib/backgroundTimer';
 import { GAP_MAX, loadBatch, loadGap, saveBatch, saveGap, type LpBatch } from '@/lib/lpBatch';
 import { shortUrl } from '@/lib/utils';
 import { analysisService, companyService } from '@/services';
@@ -115,8 +116,8 @@ export function NewLandingPagePage() {
       else next(false);
       return;
     }
-    const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
-    return () => clearTimeout(t);
+    const since = Date.now();
+    return later(() => setCountdown((c) => (c === null ? null : c - elapsedSeconds(since))), 1000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countdown]);
 
@@ -128,10 +129,15 @@ export function NewLandingPagePage() {
       next(true);
       return;
     }
-    const t = setTimeout(() => setRest((r) => (r === null ? null : r - 1)), 1000);
-    return () => clearTimeout(t);
+    // Desconta o tempo que passou de fato (a aba em segundo plano pode atrasar o timer)
+    const since = Date.now();
+    return later(() => setRest((r) => (r === null ? null : r - elapsedSeconds(since))), 1000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rest, restPaused]);
+
+  // Lote em andamento: a aba não é congelada em segundo plano
+  const batchActive = !!batch;
+  useEffect(() => (batchActive ? keepAwake() : undefined), [batchActive]);
 
   /** Muda o intervalo (também durante a pausa: o tempo que falta acompanha a mudança). */
   const changeGap = (minutes: number) => {

@@ -225,7 +225,9 @@ export async function googlePlaceReviews(p: { businessId?: string | null; query?
   const fail = (r: { status: number; body: any }, what: string) =>
     notSubscribed(r)
       ? `As chaves do RapidAPI não assinam a "Local Business Data" (${what}).`
-      : `${what}: ${String(r.body?.message ?? `HTTP ${r.status}`).slice(0, 200)}`;
+      : /monthly quota|exceeded the (monthly|daily)/i.test(String(r.body?.message ?? ''))
+        ? `Cota mensal da "Local Business Data" (RapidAPI) esgotada em todas as chaves (${what}). Cadastre outra chave que assine essa API ou faça upgrade do plano; as avaliações voltam na próxima geração.`
+        : `${what}: ${String(r.body?.message ?? `HTTP ${r.status}`).slice(0, 200)}`;
   const firstPlace = (body: any) => (Array.isArray(body?.data) ? body.data[0] : body?.data && typeof body.data === 'object' ? body.data : null) ?? null;
 
   // Local: pelo código (vindo de "Buscar empresas"); sem ele, pela busca com nome + endereço
@@ -234,6 +236,8 @@ export async function googlePlaceReviews(p: { businessId?: string | null; query?
   if (id) {
     const r = await call(`/business-details?business_id=${encodeURIComponent(id)}&region=br&language=pt`);
     if (r.status === 200) place = firstPlace(r.body);
+    // Todas as chaves falharam (cota, fora do ar): a busca pelo nome também falharia
+    else if (r.status === 0) return empty(fail(r, 'dados do local'));
   }
   if (!place && p.query) {
     const r = await call(`/search?query=${encodeURIComponent(p.query)}&limit=1&region=br&language=pt`);
@@ -246,10 +250,8 @@ export async function googlePlaceReviews(p: { businessId?: string | null; query?
   // Avaliações: versão nova do endpoint e, se ela não responder, a antiga. Maiores notas primeiro
   const params = `business_id=${encodeURIComponent(id)}&limit=50&sort_by=highest_ranking&region=br&language=pt`;
   let r = await call(`/business-reviews-v2?${params}`);
-  if (r.status !== 200) {
-    const v1 = await call(`/business-reviews?${params}`);
-    if (v1.status === 200 || r.status === 404 || notSubscribed(r)) r = v1;
-  }
+  // A antiga só quando a nova não existe ou não é assinada: em cota esgotada ela também falharia (e gastaria mais uma)
+  if (r.status === 404 || notSubscribed(r)) r = await call(`/business-reviews?${params}`);
   if (r.status !== 200) return empty(fail(r, 'avaliações'));
   // Formatos da resposta: lista em "data", em "data.reviews" ou no primeiro item ("data[0].reviews")
   const d = r.body?.data;
