@@ -381,7 +381,7 @@ export function NewLandingPagePage() {
         </Card>
         <p className="mt-5 text-center text-sm text-zinc-500">
           O site não tem as informações?{' '}
-          <button onClick={fillManually} className="font-medium text-ink underline-offset-2 hover:underline">Preencher manualmente</button>
+          <button type="button" onClick={fillManually} className="font-medium text-ink underline-offset-2 hover:underline">Preencher manualmente</button>
         </p>
       </div>
     );

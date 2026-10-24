@@ -158,7 +158,7 @@ export function CrmPipelinePage() {
                     </select>
                   </div>
                 ))}
-                <button className="w-full rounded-md py-1.5 text-xs text-zinc-500 hover:bg-zinc-200" onClick={() => setEditing({ stageId: stage.id })}>+ adicionar</button>
+                <button type="button" className="w-full rounded-md py-1.5 text-xs text-zinc-500 hover:bg-zinc-200" onClick={() => setEditing({ stageId: stage.id })}>+ adicionar</button>
               </div>
             </div>
           );

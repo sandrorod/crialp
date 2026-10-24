@@ -2,7 +2,7 @@
  * Emojis (pictogramas, bandeiras, tons de pele, teclas "1️⃣") — exceto ©, ® e ™, que são texto comum.
  * Os modificadores invisíveis (ZWJ, seletor de variação) saem junto para não sobrar lixo.
  */
-const EMOJI = /(?![©®™])\p{Extended_Pictographic}|[\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}‍️⃣]/gu;
+const EMOJI = /(?![©®™])\p{Extended_Pictographic}|[\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}]|\u{200D}|\u{FE0F}|\u{20E3}/gu;
 
 export function stripEmojis(text: string): string {
   const out = text.replace(EMOJI, '');

@@ -148,15 +148,15 @@ export function CompaniesPage() {
                             </button>
                           </>
                         ) : null}
-                        <button onClick={() => navigate(`/empresas/${c.id}`)} title="Editar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
+                        <button type="button" onClick={() => navigate(`/empresas/${c.id}`)} title="Editar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
                           <Pencil className="size-4" />
                         </button>
                         {c.landing_page_id ? (
-                          <button onClick={() => navigate(`/landing-pages/${c.landing_page_id}`)} title="Landing Page" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
+                          <button type="button" onClick={() => navigate(`/landing-pages/${c.landing_page_id}`)} title="Landing Page" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
                             <PanelsTopLeft className="size-4" />
                           </button>
                         ) : null}
-                        <button onClick={() => setToDelete(c)} title="Excluir" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
+                        <button type="button" onClick={() => setToDelete(c)} title="Excluir" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
                           <Trash2 className="size-4" />
                         </button>
                       </div>

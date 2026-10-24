@@ -185,7 +185,7 @@ const SOCIAL_FIELDS = [
  */
 function SocialFields({ content, onChange, company }: { content: LandingContent; onChange: (c: LandingContent) => void; company?: Company | null }) {
   const overrides = content.overrides ?? {};
-  const valueOf = (key: (typeof SOCIAL_FIELDS)[number]['key']) => overrides[`social.${key}`] ?? company?.[key] ?? '';
+  const socialValue = (key: (typeof SOCIAL_FIELDS)[number]['key']) => overrides[`social.${key}`] ?? company?.[key] ?? '';
   const setSocial = (key: string, v: string) => onChange({ ...content, overrides: { ...overrides, [`social.${key}`]: v.trim() ? v : '' } });
   return (
     <div className="space-y-3">
@@ -193,7 +193,7 @@ function SocialFields({ content, onChange, company }: { content: LandingContent;
       <div className="grid gap-3 sm:grid-cols-2">
         {SOCIAL_FIELDS.map((f) => (
           <Field key={f.key} label={f.label}>
-            <Input value={valueOf(f.key)} placeholder={f.placeholder} onChange={(e) => setSocial(f.key, e.target.value)} />
+            <Input value={socialValue(f.key)} placeholder={f.placeholder} onChange={(e) => setSocial(f.key, e.target.value)} />
           </Field>
         ))}
       </div>

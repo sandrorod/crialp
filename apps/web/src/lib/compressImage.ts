@@ -98,7 +98,7 @@ export async function prepareImageForUpload(file: File, opts: CompressOptions = 
     return file;
   }
 
-  let img;
+  let img: Awaited<ReturnType<typeof loadImage>>;
   try {
     img = await loadImage(file);
   } catch {

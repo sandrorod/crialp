@@ -403,7 +403,7 @@ landingPagesRouter.patch('/:id/settings', async (req, res) => {
     if (!isValidSlug(body.slug)) throw new AppError(400, 'Endereço inválido: use apenas letras minúsculas, números e hífens.');
     if (await repo.getLandingPageBySlug(body.slug)) throw new AppError(409, 'Este endereço já está em uso.');
   }
-  let domain: string | null | undefined = body.custom_domain === undefined ? undefined : body.custom_domain || null;
+  const domain: string | null | undefined = body.custom_domain === undefined ? undefined : body.custom_domain || null;
   if (domain) {
     if (!DOMAIN_RE.test(domain)) throw new AppError(400, 'Domínio inválido. Exemplo: www.empresa.com.br');
     if (env.isSystemHost(domain)) throw new AppError(400, 'Este domínio pertence ao próprio sistema.');

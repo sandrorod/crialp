@@ -132,7 +132,7 @@ export function CrmConnectionPage() {
             <span className={cn('mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium', st.cls)}>{st.label}</span>
             {status.error ? <p className="mt-1 text-xs text-red-600">{status.error}</p> : null}
           </div>
-          <button onClick={() => void reload()} className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100" aria-label="Atualizar" title="Atualizar"><RefreshCw className="size-4" /></button>
+          <button type="button" onClick={() => void reload()} className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100" aria-label="Atualizar" title="Atualizar"><RefreshCw className="size-4" /></button>
         </div>
 
         {status.configured ? (

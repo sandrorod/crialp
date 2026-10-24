@@ -90,12 +90,12 @@ export function UsersPage() {
                       <td className="px-5 py-3.5">
                         <div className="flex justify-end gap-1">
                           {!locked ? (
-                            <button onClick={() => setEditing(u)} title="Editar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
+                            <button type="button" onClick={() => setEditing(u)} title="Editar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
                               <Pencil className="size-4" />
                             </button>
                           ) : null}
                           {!isMe && u.role !== 'owner' ? (
-                            <button onClick={() => setToDelete(u)} title="Excluir" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
+                            <button type="button" onClick={() => setToDelete(u)} title="Excluir" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
                               <Trash2 className="size-4" />
                             </button>
                           ) : null}

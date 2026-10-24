@@ -367,7 +367,7 @@ export function LandingPageEditorPage() {
         <a href={lp.public_url} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1 break-all text-brand-600 hover:underline">
           {lp.public_url.replace(/^https?:\/\//, '')} <ExternalLink className="size-3.5" />
         </a>
-        <button onClick={() => actions.copyUrl(lp.public_url)} className="inline-flex items-center gap-1 hover:text-ink"><Copy className="size-3.5" /> Copiar</button>
+        <button type="button" onClick={() => actions.copyUrl(lp.public_url)} className="inline-flex items-center gap-1 hover:text-ink"><Copy className="size-3.5" /> Copiar</button>
         <span>v{lp.current_version} · atualizada {formatDate(lp.updated_at, true)}</span>
         {restricted ? null : (
           <span className="inline-flex items-center gap-1.5">
@@ -380,12 +380,12 @@ export function LandingPageEditorPage() {
         <div className="flex items-center gap-1">
           <div className="flex rounded-lg bg-zinc-100 p-0.5">
             {(['desktop', 'mobile'] as const).map((d) => (
-              <button key={d} onClick={() => setDevice(d)} className={cn('rounded-md p-1.5', device === d ? 'bg-white shadow-sm' : 'text-zinc-500')} aria-label={d === 'desktop' ? 'Prévia no computador' : 'Prévia no celular'} title={d === 'desktop' ? 'Prévia no computador' : 'Prévia no celular'}>
+              <button type="button" key={d} onClick={() => setDevice(d)} className={cn('rounded-md p-1.5', device === d ? 'bg-white shadow-sm' : 'text-zinc-500')} aria-label={d === 'desktop' ? 'Prévia no computador' : 'Prévia no celular'} title={d === 'desktop' ? 'Prévia no computador' : 'Prévia no celular'}>
                 {d === 'desktop' ? <Monitor className="size-4" /> : <Smartphone className="size-4" />}
               </button>
             ))}
           </div>
-          <button onClick={() => setFrameKey((k) => k + 1)} className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100" aria-label="Recarregar prévia" title="Recarregar prévia"><RefreshCw className="size-4" /></button>
+          <button type="button" onClick={() => setFrameKey((k) => k + 1)} className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100" aria-label="Recarregar prévia" title="Recarregar prévia"><RefreshCw className="size-4" /></button>
           <a href={landingPageService.previewUrl(lp.id)} target="_blank" rel="noreferrer" className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100" aria-label="Abrir prévia em nova aba" title="Abrir prévia em nova aba"><ExternalLink className="size-4" /></a>
         </div>
         {/* Ações da página, alinhadas à direita */}
@@ -450,7 +450,7 @@ export function LandingPageEditorPage() {
               {/* No celular os modos quebram em mais de uma linha (sem rolagem lateral) */}
               <div className="flex max-w-full flex-wrap justify-center gap-0.5 rounded-lg bg-white p-0.5 shadow-sm ring-1 ring-black/5">
                 {MODES.map((m) => (
-                  <button key={m.key} onClick={() => setMode(m.key)} title={m.hint} className={cn('inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium', mode === m.key ? 'bg-ink text-white' : 'text-zinc-600 hover:text-ink')}>
+                  <button type="button" key={m.key} onClick={() => setMode(m.key)} title={m.hint} className={cn('inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium', mode === m.key ? 'bg-ink text-white' : 'text-zinc-600 hover:text-ink')}>
                     <m.icon className="size-3.5" /> {m.label}
                   </button>
                 ))}
@@ -459,7 +459,7 @@ export function LandingPageEditorPage() {
               <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 lg:justify-self-end">
                 {dirty ? <span className="text-xs font-medium text-amber-700">Há alterações não salvas.</span> : null}
                 {mode === 'secoes' && device === 'mobile' && theme.mobileOrder?.length ? (
-                  <button
+                  <button type="button"
                     onClick={() => {
                       setTheme((t) => (t ? { ...t, mobileOrder: [] } : t));
                       setDirty(true);
@@ -584,7 +584,7 @@ export function LandingPageEditorPage() {
           <div className="mb-3 flex flex-wrap gap-1 rounded-lg bg-zinc-100 p-1">
             {/* Cliente: vê "Publicação" só para escolher o endereço da página */}
             {TABS.filter((t) => !STAFF_TABS.includes(t.key) || t.key === 'publicacao' || (t.key === 'cliente' ? canManageAccess || isClient : !restricted)).map((t) => (
-              <button key={t.key} onClick={() => setTab(t.key)} className={cn('shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition', tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink')}>
+              <button type="button" key={t.key} onClick={() => setTab(t.key)} className={cn('shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition', tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink')}>
                 {t.label}
               </button>
             ))}

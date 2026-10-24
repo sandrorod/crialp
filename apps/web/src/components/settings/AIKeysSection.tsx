@@ -325,7 +325,7 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
                   <div className="font-medium">Chave do servidor <span className="font-mono text-zinc-500">•••• {data.env_key.last4}</span></div>
                   <div className="text-xs text-zinc-500">Variável de ambiente {cfg.envVar} · no rodízio</div>
                 </div>
-                <button onClick={() => setToDelete({ id: 'env', label: 'Chave do servidor', last4: data.env_key!.last4 })} title="Remover chave" aria-label="Remover chave do servidor" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
+                <button type="button" onClick={() => setToDelete({ id: 'env', label: 'Chave do servidor', last4: data.env_key!.last4 })} title="Remover chave" aria-label="Remover chave do servidor" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
                   <Trash2 className="size-4" />
                 </button>
               </li>
@@ -356,11 +356,11 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
                     </div>
                   ) : null}
                 </div>
-                <button onClick={() => void test(k)} disabled={busyId === k.id} title="Testar a chave agora" aria-label="Testar chave" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50">
+                <button type="button" onClick={() => void test(k)} disabled={busyId === k.id} title="Testar a chave agora" aria-label="Testar chave" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50">
                   <RefreshCw className={cn('size-4', busyId === k.id && 'animate-spin')} />
                 </button>
                 <StatusToggle status={k.active ? 'ativa' : 'inativa'} loading={busyId === k.id} onToggle={() => void toggle(k)} />
-                <button onClick={() => setToDelete(k)} title="Remover chave" aria-label="Remover chave" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
+                <button type="button" onClick={() => setToDelete(k)} title="Remover chave" aria-label="Remover chave" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
                   <Trash2 className="size-4" />
                 </button>
               </li>

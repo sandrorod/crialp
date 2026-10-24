@@ -129,7 +129,7 @@ export function CrmWhatsAppPage() {
           ) : null}
           {list.map((c) => (
             <li key={c.id}>
-              <button
+              <button type="button"
                 onClick={() => setParams({ id: c.id })}
                 className={cn(
                   'flex w-full flex-col gap-0.5 border-b border-l-4 border-b-zinc-50 px-4 py-3 pl-3 text-left',
@@ -637,7 +637,7 @@ function Chat({
   return (
     <>
       <header className="flex items-center gap-3 border-b border-zinc-100 bg-white px-4 py-3">
-        <button className="md:hidden" onClick={onBack} aria-label="Voltar"><ArrowLeft className="size-5" /></button>
+        <button type="button" className="md:hidden" onClick={onBack} aria-label="Voltar"><ArrowLeft className="size-5" /></button>
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium text-ink">{title(conversation)}</div>
           <div className="truncate text-xs text-zinc-500">
@@ -706,7 +706,7 @@ function NewConversation({ contactId, companyId, onBack, onSent }: { contactId: 
   return (
     <>
       <header className="flex items-center gap-3 border-b border-zinc-100 bg-white px-4 py-3">
-        <button className="md:hidden" onClick={onBack} aria-label="Voltar"><ArrowLeft className="size-5" /></button>
+        <button type="button" className="md:hidden" onClick={onBack} aria-label="Voltar"><ArrowLeft className="size-5" /></button>
         <div className="min-w-0">
           <div className="truncate font-medium text-ink">{data?.name ?? '…'}</div>
           <div className="truncate text-xs text-zinc-500">{data ? `${phone(data.number)} · ${data.sub}` : null}</div>

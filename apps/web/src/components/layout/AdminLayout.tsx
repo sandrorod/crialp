@@ -89,10 +89,10 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <div className="truncate text-[13px] font-medium">{user?.name}</div>
             <div className="truncate text-[11px] text-zinc-500">{user?.email}</div>
           </div>
-          <button onClick={() => setAccount(true)} className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink" title="Minha conta (nome e senha)" aria-label="Minha conta">
+          <button type="button" onClick={() => setAccount(true)} className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink" title="Minha conta (nome e senha)" aria-label="Minha conta">
             <UserCog className="size-4" />
           </button>
-          <button onClick={() => void logout()} className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink" title="Sair" aria-label="Sair">
+          <button type="button" onClick={() => void logout()} className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink" title="Sair" aria-label="Sair">
             <LogOut className="size-4" />
           </button>
         </div>
@@ -126,7 +126,7 @@ export function AdminLayout() {
     <div className="min-h-screen overflow-x-clip">
       {/* Menu hambúrguer em todas as telas: o conteúdo (principalmente o editor) usa a largura inteira */}
       <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-zinc-200/80 bg-white/90 px-4 backdrop-blur sm:px-6">
-        <button onClick={() => setOpen(true)} className="-ml-2 rounded-lg p-2 hover:bg-zinc-100" aria-label="Abrir menu" title="Menu">
+        <button type="button" onClick={() => setOpen(true)} className="-ml-2 rounded-lg p-2 hover:bg-zinc-100" aria-label="Abrir menu" title="Menu">
           <Menu className="size-5" />
         </button>
         <div className="flex items-center gap-2">
@@ -138,7 +138,7 @@ export function AdminLayout() {
         <div className="fixed inset-0 z-40">
           <div className="absolute inset-0 bg-zinc-950/30" onClick={() => setOpen(false)} />
           <aside className="absolute inset-y-0 left-0 w-72 bg-white shadow-xl">
-            <button onClick={() => setOpen(false)} className="absolute right-3 top-4 rounded-lg p-1.5 hover:bg-zinc-100" aria-label="Fechar menu">
+            <button type="button" onClick={() => setOpen(false)} className="absolute right-3 top-4 rounded-lg p-1.5 hover:bg-zinc-100" aria-label="Fechar menu">
               <X className="size-5" />
             </button>
             <Sidebar onNavigate={() => setOpen(false)} />

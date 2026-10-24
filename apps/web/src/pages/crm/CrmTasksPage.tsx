@@ -57,7 +57,7 @@ export function CrmTasksPage() {
     <>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {FILTERS.map((f) => (
-          <button
+          <button type="button"
             key={f.id}
             onClick={() => setFilter(f.id)}
             className={cn('rounded-full px-3 py-1 text-sm', filter === f.id ? 'bg-ink text-white' : 'border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50')}
@@ -88,7 +88,7 @@ export function CrmTasksPage() {
               return (
                 <li key={t.id} className="flex items-center gap-3 px-5 py-3 text-sm">
                   <input type="checkbox" className="size-4 accent-brand-600" checked={t.done} onChange={() => void toggle(t)} aria-label="Concluída" />
-                  <button className="min-w-0 flex-1 text-left" onClick={() => setEditing(t)}>
+                  <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setEditing(t)}>
                     <div className={cn('text-ink', t.done && 'text-zinc-400 line-through')}>{t.title}</div>
                     <div className="text-xs text-zinc-500">
                       {t.company_name ?? 'sem empresa'}

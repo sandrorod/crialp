@@ -114,13 +114,13 @@ export function LandingPagesPage() {
                         <a href={landingPageService.previewUrl(lp.id)} target="_blank" rel="noreferrer" title="Visualizar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
                           <Eye className="size-4" />
                         </a>
-                        <button onClick={() => actions.copyUrl(lp.public_url)} title="Copiar link da Landing Page" aria-label="Copiar link da Landing Page" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
+                        <button type="button" onClick={() => actions.copyUrl(lp.public_url)} title="Copiar link da Landing Page" aria-label="Copiar link da Landing Page" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
                           <Share2 className="size-4" />
                         </button>
-                        <button onClick={() => navigate(`/landing-pages/${lp.id}`)} title="Editar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
+                        <button type="button" onClick={() => navigate(`/landing-pages/${lp.id}`)} title="Editar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
                           <Pencil className="size-4" />
                         </button>
-                        <button onClick={() => setToDelete(lp)} title="Excluir" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
+                        <button type="button" onClick={() => setToDelete(lp)} title="Excluir" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
                           <Trash2 className="size-4" />
                         </button>
                       </div>

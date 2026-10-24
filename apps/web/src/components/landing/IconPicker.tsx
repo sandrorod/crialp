@@ -13,6 +13,7 @@ export const loadIconCatalog = () =>
     .catch((err) => ((iconsPromise = null), Promise.reject(err))));
 
 export function IconSvg({ svg, className, style }: { svg?: string; className?: string; style?: CSSProperties }) {
+  // biome-ignore lint/security/noDangerouslySetInnerHtml: SVG do catálogo de ícones da própria API (arquivos do sistema), não texto de usuário
   return <span className={cn('inline-grid place-items-center [&_svg]:size-5', className)} style={style} dangerouslySetInnerHTML={{ __html: svg ?? '' }} />;
 }
 

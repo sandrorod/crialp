@@ -102,7 +102,7 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
       {loading && !data ? (
         <div className="p-5"><div className="skeleton h-24 rounded-lg" /></div>
       ) : error ? (
-        <div className="p-5 text-sm text-red-600">{error} <button className="underline" onClick={reload}>Tentar novamente</button></div>
+        <div className="p-5 text-sm text-red-600">{error} <button type="button" className="underline" onClick={reload}>Tentar novamente</button></div>
       ) : !hasContent ? (
         <div className="p-5 text-sm text-zinc-500">
           Esta empresa ainda não tem o conteúdo do site guardado. Clique em <strong>Ler o site agora</strong> para buscar tudo o que está em {shortUrl(draft.reference_url || draft.website) || 'site de referência'}.
@@ -111,7 +111,7 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
         <div className="p-5">
           <div className="mb-4 flex flex-wrap gap-1 rounded-lg bg-zinc-100 p-1">
             {tabs.map((t) => (
-              <button key={t.key} onClick={() => setTab(t.key)} className={cn('whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition', tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink')}>
+              <button type="button" key={t.key} onClick={() => setTab(t.key)} className={cn('whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition', tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink')}>
                 {t.label} <span className="text-zinc-400">{t.count}</span>
               </button>
             ))}
@@ -127,7 +127,7 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
                 {pages.map((p, i) => {
                   const m = matches?.find((x) => x.i === i);
                   return (
-                    <button
+                    <button type="button"
                       key={p.url}
                       onClick={() => setPage(i)}
                       className={cn('max-w-[260px] truncate rounded-full px-3 py-1 text-xs ring-1 transition', i === page ? 'bg-ink text-white ring-ink' : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50', matches && !m && 'opacity-40')}

@@ -128,7 +128,7 @@ export function CrmCompanyPage() {
                 return (
                   <li key={t.id} className="flex items-center gap-3 px-5 py-3 text-sm">
                     <input type="checkbox" className="size-4 accent-brand-600" checked={t.done} onChange={() => void toggleTask(t)} aria-label="Concluída" />
-                    <button className="min-w-0 flex-1 text-left" onClick={() => setEditing({ kind: 'task', item: t })}>
+                    <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setEditing({ kind: 'task', item: t })}>
                       <div className={cn(t.done && 'text-zinc-400 line-through')}>{t.title}</div>
                       <div className={cn('text-xs', late ? 'text-red-600' : 'text-zinc-500')}>{t.due_at ? dateTime(t.due_at) : 'sem prazo'} · {t.assignee_name}</div>
                     </button>

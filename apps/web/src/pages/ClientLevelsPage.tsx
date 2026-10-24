@@ -85,10 +85,10 @@ export function ClientLevelsPage() {
                     <td data-label="Criação" className="px-3 py-3.5 text-zinc-500">{formatDate(l.created_at)}</td>
                     <td className="px-5 py-3.5">
                       <div className="flex justify-end gap-1">
-                        <button onClick={() => setEditing(l)} title="Editar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
+                        <button type="button" onClick={() => setEditing(l)} title="Editar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
                           <Pencil className="size-4" />
                         </button>
-                        <button onClick={() => setToDelete(l)} title="Excluir" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
+                        <button type="button" onClick={() => setToDelete(l)} title="Excluir" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
                           <Trash2 className="size-4" />
                         </button>
                       </div>

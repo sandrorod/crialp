@@ -1,0 +1,53 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": { "includes": ["apps/*/src/**", "apps/*/test/**", "apps/*/*.config.ts", "scripts/**", "!**/dist", "!**/*.d.ts", "!**/*.css"] },
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 160 },
+  "javascript": {
+    "formatter": { "quoteStyle": "single", "semicolons": "always", "trailingCommas": "all", "arrowParentheses": "always", "jsxQuoteStyle": "double" }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "style": {
+        "noNonNullAssertion": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "warn",
+        "noArrayIndexKey": "warn",
+        "noAssignInExpressions": "off",
+        "useIterableCallbackReturn": "off"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "warn",
+        "noNestedComponentDefinitions": "warn",
+        "useUniqueElementIds": "off"
+      },
+      "complexity": {
+        "noCommaOperator": "warn",
+        "noImportantStyles": "off"
+      },
+      "a11y": {
+        "useKeyWithClickEvents": "warn",
+        "noStaticElementInteractions": "warn",
+        "noLabelWithoutControl": "warn",
+        "useMediaCaption": "warn",
+        "noSvgWithoutTitle": "warn",
+        "useSemanticElements": "warn",
+        "useAriaPropsSupportedByRole": "warn"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["apps/api/src/landing/**"],
+      "linter": {
+        "rules": {
+          "security": { "noDangerouslySetInnerHtml": "off" }
+        }
+      }
+    }
+  ],
+  "assist": { "enabled": false }
+}
