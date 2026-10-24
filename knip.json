@@ -4,10 +4,12 @@
   "workspaces": {
     ".": {
       "entry": [
-        "scripts/*.{js,mjs}"
+        "scripts/*.{js,mjs}",
+        "e2e/**/*.ts"
       ],
       "project": [
-        "scripts/**"
+        "scripts/**",
+        "e2e/**/*.ts"
       ]
     },
     "apps/api": {
@@ -25,7 +27,8 @@
     "apps/web": {
       "entry": [
         "src/main.tsx",
-        "src/lib/*Worker.ts"
+        "src/lib/*Worker.ts",
+        "src/**/*.test.ts"
       ],
       "project": [
         "src/**/*.{ts,tsx}"

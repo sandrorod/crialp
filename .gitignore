@@ -9,3 +9,10 @@ uploads/*
 .vercel
 .env*
 *.tsbuildinfo
+
+# Relatórios de testes
+coverage/
+playwright-report/
+test-results/
+reports/
+e2e/.auth/

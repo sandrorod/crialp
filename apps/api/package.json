@@ -9,7 +9,9 @@
     "build": "tsc -p tsconfig.json",
     "start": "node --env-file-if-exists=../../.env dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx --import ./test/setup.ts --test --test-concurrency=1 test/*.test.ts"
+    "test": "node --import tsx --import ./test/setup.ts --test --test-concurrency=1 test/*.test.ts",
+    "test:coverage": "node --import tsx --import ./test/setup.ts --test --test-concurrency=1 --experimental-test-coverage --test-coverage-include='src/**' --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/*.test.ts",
+    "e2e:server": "node --import tsx test/e2e-server.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
