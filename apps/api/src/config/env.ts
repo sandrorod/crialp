@@ -28,7 +28,7 @@ const dbPassword = (() => {
 const jwtSecretError = !isProduction
   ? null
   : !explicitJwtSecret
-    ? 'JWT_SECRET não configurado. Em produção defina um segredo aleatório de pelo menos 32 caracteres (ex.: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))").'
+    ? "JWT_SECRET não configurado. Em produção defina um segredo aleatório de pelo menos 32 caracteres (ex.: node -e \"console.log(require('crypto').randomBytes(48).toString('hex'))\")."
     : PLACEHOLDER_SECRETS.includes(explicitJwtSecret) || (dbPassword.length >= 8 && explicitJwtSecret.includes(dbPassword))
       ? 'JWT_SECRET usa um valor de exemplo ou a senha do banco. Gere um segredo aleatório exclusivo.'
       : null;
@@ -48,13 +48,12 @@ const requestedModel = process.env.AI_MODEL?.trim();
 const aiModel =
   requestedModel && !(aiProvider === 'gemini' && requestedModel.startsWith('claude')) && !(aiProvider === 'anthropic' && requestedModel.startsWith('gemini'))
     ? requestedModel
-    : DEFAULT_MODELS[aiProvider] ?? requestedModel ?? '';
+    : (DEFAULT_MODELS[aiProvider] ?? requestedModel ?? '');
 
 const isVercel = !!process.env.VERCEL;
 // No Vercel, sem APP_URL definida, usa o domínio de produção do projeto
 const appUrl = (
-  process.env.APP_URL ??
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:5173')
+  process.env.APP_URL ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:5173')
 ).replace(/\/$/, '');
 
 const appHosts = new Set(
@@ -63,7 +62,11 @@ const appHosts = new Set(
     .map((h) => h.trim().toLowerCase())
     .filter(Boolean)
     .concat(new URL(appUrl).hostname.toLowerCase())
-    .concat([process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL].filter((h): h is string => !!h).map((h) => h.toLowerCase())),
+    .concat(
+      [process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL]
+        .filter((h): h is string => !!h)
+        .map((h) => h.toLowerCase()),
+    ),
 );
 
 /** Host do próprio sistema (usado na checagem de origem/CSRF): só os domínios deste deploy. */
@@ -109,9 +112,11 @@ export const env = {
     geminiApiKey: process.env.GEMINI_API_KEY || undefined,
     // Modelos reserva (separados por vírgula) para quando o principal estiver sobrecarregado
     // No Gemini, o gemini-2.5-flash é sempre o último reserva (mesmo com AI_FALLBACK_MODELS definido)
-    fallbackModels: [...new Set([...(process.env.AI_FALLBACK_MODELS ?? '').split(','), ...(aiProvider === 'gemini' ? ['gemini-2.5-flash'] : [])]
-      .map((m) => m.trim())
-      .filter(Boolean))],
+    fallbackModels: [
+      ...new Set(
+        [...(process.env.AI_FALLBACK_MODELS ?? '').split(','), ...(aiProvider === 'gemini' ? ['gemini-2.5-flash'] : [])].map((m) => m.trim()).filter(Boolean),
+      ),
+    ],
   },
   storage: {
     // No Vercel o disco é somente leitura: usa Vercel Blob quando o token existe; sem ele, o banco

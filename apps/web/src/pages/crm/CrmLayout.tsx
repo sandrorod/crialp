@@ -14,7 +14,14 @@ export function CrmLayout() {
   const unread = useAsync(() => crmService.unread(), []);
   useEffect(() => {
     // Fora da tela do WhatsApp também confere mensagens novas, para o contador do menu
-    const t = setInterval(() => void crmService.sync().catch(() => null).then(() => unread.reload()), 30_000);
+    const t = setInterval(
+      () =>
+        void crmService
+          .sync()
+          .catch(() => null)
+          .then(() => unread.reload()),
+      30_000,
+    );
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -16,7 +16,15 @@ function Highlight({ text, term }: { text: string; term: string }) {
   const parts = text.split(new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig'));
   return (
     <>
-      {parts.map((p, i) => (p.toLowerCase() === term.toLowerCase() ? <mark key={i} className="rounded bg-amber-200 px-0.5">{p}</mark> : p))}
+      {parts.map((p, i) =>
+        p.toLowerCase() === term.toLowerCase() ? (
+          <mark key={i} className="rounded bg-amber-200 px-0.5">
+            {p}
+          </mark>
+        ) : (
+          p
+        ),
+      )}
     </>
   );
 }
@@ -76,11 +84,15 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
   const visibleLines = term.trim() ? lines.filter((l) => l.toLowerCase().includes(term.trim().toLowerCase())) : lines;
 
   const imagesInDraft = new Set(draft.images.map((i) => i.url));
-  const socialField = (network: string) => (MAIN_SOCIALS as readonly string[]).includes(network) ? (network as (typeof MAIN_SOCIALS)[number]) : null;
+  const socialField = (network: string) => ((MAIN_SOCIALS as readonly string[]).includes(network) ? (network as (typeof MAIN_SOCIALS)[number]) : null);
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: 'textos', label: 'Textos das páginas', count: pages.length },
-    { key: 'contatos', label: 'Contatos e redes', count: (d.phones?.length ?? 0) + (d.whatsapps?.length ?? 0) + (d.emails?.length ?? 0) + (d.socials?.length ?? 0) + (d.zip_codes?.length ?? 0) },
+    {
+      key: 'contatos',
+      label: 'Contatos e redes',
+      count: (d.phones?.length ?? 0) + (d.whatsapps?.length ?? 0) + (d.emails?.length ?? 0) + (d.socials?.length ?? 0) + (d.zip_codes?.length ?? 0),
+    },
     { key: 'imagens', label: 'Imagens', count: d.images?.length ?? 0 },
     { key: 'estruturados', label: 'Dados estruturados', count: d.json_ld?.length ?? 0 },
   ];
@@ -89,9 +101,13 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
     <Card className="mb-4">
       <div className="flex flex-col gap-3 border-b border-zinc-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="flex items-center gap-2 text-[15px] font-semibold"><Globe className="size-4 text-zinc-500" /> Conteúdo completo do site</h3>
+          <h3 className="flex items-center gap-2 text-[15px] font-semibold">
+            <Globe className="size-4 text-zinc-500" /> Conteúdo completo do site
+          </h3>
           <p className="mt-0.5 text-sm text-zinc-500">
-            {hasContent ? `Tudo o que foi lido em ${d.final_url ? shortUrl(d.final_url) : 'site'} · ${formatDate(d.fetched_at ?? pages[0]?.fetched_at, true)}` : 'Texto integral, contatos, redes e imagens encontrados no site de referência.'}
+            {hasContent
+              ? `Tudo o que foi lido em ${d.final_url ? shortUrl(d.final_url) : 'site'} · ${formatDate(d.fetched_at ?? pages[0]?.fetched_at, true)}`
+              : 'Texto integral, contatos, redes e imagens encontrados no site de referência.'}
           </p>
         </div>
         <Button variant="secondary" size="sm" loading={refreshing} icon={<RefreshCw className="size-4" />} onClick={refresh}>
@@ -100,18 +116,34 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
       </div>
 
       {loading && !data ? (
-        <div className="p-5"><div className="skeleton h-24 rounded-lg" /></div>
+        <div className="p-5">
+          <div className="skeleton h-24 rounded-lg" />
+        </div>
       ) : error ? (
-        <div className="p-5 text-sm text-red-600">{error} <button type="button" className="underline" onClick={reload}>Tentar novamente</button></div>
+        <div className="p-5 text-sm text-red-600">
+          {error}{' '}
+          <button type="button" className="underline" onClick={reload}>
+            Tentar novamente
+          </button>
+        </div>
       ) : !hasContent ? (
         <div className="p-5 text-sm text-zinc-500">
-          Esta empresa ainda não tem o conteúdo do site guardado. Clique em <strong>Ler o site agora</strong> para buscar tudo o que está em {shortUrl(draft.reference_url || draft.website) || 'site de referência'}.
+          Esta empresa ainda não tem o conteúdo do site guardado. Clique em <strong>Ler o site agora</strong> para buscar tudo o que está em{' '}
+          {shortUrl(draft.reference_url || draft.website) || 'site de referência'}.
         </div>
       ) : (
         <div className="p-5">
           <div className="mb-4 flex flex-wrap gap-1 rounded-lg bg-zinc-100 p-1">
             {tabs.map((t) => (
-              <button type="button" key={t.key} onClick={() => setTab(t.key)} className={cn('whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition', tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink')}>
+              <button
+                type="button"
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  'whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition',
+                  tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink',
+                )}
+              >
                 {t.label} <span className="text-zinc-400">{t.count}</span>
               </button>
             ))}
@@ -121,19 +153,33 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
             <div>
               <div className="relative mb-3">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
-                <Input className="pl-9" placeholder="Buscar em todas as páginas (ex.: unidade, horário, preço, telefone)…" value={term} onChange={(e) => setTerm(e.target.value)} />
+                <Input
+                  className="pl-9"
+                  placeholder="Buscar em todas as páginas (ex.: unidade, horário, preço, telefone)…"
+                  value={term}
+                  onChange={(e) => setTerm(e.target.value)}
+                />
               </div>
               <div className="mb-3 flex flex-wrap gap-1.5">
                 {pages.map((p, i) => {
                   const m = matches?.find((x) => x.i === i);
                   return (
-                    <button type="button"
+                    <button
+                      type="button"
                       key={p.url}
                       onClick={() => setPage(i)}
-                      className={cn('max-w-[260px] truncate rounded-full px-3 py-1 text-xs ring-1 transition', i === page ? 'bg-ink text-white ring-ink' : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50', matches && !m && 'opacity-40')}
+                      className={cn(
+                        'max-w-[260px] truncate rounded-full px-3 py-1 text-xs ring-1 transition',
+                        i === page ? 'bg-ink text-white ring-ink' : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50',
+                        matches && !m && 'opacity-40',
+                      )}
                       title={p.url}
                     >
-                      {/(^|\.)google\.[a-z.]+$/i.test(new URL(p.url).hostname) ? 'Perfil no Google' : new URL(p.url).pathname === '/' ? 'Página inicial' : decodeURIComponent(new URL(p.url).pathname).replace(/^\/|\/$/g, '')}
+                      {/(^|\.)google\.[a-z.]+$/i.test(new URL(p.url).hostname)
+                        ? 'Perfil no Google'
+                        : new URL(p.url).pathname === '/'
+                          ? 'Página inicial'
+                          : decodeURIComponent(new URL(p.url).pathname).replace(/^\/|\/$/g, '')}
                       {m ? ` · ${m.count}` : ''}
                     </button>
                   );
@@ -144,13 +190,30 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
                   <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-4 py-2.5">
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium">{current.title || shortUrl(current.url)}</div>
-                      <a href={current.url} target="_blank" rel="noreferrer" title={current.url} className="block truncate text-xs text-brand-600 hover:underline">{shortUrl(current.url, 70)}</a>
+                      <a
+                        href={current.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={current.url}
+                        className="block truncate text-xs text-brand-600 hover:underline"
+                      >
+                        {shortUrl(current.url, 70)}
+                      </a>
                     </div>
-                    <Button variant="ghost" size="sm" icon={<Copy className="size-3.5" />} onClick={async () => (await copyToClipboard(current.content)) && toast.success('Texto da página copiado.')}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={<Copy className="size-3.5" />}
+                      onClick={async () => (await copyToClipboard(current.content)) && toast.success('Texto da página copiado.')}
+                    >
                       Copiar tudo
                     </Button>
                   </div>
-                  {current.description ? <p className="border-b border-zinc-100 bg-zinc-50 px-4 py-2 text-xs text-zinc-600"><strong>Descrição (meta):</strong> {current.description}</p> : null}
+                  {current.description ? (
+                    <p className="border-b border-zinc-100 bg-zinc-50 px-4 py-2 text-xs text-zinc-600">
+                      <strong>Descrição (meta):</strong> {current.description}
+                    </p>
+                  ) : null}
                   <div className="max-h-[420px] overflow-y-auto px-4 py-3 text-[13px] leading-relaxed text-zinc-700">
                     {visibleLines.length ? (
                       visibleLines.map((l, i) => (
@@ -165,23 +228,40 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
                 </div>
               ) : null}
               <p className="mt-2 text-xs text-zinc-500">
-                Selecione e copie qualquer trecho para o cadastro ou para uma <strong>seção personalizada</strong> da Landing Page (Landing Page → Textos → Seções personalizadas).
+                Selecione e copie qualquer trecho para o cadastro ou para uma <strong>seção personalizada</strong> da Landing Page (Landing Page → Textos →
+                Seções personalizadas).
               </p>
             </div>
           ) : null}
 
           {tab === 'contatos' ? (
             <div className="grid gap-5 sm:grid-cols-2">
-              <FoundList title="Telefones" items={d.phones ?? []} render={(v) => (
-                <>
-                  <UseButton label="Telefone" done={draft.phone === v} onClick={() => onApply({ phone: v })} />
-                  <UseButton label="Celular" done={draft.mobile === v} onClick={() => onApply({ mobile: v })} />
-                  <UseButton label="WhatsApp" done={draft.whatsapp === v} onClick={() => onApply({ whatsapp: v })} />
-                </>
-              )} />
-              <FoundList title="WhatsApp (links do site)" items={d.whatsapps ?? []} render={(v) => <UseButton label="Usar como WhatsApp" done={draft.whatsapp === v} onClick={() => onApply({ whatsapp: v })} />} />
-              <FoundList title="E-mails" items={d.emails ?? []} render={(v) => <UseButton label="Usar como e-mail" done={draft.email === v} onClick={() => onApply({ email: v })} />} />
-              <FoundList title="CEPs" items={d.zip_codes ?? []} render={(v) => <UseButton label="Usar como CEP" done={draft.zip_code === v} onClick={() => onApply({ zip_code: v })} />} />
+              <FoundList
+                title="Telefones"
+                items={d.phones ?? []}
+                render={(v) => (
+                  <>
+                    <UseButton label="Telefone" done={draft.phone === v} onClick={() => onApply({ phone: v })} />
+                    <UseButton label="Celular" done={draft.mobile === v} onClick={() => onApply({ mobile: v })} />
+                    <UseButton label="WhatsApp" done={draft.whatsapp === v} onClick={() => onApply({ whatsapp: v })} />
+                  </>
+                )}
+              />
+              <FoundList
+                title="WhatsApp (links do site)"
+                items={d.whatsapps ?? []}
+                render={(v) => <UseButton label="Usar como WhatsApp" done={draft.whatsapp === v} onClick={() => onApply({ whatsapp: v })} />}
+              />
+              <FoundList
+                title="E-mails"
+                items={d.emails ?? []}
+                render={(v) => <UseButton label="Usar como e-mail" done={draft.email === v} onClick={() => onApply({ email: v })} />}
+              />
+              <FoundList
+                title="CEPs"
+                items={d.zip_codes ?? []}
+                render={(v) => <UseButton label="Usar como CEP" done={draft.zip_code === v} onClick={() => onApply({ zip_code: v })} />}
+              />
               <FoundList
                 title="Redes sociais"
                 className="sm:col-span-2"
@@ -212,7 +292,9 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
                   variant="secondary"
                   icon={<ImagePlus className="size-4" />}
                   onClick={() => {
-                    const add = (d.images ?? []).filter((i) => !imagesInDraft.has(i.url)).map((i) => ({ url: i.url, type: 'gallery' as const, alt_text: i.alt || null, source: 'scraped' as const, usage_allowed: true }));
+                    const add = (d.images ?? [])
+                      .filter((i) => !imagesInDraft.has(i.url))
+                      .map((i) => ({ url: i.url, type: 'gallery' as const, alt_text: i.alt || null, source: 'scraped' as const, usage_allowed: true }));
                     if (!add.length) return toast.info('Todas as imagens já estão no cadastro.');
                     onApply({ images: [...draft.images, ...add] });
                     toast.success(`${add.length} imagem(ns) adicionada(s) ao cadastro. Clique em "Salvar empresa".`);
@@ -230,11 +312,18 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
                         <img src={img.url} alt={img.alt} loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
                       </div>
                       <div className="flex items-center justify-between gap-1 p-1.5">
-                        <span className="text-[10px] text-zinc-500">{img.width}×{img.height}</span>
+                        <span className="text-[10px] text-zinc-500">
+                          {img.width}×{img.height}
+                        </span>
                         <UseButton
                           label={added ? 'No cadastro' : 'Adicionar'}
                           done={added}
-                          onClick={() => !added && onApply({ images: [...draft.images, { url: img.url, type: 'gallery', alt_text: img.alt || null, source: 'scraped', usage_allowed: true }] })}
+                          onClick={() =>
+                            !added &&
+                            onApply({
+                              images: [...draft.images, { url: img.url, type: 'gallery', alt_text: img.alt || null, source: 'scraped', usage_allowed: true }],
+                            })
+                          }
                         />
                       </div>
                     </div>
@@ -246,9 +335,13 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
 
           {tab === 'estruturados' ? (
             <div>
-              <p className="mb-2 text-sm text-zinc-500">Dados técnicos (JSON-LD/schema.org) publicados pelo site: nome, endereço, logotipo, avaliações de terceiros etc.</p>
+              <p className="mb-2 text-sm text-zinc-500">
+                Dados técnicos (JSON-LD/schema.org) publicados pelo site: nome, endereço, logotipo, avaliações de terceiros etc.
+              </p>
               {d.json_ld?.length ? (
-                <pre className="max-h-[420px] overflow-auto rounded-lg bg-zinc-950 p-4 text-[11px] leading-relaxed text-zinc-100">{JSON.stringify(d.json_ld, null, 2)}</pre>
+                <pre className="max-h-[420px] overflow-auto rounded-lg bg-zinc-950 p-4 text-[11px] leading-relaxed text-zinc-100">
+                  {JSON.stringify(d.json_ld, null, 2)}
+                </pre>
               ) : (
                 <p className="text-sm text-zinc-400">O site não publica dados estruturados.</p>
               )}
@@ -260,10 +353,24 @@ export function SourcesPanel({ companyId, draft, onApply }: { companyId: string;
   );
 }
 
-function FoundList({ title, items, render, label, className }: { title: string; items: string[]; render: (v: string) => React.ReactNode; label?: (v: string) => string; className?: string }) {
+function FoundList({
+  title,
+  items,
+  render,
+  label,
+  className,
+}: {
+  title: string;
+  items: string[];
+  render: (v: string) => React.ReactNode;
+  label?: (v: string) => string;
+  className?: string;
+}) {
   return (
     <div className={className}>
-      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-500"><FileText className="size-3.5" /> {title}</div>
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        <FileText className="size-3.5" /> {title}
+      </div>
       {items.length ? (
         <ul className="space-y-1.5">
           {items.map((v) => (

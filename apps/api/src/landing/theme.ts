@@ -82,8 +82,23 @@ function normalizeFocus(input: unknown): Record<string, ImageFocus> {
 }
 
 export const TEMPLATE_KEYS = [
-  'classico', 'banner', 'moderno', 'minimalista', 'elegante', 'impacto', 'revista', 'blocos', 'noturno', 'capa', 'organico',
-  'aurora', 'linhas', 'suave', 'estudio', 'degrade', 'oficio',
+  'classico',
+  'banner',
+  'moderno',
+  'minimalista',
+  'elegante',
+  'impacto',
+  'revista',
+  'blocos',
+  'noturno',
+  'capa',
+  'organico',
+  'aurora',
+  'linhas',
+  'suave',
+  'estudio',
+  'degrade',
+  'oficio',
 ] as const;
 export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
 
@@ -105,7 +120,8 @@ export const TEMPLATES: Record<TemplateKey, Template> = {
   },
   banner: {
     label: 'Banner',
-    description: 'Banner largo no topo, de ponta a ponta, com a foto inteira (sem texto por cima); título e botões centralizados logo abaixo. Sem foto, o banner é uma faixa em degradê com o nome da empresa.',
+    description:
+      'Banner largo no topo, de ponta a ponta, com a foto inteira (sem texto por cima); título e botões centralizados logo abaixo. Sem foto, o banner é uma faixa em degradê com o nome da empresa.',
     hero: { withPhoto: 'split', withoutPhoto: 'split' },
     services: () => 'grid',
   },
@@ -197,7 +213,8 @@ export const TEMPLATES: Record<TemplateKey, Template> = {
   },
   oficio: {
     label: 'Ofício',
-    description: 'Para prestadores de serviço: cabeçalho escuro na cor da marca, mosaico de 3 fotos no topo, serviços em cartões com ícone, foto do "Sobre" com moldura, depoimentos em faixa escura e contato em cartão ao lado do mapa.',
+    description:
+      'Para prestadores de serviço: cabeçalho escuro na cor da marca, mosaico de 3 fotos no topo, serviços em cartões com ícone, foto do "Sobre" com moldura, depoimentos em faixa escura e contato em cartão ao lado do mapa.',
     hero: { withPhoto: 'split', withoutPhoto: 'split' },
     services: () => 'grid',
   },
@@ -239,143 +256,244 @@ interface Preset {
 export const PRESETS: Record<DesignPreset, Preset> = {
   health: {
     label: 'Saúde & Odontologia — clean e confiável',
-    heading: { family: 'Plus Jakarta Sans', weight: 700, query: 'Plus+Jakarta+Sans:wght@400;500;600;700;800', case: 'none', tracking: '-0.025em', lineHeight: 1.08 },
+    heading: {
+      family: 'Plus Jakarta Sans',
+      weight: 700,
+      query: 'Plus+Jakarta+Sans:wght@400;500;600;700;800',
+      case: 'none',
+      tracking: '-0.025em',
+      lineHeight: 1.08,
+    },
     body: { family: 'Plus Jakarta Sans', query: '' },
     colors: { bg: '#ffffff', surface: '#f3f7f9', text: '#0f2130', muted: '#566779', primary: '#0f7c8a', accent: '#1d4f73' },
-    dark: false, radius: 20, buttonRadius: 999, servicesLayout: 'grid', heroDefault: 'split',
+    dark: false,
+    radius: 20,
+    buttonRadius: 999,
+    servicesLayout: 'grid',
+    heroDefault: 'split',
   },
   legal: {
     label: 'Advocacia & Consultoria — sóbrio e elegante',
     heading: { family: 'Cormorant Garamond', weight: 600, query: 'Cormorant+Garamond:wght@500;600;700', case: 'none', tracking: '-0.01em', lineHeight: 1.05 },
     body: { family: 'Libre Franklin', query: 'Libre+Franklin:wght@400;500;600' },
     colors: { bg: '#faf8f4', surface: '#f1ece2', text: '#1a1916', muted: '#5f5a50', primary: '#1c2a3d', accent: '#a8864f' },
-    dark: false, radius: 2, buttonRadius: 2, servicesLayout: 'list', heroDefault: 'split',
+    dark: false,
+    radius: 2,
+    buttonRadius: 2,
+    servicesLayout: 'list',
+    heroDefault: 'split',
   },
   fitness: {
     label: 'Academia & Esportes — energético',
     heading: { family: 'Anton', weight: 400, query: 'Anton', case: 'uppercase', tracking: '0.005em', lineHeight: 1.0 },
     body: { family: 'Inter', query: 'Inter:wght@400;500;600;700' },
     colors: { bg: '#0c0c0e', surface: '#17171b', text: '#f4f4f5', muted: '#a1a1aa', primary: '#d4ff3a', accent: '#ff5a36' },
-    dark: true, radius: 6, buttonRadius: 6, servicesLayout: 'grid', heroDefault: 'centered',
+    dark: true,
+    radius: 6,
+    buttonRadius: 6,
+    servicesLayout: 'grid',
+    heroDefault: 'centered',
   },
   food: {
     label: 'Gastronomia — acolhedor e fotográfico',
-    heading: { family: 'Fraunces', weight: 600, query: 'Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700', case: 'none', tracking: '-0.02em', lineHeight: 1.05 },
+    heading: {
+      family: 'Fraunces',
+      weight: 600,
+      query: 'Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700',
+      case: 'none',
+      tracking: '-0.02em',
+      lineHeight: 1.05,
+    },
     body: { family: 'DM Sans', query: 'DM+Sans:wght@400;500;600;700' },
     colors: { bg: '#fbf6ef', surface: '#f3e8da', text: '#2b1d13', muted: '#6e5a4a', primary: '#a8402a', accent: '#3f5b3a' },
-    dark: false, radius: 16, buttonRadius: 999, servicesLayout: 'grid', heroDefault: 'split',
+    dark: false,
+    radius: 16,
+    buttonRadius: 999,
+    servicesLayout: 'grid',
+    heroDefault: 'split',
   },
   realestate: {
     label: 'Imobiliário & Arquitetura — premium',
     heading: { family: 'Playfair Display', weight: 500, query: 'Playfair+Display:wght@400;500;600;700', case: 'none', tracking: '-0.015em', lineHeight: 1.08 },
     body: { family: 'Manrope', query: 'Manrope:wght@400;500;600;700' },
     colors: { bg: '#f7f6f3', surface: '#ecebe6', text: '#141414', muted: '#5d5b57', primary: '#161616', accent: '#a38654' },
-    dark: false, radius: 2, buttonRadius: 2, servicesLayout: 'list', heroDefault: 'split',
+    dark: false,
+    radius: 2,
+    buttonRadius: 2,
+    servicesLayout: 'list',
+    heroDefault: 'split',
   },
   beauty: {
     label: 'Estética & Beleza — leve e sofisticado',
-    heading: { family: 'Cormorant Garamond', weight: 500, query: 'Cormorant+Garamond:ital,wght@0,500;0,600;1,500', case: 'none', tracking: '-0.01em', lineHeight: 1.05 },
+    heading: {
+      family: 'Cormorant Garamond',
+      weight: 500,
+      query: 'Cormorant+Garamond:ital,wght@0,500;0,600;1,500',
+      case: 'none',
+      tracking: '-0.01em',
+      lineHeight: 1.05,
+    },
     body: { family: 'Jost', query: 'Jost:wght@400;500;600' },
     colors: { bg: '#fdf9f7', surface: '#f6ebe6', text: '#2c2222', muted: '#6f5f5c', primary: '#96604f', accent: '#c7a193' },
-    dark: false, radius: 28, buttonRadius: 999, servicesLayout: 'grid', heroDefault: 'split',
+    dark: false,
+    radius: 28,
+    buttonRadius: 999,
+    servicesLayout: 'grid',
+    heroDefault: 'split',
   },
   automotive: {
     label: 'Oficina & Indústria — robusto e direto',
     heading: { family: 'Barlow Condensed', weight: 700, query: 'Barlow+Condensed:wght@600;700;800', case: 'uppercase', tracking: '0.01em', lineHeight: 1.0 },
     body: { family: 'Barlow', query: 'Barlow:wght@400;500;600;700' },
     colors: { bg: '#f3f3f1', surface: '#e7e7e3', text: '#15171a', muted: '#555a60', primary: '#e0561c', accent: '#1d2127' },
-    dark: false, radius: 4, buttonRadius: 4, servicesLayout: 'grid', heroDefault: 'centered',
+    dark: false,
+    radius: 4,
+    buttonRadius: 4,
+    servicesLayout: 'grid',
+    heroDefault: 'centered',
   },
   tech: {
     label: 'Tecnologia & Agências — moderno',
     heading: { family: 'Space Grotesk', weight: 700, query: 'Space+Grotesk:wght@500;600;700', case: 'none', tracking: '-0.03em', lineHeight: 1.05 },
     body: { family: 'Inter', query: 'Inter:wght@400;500;600;700' },
     colors: { bg: '#ffffff', surface: '#f4f5fa', text: '#0b1020', muted: '#555d73', primary: '#4f46e5', accent: '#0b1020' },
-    dark: false, radius: 14, buttonRadius: 10, servicesLayout: 'grid', heroDefault: 'centered',
+    dark: false,
+    radius: 14,
+    buttonRadius: 10,
+    servicesLayout: 'grid',
+    heroDefault: 'centered',
   },
   education: {
     label: 'Educação — acolhedor e claro',
     heading: { family: 'Outfit', weight: 700, query: 'Outfit:wght@400;500;600;700;800', case: 'none', tracking: '-0.025em', lineHeight: 1.08 },
     body: { family: 'Outfit', query: '' },
     colors: { bg: '#ffffff', surface: '#f4f7fd', text: '#101a33', muted: '#56607a', primary: '#2257d6', accent: '#f0a020' },
-    dark: false, radius: 18, buttonRadius: 12, servicesLayout: 'grid', heroDefault: 'split',
+    dark: false,
+    radius: 18,
+    buttonRadius: 12,
+    servicesLayout: 'grid',
+    heroDefault: 'split',
   },
   professional: {
     label: 'Serviços profissionais — focado em conversão',
     heading: { family: 'Sora', weight: 700, query: 'Sora:wght@500;600;700;800', case: 'none', tracking: '-0.03em', lineHeight: 1.08 },
     body: { family: 'Inter', query: 'Inter:wght@400;500;600;700' },
     colors: { bg: '#ffffff', surface: '#f5f6f8', text: '#101828', muted: '#5b6474', primary: '#1d4ed8', accent: '#0f172a' },
-    dark: false, radius: 12, buttonRadius: 10, servicesLayout: 'grid', heroDefault: 'split',
+    dark: false,
+    radius: 12,
+    buttonRadius: 10,
+    servicesLayout: 'grid',
+    heroDefault: 'split',
   },
   ocean: {
     label: 'Oceano — azul-petróleo e âmbar, leve',
     heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
     body: { family: 'Figtree', query: 'Figtree:wght@400;500;600;700' },
     colors: { bg: '#ffffff', surface: '#eff6f8', text: '#0b2530', muted: '#52707c', primary: '#0e7490', accent: '#f59e0b' },
-    dark: false, radius: 16, buttonRadius: 999, servicesLayout: 'grid', heroDefault: 'split',
+    dark: false,
+    radius: 16,
+    buttonRadius: 999,
+    servicesLayout: 'grid',
+    heroDefault: 'split',
   },
   forest: {
     label: 'Floresta — verde natural e acolhedor',
     heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
     body: { family: 'Nunito Sans', query: 'Nunito+Sans:wght@400;600;700' },
     colors: { bg: '#fbfcf8', surface: '#eef3ea', text: '#17241a', muted: '#5a6b5c', primary: '#2f6b3f', accent: '#c08a3e' },
-    dark: false, radius: 18, buttonRadius: 999, servicesLayout: 'grid', heroDefault: 'split',
+    dark: false,
+    radius: 18,
+    buttonRadius: 999,
+    servicesLayout: 'grid',
+    heroDefault: 'split',
   },
   terracotta: {
     label: 'Terracota — quente e artesanal',
     heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
     body: { family: 'Work Sans', query: 'Work+Sans:wght@400;500;600;700' },
     colors: { bg: '#fffaf5', surface: '#f7ebe0', text: '#2a1a12', muted: '#6e5646', primary: '#c2553a', accent: '#2f4858' },
-    dark: false, radius: 14, buttonRadius: 10, servicesLayout: 'grid', heroDefault: 'split',
+    dark: false,
+    radius: 14,
+    buttonRadius: 10,
+    servicesLayout: 'grid',
+    heroDefault: 'split',
   },
   lavender: {
     label: 'Lavanda — lilás delicado e moderno',
     heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
     body: { family: 'Poppins', query: 'Poppins:wght@400;500;600' },
     colors: { bg: '#fdfcff', surface: '#f3f0fb', text: '#1e1633', muted: '#625a78', primary: '#7c5cd6', accent: '#e86fa3' },
-    dark: false, radius: 22, buttonRadius: 999, servicesLayout: 'grid', heroDefault: 'centered',
+    dark: false,
+    radius: 22,
+    buttonRadius: 999,
+    servicesLayout: 'grid',
+    heroDefault: 'centered',
   },
   graphite: {
     label: 'Grafite — preto e branco minimalista',
     heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
     body: { family: 'Inter', query: 'Inter:wght@400;500;600;700' },
     colors: { bg: '#ffffff', surface: '#f4f4f5', text: '#09090b', muted: '#52525b', primary: '#18181b', accent: '#2563eb' },
-    dark: false, radius: 10, buttonRadius: 8, servicesLayout: 'list', heroDefault: 'split',
+    dark: false,
+    radius: 10,
+    buttonRadius: 8,
+    servicesLayout: 'list',
+    heroDefault: 'split',
   },
   coral: {
     label: 'Coral — vibrante e jovem',
     heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
     body: { family: 'Rubik', query: 'Rubik:wght@400;500;600' },
     colors: { bg: '#ffffff', surface: '#fff3f0', text: '#1f1414', muted: '#6b5552', primary: '#e8484f', accent: '#2b2d42' },
-    dark: false, radius: 16, buttonRadius: 999, servicesLayout: 'grid', heroDefault: 'centered',
+    dark: false,
+    radius: 16,
+    buttonRadius: 999,
+    servicesLayout: 'grid',
+    heroDefault: 'centered',
   },
   mint: {
     label: 'Menta — fresco e limpo',
     heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
     body: { family: 'Manrope', query: 'Manrope:wght@400;500;600;700' },
     colors: { bg: '#ffffff', surface: '#effaf6', text: '#0f2a24', muted: '#4f6f67', primary: '#0e9f7a', accent: '#0f2a24' },
-    dark: false, radius: 18, buttonRadius: 12, servicesLayout: 'grid', heroDefault: 'split',
+    dark: false,
+    radius: 18,
+    buttonRadius: 12,
+    servicesLayout: 'grid',
+    heroDefault: 'split',
   },
   midnight: {
     label: 'Meia-noite — escuro com dourado',
     heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
     body: { family: 'Inter', query: 'Inter:wght@400;500;600;700' },
     colors: { bg: '#0d1321', surface: '#151d2e', text: '#eef2f8', muted: '#9aa6bb', primary: '#f2c94c', accent: '#5b8def' },
-    dark: true, radius: 14, buttonRadius: 999, servicesLayout: 'grid', heroDefault: 'centered',
+    dark: true,
+    radius: 14,
+    buttonRadius: 999,
+    servicesLayout: 'grid',
+    heroDefault: 'centered',
   },
   sand: {
     label: 'Areia — bege e marrom, luxo discreto',
     heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
     body: { family: 'Lato', query: 'Lato:wght@400;700' },
     colors: { bg: '#f8f5f0', surface: '#efe9df', text: '#1f1b16', muted: '#6b6359', primary: '#8a6a4a', accent: '#1f1b16' },
-    dark: false, radius: 6, buttonRadius: 999, servicesLayout: 'list', heroDefault: 'split',
+    dark: false,
+    radius: 6,
+    buttonRadius: 999,
+    servicesLayout: 'list',
+    heroDefault: 'split',
   },
   royal: {
     label: 'Real — azul-marinho e dourado, institucional',
     heading: { family: 'Montserrat', weight: 700, query: 'Montserrat:wght@500;600;700;800', case: 'none', tracking: '-0.02em', lineHeight: 1.1 },
     body: { family: 'Plus Jakarta Sans', query: 'Plus+Jakarta+Sans:wght@400;500;600;700' },
     colors: { bg: '#ffffff', surface: '#f2f5fb', text: '#0c1630', muted: '#55607a', primary: '#1e3a8a', accent: '#c9971c' },
-    dark: false, radius: 12, buttonRadius: 10, servicesLayout: 'grid', heroDefault: 'split',
+    dark: false,
+    radius: 12,
+    buttonRadius: 10,
+    servicesLayout: 'grid',
+    heroDefault: 'split',
   },
 };
 
@@ -391,7 +509,13 @@ function toRgb(hex: string): [number, number, number] {
   return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) as [number, number, number];
 }
 function toHex([r, g, b]: number[]) {
-  return `#${[r, g, b].map((c) => Math.round(Math.max(0, Math.min(255, c))).toString(16).padStart(2, '0')).join('')}`;
+  return `#${[r, g, b]
+    .map((c) =>
+      Math.round(Math.max(0, Math.min(255, c)))
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
 }
 export function mix(a: string, b: string, amount: number) {
   const A = toRgb(a);
@@ -455,7 +579,12 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
     accent: isHex(input?.accent) ? normalizeHex(input.accent) : null,
     background: isHex(input?.background) ? normalizeHex(input.background) : null,
     // "image" (foto de fundo em tela cheia) foi descontinuado: a foto do topo fica emoldurada, como em "Sobre"
-    heroVariant: input?.heroVariant === 'centered' ? 'centered' : input?.heroVariant === 'split' || input?.heroVariant === 'image' ? 'split' : PRESETS[preset as DesignPreset].heroDefault,
+    heroVariant:
+      input?.heroVariant === 'centered'
+        ? 'centered'
+        : input?.heroVariant === 'split' || input?.heroVariant === 'image'
+          ? 'split'
+          : PRESETS[preset as DesignPreset].heroDefault,
     sections: normalizeSectionColors(input?.sections),
     images: normalizeImagePlacements(input?.images),
     template: TEMPLATE_KEYS.includes(input?.template) ? input.template : 'classico',
@@ -464,7 +593,14 @@ export function normalizeThemeSettings(input: any): ThemeSettings {
       ? [...new Set<string>(input.imageOrder.filter((u: unknown) => typeof u === 'string' && u.length <= 2048))].slice(0, 300)
       : [],
     mobileOrder: Array.isArray(input?.mobileOrder)
-      ? [...new Set<string>(input.mobileOrder.filter((k: unknown) => typeof k === 'string' && /^(about|services|differentials|products|gallery|testimonials|reviews|faq|custom:[a-z0-9-]{1,40})$/.test(k)))].slice(0, 60)
+      ? [
+          ...new Set<string>(
+            input.mobileOrder.filter(
+              (k: unknown) =>
+                typeof k === 'string' && /^(about|services|differentials|products|gallery|testimonials|reviews|faq|custom:[a-z0-9-]{1,40})$/.test(k),
+            ),
+          ),
+        ].slice(0, 60)
       : [],
     elementColors: normalizeElementColors(input?.elementColors),
     sectionSpacing: normalizeSectionSpacing(input?.sectionSpacing),
@@ -554,7 +690,10 @@ export function resolveTheme(settings: ThemeSettings): ResolvedTheme {
 
   const h = headingFont(p);
   // Corpo sem query própria usava a mesma família do título do preset: carrega essa família para o texto
-  const families = [h.query, p.body.query || p.heading.query].filter(Boolean).map((q) => `family=${q}`).join('&');
+  const families = [h.query, p.body.query || p.heading.query]
+    .filter(Boolean)
+    .map((q) => `family=${q}`)
+    .join('&');
   return {
     preset: settings.preset,
     p,

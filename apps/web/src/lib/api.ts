@@ -30,7 +30,11 @@ export async function request<T>(method: Method, path: string, body?: unknown): 
     if (res.status === 401 && !path.startsWith('/auth/')) window.dispatchEvent(new Event('lp:unauthorized'));
     // Proteção anti-robô da Vercel: responde com uma página de verificação em vez da API
     if (!data && res.headers.get('x-vercel-mitigated') === 'challenge') {
-      throw new ApiError(res.status, 'A Vercel pediu uma verificação de segurança. Recarregue a página (Cmd/Ctrl + Shift + R) e tente de novo.', 'VERCEL_CHALLENGE');
+      throw new ApiError(
+        res.status,
+        'A Vercel pediu uma verificação de segurança. Recarregue a página (Cmd/Ctrl + Shift + R) e tente de novo.',
+        'VERCEL_CHALLENGE',
+      );
     }
     throw new ApiError(res.status, data?.error ?? 'Erro inesperado. Tente novamente.', data?.code, data?.details);
   }

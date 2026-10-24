@@ -32,13 +32,20 @@ export function CrmConnectionPage() {
   // Enquanto o QR está na tela, acompanha até conectar
   useEffect(() => {
     if (!qr) return;
-    const t = setInterval(() => void crmService.whatsapp().then((s) => {
-      setData(s);
-      if (s.state === 'open') {
-        setQr(null);
-        toast.success('WhatsApp conectado.');
-      }
-    }).catch(() => {}), 4000);
+    const t = setInterval(
+      () =>
+        void crmService
+          .whatsapp()
+          .then((s) => {
+            setData(s);
+            if (s.state === 'open') {
+              setQr(null);
+              toast.success('WhatsApp conectado.');
+            }
+          })
+          .catch(() => {}),
+      4000,
+    );
     return () => clearInterval(t);
   }, [qr, setData]);
 
@@ -113,14 +120,36 @@ export function CrmConnectionPage() {
         <h3 className="font-semibold text-ink">Servidor do WhatsApp (Evolution API)</h3>
         <p className="mt-1 text-sm text-zinc-500">Todos os vendedores usam este número central. Cada conversa aparece para o vendedor da empresa.</p>
         <form onSubmit={save} className="mt-4 space-y-3">
-          <Field label="URL da Evolution API" hint={/^http:\/\//i.test(form.api_url) ? 'Use o endereço com https:// — com http:// o servidor redireciona e o envio de mensagens falha.' : 'O endereço do servidor, sem /manager no final.'}>
-            <Input required placeholder="https://whatsapp.suaempresa.com.br" value={form.api_url} onChange={(e) => setForm({ ...form, api_url: e.target.value.trim().replace(/\/manager\/?$/, '') })} />
+          <Field
+            label="URL da Evolution API"
+            hint={
+              /^http:\/\//i.test(form.api_url)
+                ? 'Use o endereço com https:// — com http:// o servidor redireciona e o envio de mensagens falha.'
+                : 'O endereço do servidor, sem /manager no final.'
+            }
+          >
+            <Input
+              required
+              placeholder="https://whatsapp.suaempresa.com.br"
+              value={form.api_url}
+              onChange={(e) => setForm({ ...form, api_url: e.target.value.trim().replace(/\/manager\/?$/, '') })}
+            />
           </Field>
           <Field label="Chave da API (AUTHENTICATION_API_KEY)" hint={status.configured ? 'Deixe em branco para manter a chave atual.' : undefined}>
-            <Input type="password" autoComplete="off" required={!status.configured} value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} />
+            <Input
+              type="password"
+              autoComplete="off"
+              required={!status.configured}
+              value={form.api_key}
+              onChange={(e) => setForm({ ...form, api_key: e.target.value })}
+            />
           </Field>
-          <Field label="Nome da instância"><Input required value={form.instance} onChange={(e) => setForm({ ...form, instance: e.target.value })} /></Field>
-          <Button type="submit" loading={saving}>Salvar</Button>
+          <Field label="Nome da instância">
+            <Input required value={form.instance} onChange={(e) => setForm({ ...form, instance: e.target.value })} />
+          </Field>
+          <Button type="submit" loading={saving}>
+            Salvar
+          </Button>
         </form>
       </Card>
 
@@ -132,7 +161,15 @@ export function CrmConnectionPage() {
             <span className={cn('mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium', st.cls)}>{st.label}</span>
             {status.error ? <p className="mt-1 text-xs text-red-600">{status.error}</p> : null}
           </div>
-          <button type="button" onClick={() => void reload()} className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100" aria-label="Atualizar" title="Atualizar"><RefreshCw className="size-4" /></button>
+          <button
+            type="button"
+            onClick={() => void reload()}
+            className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100"
+            aria-label="Atualizar"
+            title="Atualizar"
+          >
+            <RefreshCw className="size-4" />
+          </button>
         </div>
 
         {status.configured ? (
@@ -140,7 +177,11 @@ export function CrmConnectionPage() {
             <Button variant={status.state === 'open' ? 'secondary' : 'brand'} loading={busy} onClick={() => void connect()}>
               {status.state === 'open' ? 'Reconfigurar webhook' : qr ? 'Gerar novo QR Code' : 'Conectar WhatsApp'}
             </Button>
-            {status.state === 'open' ? <Button variant="secondary" onClick={() => setConfirmLogout(true)}>Desconectar</Button> : null}
+            {status.state === 'open' ? (
+              <Button variant="secondary" onClick={() => setConfirmLogout(true)}>
+                Desconectar
+              </Button>
+            ) : null}
           </div>
         ) : null}
         {status.configured && status.state === 'open' ? (
@@ -152,7 +193,8 @@ export function CrmConnectionPage() {
               Traz para o CRM as conversas que o servidor do WhatsApp já guardou (até 50 mensagens recentes de cada). As novas chegam sozinhas.
             </p>
             <p className="mt-1 text-xs text-zinc-500">
-              Faltando conversas antigas? Clique em Desconectar e conecte de novo: ao ler o QR Code o celular envia o histórico. Espere alguns minutos e importe outra vez.
+              Faltando conversas antigas? Clique em Desconectar e conecte de novo: ao ler o QR Code o celular envia o histórico. Espere alguns minutos e importe
+              outra vez.
             </p>
           </div>
         ) : null}
@@ -161,7 +203,9 @@ export function CrmConnectionPage() {
         {qr && status.state !== 'open' ? (
           <div className="mt-4 text-center">
             <img src={qr} alt="QR Code do WhatsApp" className="mx-auto size-64" />
-            <p className="mt-2 text-sm text-zinc-500">No celular do número central: WhatsApp → Aparelhos conectados → Conectar aparelho. O código expira em cerca de 1 minuto.</p>
+            <p className="mt-2 text-sm text-zinc-500">
+              No celular do número central: WhatsApp → Aparelhos conectados → Conectar aparelho. O código expira em cerca de 1 minuto.
+            </p>
           </div>
         ) : null}
       </Card>

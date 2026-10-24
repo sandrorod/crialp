@@ -113,8 +113,15 @@ function verifyWith(token: string, secret: string): { sub: string; pv?: string }
 /** Sites (Landing Pages) que a conta de cliente pode editar, do mais recente para o mais antigo. */
 export async function clientPages(userId: string) {
   const { rows } = await query<{
-    id: string; company_id: string; company_name: string | null; title: string; slug: string; status: string;
-    custom_domain: string | null; domain_status: string; updated_at: string;
+    id: string;
+    company_id: string;
+    company_name: string | null;
+    title: string;
+    slug: string;
+    status: string;
+    custom_domain: string | null;
+    domain_status: string;
+    updated_at: string;
   }>(
     `select lp.id, lp.company_id, coalesce(c.trade_name, c.name) as company_name, lp.title, lp.slug, lp.status,
             lp.custom_domain, lp.domain_status, lp.updated_at
@@ -131,8 +138,15 @@ export async function clientPages(userId: string) {
 /** Lista "Minhas Landing Pages" do vendedor: as atribuídas a ele, da editada mais recentemente para a mais antiga. */
 export async function sellerSites(userId: string) {
   const { rows } = await query<{
-    id: string; company_id: string; company_name: string | null; title: string; slug: string; status: string;
-    custom_domain: string | null; domain_status: string; updated_at: string;
+    id: string;
+    company_id: string;
+    company_name: string | null;
+    title: string;
+    slug: string;
+    status: string;
+    custom_domain: string | null;
+    domain_status: string;
+    updated_at: string;
   }>(
     `select lp.id, lp.company_id, coalesce(c.trade_name, c.name) as company_name, lp.title, lp.slug, lp.status,
             lp.custom_domain, lp.domain_status, lp.updated_at
@@ -164,7 +178,8 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
 export function requireSameOriginWrite(req: Request, _res: Response, next: NextFunction) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
   const type = req.headers['content-type'] ?? '';
-  const okType = type.startsWith('application/json') || type.startsWith('multipart/form-data') || !req.headers['content-length'] || req.headers['content-length'] === '0';
+  const okType =
+    type.startsWith('application/json') || type.startsWith('multipart/form-data') || !req.headers['content-length'] || req.headers['content-length'] === '0';
   // Origin ausente (navegadores antigos, alguns modos de privacidade): vale o Referer, se houver
   const source = req.headers.origin ?? req.headers.referer;
   if (!okType || (source !== undefined && !isTrustedOrigin(source))) return next(new AppError(403, 'Requisição não permitida.', 'CSRF'));
@@ -206,7 +221,8 @@ export function requireRole(...roles: string[]) {
 
 /** Vendedores acessam Vendas, CRM e a edição das Landing Pages atribuídas a eles: bloqueia o resto da API. */
 export function blockSellers(req: Request, _res: Response, next: NextFunction) {
-  if (req.user?.role === 'seller' && !siteEditAllowed(req.user, req)) return next(new AppError(403, 'Você não tem permissão para acessar esta área.', 'FORBIDDEN'));
+  if (req.user?.role === 'seller' && !siteEditAllowed(req.user, req))
+    return next(new AppError(403, 'Você não tem permissão para acessar esta área.', 'FORBIDDEN'));
   next();
 }
 

@@ -27,10 +27,14 @@ export async function appendSearch(orgId: string, id: string, s: { center: unkno
   if (!current) return null;
   const known = new Set((current.results as { url: string | null }[]).map((r) => r.url));
   const merged = [...current.results, ...s.results.filter((r) => !known.has(r.url))];
-  await query(
-    `update lp_company_searches set center = $3, page = $4, has_more = $5, results = $6, updated_at = now() where id = $1 and organization_id = $2`,
-    [id, orgId, JSON.stringify(s.center), s.page, s.hasMore, JSON.stringify(merged)],
-  );
+  await query(`update lp_company_searches set center = $3, page = $4, has_more = $5, results = $6, updated_at = now() where id = $1 and organization_id = $2`, [
+    id,
+    orgId,
+    JSON.stringify(s.center),
+    s.page,
+    s.hasMore,
+    JSON.stringify(merged),
+  ]);
   return merged.length;
 }
 

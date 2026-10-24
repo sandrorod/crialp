@@ -48,7 +48,7 @@ export function assembleImages(opts: {
   const logoIdx =
     opts.logoIndex != null && byIndex.has(opts.logoIndex)
       ? opts.logoIndex
-      : classified?.find((c) => c.type === 'logo')?.index ?? scraped.find((i) => i.logoHint)?.index;
+      : (classified?.find((c) => c.type === 'logo')?.index ?? scraped.find((i) => i.logoHint)?.index);
   if (logoIdx != null && byIndex.has(logoIdx)) {
     out.push({ url: byIndex.get(logoIdx)!.url, type: 'logo', alt_text: `Logotipo ${companyName}`, source: 'scraped', usage_allowed: allowUsage });
     used.add(logoIdx);

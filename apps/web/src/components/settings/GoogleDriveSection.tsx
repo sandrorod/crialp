@@ -55,7 +55,10 @@ export function GoogleDriveSection() {
   };
 
   return (
-    <CardSection title="Google Drive" description='A imagem (JPG) de cada Landing Page gerada é enviada para a pasta escolhida abaixo (sem pasta escolhida, para a pasta "lp" criada pelo sistema).'>
+    <CardSection
+      title="Google Drive"
+      description='A imagem (JPG) de cada Landing Page gerada é enviada para a pasta escolhida abaixo (sem pasta escolhida, para a pasta "lp" criada pelo sistema).'
+    >
       {error ? <ErrorBlock message={error} onRetry={reload} /> : null}
       {loading || !data ? (
         <LoadingBlock rows={2} />
@@ -73,13 +76,19 @@ export function GoogleDriveSection() {
             <a href={miscService.driveConnectUrl}>
               <Button variant={data.connected ? 'secondary' : 'primary'}>{data.connected ? 'Trocar conta' : 'Conectar Google Drive'}</Button>
             </a>
-            {data.connected ? <Button variant="ghost" onClick={() => setConfirmOpen(true)}>Desconectar</Button> : null}
+            {data.connected ? (
+              <Button variant="ghost" onClick={() => setConfirmOpen(true)}>
+                Desconectar
+              </Button>
+            ) : null}
           </div>
         </div>
       )}
       {data?.configured ? (
         <div className="mt-5">
-          <label className="mb-1.5 block text-sm font-medium" htmlFor="drive-folder">Pasta de destino</label>
+          <label className="mb-1.5 block text-sm font-medium" htmlFor="drive-folder">
+            Pasta de destino
+          </label>
           <div className="flex gap-2">
             <Input
               id="drive-folder"
@@ -87,14 +96,17 @@ export function GoogleDriveSection() {
               onChange={(e) => setFolder(e.target.value)}
               placeholder="Cole o link da pasta (https://drive.google.com/drive/folders/…)"
             />
-            <Button onClick={saveFolder} loading={savingFolder} disabled={folder === null}>Salvar</Button>
+            <Button onClick={saveFolder} loading={savingFolder} disabled={folder === null}>
+              Salvar
+            </Button>
           </div>
           <p className="mt-1.5 text-xs text-zinc-500">A conta conectada precisa poder editar a pasta. Deixe vazio para usar a pasta "lp".</p>
         </div>
       ) : null}
       {data?.configured ? (
         <p className="mt-5 rounded-lg bg-zinc-50 px-3 py-2.5 text-xs leading-relaxed text-zinc-500">
-          Depois de trocar a pasta ou atualizar o sistema, clique em "Trocar conta" para dar acesso de novo. Endereço de retorno a cadastrar no Google Cloud: <span className="break-all font-mono">{data.redirect_uri}</span>
+          Depois de trocar a pasta ou atualizar o sistema, clique em "Trocar conta" para dar acesso de novo. Endereço de retorno a cadastrar no Google Cloud:{' '}
+          <span className="break-all font-mono">{data.redirect_uri}</span>
         </p>
       ) : null}
       <ConfirmDialog

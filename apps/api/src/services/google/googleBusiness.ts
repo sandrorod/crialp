@@ -43,7 +43,7 @@ async function resolveShortLink(url: URL): Promise<URL> {
 function parseGoogleUrl(url: URL): { query: string | null; latLng?: { latitude: number; longitude: number } } {
   const decode = (v: string) => decodeURIComponent(v.replace(/\+/g, ' ')).trim();
   const place = /\/maps\/place\/([^/]+)/.exec(url.pathname)?.[1];
-  const query = place ? decode(place) : url.searchParams.get('q') ?? url.searchParams.get('query');
+  const query = place ? decode(place) : (url.searchParams.get('q') ?? url.searchParams.get('query'));
   const full = url.toString();
   const at = /@(-?\d+\.\d+),(-?\d+\.\d+)/.exec(full) ?? /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/.exec(full);
   return {
@@ -64,7 +64,10 @@ function placeIdOf(url: URL): string | null {
  * pelo mesmo caminho (IA + verificação anti-invenção). Se o perfil tiver um site próprio, ele também
  * é lido e somado. `website` é o site da empresa (ou null).
  */
-export async function scrapeGoogleBusiness(input: URL, scraper: ScraperService): Promise<{ scrape: ScrapeResult; website: string | null; photoNote: string | null; googleUrls: string[] }> {
+export async function scrapeGoogleBusiness(
+  input: URL,
+  scraper: ScraperService,
+): Promise<{ scrape: ScrapeResult; website: string | null; photoNote: string | null; googleUrls: string[] }> {
   const url = await resolveShortLink(input);
   // Busca do Google com vários resultados (ex.: "manutenção predial"): não diz qual empresa é. O link
   // de uma empresa (botão Compartilhar do painel dela) traz "kgmid"/"ludocid" junto com o nome.
@@ -79,13 +82,23 @@ export async function scrapeGoogleBusiness(input: URL, scraper: ScraperService):
   }
   const { query, latLng } = parseGoogleUrl(url);
   if (!query) {
-    throw new AppError(422, 'Não identifiquei a empresa neste link do Google. No Google Maps, abra o perfil da empresa e use "Compartilhar" → "Copiar link".', 'GOOGLE_LINK');
+    throw new AppError(
+      422,
+      'Não identifiquei a empresa neste link do Google. No Google Maps, abra o perfil da empresa e use "Compartilhar" → "Copiar link".',
+      'GOOGLE_LINK',
+    );
   }
   const info = await aiService.describeGooglePlace(query, latLng).catch((err) => {
-    if (err instanceof AIProviderError) throw new AppError(err.retryable ? 503 : 502, err.userMessage ?? 'Não foi possível consultar o Google Maps. Tente novamente.');
+    if (err instanceof AIProviderError)
+      throw new AppError(err.retryable ? 503 : 502, err.userMessage ?? 'Não foi possível consultar o Google Maps. Tente novamente.');
     throw err;
   });
-  if (!info) throw new AppError(422, `Não consegui ler os dados de "${query}" no Google Maps (empresas que atendem no local do cliente, sem endereço público, às vezes não aparecem). Use o site da empresa ou preencha os dados manualmente.`, 'GOOGLE_NOT_FOUND');
+  if (!info)
+    throw new AppError(
+      422,
+      `Não consegui ler os dados de "${query}" no Google Maps (empresas que atendem no local do cliente, sem endereço público, às vezes não aparecem). Use o site da empresa ou preencha os dados manualmente.`,
+      'GOOGLE_NOT_FOUND',
+    );
   const r = await fromPlaceInfo(input, info, scraper, { businessId: placeIdOf(url), pages: [url.toString(), input.toString()] });
   return { ...r, googleUrls: [...new Set([input.toString(), url.toString(), info.mapsUri])] };
 }
@@ -116,12 +129,10 @@ export async function scrapeGooglePlaceListing(input: URL, place: PlaceListing, 
   ].filter(Boolean);
   // Perfil completo no Maps (horário, descrição, serviços), localizado pelo endereço; sem ele, segue com os dados da lista
   const near = place.address ? await geocode(place.address) : null;
-  const full = await aiService
-    .describeGooglePlace([place.name, place.address].filter(Boolean).join(', '), near ?? undefined)
-    .catch((err) => {
-      console.warn('[google] perfil completo indisponível:', err instanceof Error ? err.message : err);
-      return null;
-    });
+  const full = await aiService.describeGooglePlace([place.name, place.address].filter(Boolean).join(', '), near ?? undefined).catch((err) => {
+    console.warn('[google] perfil completo indisponível:', err instanceof Error ? err.message : err);
+    return null;
+  });
   const text = full ? `${full.text}\n${lines.join('\n')}` : lines.join('\n');
   const r = await fromPlaceInfo(input, { text, mapsUri: input.toString(), title: place.name }, scraper, {
     businessId: place.place_id ?? placeIdOf(input),
@@ -132,7 +143,11 @@ export async function scrapeGooglePlaceListing(input: URL, place: PlaceListing, 
   return { ...r, googleUrls: [...new Set(googleUrls)] };
 }
 
-const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const norm = (v: string) =>
+  v
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
 
 /** Cidade e rua de um endereço do Google ("Rua X, 123 - Bairro, Cidade - UF, CEP, Brazil"). */
 function addressParts(address: string | null) {
@@ -238,7 +253,8 @@ async function googlePhotos(
       console.warn('[google] fotos do perfil indisponíveis:', err instanceof Error ? err.message : err);
       return null;
     });
-    if (!more?.length && !urls.length) note = 'Fotos do Perfil no Google: nenhuma foto encontrada no perfil (ou o Google não respondeu). Adicione fotos na edição da página.';
+    if (!more?.length && !urls.length)
+      note = 'Fotos do Perfil no Google: nenhuma foto encontrada no perfil (ou o Google não respondeu). Adicione fotos na edição da página.';
     urls = [...new Set([...urls, ...(more ?? [])])];
   }
   if (!urls.length) return { images: [], note };

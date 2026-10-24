@@ -52,13 +52,23 @@ export class AnthropicProvider implements AIProvider {
       return (cleaned.success ? cleaned.data : response.parsed_output) as z.infer<T>;
     } catch (err) {
       if (err instanceof AIProviderError) throw err;
-      if (err instanceof Anthropic.AuthenticationError) throw new AIProviderError('Chave da API de IA inválida.', false, 'A chave da API de IA é inválida ou foi revogada. Verifique ANTHROPIC_API_KEY no servidor.');
-      if (err instanceof Anthropic.RateLimitError) throw new AIProviderError('Limite de uso da IA atingido.', true, 'Limite de uso da IA atingido. Aguarde alguns minutos e tente novamente.');
+      if (err instanceof Anthropic.AuthenticationError)
+        throw new AIProviderError(
+          'Chave da API de IA inválida.',
+          false,
+          'A chave da API de IA é inválida ou foi revogada. Verifique ANTHROPIC_API_KEY no servidor.',
+        );
+      if (err instanceof Anthropic.RateLimitError)
+        throw new AIProviderError('Limite de uso da IA atingido.', true, 'Limite de uso da IA atingido. Aguarde alguns minutos e tente novamente.');
       if (err instanceof Anthropic.APIConnectionError) throw new AIProviderError('Falha de conexão com a IA.', true);
       if (err instanceof Anthropic.APIError) {
         const detail = (err.error as { error?: { message?: string } } | undefined)?.error?.message ?? err.message;
         if (/workspace/i.test(detail)) {
-          throw new AIProviderError(detail, false, 'A chave da API de IA não está vinculada a um workspace. Defina ANTHROPIC_WORKSPACE_ID no servidor ou use uma chave criada dentro de um workspace.');
+          throw new AIProviderError(
+            detail,
+            false,
+            'A chave da API de IA não está vinculada a um workspace. Defina ANTHROPIC_WORKSPACE_ID no servidor ou use uma chave criada dentro de um workspace.',
+          );
         }
         if (/credit|billing|balance/i.test(detail)) {
           throw new AIProviderError(detail, false, 'A conta da API de IA está sem créditos. Verifique o faturamento no console da Anthropic.');

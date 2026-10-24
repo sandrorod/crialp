@@ -25,7 +25,6 @@ const SECTION_LABELS: Record<SectionKey, string> = {
 const ALL_SECTIONS = Object.keys(SECTION_LABELS) as SectionKey[];
 const REQUIRED: SectionKey[] = ['contact', 'final_cta'];
 
-
 const LABEL_FIELDS: { key: string; label: string }[] = [
   { key: 'header_cta', label: 'Botão do cabeçalho' },
   { key: 'eyebrow_about', label: 'Sobretítulo — Sobre' },
@@ -82,7 +81,9 @@ function SitePicker({ companyId, onPick, onClose }: { companyId: string; onPick:
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-zinc-400" />
           <Input className="h-8 pl-8 text-xs" placeholder="Buscar no texto do site…" value={term} onChange={(e) => setTerm(e.target.value)} autoFocus />
         </div>
-        <button type="button" onClick={onClose} className="rounded p-1 text-zinc-500 hover:bg-zinc-200" aria-label="Fechar"><X className="size-4" /></button>
+        <button type="button" onClick={onClose} className="rounded p-1 text-zinc-500 hover:bg-zinc-200" aria-label="Fechar">
+          <X className="size-4" />
+        </button>
       </div>
       {loading ? (
         <p className="text-xs text-zinc-500">Carregando…</p>
@@ -92,7 +93,11 @@ function SitePicker({ companyId, onPick, onClose }: { companyId: string; onPick:
         <ul className="max-h-64 space-y-1 overflow-y-auto">
           {shown.map((b, i) => (
             <li key={i}>
-              <button type="button" onClick={() => onPick(b.text)} className="w-full rounded-md bg-white px-2.5 py-1.5 text-left text-xs text-zinc-700 ring-1 ring-zinc-200 hover:ring-brand-500">
+              <button
+                type="button"
+                onClick={() => onPick(b.text)}
+                className="w-full rounded-md bg-white px-2.5 py-1.5 text-left text-xs text-zinc-700 ring-1 ring-zinc-200 hover:ring-brand-500"
+              >
                 {b.text}
                 <span className="mt-0.5 block truncate text-[10px] text-zinc-400">{b.page}</span>
               </button>
@@ -110,8 +115,19 @@ function CustomSectionEditor({ section, onChange, company }: { section: CustomSe
   return (
     <>
       <div className="grid gap-2 sm:grid-cols-2">
-        <Input data-field={`custom.${section.id}.eyebrow`} placeholder="Sobretítulo (opcional)" value={section.eyebrow ?? ''} onChange={(e) => onChange({ ...section, eyebrow: e.target.value || null })} />
-        <Input data-field={`custom.${section.id}.title`} placeholder="Título da seção" value={section.title} onChange={(e) => onChange({ ...section, title: e.target.value })} className="font-medium" />
+        <Input
+          data-field={`custom.${section.id}.eyebrow`}
+          placeholder="Sobretítulo (opcional)"
+          value={section.eyebrow ?? ''}
+          onChange={(e) => onChange({ ...section, eyebrow: e.target.value || null })}
+        />
+        <Input
+          data-field={`custom.${section.id}.title`}
+          placeholder="Título da seção"
+          value={section.title}
+          onChange={(e) => onChange({ ...section, title: e.target.value })}
+          className="font-medium"
+        />
       </div>
       <div className="flex items-center gap-2 text-xs text-zinc-600">
         Alinhamento:
@@ -126,27 +142,51 @@ function CustomSectionEditor({ section, onChange, company }: { section: CustomSe
           </button>
         ))}
       </div>
-      <BlocksEditor path={`custom.${section.id}.blocks`} blocks={section.blocks ?? []} onChange={(blocks) => onChange({ ...section, blocks })} company={company} />
+      <BlocksEditor
+        path={`custom.${section.id}.blocks`}
+        blocks={section.blocks ?? []}
+        onChange={(blocks) => onChange({ ...section, blocks })}
+        company={company}
+      />
       <Field label="Texto corrido (opcional)" hint="Separe os parágrafos com uma linha em branco.">
         <Textarea
           data-field={`custom.${section.id}.paragraphs`}
           className="min-h-[80px]"
           value={section.paragraphs.join('\n\n')}
-          onChange={(e) => onChange({ ...section, paragraphs: e.target.value.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean) })}
+          onChange={(e) =>
+            onChange({
+              ...section,
+              paragraphs: e.target.value
+                .split(/\n\s*\n/)
+                .map((p) => p.trim())
+                .filter(Boolean),
+            })
+          }
         />
       </Field>
-      <ListEditor field={`custom.${section.id}.items`} label="Lista (opcional — ex.: unidades, especialidades, convênios)" values={section.items} onChange={(items) => onChange({ ...section, items })} />
+      <ListEditor
+        field={`custom.${section.id}.items`}
+        label="Lista (opcional — ex.: unidades, especialidades, convênios)"
+        values={section.items}
+        onChange={(items) => onChange({ ...section, items })}
+      />
       {companyId ? (
         picker ? (
           <SitePicker
             companyId={companyId}
             onClose={() => setPicker(null)}
-            onPick={(text) => onChange(picker === 'items' ? { ...section, items: [...section.items, text] } : { ...section, paragraphs: [...section.paragraphs, text] })}
+            onPick={(text) =>
+              onChange(picker === 'items' ? { ...section, items: [...section.items, text] } : { ...section, paragraphs: [...section.paragraphs, text] })
+            }
           />
         ) : (
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" size="sm" icon={<FileText className="size-3.5" />} onClick={() => setPicker('paragraphs')}>Inserir texto do site</Button>
-            <Button type="button" variant="secondary" size="sm" icon={<FileText className="size-3.5" />} onClick={() => setPicker('items')}>Inserir item do site na lista</Button>
+            <Button type="button" variant="secondary" size="sm" icon={<FileText className="size-3.5" />} onClick={() => setPicker('paragraphs')}>
+              Inserir texto do site
+            </Button>
+            <Button type="button" variant="secondary" size="sm" icon={<FileText className="size-3.5" />} onClick={() => setPicker('items')}>
+              Inserir item do site na lista
+            </Button>
           </div>
         )
       ) : null}
@@ -189,7 +229,9 @@ function SocialFields({ content, onChange, company }: { content: LandingContent;
   const setSocial = (key: string, v: string) => onChange({ ...content, overrides: { ...overrides, [`social.${key}`]: v.trim() ? v : '' } });
   return (
     <div className="space-y-3">
-      <p className="text-xs text-zinc-500">Os ícones aparecem na seção “Fale conosco”, abaixo do botão do WhatsApp, só das redes preenchidas. Mudanças aqui valem só para esta página.</p>
+      <p className="text-xs text-zinc-500">
+        Os ícones aparecem na seção “Fale conosco”, abaixo do botão do WhatsApp, só das redes preenchidas. Mudanças aqui valem só para esta página.
+      </p>
       <div className="grid gap-3 sm:grid-cols-2">
         {SOCIAL_FIELDS.map((f) => (
           <Field key={f.key} label={f.label}>
@@ -201,17 +243,31 @@ function SocialFields({ content, onChange, company }: { content: LandingContent;
   );
 }
 
-function Txt({ label, value, onChange, area, placeholder, field }: { label: string; value: string | null | undefined; onChange: (v: string) => void; area?: boolean; placeholder?: string; field?: string }) {
+function Txt({
+  label,
+  value,
+  onChange,
+  area,
+  placeholder,
+  field,
+}: {
+  label: string;
+  value: string | null | undefined;
+  onChange: (v: string) => void;
+  area?: boolean;
+  placeholder?: string;
+  field?: string;
+}) {
   return (
     // data-field: mesmo caminho do texto na prévia (data-lp-text); clicar no texto lá rola até aqui
     <div data-field={field}>
-    <Field label={label}>
-      {area ? (
-        <Textarea value={value ?? ''} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
-      ) : (
-        <Input value={value ?? ''} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
-      )}
-    </Field>
+      <Field label={label}>
+        {area ? (
+          <Textarea value={value ?? ''} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+        ) : (
+          <Input value={value ?? ''} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+        )}
+      </Field>
     </div>
   );
 }
@@ -221,7 +277,21 @@ function IconSelect({ value, onChange }: { value: string; onChange: (v: string) 
 }
 
 /** Lista editável genérica: adicionar, remover e reordenar itens. */
-function ItemList<T>({ items, onChange, create, addLabel, render, path }: { items: T[]; onChange: (v: T[]) => void; create: () => T; addLabel: string; render: (item: T, update: (patch: Partial<T>) => void, field: (key: string) => string | undefined) => ReactNode; path?: string }) {
+function ItemList<T>({
+  items,
+  onChange,
+  create,
+  addLabel,
+  render,
+  path,
+}: {
+  items: T[];
+  onChange: (v: T[]) => void;
+  create: () => T;
+  addLabel: string;
+  render: (item: T, update: (patch: Partial<T>) => void, field: (key: string) => string | undefined) => ReactNode;
+  path?: string;
+}) {
   const move = (i: number, dir: -1 | 1) => {
     const j = i + dir;
     if (j < 0 || j >= items.length) return;
@@ -235,11 +305,40 @@ function ItemList<T>({ items, onChange, create, addLabel, render, path }: { item
         <div key={i} data-field={path ? `${path}.${i}` : undefined} className="rounded-md border border-zinc-100 bg-zinc-50/50 p-3">
           <div className="mb-2 flex items-center gap-1">
             <span className="mr-auto text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Item {i + 1}</span>
-            <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-200 disabled:opacity-30" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Subir"><ArrowUp className="size-3.5" /></button>
-            <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-200 disabled:opacity-30" disabled={i === items.length - 1} onClick={() => move(i, 1)} aria-label="Descer"><ArrowDown className="size-3.5" /></button>
-            <button type="button" className="rounded p-1 text-zinc-500 hover:bg-red-100 hover:text-red-600" onClick={() => confirmDelete(`o item ${i + 1}`) && onChange(items.filter((_, j) => j !== i))} aria-label="Remover"><Trash2 className="size-3.5" /></button>
+            <button
+              type="button"
+              className="rounded p-1 text-zinc-500 hover:bg-zinc-200 disabled:opacity-30"
+              disabled={i === 0}
+              onClick={() => move(i, -1)}
+              aria-label="Subir"
+            >
+              <ArrowUp className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              className="rounded p-1 text-zinc-500 hover:bg-zinc-200 disabled:opacity-30"
+              disabled={i === items.length - 1}
+              onClick={() => move(i, 1)}
+              aria-label="Descer"
+            >
+              <ArrowDown className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              className="rounded p-1 text-zinc-500 hover:bg-red-100 hover:text-red-600"
+              onClick={() => confirmDelete(`o item ${i + 1}`) && onChange(items.filter((_, j) => j !== i))}
+              aria-label="Remover"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
           </div>
-          <div className="space-y-2">{render(item, (patch) => onChange(items.map((x, j) => (j === i ? { ...x, ...patch } : x))), (key) => (path ? `${path}.${i}.${key}` : undefined))}</div>
+          <div className="space-y-2">
+            {render(
+              item,
+              (patch) => onChange(items.map((x, j) => (j === i ? { ...x, ...patch } : x))),
+              (key) => (path ? `${path}.${i}.${key}` : undefined),
+            )}
+          </div>
         </div>
       ))}
       <Button type="button" variant="secondary" size="sm" icon={<Plus className="size-4" />} onClick={() => onChange([...items, create()])}>
@@ -301,7 +400,14 @@ export function ContentTab({
   };
   const hidden = content.hidden_sections ?? [];
   const isHidden = (k: SectionOrderKey) => hidden.includes(k);
-  const SECTION_NAMES = { about: 'Sobre a empresa', services: 'Serviços', differentials: 'Diferenciais', products: 'Produtos', gallery: 'Galeria', faq: 'Perguntas frequentes' } as const;
+  const SECTION_NAMES = {
+    about: 'Sobre a empresa',
+    services: 'Serviços',
+    differentials: 'Diferenciais',
+    products: 'Produtos',
+    gallery: 'Galeria',
+    faq: 'Perguntas frequentes',
+  } as const;
   const removeSection = (key: 'about' | 'services' | 'differentials' | 'products' | 'gallery' | 'faq') =>
     onChange({ ...content, [key]: null, section_order: order.filter((k) => k !== key), hidden_sections: hidden.filter((k) => k !== key) });
   /** Desativa (sai do site, mas fica salva e no lugar) ou reativa a seção. */
@@ -310,7 +416,8 @@ export function ContentTab({
       ...content,
       hidden_sections: off ? [...hidden.filter((x) => x !== k), k] : hidden.filter((x) => x !== k),
       // Reativar uma seção que estava fora da ordem a coloca antes do contato
-      section_order: off || order.includes(k) ? order : [...order.filter((x) => !REQUIRED.includes(x as SectionKey)), k, ...REQUIRED.filter((r) => order.includes(r))],
+      section_order:
+        off || order.includes(k) ? order : [...order.filter((x) => !REQUIRED.includes(x as SectionKey)), k, ...REQUIRED.filter((r) => order.includes(r))],
     });
 
   const move = (k: SectionOrderKey, dir: -1 | 1) => {
@@ -330,19 +437,33 @@ export function ContentTab({
     next.splice(at >= 0 ? at : next.length, 0, `custom:${id}`);
     onChange({ ...content, custom_sections: [...customs, { id, ...section }], section_order: next });
   };
-  const updateCustom = (s: CustomSection) => set('custom_sections', customs.map((c) => (c.id === s.id ? s : c)));
+  const updateCustom = (s: CustomSection) =>
+    set(
+      'custom_sections',
+      customs.map((c) => (c.id === s.id ? s : c)),
+    );
   const removeCustom = (id: string) =>
-    onChange({ ...content, custom_sections: customs.filter((c) => c.id !== id), section_order: order.filter((k) => k !== `custom:${id}`), hidden_sections: hidden.filter((k) => k !== `custom:${id}`) });
+    onChange({
+      ...content,
+      custom_sections: customs.filter((c) => c.id !== id),
+      section_order: order.filter((k) => k !== `custom:${id}`),
+      hidden_sections: hidden.filter((k) => k !== `custom:${id}`),
+    });
 
   const createBtn = (onClick: () => void) => (
-    <Button type="button" variant="secondary" size="sm" icon={<Plus className="size-3.5" />} onClick={onClick}>Criar seção</Button>
+    <Button type="button" variant="secondary" size="sm" icon={<Plus className="size-3.5" />} onClick={onClick}>
+      Criar seção
+    </Button>
   );
   const hideBtn = (k: SectionOrderKey) => {
     const off = isHidden(k) || !order.includes(k);
     return (
       <button
         type="button"
-        className={cn('flex items-center gap-1 rounded px-1.5 py-1 text-xs font-normal hover:bg-zinc-100', off ? 'text-amber-600' : 'text-zinc-400 hover:text-zinc-700')}
+        className={cn(
+          'flex items-center gap-1 rounded px-1.5 py-1 text-xs font-normal hover:bg-zinc-100',
+          off ? 'text-amber-600' : 'text-zinc-400 hover:text-zinc-700',
+        )}
         title={off ? 'Ativar seção (volta a aparecer no site)' : 'Desativar seção (some do site, mas fica salva)'}
         onClick={() => setHidden(k, !off)}
       >
@@ -354,7 +475,12 @@ export function ContentTab({
   const removeBtn = (key: Parameters<typeof removeSection>[0]) => (
     <>
       {hideBtn(key)}
-      <button type="button" className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title="Excluir seção" onClick={() => confirmDelete(`a seção "${SECTION_NAMES[key]}" (os textos dela serão perdidos)`) && removeSection(key)}>
+      <button
+        type="button"
+        className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600"
+        title="Excluir seção"
+        onClick={() => confirmDelete(`a seção "${SECTION_NAMES[key]}" (os textos dela serão perdidos)`) && removeSection(key)}
+      >
         <Trash2 className="size-4" />
       </button>
     </>
@@ -364,7 +490,10 @@ export function ContentTab({
   return (
     <div className="space-y-3">
       <Group title="Seções e ordem">
-        <p className="text-xs text-zinc-500">O olho desativa a seção: ela some do site, mas o conteúdo e a posição ficam salvos. Seções sem dados reais (ex.: depoimentos inexistentes ou galeria sem fotos liberadas) não aparecem, mesmo se ativadas.</p>
+        <p className="text-xs text-zinc-500">
+          O olho desativa a seção: ela some do site, mas o conteúdo e a posição ficam salvos. Seções sem dados reais (ex.: depoimentos inexistentes ou galeria
+          sem fotos liberadas) não aparecem, mesmo se ativadas.
+        </p>
         <ul className="space-y-1">
           {[...order, ...allKeys.filter((k) => !order.includes(k))].map((k) => {
             const on = order.includes(k) && !isHidden(k);
@@ -373,11 +502,22 @@ export function ContentTab({
                 <span className="flex-1 truncate text-sm">{sectionName(k)}</span>
                 {order.includes(k) ? (
                   <>
-                    <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-200" onClick={() => move(k, -1)} aria-label="Subir"><ArrowUp className="size-3.5" /></button>
-                    <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-200" onClick={() => move(k, 1)} aria-label="Descer"><ArrowDown className="size-3.5" /></button>
+                    <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-200" onClick={() => move(k, -1)} aria-label="Subir">
+                      <ArrowUp className="size-3.5" />
+                    </button>
+                    <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-200" onClick={() => move(k, 1)} aria-label="Descer">
+                      <ArrowDown className="size-3.5" />
+                    </button>
                   </>
                 ) : null}
-                <button type="button" disabled={REQUIRED.includes(k as SectionKey)} className="rounded p-1 text-zinc-500 hover:bg-zinc-200 disabled:opacity-30" onClick={() => toggle(k)} title={on ? 'Desativar seção' : 'Ativar seção'} aria-label={on ? 'Desativar seção' : 'Ativar seção'}>
+                <button
+                  type="button"
+                  disabled={REQUIRED.includes(k as SectionKey)}
+                  className="rounded p-1 text-zinc-500 hover:bg-zinc-200 disabled:opacity-30"
+                  onClick={() => toggle(k)}
+                  title={on ? 'Desativar seção' : 'Ativar seção'}
+                  aria-label={on ? 'Desativar seção' : 'Ativar seção'}
+                >
                   {on ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
                 </button>
               </li>
@@ -386,20 +526,30 @@ export function ContentTab({
         </ul>
       </Group>
 
-      <Group
-        title={`Seções personalizadas (${customs.length})`}
-        actions={<NewSectionButton onCreate={addCustom} />}
-      >
+      <Group title={`Seções personalizadas (${customs.length})`} actions={<NewSectionButton onCreate={addCustom} />}>
         <p className="text-xs text-zinc-500">
-          Crie seções com títulos, textos, fotos, ícones e botões, com informações do site que não entraram automaticamente (unidades, convênios, história…) ou conteúdo próprio. A nova seção entra antes do contato; mude a posição em "Seções e ordem".
+          Crie seções com títulos, textos, fotos, ícones e botões, com informações do site que não entraram automaticamente (unidades, convênios, história…) ou
+          conteúdo próprio. A nova seção entra antes do contato; mude a posição em "Seções e ordem".
         </p>
         {customs.map((c) => (
-          <div key={c.id} data-group={`custom:${c.id}`} data-field={`custom.${c.id}`} className="space-y-2 rounded-md border border-zinc-100 bg-zinc-50/50 p-3 transition-shadow">
+          <div
+            key={c.id}
+            data-group={`custom:${c.id}`}
+            data-field={`custom.${c.id}`}
+            className="space-y-2 rounded-md border border-zinc-100 bg-zinc-50/50 p-3 transition-shadow"
+          >
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">{c.title || 'Seção personalizada'}</span>
               <span className="flex items-center gap-1">
                 {hideBtn(`custom:${c.id}`)}
-                <button type="button" className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" title="Excluir seção" onClick={() => confirmDelete(`a seção "${c.title || 'Seção personalizada'}" e todo o conteúdo dela`) && removeCustom(c.id)}><Trash2 className="size-4" /></button>
+                <button
+                  type="button"
+                  className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600"
+                  title="Excluir seção"
+                  onClick={() => confirmDelete(`a seção "${c.title || 'Seção personalizada'}" e todo o conteúdo dela`) && removeCustom(c.id)}
+                >
+                  <Trash2 className="size-4" />
+                </button>
               </span>
             </div>
             <CustomSectionEditor section={c} onChange={updateCustom} company={company} />
@@ -412,14 +562,47 @@ export function ContentTab({
       </Group>
 
       <Group id="hero" title="Hero (topo da página)">
-        <Txt field="hero.eyebrow" label="Linha de apoio (acima do título)" value={content.hero.eyebrow} onChange={(v) => set('hero', { ...content.hero, eyebrow: v || null })} />
-        <Txt field="hero.headline" label="Título principal" area value={content.hero.headline} onChange={(v) => set('hero', { ...content.hero, headline: v })} />
-        <Txt field="hero.subheadline" label="Subtítulo" area value={content.hero.subheadline} onChange={(v) => set('hero', { ...content.hero, subheadline: v })} />
+        <Txt
+          field="hero.eyebrow"
+          label="Linha de apoio (acima do título)"
+          value={content.hero.eyebrow}
+          onChange={(v) => set('hero', { ...content.hero, eyebrow: v || null })}
+        />
+        <Txt
+          field="hero.headline"
+          label="Título principal"
+          area
+          value={content.hero.headline}
+          onChange={(v) => set('hero', { ...content.hero, headline: v })}
+        />
+        <Txt
+          field="hero.subheadline"
+          label="Subtítulo"
+          area
+          value={content.hero.subheadline}
+          onChange={(v) => set('hero', { ...content.hero, subheadline: v })}
+        />
         <div className="grid gap-3 sm:grid-cols-2">
-          <Txt field="hero.primary_cta" label="Botão principal" value={content.hero.primary_cta} onChange={(v) => set('hero', { ...content.hero, primary_cta: v })} />
-          <Txt field="hero.secondary_cta" label="Botão secundário" value={content.hero.secondary_cta} onChange={(v) => set('hero', { ...content.hero, secondary_cta: v || null })} placeholder="(vazio = sem botão)" />
+          <Txt
+            field="hero.primary_cta"
+            label="Botão principal"
+            value={content.hero.primary_cta}
+            onChange={(v) => set('hero', { ...content.hero, primary_cta: v })}
+          />
+          <Txt
+            field="hero.secondary_cta"
+            label="Botão secundário"
+            value={content.hero.secondary_cta}
+            onChange={(v) => set('hero', { ...content.hero, secondary_cta: v || null })}
+            placeholder="(vazio = sem botão)"
+          />
         </div>
-        <ListEditor field="hero.highlights" label="Destaques (abaixo dos botões)" values={content.hero.highlights} onChange={(v) => set('hero', { ...content.hero, highlights: v })} />
+        <ListEditor
+          field="hero.highlights"
+          label="Destaques (abaixo dos botões)"
+          values={content.hero.highlights}
+          onChange={(v) => set('hero', { ...content.hero, highlights: v })}
+        />
       </Group>
 
       {content.about ? (
@@ -430,18 +613,36 @@ export function ContentTab({
               data-field="about.paragraphs"
               className="min-h-[180px]"
               value={content.about.paragraphs.join('\n\n')}
-              onChange={(e) => set('about', { ...content.about!, paragraphs: e.target.value.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean) })}
+              onChange={(e) =>
+                set('about', {
+                  ...content.about!,
+                  paragraphs: e.target.value
+                    .split(/\n\s*\n/)
+                    .map((p) => p.trim())
+                    .filter(Boolean),
+                })
+              }
             />
           </Field>
         </Group>
       ) : (
-        <Group id="about" title="Sobre a empresa (sem seção)" empty actions={createBtn(() => createSection('about', { title: 'Sobre nós', paragraphs: company?.description ? [company.description] : [] }))} />
+        <Group
+          id="about"
+          title="Sobre a empresa (sem seção)"
+          empty
+          actions={createBtn(() => createSection('about', { title: 'Sobre nós', paragraphs: company?.description ? [company.description] : [] }))}
+        />
       )}
 
       {content.services ? (
         <Group id="services" title={`Serviços (${content.services.items.length})`} actions={removeBtn('services')}>
           <Txt field="services.title" label="Título" value={content.services.title} onChange={(v) => set('services', { ...content.services!, title: v })} />
-          <Txt field="services.subtitle" label="Subtítulo" value={content.services.subtitle} onChange={(v) => set('services', { ...content.services!, subtitle: v || null })} />
+          <Txt
+            field="services.subtitle"
+            label="Subtítulo"
+            value={content.services.subtitle}
+            onChange={(v) => set('services', { ...content.services!, subtitle: v || null })}
+          />
           <ItemList
             items={content.services.items}
             path="services.items"
@@ -452,10 +653,23 @@ export function ContentTab({
               <>
                 <div className="flex gap-2">
                   <Input data-field={fld('name')} placeholder="Nome" value={it.name} onChange={(e) => up({ name: e.target.value })} className="font-medium" />
-                  <div data-field={fld('icon')}><IconSelect value={it.icon} onChange={(icon) => up({ icon })} /></div>
+                  <div data-field={fld('icon')}>
+                    <IconSelect value={it.icon} onChange={(icon) => up({ icon })} />
+                  </div>
                 </div>
-                <Textarea data-field={fld('description')} className="min-h-[64px]" placeholder="Descrição" value={it.description} onChange={(e) => up({ description: e.target.value })} />
-                <Input data-field={fld('benefit')} placeholder="Benefício (opcional)" value={it.benefit ?? ''} onChange={(e) => up({ benefit: e.target.value || null })} />
+                <Textarea
+                  data-field={fld('description')}
+                  className="min-h-[64px]"
+                  placeholder="Descrição"
+                  value={it.description}
+                  onChange={(e) => up({ description: e.target.value })}
+                />
+                <Input
+                  data-field={fld('benefit')}
+                  placeholder="Benefício (opcional)"
+                  value={it.benefit ?? ''}
+                  onChange={(e) => up({ benefit: e.target.value || null })}
+                />
               </>
             )}
           />
@@ -476,8 +690,18 @@ export function ContentTab({
 
       {content.differentials ? (
         <Group id="differentials" title={`Diferenciais (${content.differentials.items.length})`} actions={removeBtn('differentials')}>
-          <Txt field="differentials.title" label="Título" value={content.differentials.title} onChange={(v) => set('differentials', { ...content.differentials!, title: v })} />
-          <Txt field="differentials.subtitle" label="Subtítulo" value={content.differentials.subtitle} onChange={(v) => set('differentials', { ...content.differentials!, subtitle: v || null })} />
+          <Txt
+            field="differentials.title"
+            label="Título"
+            value={content.differentials.title}
+            onChange={(v) => set('differentials', { ...content.differentials!, title: v })}
+          />
+          <Txt
+            field="differentials.subtitle"
+            label="Subtítulo"
+            value={content.differentials.subtitle}
+            onChange={(v) => set('differentials', { ...content.differentials!, subtitle: v || null })}
+          />
           <ItemList
             items={content.differentials.items}
             path="differentials.items"
@@ -487,10 +711,24 @@ export function ContentTab({
             render={(it, up, fld) => (
               <>
                 <div className="flex gap-2">
-                  <Input data-field={fld('title')} placeholder="Título" value={it.title} onChange={(e) => up({ title: e.target.value })} className="font-medium" />
-                  <div data-field={fld('icon')}><IconSelect value={it.icon} onChange={(icon) => up({ icon })} /></div>
+                  <Input
+                    data-field={fld('title')}
+                    placeholder="Título"
+                    value={it.title}
+                    onChange={(e) => up({ title: e.target.value })}
+                    className="font-medium"
+                  />
+                  <div data-field={fld('icon')}>
+                    <IconSelect value={it.icon} onChange={(icon) => up({ icon })} />
+                  </div>
                 </div>
-                <Textarea data-field={fld('description')} className="min-h-[64px]" placeholder="Descrição" value={it.description} onChange={(e) => up({ description: e.target.value })} />
+                <Textarea
+                  data-field={fld('description')}
+                  className="min-h-[64px]"
+                  placeholder="Descrição"
+                  value={it.description}
+                  onChange={(e) => up({ description: e.target.value })}
+                />
               </>
             )}
           />
@@ -512,7 +750,12 @@ export function ContentTab({
       {content.products ? (
         <Group id="products" title={`Produtos (${content.products.items.length})`} actions={removeBtn('products')}>
           <Txt field="products.title" label="Título" value={content.products.title} onChange={(v) => set('products', { ...content.products!, title: v })} />
-          <Txt field="products.subtitle" label="Subtítulo" value={content.products.subtitle} onChange={(v) => set('products', { ...content.products!, subtitle: v || null })} />
+          <Txt
+            field="products.subtitle"
+            label="Subtítulo"
+            value={content.products.subtitle}
+            onChange={(v) => set('products', { ...content.products!, subtitle: v || null })}
+          />
           <ItemList
             items={content.products.items}
             path="products.items"
@@ -522,7 +765,13 @@ export function ContentTab({
             render={(it, up, fld) => (
               <>
                 <Input data-field={fld('name')} placeholder="Nome" value={it.name} onChange={(e) => up({ name: e.target.value })} className="font-medium" />
-                <Textarea data-field={fld('description')} className="min-h-[64px]" placeholder="Descrição" value={it.description} onChange={(e) => up({ description: e.target.value })} />
+                <Textarea
+                  data-field={fld('description')}
+                  className="min-h-[64px]"
+                  placeholder="Descrição"
+                  value={it.description}
+                  onChange={(e) => up({ description: e.target.value })}
+                />
                 <ListEditor field={fld('features')} label="Características" values={it.features} onChange={(features) => up({ features })} />
               </>
             )}
@@ -546,24 +795,46 @@ export function ContentTab({
         <Group id="gallery" title="Galeria" actions={removeBtn('gallery')}>
           <p className="text-xs text-zinc-500">As fotos vêm das imagens liberadas da empresa (Editar empresa → Imagens).</p>
           <Txt field="gallery.title" label="Título" value={content.gallery.title} onChange={(v) => set('gallery', { ...content.gallery!, title: v })} />
-          <Txt field="gallery.subtitle" label="Subtítulo" value={content.gallery.subtitle} onChange={(v) => set('gallery', { ...content.gallery!, subtitle: v || null })} />
+          <Txt
+            field="gallery.subtitle"
+            label="Subtítulo"
+            value={content.gallery.subtitle}
+            onChange={(v) => set('gallery', { ...content.gallery!, subtitle: v || null })}
+          />
         </Group>
       ) : (
-        <Group id="gallery" title="Galeria (sem seção)" empty actions={createBtn(() => createSection('gallery', { title: 'Conheça nosso espaço', subtitle: null }))} />
+        <Group
+          id="gallery"
+          title="Galeria (sem seção)"
+          empty
+          actions={createBtn(() => createSection('gallery', { title: 'Conheça nosso espaço', subtitle: null }))}
+        />
       )}
 
       <Group id="testimonials" title="Depoimentos" actions={hideBtn('testimonials')}>
         <p className="text-xs text-zinc-500">
           Os depoimentos são sempre os reais, cadastrados na empresa (Editar empresa → Depoimentos). A seção só aparece se houver algum.
         </p>
-        <Txt field="testimonials.title" label="Título" value={content.testimonials?.title ?? ''} placeholder="O que dizem nossos clientes" onChange={(v) => set('testimonials', v ? { title: v } : null)} />
+        <Txt
+          field="testimonials.title"
+          label="Título"
+          value={content.testimonials?.title ?? ''}
+          placeholder="O que dizem nossos clientes"
+          onChange={(v) => set('testimonials', v ? { title: v } : null)}
+        />
       </Group>
 
       <Group id="reviews" title="Avaliações do Google" actions={hideBtn('reviews')}>
         <p className="text-xs text-zinc-500">
-          As 6 melhores avaliações reais do Google (nota máxima), buscadas ao gerar ou regerar a página. A seção só aparece se a empresa tiver avaliações 5 estrelas com texto.
+          As 6 melhores avaliações reais do Google (nota máxima), buscadas ao gerar ou regerar a página. A seção só aparece se a empresa tiver avaliações 5
+          estrelas com texto.
         </p>
-        <div className={cn('rounded-lg px-3 py-2 text-xs', reviews?.items.length ? 'bg-emerald-50 text-emerald-800' : reviews ? 'bg-amber-50 text-amber-800' : 'bg-zinc-50 text-zinc-600')}>
+        <div
+          className={cn(
+            'rounded-lg px-3 py-2 text-xs',
+            reviews?.items.length ? 'bg-emerald-50 text-emerald-800' : reviews ? 'bg-amber-50 text-amber-800' : 'bg-zinc-50 text-zinc-600',
+          )}
+        >
           {reviews?.items.length
             ? `${reviews.items.length} avaliação(ões) na página${reviews.rating != null ? ` · nota ${reviews.rating.toFixed(1).replace('.', ',')}` : ''}${reviews.total ? ` · ${reviews.total} no Google` : ''}.`
             : reviews
@@ -582,7 +853,14 @@ export function ContentTab({
             { key: 'reviews_based', label: 'Texto ao lado do total ("123 avaliações no Google")' },
             { key: 'reviews_more', label: 'Link para o Google' },
           ].map((f) => (
-            <Txt key={f.key} field={`labels.${f.key}`} label={f.label} value={labels[f.key] ?? ''} placeholder={defaults?.[f.key]} onChange={(v) => set('labels', { ...labels, [f.key]: v })} />
+            <Txt
+              key={f.key}
+              field={`labels.${f.key}`}
+              label={f.label}
+              value={labels[f.key] ?? ''}
+              placeholder={defaults?.[f.key]}
+              onChange={(v) => set('labels', { ...labels, [f.key]: v })}
+            />
           ))}
         </div>
       </Group>
@@ -598,20 +876,42 @@ export function ContentTab({
             addLabel="Pergunta"
             render={(it, up, fld) => (
               <>
-                <Input data-field={fld('question')} placeholder="Pergunta" value={it.question} onChange={(e) => up({ question: e.target.value })} className="font-medium" />
-                <Textarea data-field={fld('answer')} className="min-h-[64px]" placeholder="Resposta (somente informações reais)" value={it.answer} onChange={(e) => up({ answer: e.target.value })} />
+                <Input
+                  data-field={fld('question')}
+                  placeholder="Pergunta"
+                  value={it.question}
+                  onChange={(e) => up({ question: e.target.value })}
+                  className="font-medium"
+                />
+                <Textarea
+                  data-field={fld('answer')}
+                  className="min-h-[64px]"
+                  placeholder="Resposta (somente informações reais)"
+                  value={it.answer}
+                  onChange={(e) => up({ answer: e.target.value })}
+                />
               </>
             )}
           />
         </Group>
       ) : (
-        <Group id="faq" title="Perguntas frequentes (sem seção)" empty actions={createBtn(() => createSection('faq', { title: 'Perguntas frequentes', items: [] }))} />
+        <Group
+          id="faq"
+          title="Perguntas frequentes (sem seção)"
+          empty
+          actions={createBtn(() => createSection('faq', { title: 'Perguntas frequentes', items: [] }))}
+        />
       )}
 
       <Group id="contact" title="Contato">
         <p className="text-xs text-zinc-500">Telefone, WhatsApp, e-mail, endereço e horário vêm do cadastro da empresa.</p>
         <Txt field="contact.title" label="Título" value={content.contact.title} onChange={(v) => set('contact', { ...content.contact, title: v })} />
-        <Txt field="contact.subtitle" label="Subtítulo" value={content.contact.subtitle} onChange={(v) => set('contact', { ...content.contact, subtitle: v || null })} />
+        <Txt
+          field="contact.subtitle"
+          label="Subtítulo"
+          value={content.contact.subtitle}
+          onChange={(v) => set('contact', { ...content.contact, subtitle: v || null })}
+        />
         {theme && onThemeChange ? (
           <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 p-3 hover:border-zinc-300">
             <input
@@ -622,15 +922,28 @@ export function ContentTab({
             />
             <span>
               <span className="block text-[13px] font-medium">Mostrar mapa do endereço</span>
-              <span className="block text-[11px] text-zinc-500">Mapa do Google com a localização (pela rua do cadastro; sem rua, pelo nome da empresa na cidade). Desmarque para tirar o mapa da página.</span>
+              <span className="block text-[11px] text-zinc-500">
+                Mapa do Google com a localização (pela rua do cadastro; sem rua, pelo nome da empresa na cidade). Desmarque para tirar o mapa da página.
+              </span>
             </span>
           </label>
         ) : null}
       </Group>
 
       <Group id="final_cta" title="CTA final">
-        <Txt field="final_cta.title" label="Título" area value={content.final_cta.title} onChange={(v) => set('final_cta', { ...content.final_cta, title: v })} />
-        <Txt field="final_cta.subtitle" label="Subtítulo" value={content.final_cta.subtitle} onChange={(v) => set('final_cta', { ...content.final_cta, subtitle: v || null })} />
+        <Txt
+          field="final_cta.title"
+          label="Título"
+          area
+          value={content.final_cta.title}
+          onChange={(v) => set('final_cta', { ...content.final_cta, title: v })}
+        />
+        <Txt
+          field="final_cta.subtitle"
+          label="Subtítulo"
+          value={content.final_cta.subtitle}
+          onChange={(v) => set('final_cta', { ...content.final_cta, subtitle: v || null })}
+        />
         <Txt field="final_cta.cta" label="Texto do botão" value={content.final_cta.cta} onChange={(v) => set('final_cta', { ...content.final_cta, cta: v })} />
       </Group>
 

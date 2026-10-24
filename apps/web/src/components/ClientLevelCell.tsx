@@ -58,7 +58,9 @@ export function ClientLevelCell({
     >
       <option value="" />
       {levels.map((l) => (
-        <option key={l.id} value={l.id}>{l.name}</option>
+        <option key={l.id} value={l.id}>
+          {l.name}
+        </option>
       ))}
     </select>
   );
@@ -70,7 +72,10 @@ export function ClientLevelPicker({ value, onChange, disabled }: { value: string
   if (!levels.length) {
     return canAssign ? (
       <p className="text-xs text-zinc-500">
-        Nenhum nível de cliente cadastrado. <Link to="/niveis-cliente" className="font-medium text-ink underline-offset-2 hover:underline">Cadastrar níveis</Link>
+        Nenhum nível de cliente cadastrado.{' '}
+        <Link to="/niveis-cliente" className="font-medium text-ink underline-offset-2 hover:underline">
+          Cadastrar níveis
+        </Link>
       </p>
     ) : null;
   }
@@ -80,7 +85,9 @@ export function ClientLevelPicker({ value, onChange, disabled }: { value: string
       <Select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="mt-1">
         <option value="">Sem nível</option>
         {levels.map((l) => (
-          <option key={l.id} value={l.id}>{l.price != null ? `${l.name} — ${formatPrice(l.price)}` : l.name}</option>
+          <option key={l.id} value={l.id}>
+            {l.price != null ? `${l.name} — ${formatPrice(l.price)}` : l.name}
+          </option>
         ))}
       </Select>
     </label>

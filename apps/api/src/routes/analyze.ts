@@ -87,9 +87,7 @@ analyzeRouter.post('/generate-landing-page', aiLimiter, async (req, res) => {
   if (!(await aiService.isConfigured())) throw new AppError(503, Messages.aiNotConfigured);
   if (!(await getCompanyFull(user.organizationId, body.companyId))) throw notFound('Empresa não encontrada.');
   const jobId = await jobService.create(user.organizationId, 'generate_landing_page', body);
-  jobService.run(jobId, (job) =>
-    generateLanding(job, { orgId: user.organizationId, userId: user.id, ...body }),
-  );
+  jobService.run(jobId, (job) => generateLanding(job, { orgId: user.organizationId, userId: user.id, ...body }));
   res.status(202).json({ jobId });
 });
 
@@ -145,7 +143,13 @@ analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
   // Empresas ignoradas pelo usuário não aparecem (nem entram no histórico)
   const items = await withoutIgnored(user.organizationId, places ? places.items : await searchCompanySites(q));
   const source = type === 'locais' ? 'maps' : 'web';
-  const [registered, failures] = await Promise.all([matchRegisteredCompanies(user.organizationId, items), urlErrorsFor(user.organizationId, items.map((c) => c.url))]);
+  const [registered, failures] = await Promise.all([
+    matchRegisteredCompanies(user.organizationId, items),
+    urlErrorsFor(
+      user.organizationId,
+      items.map((c) => c.url),
+    ),
+  ]);
   const marked = items.map((c, i) => ({ ...c, existing: registered[i], analysis_error: registered[i] ? null : failures[i] }));
   // Grava toda pesquisa no histórico, mesmo sem resultados (a marcação de cadastrada/LP é recalculada ao abrir)
   let savedId: string | null = null;
@@ -201,7 +205,13 @@ analyzeRouter.get('/company-searches/:id', async (req, res) => {
   const search = await getSearch(user.organizationId, uuidParam.parse(req.params.id));
   if (!search) throw notFound('Pesquisa não encontrada.');
   const items = await withoutIgnored(user.organizationId, search.results as FoundCompany[]);
-  const [registered, failures] = await Promise.all([matchRegisteredCompanies(user.organizationId, items), urlErrorsFor(user.organizationId, items.map((c) => c.url))]);
+  const [registered, failures] = await Promise.all([
+    matchRegisteredCompanies(user.organizationId, items),
+    urlErrorsFor(
+      user.organizationId,
+      items.map((c) => c.url),
+    ),
+  ]);
   // Pesquisas sem cidade que pararam na última cidade da lista (antes do "Buscar mais" continuar): seguem
   const has_more = search.has_more || ((await aiKeyStore.hasAny('rapidapi', env.rapidApiKey)) && nationalHasMore(search.query, search.page));
   res.json({ ...search, has_more, results: items.map((c, i) => ({ ...c, existing: registered[i], analysis_error: registered[i] ? null : failures[i] })) });

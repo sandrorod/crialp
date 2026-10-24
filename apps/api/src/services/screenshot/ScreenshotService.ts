@@ -36,7 +36,14 @@ export async function allowBrowserRequest(raw: string, cache = new Map<string, P
   if (!['http:', 'https:'].includes(u.protocol)) return false;
   if (u.host === new URL(env.appUrl).host) return true;
   const key = u.hostname;
-  if (!cache.has(key)) cache.set(key, assertPublicHost(u).then(() => true, () => false));
+  if (!cache.has(key))
+    cache.set(
+      key,
+      assertPublicHost(u).then(
+        () => true,
+        () => false,
+      ),
+    );
   return cache.get(key)!;
 }
 
@@ -81,7 +88,12 @@ export async function captureHtml(html: string) {
           document.fonts.ready,
           ...Array.from(document.images)
             .filter((img) => !img.complete)
-            .map((img) => new Promise((r) => { img.onload = img.onerror = r; })),
+            .map(
+              (img) =>
+                new Promise((r) => {
+                  img.onload = img.onerror = r;
+                }),
+            ),
         ]),
         new Promise((r) => setTimeout(r, 20_000)),
       ]);
@@ -177,8 +189,10 @@ async function sendToDrive(lp: LandingPageRow, image: Buffer) {
 function driveErrorMessage(err: unknown) {
   const raw = err instanceof Error ? err.message : String(err);
   if (raw.startsWith('Google Drive não') || raw.includes('Configurações')) return raw;
-  if (/accessNotConfigured|has not been used|SERVICE_DISABLED/i.test(raw)) return 'A Google Drive API está desativada no projeto do Google Cloud: ative-a em APIs e serviços → Biblioteca → Google Drive API.';
-  if (/rateLimitExceeded|userRateLimit|quotaExceeded|\b429\b/i.test(raw)) return 'O Google Drive limitou os envios por alguns instantes: gere o print de novo em "Novo print" no editor.';
+  if (/accessNotConfigured|has not been used|SERVICE_DISABLED/i.test(raw))
+    return 'A Google Drive API está desativada no projeto do Google Cloud: ative-a em APIs e serviços → Biblioteca → Google Drive API.';
+  if (/rateLimitExceeded|userRateLimit|quotaExceeded|\b429\b/i.test(raw))
+    return 'O Google Drive limitou os envios por alguns instantes: gere o print de novo em "Novo print" no editor.';
   if (/invalid_client|unauthorized_client/i.test(raw)) return 'ID ou chave secreta do OAuth do Google inválidos na Vercel (GOOGLE_OAUTH_CLIENT_ID / SECRET).';
   if (/insufficient|403/i.test(raw)) return `O Google Drive recusou o envio (sem permissão): conecte de novo em Configurações. Detalhe: ${raw.slice(0, 160)}`;
   return `Não foi possível enviar a imagem ao Google Drive. Detalhe: ${raw.slice(0, 160)}`;

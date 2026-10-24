@@ -22,16 +22,37 @@ before(async () => {
   s = await seed();
   ({ base, close } = await startServer());
   // Dados de CRM da organização B
-  const contact = (await one<{ id: string }>(`insert into lp_crm_contacts (organization_id, company_id, name) values ($1, $2, 'Contato B') returning id`, [s.orgB, s.b1.companyId]))!.id;
+  const contact = (await one<{ id: string }>(`insert into lp_crm_contacts (organization_id, company_id, name) values ($1, $2, 'Contato B') returning id`, [
+    s.orgB,
+    s.b1.companyId,
+  ]))!.id;
   const stage = (await one<{ id: string }>(`insert into lp_crm_stages (organization_id, name, position) values ($1, 'Etapa B', 1) returning id`, [s.orgB]))!.id;
-  const deal = (await one<{ id: string }>(`insert into lp_crm_deals (organization_id, company_id, stage_id, title) values ($1, $2, $3, 'Negócio B') returning id`, [s.orgB, s.b1.companyId, stage]))!.id;
-  const task = (await one<{ id: string }>(`insert into lp_crm_tasks (organization_id, title, assignee_id) values ($1, 'Tarefa B', $2) returning id`, [s.orgB, s.ownerB]))!.id;
-  const conv = (await one<{ id: string }>(`insert into lp_crm_conversations (organization_id, phone, company_id) values ($1, '5511999990000', $2) returning id`, [s.orgB, s.b1.companyId]))!.id;
-  const msg = (await one<{ id: string }>(`insert into lp_crm_messages (conversation_id, direction, type, body, wa_message_id, status) values ($1, 'in', 'document', 'Mensagem B', 'WA-B-1', 'sent') returning id`, [conv]))!.id;
+  const deal = (await one<{ id: string }>(
+    `insert into lp_crm_deals (organization_id, company_id, stage_id, title) values ($1, $2, $3, 'Negócio B') returning id`,
+    [s.orgB, s.b1.companyId, stage],
+  ))!.id;
+  const task = (await one<{ id: string }>(`insert into lp_crm_tasks (organization_id, title, assignee_id) values ($1, 'Tarefa B', $2) returning id`, [
+    s.orgB,
+    s.ownerB,
+  ]))!.id;
+  const conv = (await one<{ id: string }>(
+    `insert into lp_crm_conversations (organization_id, phone, company_id) values ($1, '5511999990000', $2) returning id`,
+    [s.orgB, s.b1.companyId],
+  ))!.id;
+  const msg = (await one<{ id: string }>(
+    `insert into lp_crm_messages (conversation_id, direction, type, body, wa_message_id, status) values ($1, 'in', 'document', 'Mensagem B', 'WA-B-1', 'sent') returning id`,
+    [conv],
+  ))!.id;
   crmB = { contact, stage, deal, task, conv, msg };
   // Anexo HTML na organização A (como se viesse de um contato pelo WhatsApp)
-  const convA = (await one<{ id: string }>(`insert into lp_crm_conversations (organization_id, phone, company_id) values ($1, '5511988880000', $2) returning id`, [s.orgA, s.a1.companyId]))!.id;
-  msgA = (await one<{ id: string }>(`insert into lp_crm_messages (conversation_id, direction, type, wa_message_id) values ($1, 'in', 'image', 'WA-A-1') returning id`, [convA]))!.id;
+  const convA = (await one<{ id: string }>(
+    `insert into lp_crm_conversations (organization_id, phone, company_id) values ($1, '5511988880000', $2) returning id`,
+    [s.orgA, s.a1.companyId],
+  ))!.id;
+  msgA = (await one<{ id: string }>(
+    `insert into lp_crm_messages (conversation_id, direction, type, wa_message_id) values ($1, 'in', 'image', 'WA-A-1') returning id`,
+    [convA],
+  ))!.id;
   await query(`insert into lp_crm_media (message_id, mime, data) values ($1, 'text/html', $2)`, [msgA, Buffer.from('<script>alert(1)</script>')]);
 });
 after(async () => {
@@ -50,9 +71,19 @@ describe('Usuário externo, sem login', () => {
   it('rotas protegidas respondem 401 e não vazam dados', async () => {
     const anon = client(base);
     const paths = [
-      '/api/auth/me', '/api/landing-pages', '/api/companies', '/api/users', '/api/settings/ai-keys', '/api/settings/atendimento',
-      '/api/crm/companies', '/api/crm/conversations', `/api/crm/media/${crmB.msg}`, '/api/crm/whatsapp', '/api/client-levels',
-      `/api/landing-pages/${s.a1.lpId}/preview`, `/api/landing-pages/${s.a1.lpId}/export`,
+      '/api/auth/me',
+      '/api/landing-pages',
+      '/api/companies',
+      '/api/users',
+      '/api/settings/ai-keys',
+      '/api/settings/atendimento',
+      '/api/crm/companies',
+      '/api/crm/conversations',
+      `/api/crm/media/${crmB.msg}`,
+      '/api/crm/whatsapp',
+      '/api/client-levels',
+      `/api/landing-pages/${s.a1.lpId}/preview`,
+      `/api/landing-pages/${s.a1.lpId}/export`,
     ];
     for (const p of paths) {
       const res = await anon.call('GET', p);
@@ -195,7 +226,11 @@ describe('Banco de dados (Supabase)', () => {
     const { rows } = await query<{ relname: string }>(
       `select relname from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r' and not relrowsecurity`,
     );
-    assert.deepEqual(rows.map((r) => r.relname), [], 'tabelas sem RLS');
+    assert.deepEqual(
+      rows.map((r) => r.relname),
+      [],
+      'tabelas sem RLS',
+    );
   });
 });
 

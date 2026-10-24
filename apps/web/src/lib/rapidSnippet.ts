@@ -52,7 +52,17 @@ function looseJson(src: string): unknown {
 
 /** Corpo do pedido no código do Playground. */
 function findBody(text: string): Record<string, unknown> | null {
-  const markers = [/--data(?:-raw)?\s+/, /\s-d\s+/, /\bbody\s*:\s*JSON\.stringify\(/, /\bbody\s*:/, /\bdata\s*:/, /\bpayload\s*=/, /\bjson\s*=/, /\bdata\s*=/, /CURLOPT_POSTFIELDS\s*=>/];
+  const markers = [
+    /--data(?:-raw)?\s+/,
+    /\s-d\s+/,
+    /\bbody\s*:\s*JSON\.stringify\(/,
+    /\bbody\s*:/,
+    /\bdata\s*:/,
+    /\bpayload\s*=/,
+    /\bjson\s*=/,
+    /\bdata\s*=/,
+    /CURLOPT_POSTFIELDS\s*=>/,
+  ];
   for (const m of markers) {
     const found = m.exec(text);
     if (!found) continue;
@@ -94,7 +104,8 @@ export function parseRapidSnippet(raw: string): RapidSnippetInfo {
   const text = raw.trim();
   const info: RapidSnippetInfo = {};
   info.key = /x-(?:rapid)?api-key["'\s]*[:=,]\s*["']?\s*([A-Za-z0-9]{30,})/i.exec(text)?.[1];
-  info.host = /x-(?:rapid)?api-host["'\s]*[:=,]\s*["']?\s*([a-z0-9.-]+\.p\.rapidapi\.com)/i.exec(text)?.[1]?.toLowerCase() ?? HOST_RE.exec(text)?.[1]?.toLowerCase();
+  info.host =
+    /x-(?:rapid)?api-host["'\s]*[:=,]\s*["']?\s*([a-z0-9.-]+\.p\.rapidapi\.com)/i.exec(text)?.[1]?.toLowerCase() ?? HOST_RE.exec(text)?.[1]?.toLowerCase();
   if (!info.host) return info;
 
   const config: Partial<RapidGeminiConfig> = { host: info.host };

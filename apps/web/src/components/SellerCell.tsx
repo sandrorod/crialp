@@ -63,7 +63,9 @@ export function SellerCell({
       {/* Sem vendedor salvo: opção vazia (escolhê-la de novo limpa o vendedor) */}
       <option value="" />
       {sellers.map((s) => (
-        <option key={s.id} value={s.id!}>{s.name}</option>
+        <option key={s.id} value={s.id!}>
+          {s.name}
+        </option>
       ))}
     </select>
   );
@@ -80,7 +82,9 @@ export function SellerPicker({ value, onChange, disabled }: { value: string; onC
         <option value="auto">Aleatório</option>
         <option value="">Sem vendedor</option>
         {sellers.map((s) => (
-          <option key={s.id} value={s.id!}>{s.name}</option>
+          <option key={s.id} value={s.id!}>
+            {s.name}
+          </option>
         ))}
       </Select>
     </label>

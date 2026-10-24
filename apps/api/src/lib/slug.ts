@@ -21,10 +21,7 @@ export async function uniqueSlug(base: string, ignoreLandingPageId?: string): Pr
   if (RESERVED.has(root)) root = `${root}-empresa`;
   for (let i = 1; i < 1000; i++) {
     const candidate = i === 1 ? root : `${root}-${i}`;
-    const taken = await one(
-      `select 1 from landing_pages where slug = $1 and ($2::uuid is null or id <> $2::uuid)`,
-      [candidate, ignoreLandingPageId ?? null],
-    );
+    const taken = await one(`select 1 from landing_pages where slug = $1 and ($2::uuid is null or id <> $2::uuid)`, [candidate, ignoreLandingPageId ?? null]);
     if (!taken) return candidate;
   }
   return `${root}-${Date.now().toString(36)}`;

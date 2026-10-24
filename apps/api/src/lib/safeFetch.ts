@@ -45,7 +45,7 @@ export async function fetchViaPublicAgent(url: URL, init: RequestInit, dispatche
  */
 export async function fetchPublic(
   start: URL,
-  init: RequestInit & { maxRedirects?: number; /** só para testes (MockAgent) */ dispatcher?: Dispatcher } = {},
+  init: RequestInit & { maxRedirects?: number /** só para testes (MockAgent) */; dispatcher?: Dispatcher } = {},
 ): Promise<{ res: Response; url: URL }> {
   const { maxRedirects = 5, dispatcher, ...rest } = init;
   let current = start;

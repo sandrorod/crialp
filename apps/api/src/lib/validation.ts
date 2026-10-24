@@ -111,9 +111,16 @@ export const CompanyInputSchema = z.object({
   youtube: safeUrl,
   linkedin: safeUrl,
   tiktok: safeUrl,
-  other_socials: capped(z.object({ network: z.string().trim().transform((v) => v.slice(0, 60)), url: safeUrl }), 20).transform((arr) =>
-    arr.filter((s): s is { network: string; url: string } => !!s.url),
-  ),
+  other_socials: capped(
+    z.object({
+      network: z
+        .string()
+        .trim()
+        .transform((v) => v.slice(0, 60)),
+      url: safeUrl,
+    }),
+    20,
+  ).transform((arr) => arr.filter((s): s is { network: string; url: string } => !!s.url)),
   opening_hours: longText(1000),
   commercial_info: CommercialInfoSchema,
   services: capped(

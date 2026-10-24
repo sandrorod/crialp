@@ -57,10 +57,14 @@ export function CrmTasksPage() {
     <>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {FILTERS.map((f) => (
-          <button type="button"
+          <button
+            type="button"
             key={f.id}
             onClick={() => setFilter(f.id)}
-            className={cn('rounded-full px-3 py-1 text-sm', filter === f.id ? 'bg-ink text-white' : 'border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50')}
+            className={cn(
+              'rounded-full px-3 py-1 text-sm',
+              filter === f.id ? 'bg-ink text-white' : 'border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50',
+            )}
           >
             {f.label}
           </button>
@@ -68,19 +72,31 @@ export function CrmTasksPage() {
         {manager ? (
           <Select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-auto" aria-label="Responsável">
             <option value="">Todos os responsáveis</option>
-            {users?.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            {users?.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
           </Select>
         ) : null}
-        <Button className="ml-auto" icon={<Plus className="size-4" />} onClick={() => setEditing(null)}>Nova tarefa</Button>
+        <Button className="ml-auto" icon={<Plus className="size-4" />} onClick={() => setEditing(null)}>
+          Nova tarefa
+        </Button>
       </div>
 
       <Card>
         {error ? (
-          <div className="p-4"><ErrorBlock message={error} onRetry={reload} /></div>
+          <div className="p-4">
+            <ErrorBlock message={error} onRetry={reload} />
+          </div>
         ) : loading && !data ? (
           <LoadingBlock />
         ) : !data?.length ? (
-          <EmptyState icon={<CheckSquare className="size-5" />} title="Nenhuma tarefa aqui" description="Crie follow-ups para não esquecer de retornar aos clientes." />
+          <EmptyState
+            icon={<CheckSquare className="size-5" />}
+            title="Nenhuma tarefa aqui"
+            description="Crie follow-ups para não esquecer de retornar aos clientes."
+          />
         ) : (
           <ul className="divide-y divide-zinc-100">
             {data.map((t) => {
@@ -95,8 +111,14 @@ export function CrmTasksPage() {
                       {manager && t.assignee_id !== user?.id ? ` · ${t.assignee_name}` : ''}
                     </div>
                   </button>
-                  {t.company_id ? <Link to={`/crm/empresas/${t.company_id}`} className="hidden text-xs text-brand-600 hover:underline sm:inline">abrir empresa</Link> : null}
-                  <span className={cn('shrink-0 text-xs', late ? 'font-medium text-red-600' : 'text-zinc-500')}>{t.due_at ? dateTime(t.due_at) : 'sem prazo'}</span>
+                  {t.company_id ? (
+                    <Link to={`/crm/empresas/${t.company_id}`} className="hidden text-xs text-brand-600 hover:underline sm:inline">
+                      abrir empresa
+                    </Link>
+                  ) : null}
+                  <span className={cn('shrink-0 text-xs', late ? 'font-medium text-red-600' : 'text-zinc-500')}>
+                    {t.due_at ? dateTime(t.due_at) : 'sem prazo'}
+                  </span>
                 </li>
               );
             })}

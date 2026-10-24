@@ -13,9 +13,19 @@ const COLUMNS = `id, name, description, price::float8 as price, created_at, upda
 
 const LevelSchema = z.object({
   name: z.string().trim().min(1, 'Informe o nome do nível.').max(80),
-  description: z.string().trim().max(300).nullish().transform((v) => v || null),
+  description: z
+    .string()
+    .trim()
+    .max(300)
+    .nullish()
+    .transform((v) => v || null),
   // Valor cobrado dos clientes do nível (R$); null = sem valor definido
-  price: z.number({ message: 'Valor inválido.' }).min(0, 'O valor não pode ser negativo.').max(9_999_999_999).nullish().transform((v) => (v == null ? null : Math.round(v * 100) / 100)),
+  price: z
+    .number({ message: 'Valor inválido.' })
+    .min(0, 'O valor não pode ser negativo.')
+    .max(9_999_999_999)
+    .nullish()
+    .transform((v) => (v == null ? null : Math.round(v * 100) / 100)),
 });
 
 clientLevelsRouter.get('/', async (req, res) => {
@@ -28,10 +38,12 @@ clientLevelsRouter.post('/', requireRole(...MANAGER_ROLES), async (req, res) => 
   const user = authUser(req);
   const body = parseBody(LevelSchema, req.body);
   await ensureNameFree(user.organizationId, body.name);
-  const created = await one(
-    `insert into lp_client_levels (organization_id, name, description, price) values ($1, $2, $3, $4) returning ${COLUMNS}`,
-    [user.organizationId, body.name, body.description, body.price],
-  );
+  const created = await one(`insert into lp_client_levels (organization_id, name, description, price) values ($1, $2, $3, $4) returning ${COLUMNS}`, [
+    user.organizationId,
+    body.name,
+    body.description,
+    body.price,
+  ]);
   res.status(201).json(created);
 });
 
@@ -59,9 +71,10 @@ clientLevelsRouter.delete('/:id', requireRole(...MANAGER_ROLES), async (req, res
 });
 
 async function ensureNameFree(orgId: string, name: string, exceptId?: string) {
-  const taken = await one(
-    'select 1 from lp_client_levels where organization_id = $1 and lower(name) = lower($2) and ($3::uuid is null or id <> $3)',
-    [orgId, name, exceptId ?? null],
-  );
+  const taken = await one('select 1 from lp_client_levels where organization_id = $1 and lower(name) = lower($2) and ($3::uuid is null or id <> $3)', [
+    orgId,
+    name,
+    exceptId ?? null,
+  ]);
   if (taken) throw new AppError(409, 'Já existe um nível com esse nome.');
 }

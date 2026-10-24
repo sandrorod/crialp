@@ -16,7 +16,11 @@ function CompanySelect({ value, onChange, required }: { value: string; onChange:
   return (
     <Select value={value} onChange={(e) => onChange(e.target.value)} required={required}>
       <option value="">{required ? 'Selecione…' : '—'}</option>
-      {data?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+      {data?.map((c) => (
+        <option key={c.id} value={c.id}>
+          {c.name}
+        </option>
+      ))}
     </Select>
   );
 }
@@ -25,18 +29,34 @@ function Footer({ onClose, saving, form, onDelete }: { onClose: () => void; savi
   return (
     <>
       {onDelete ? (
-        <Button variant="ghost" className="mr-auto text-red-600 hover:bg-red-50 hover:text-red-700" onClick={onDelete} disabled={saving}>Excluir</Button>
+        <Button variant="ghost" className="mr-auto text-red-600 hover:bg-red-50 hover:text-red-700" onClick={onDelete} disabled={saving}>
+          Excluir
+        </Button>
       ) : null}
-      <Button variant="secondary" onClick={onClose} disabled={saving}>Cancelar</Button>
-      <Button type="submit" form={form} loading={saving}>Salvar</Button>
+      <Button variant="secondary" onClick={onClose} disabled={saving}>
+        Cancelar
+      </Button>
+      <Button type="submit" form={form} loading={saving}>
+        Salvar
+      </Button>
     </>
   );
 }
 
 // ─── Contato ────────────────────────────────────────────────────────
 export function ContactForm({
-  contact, initial, companyId, onClose, onSaved,
-}: { contact?: CrmContact | null; initial?: Partial<CrmContact>; companyId?: string; onClose: () => void; onSaved: () => void }) {
+  contact,
+  initial,
+  companyId,
+  onClose,
+  onSaved,
+}: {
+  contact?: CrmContact | null;
+  initial?: Partial<CrmContact>;
+  companyId?: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   const [f, setF] = useState({
     company_id: contact?.company_id ?? companyId ?? '',
     name: contact?.name ?? initial?.name ?? '',
@@ -54,8 +74,13 @@ export function ContactForm({
     setSaving(true);
     try {
       const body = {
-        company_id: f.company_id, name: f.name, job_title: orNull(f.job_title), email: orNull(f.email),
-        phone: orNull(f.phone), whatsapp: orNull(f.whatsapp), notes: orNull(f.notes),
+        company_id: f.company_id,
+        name: f.name,
+        job_title: orNull(f.job_title),
+        email: orNull(f.email),
+        phone: orNull(f.phone),
+        whatsapp: orNull(f.whatsapp),
+        notes: orNull(f.notes),
       };
       if (contact) await crmService.updateContact(contact.id, body);
       else await crmService.createContact(body);
@@ -70,19 +95,39 @@ export function ContactForm({
   };
 
   return (
-    <Modal open title={contact ? 'Editar contato' : 'Novo contato'} onClose={onClose} busy={saving} footer={<Footer onClose={onClose} saving={saving} form="crm-contact" />}>
+    <Modal
+      open
+      title={contact ? 'Editar contato' : 'Novo contato'}
+      onClose={onClose}
+      busy={saving}
+      footer={<Footer onClose={onClose} saving={saving} form="crm-contact" />}
+    >
       <form id="crm-contact" onSubmit={submit} className="space-y-3">
         {!companyId ? (
-          <Field label="Empresa *"><CompanySelect value={f.company_id} onChange={(v) => setF({ ...f, company_id: v })} required /></Field>
+          <Field label="Empresa *">
+            <CompanySelect value={f.company_id} onChange={(v) => setF({ ...f, company_id: v })} required />
+          </Field>
         ) : null}
-        <Field label="Nome *"><Input required value={f.name} onChange={set('name')} /></Field>
+        <Field label="Nome *">
+          <Input required value={f.name} onChange={set('name')} />
+        </Field>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Cargo"><Input value={f.job_title} onChange={set('job_title')} /></Field>
-          <Field label="E-mail"><Input type="email" value={f.email} onChange={set('email')} /></Field>
-          <Field label="Telefone"><Input value={f.phone} onChange={set('phone')} /></Field>
-          <Field label="WhatsApp (com DDD)"><Input placeholder="(11) 98888-7777" value={f.whatsapp} onChange={set('whatsapp')} /></Field>
+          <Field label="Cargo">
+            <Input value={f.job_title} onChange={set('job_title')} />
+          </Field>
+          <Field label="E-mail">
+            <Input type="email" value={f.email} onChange={set('email')} />
+          </Field>
+          <Field label="Telefone">
+            <Input value={f.phone} onChange={set('phone')} />
+          </Field>
+          <Field label="WhatsApp (com DDD)">
+            <Input placeholder="(11) 98888-7777" value={f.whatsapp} onChange={set('whatsapp')} />
+          </Field>
         </div>
-        <Field label="Observações"><Textarea value={f.notes} onChange={set('notes')} /></Field>
+        <Field label="Observações">
+          <Textarea value={f.notes} onChange={set('notes')} />
+        </Field>
       </form>
     </Modal>
   );
@@ -90,8 +135,18 @@ export function ContactForm({
 
 // ─── Negócio ────────────────────────────────────────────────────────
 export function DealForm({
-  deal, companyId, stageId, onClose, onSaved,
-}: { deal?: CrmDeal | null; companyId?: string; stageId?: string; onClose: () => void; onSaved: () => void }) {
+  deal,
+  companyId,
+  stageId,
+  onClose,
+  onSaved,
+}: {
+  deal?: CrmDeal | null;
+  companyId?: string;
+  stageId?: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   const { data: stages } = useAsync(() => crmService.stages(), []);
   const [f, setF] = useState({
     title: deal?.title ?? '',
@@ -112,8 +167,13 @@ export function DealForm({
     setSaving(true);
     try {
       const body = {
-        title: f.title, company_id: f.company_id, contact_id: f.contact_id || null, stage_id: stage,
-        value: Number(f.value.replace(/\./g, '').replace(',', '.')) || 0, expected_close: f.expected_close || null, notes: orNull(f.notes),
+        title: f.title,
+        company_id: f.company_id,
+        contact_id: f.contact_id || null,
+        stage_id: stage,
+        value: Number(f.value.replace(/\./g, '').replace(',', '.')) || 0,
+        expected_close: f.expected_close || null,
+        notes: orNull(f.notes),
       };
       if (deal) await crmService.updateDeal(deal.id, body);
       else await crmService.createDeal(body);
@@ -151,35 +211,51 @@ export function DealForm({
       footer={<Footer onClose={onClose} saving={saving} form="crm-deal" onDelete={deal ? () => void remove() : undefined} />}
     >
       <form id="crm-deal" onSubmit={submit} className="space-y-3">
-        <Field label="Título *"><Input required value={f.title} onChange={set('title')} placeholder="Ex.: Plano anual do site" /></Field>
+        <Field label="Título *">
+          <Input required value={f.title} onChange={set('title')} placeholder="Ex.: Plano anual do site" />
+        </Field>
         {!companyId ? (
-          <Field label="Empresa *"><CompanySelect value={f.company_id} onChange={(v) => setF({ ...f, company_id: v, contact_id: '' })} required /></Field>
+          <Field label="Empresa *">
+            <CompanySelect value={f.company_id} onChange={(v) => setF({ ...f, company_id: v, contact_id: '' })} required />
+          </Field>
         ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Contato">
             <Select value={f.contact_id} onChange={set('contact_id')}>
               <option value="">—</option>
-              {detail?.contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {detail?.contacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
             </Select>
           </Field>
           <Field label="Etapa">
             <Select value={stage} onChange={set('stage_id')}>
-              {stages?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {stages?.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
             </Select>
           </Field>
-          <Field label="Valor (R$)"><Input inputMode="decimal" value={f.value} onChange={set('value')} placeholder="0,00" /></Field>
-          <Field label="Previsão de fechamento"><Input type="date" value={f.expected_close} onChange={set('expected_close')} /></Field>
+          <Field label="Valor (R$)">
+            <Input inputMode="decimal" value={f.value} onChange={set('value')} placeholder="0,00" />
+          </Field>
+          <Field label="Previsão de fechamento">
+            <Input type="date" value={f.expected_close} onChange={set('expected_close')} />
+          </Field>
         </div>
-        <Field label="Observações"><Textarea value={f.notes} onChange={set('notes')} /></Field>
+        <Field label="Observações">
+          <Textarea value={f.notes} onChange={set('notes')} />
+        </Field>
       </form>
     </Modal>
   );
 }
 
 // ─── Tarefa ─────────────────────────────────────────────────────────
-export function TaskForm({
-  task, companyId, onClose, onSaved,
-}: { task?: CrmTask | null; companyId?: string; onClose: () => void; onSaved: () => void }) {
+export function TaskForm({ task, companyId, onClose, onSaved }: { task?: CrmTask | null; companyId?: string; onClose: () => void; onSaved: () => void }) {
   const { user } = useAuth();
   const isManager = !!user && MANAGERS.includes(user.role);
   const { data: users } = useAsync(() => (isManager ? crmService.users() : Promise.resolve([])), [isManager]);
@@ -198,8 +274,11 @@ export function TaskForm({
     setSaving(true);
     try {
       const body = {
-        title: f.title, description: orNull(f.description), due_at: f.due_at ? new Date(f.due_at).toISOString() : null,
-        company_id: f.company_id || null, assignee_id: isManager ? f.assignee_id || null : null,
+        title: f.title,
+        description: orNull(f.description),
+        due_at: f.due_at ? new Date(f.due_at).toISOString() : null,
+        company_id: f.company_id || null,
+        assignee_id: isManager ? f.assignee_id || null : null,
       };
       if (task) await crmService.updateTask(task.id, body);
       else await crmService.createTask(body);
@@ -214,23 +293,41 @@ export function TaskForm({
   };
 
   return (
-    <Modal open title={task ? 'Editar tarefa' : 'Nova tarefa'} onClose={onClose} busy={saving} footer={<Footer onClose={onClose} saving={saving} form="crm-task" />}>
+    <Modal
+      open
+      title={task ? 'Editar tarefa' : 'Nova tarefa'}
+      onClose={onClose}
+      busy={saving}
+      footer={<Footer onClose={onClose} saving={saving} form="crm-task" />}
+    >
       <form id="crm-task" onSubmit={submit} className="space-y-3">
-        <Field label="O que fazer *"><Input required value={f.title} onChange={set('title')} placeholder="Ex.: Ligar para retomar a proposta" /></Field>
+        <Field label="O que fazer *">
+          <Input required value={f.title} onChange={set('title')} placeholder="Ex.: Ligar para retomar a proposta" />
+        </Field>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Quando"><Input type="datetime-local" value={f.due_at} onChange={set('due_at')} /></Field>
+          <Field label="Quando">
+            <Input type="datetime-local" value={f.due_at} onChange={set('due_at')} />
+          </Field>
           {!companyId ? (
-            <Field label="Empresa"><CompanySelect value={f.company_id} onChange={(v) => setF({ ...f, company_id: v })} /></Field>
+            <Field label="Empresa">
+              <CompanySelect value={f.company_id} onChange={(v) => setF({ ...f, company_id: v })} />
+            </Field>
           ) : null}
           {isManager ? (
             <Field label="Responsável">
               <Select value={f.assignee_id} onChange={set('assignee_id')}>
-                {users?.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                {users?.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
               </Select>
             </Field>
           ) : null}
         </div>
-        <Field label="Detalhes"><Textarea value={f.description} onChange={set('description')} /></Field>
+        <Field label="Detalhes">
+          <Textarea value={f.description} onChange={set('description')} />
+        </Field>
       </form>
     </Modal>
   );

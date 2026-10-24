@@ -25,10 +25,32 @@ after(() => pool.end());
 
 describe('SSRF: endereços bloqueados', () => {
   const blocked = [
-    '127.0.0.1', '127.1.2.3', '10.0.0.5', '172.16.0.1', '172.31.255.255', '192.168.1.1', '169.254.169.254', '100.64.0.1',
-    '0.0.0.0', '224.0.0.1', '255.255.255.255', '198.18.0.1', '::1', '::', 'fe80::1', 'fd00:ec2::254', 'fc00::1',
-    '::ffff:127.0.0.1', '::ffff:7f00:1', '0:0:0:0:0:ffff:a9fe:a9fe', '::ffff:10.0.0.1', '64:ff9b::7f00:1', '2002:7f00:1::',
-    '::127.0.0.1', 'ff02::1', 'lixo',
+    '127.0.0.1',
+    '127.1.2.3',
+    '10.0.0.5',
+    '172.16.0.1',
+    '172.31.255.255',
+    '192.168.1.1',
+    '169.254.169.254',
+    '100.64.0.1',
+    '0.0.0.0',
+    '224.0.0.1',
+    '255.255.255.255',
+    '198.18.0.1',
+    '::1',
+    '::',
+    'fe80::1',
+    'fd00:ec2::254',
+    'fc00::1',
+    '::ffff:127.0.0.1',
+    '::ffff:7f00:1',
+    '0:0:0:0:0:ffff:a9fe:a9fe',
+    '::ffff:10.0.0.1',
+    '64:ff9b::7f00:1',
+    '2002:7f00:1::',
+    '::127.0.0.1',
+    'ff02::1',
+    'lixo',
   ];
   for (const ip of blocked) it(`bloqueia ${ip}`, () => assert.equal(isPrivateIp(ip), true));
 
@@ -36,7 +58,14 @@ describe('SSRF: endereços bloqueados', () => {
   for (const ip of allowed) it(`permite ${ip}`, () => assert.equal(isPrivateIp(ip), false));
 
   // A URL normaliza [::ffff:127.0.0.1] para [::ffff:7f00:1]: antes passava pela checagem
-  const literals = ['http://[::ffff:127.0.0.1]/', 'http://2130706433/', 'http://0x7f.1/', 'http://127.1/', 'http://[::1]:8080/', 'http://169.254.169.254/latest/meta-data/'];
+  const literals = [
+    'http://[::ffff:127.0.0.1]/',
+    'http://2130706433/',
+    'http://0x7f.1/',
+    'http://127.1/',
+    'http://[::1]:8080/',
+    'http://169.254.169.254/latest/meta-data/',
+  ];
   for (const raw of literals) {
     it(`assertPublicHost recusa ${raw}`, async () => {
       await assert.rejects(assertPublicHost(new URL(raw)), (e: any) => e.code === 'BLOCKED_HOST');
@@ -94,7 +123,10 @@ describe('SSRF: redirecionamentos', () => {
     const m = publicDns();
     const agent = new MockAgent();
     agent.disableNetConnect();
-    agent.get('https://site.exemplo.com').intercept({ path: '/foto.jpg' }).reply(302, '', { headers: { location: 'http://169.254.169.254/latest/meta-data/' } });
+    agent
+      .get('https://site.exemplo.com')
+      .intercept({ path: '/foto.jpg' })
+      .reply(302, '', { headers: { location: 'http://169.254.169.254/latest/meta-data/' } });
     try {
       await assert.rejects(fetchPublic(new URL('https://site.exemplo.com/foto.jpg'), { dispatcher: agent }), (e: any) => e.code === 'BLOCKED_HOST');
     } finally {
@@ -123,9 +155,16 @@ describe('SSRF: redirecionamentos', () => {
     const m = publicDns();
     const agent = new MockAgent();
     agent.disableNetConnect();
-    agent.get('https://site.exemplo.com').intercept({ path: '/loop' }).reply(302, '', { headers: { location: '/loop' } }).persist();
+    agent
+      .get('https://site.exemplo.com')
+      .intercept({ path: '/loop' })
+      .reply(302, '', { headers: { location: '/loop' } })
+      .persist();
     try {
-      await assert.rejects(fetchPublic(new URL('https://site.exemplo.com/loop'), { dispatcher: agent, maxRedirects: 3 }), (e: any) => e.code === 'TOO_MANY_REDIRECTS');
+      await assert.rejects(
+        fetchPublic(new URL('https://site.exemplo.com/loop'), { dispatcher: agent, maxRedirects: 3 }),
+        (e: any) => e.code === 'TOO_MANY_REDIRECTS',
+      );
     } finally {
       m.mock.restore();
       await agent.close();
@@ -136,8 +175,14 @@ describe('SSRF: redirecionamentos', () => {
     const m = publicDns();
     const agent = new MockAgent();
     agent.disableNetConnect();
-    agent.get('https://site.exemplo.com').intercept({ path: '/' }).reply(301, '', { headers: { location: 'https://www.exemplo.com/inicio' } });
-    agent.get('https://www.exemplo.com').intercept({ path: '/inicio' }).reply(200, '<html><title>Empresa</title></html>', { headers: { 'content-type': 'text/html' } });
+    agent
+      .get('https://site.exemplo.com')
+      .intercept({ path: '/' })
+      .reply(301, '', { headers: { location: 'https://www.exemplo.com/inicio' } });
+    agent
+      .get('https://www.exemplo.com')
+      .intercept({ path: '/inicio' })
+      .reply(200, '<html><title>Empresa</title></html>', { headers: { 'content-type': 'text/html' } });
     try {
       const { res, url } = await fetchPublic(new URL('https://site.exemplo.com/'), { dispatcher: agent });
       assert.equal(res.status, 200);
@@ -262,7 +307,7 @@ describe('HTML das páginas: conteúdo malicioso não fecha <style>', () => {
     const colors = normalizeElementColors({
       desktop: {
         '</style><script>alert(1)</script>': { text: '#ff0000' },
-        'h1': { text: 'red;}</style><script>alert(1)</script>' },
+        h1: { text: 'red;}</style><script>alert(1)</script>' },
       },
     });
     const css = elementColorsCss(colors);
@@ -282,7 +327,10 @@ describe('Configuração de produção', () => {
     const out = execFileSync(
       process.execPath,
       ['--import', 'tsx', '-e', `import('./src/config/env.ts').then(({ env }) => process.stdout.write(JSON.stringify(env.${field} ?? null)))`],
-      { cwd: path.resolve(here, '..'), env: { PATH: process.env.PATH, NODE_ENV: 'production', DATABASE_URL: 'postgres://lp:senha-forte-do-banco@db:5432/lp', ...vars } },
+      {
+        cwd: path.resolve(here, '..'),
+        env: { PATH: process.env.PATH, NODE_ENV: 'production', DATABASE_URL: 'postgres://lp:senha-forte-do-banco@db:5432/lp', ...vars },
+      },
     ).toString();
     return JSON.parse(out) as string | null;
   };

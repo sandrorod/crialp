@@ -29,11 +29,35 @@ const COMMERCIAL_LISTS: { key: keyof CommercialInfo; label: string }[] = [
 
 export function emptyDraft(): CompanyDraft {
   return {
-    name: '', trade_name: null, legal_name: null, description: null, segment: null, reference_url: null,
-    phone: null, mobile: null, whatsapp: null, email: null, address: null, number: null, neighborhood: null,
-    city: null, state: null, zip_code: null, website: null, instagram: null, facebook: null, youtube: null,
-    linkedin: null, tiktok: null, other_socials: [], opening_hours: null, commercial_info: {},
-    services: [], products: [], images: [], testimonials: [],
+    name: '',
+    trade_name: null,
+    legal_name: null,
+    description: null,
+    segment: null,
+    reference_url: null,
+    phone: null,
+    mobile: null,
+    whatsapp: null,
+    email: null,
+    address: null,
+    number: null,
+    neighborhood: null,
+    city: null,
+    state: null,
+    zip_code: null,
+    website: null,
+    instagram: null,
+    facebook: null,
+    youtube: null,
+    linkedin: null,
+    tiktok: null,
+    other_socials: [],
+    opening_hours: null,
+    commercial_info: {},
+    services: [],
+    products: [],
+    images: [],
+    testimonials: [],
   };
 }
 
@@ -76,7 +100,14 @@ export function CompanyForm({ value, onChange, companyId }: { value: CompanyDraf
           <TextField label="Celular" value={value.mobile} onChange={(v) => set({ mobile: v })} placeholder="(11) 99999-9999" />
           <TextField label="WhatsApp" value={value.whatsapp} onChange={(v) => set({ whatsapp: v })} hint="Usado para gerar os botões wa.me automaticamente." />
           <TextField label="E-mail" type="email" value={value.email} onChange={(v) => set({ email: v })} />
-          <TextField className="sm:col-span-2" label="Horário de funcionamento" multiline value={value.opening_hours} onChange={(v) => set({ opening_hours: v })} placeholder="Seg a Sex, 8h às 18h · Sáb, 8h às 12h" />
+          <TextField
+            className="sm:col-span-2"
+            label="Horário de funcionamento"
+            multiline
+            value={value.opening_hours}
+            onChange={(v) => set({ opening_hours: v })}
+            placeholder="Seg a Sex, 8h às 18h · Sáb, 8h às 12h"
+          />
         </div>
       </CardSection>
 
@@ -104,14 +135,34 @@ export function CompanyForm({ value, onChange, companyId }: { value: CompanyDraf
             <span className="block text-[13px] font-medium text-zinc-700">Outras redes</span>
             {value.other_socials.map((s, i) => (
               <div key={i} className="flex gap-2">
-                <Input className="w-36" value={s.network} onChange={(e) => set({ other_socials: value.other_socials.map((x, j) => (j === i ? { ...x, network: e.target.value } : x)) })} />
-                <Input value={s.url} onChange={(e) => set({ other_socials: value.other_socials.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) })} />
-                <Button type="button" variant="ghost" onClick={() => set({ other_socials: value.other_socials.filter((_, j) => j !== i) })} icon={<Trash2 className="size-4" />} aria-label="Remover" />
+                <Input
+                  className="w-36"
+                  value={s.network}
+                  onChange={(e) => set({ other_socials: value.other_socials.map((x, j) => (j === i ? { ...x, network: e.target.value } : x)) })}
+                />
+                <Input
+                  value={s.url}
+                  onChange={(e) => set({ other_socials: value.other_socials.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) })}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => set({ other_socials: value.other_socials.filter((_, j) => j !== i) })}
+                  icon={<Trash2 className="size-4" />}
+                  aria-label="Remover"
+                />
               </div>
             ))}
           </div>
         ) : null}
-        <Button type="button" variant="ghost" size="sm" className="mt-3" icon={<Plus className="size-4" />} onClick={() => set({ other_socials: [...value.other_socials, { network: '', url: '' }] })}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="mt-3"
+          icon={<Plus className="size-4" />}
+          onClick={() => set({ other_socials: [...value.other_socials, { network: '', url: '' }] })}
+        >
           Outra rede
         </Button>
       </CardSection>
@@ -120,7 +171,13 @@ export function CompanyForm({ value, onChange, companyId }: { value: CompanyDraf
         title={`Serviços (${value.services.length})`}
         description="Todos os serviços identificados. Edite, reordene removendo ou adicione novos."
         actions={
-          <Button type="button" variant="secondary" size="sm" icon={<Plus className="size-4" />} onClick={() => set({ services: [...value.services, { name: '', description: null, benefits: [], details: null }] })}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            icon={<Plus className="size-4" />}
+            onClick={() => set({ services: [...value.services, { name: '', description: null, benefits: [], details: null }] })}
+          >
             Adicionar
           </Button>
         }
@@ -130,13 +187,38 @@ export function CompanyForm({ value, onChange, companyId }: { value: CompanyDraf
             {value.services.map((s, i) => (
               <div key={i} className="rounded-lg border border-zinc-200 p-4">
                 <div className="flex gap-2">
-                  <Input placeholder="Nome do serviço" value={s.name} onChange={(e) => set({ services: value.services.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} className="font-medium" />
-                  <Button type="button" variant="ghost" onClick={() => set({ services: value.services.filter((_, j) => j !== i) })} icon={<Trash2 className="size-4" />} aria-label="Remover serviço" />
+                  <Input
+                    placeholder="Nome do serviço"
+                    value={s.name}
+                    onChange={(e) => set({ services: value.services.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })}
+                    className="font-medium"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => set({ services: value.services.filter((_, j) => j !== i) })}
+                    icon={<Trash2 className="size-4" />}
+                    aria-label="Remover serviço"
+                  />
                 </div>
-                <Textarea className="mt-2 min-h-[64px]" placeholder="Descrição" value={s.description ?? ''} onChange={(e) => set({ services: value.services.map((x, j) => (j === i ? { ...x, description: e.target.value || null } : x)) })} />
-                <Textarea className="mt-2 min-h-[56px]" placeholder="Detalhes / informações adicionais" value={s.details ?? ''} onChange={(e) => set({ services: value.services.map((x, j) => (j === i ? { ...x, details: e.target.value || null } : x)) })} />
+                <Textarea
+                  className="mt-2 min-h-[64px]"
+                  placeholder="Descrição"
+                  value={s.description ?? ''}
+                  onChange={(e) => set({ services: value.services.map((x, j) => (j === i ? { ...x, description: e.target.value || null } : x)) })}
+                />
+                <Textarea
+                  className="mt-2 min-h-[56px]"
+                  placeholder="Detalhes / informações adicionais"
+                  value={s.details ?? ''}
+                  onChange={(e) => set({ services: value.services.map((x, j) => (j === i ? { ...x, details: e.target.value || null } : x)) })}
+                />
                 <div className="mt-3">
-                  <ListEditor label="Benefícios" values={s.benefits} onChange={(b) => set({ services: value.services.map((x, j) => (j === i ? { ...x, benefits: b } : x)) })} />
+                  <ListEditor
+                    label="Benefícios"
+                    values={s.benefits}
+                    onChange={(b) => set({ services: value.services.map((x, j) => (j === i ? { ...x, benefits: b } : x)) })}
+                  />
                 </div>
               </div>
             ))}
@@ -149,7 +231,13 @@ export function CompanyForm({ value, onChange, companyId }: { value: CompanyDraf
       <CardSection
         title={`Produtos (${value.products.length})`}
         actions={
-          <Button type="button" variant="secondary" size="sm" icon={<Plus className="size-4" />} onClick={() => set({ products: [...value.products, { name: '', description: null, features: [], benefits: [] }] })}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            icon={<Plus className="size-4" />}
+            onClick={() => set({ products: [...value.products, { name: '', description: null, features: [], benefits: [] }] })}
+          >
             Adicionar
           </Button>
         }
@@ -159,13 +247,37 @@ export function CompanyForm({ value, onChange, companyId }: { value: CompanyDraf
             {value.products.map((p, i) => (
               <div key={i} className="rounded-lg border border-zinc-200 p-4">
                 <div className="flex gap-2">
-                  <Input placeholder="Nome do produto" value={p.name} onChange={(e) => set({ products: value.products.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} className="font-medium" />
-                  <Button type="button" variant="ghost" onClick={() => set({ products: value.products.filter((_, j) => j !== i) })} icon={<Trash2 className="size-4" />} aria-label="Remover produto" />
+                  <Input
+                    placeholder="Nome do produto"
+                    value={p.name}
+                    onChange={(e) => set({ products: value.products.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })}
+                    className="font-medium"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => set({ products: value.products.filter((_, j) => j !== i) })}
+                    icon={<Trash2 className="size-4" />}
+                    aria-label="Remover produto"
+                  />
                 </div>
-                <Textarea className="mt-2 min-h-[64px]" placeholder="Descrição" value={p.description ?? ''} onChange={(e) => set({ products: value.products.map((x, j) => (j === i ? { ...x, description: e.target.value || null } : x)) })} />
+                <Textarea
+                  className="mt-2 min-h-[64px]"
+                  placeholder="Descrição"
+                  value={p.description ?? ''}
+                  onChange={(e) => set({ products: value.products.map((x, j) => (j === i ? { ...x, description: e.target.value || null } : x)) })}
+                />
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <ListEditor label="Características" values={p.features} onChange={(f) => set({ products: value.products.map((x, j) => (j === i ? { ...x, features: f } : x)) })} />
-                  <ListEditor label="Benefícios" values={p.benefits} onChange={(b) => set({ products: value.products.map((x, j) => (j === i ? { ...x, benefits: b } : x)) })} />
+                  <ListEditor
+                    label="Características"
+                    values={p.features}
+                    onChange={(f) => set({ products: value.products.map((x, j) => (j === i ? { ...x, features: f } : x)) })}
+                  />
+                  <ListEditor
+                    label="Benefícios"
+                    values={p.benefits}
+                    onChange={(b) => set({ products: value.products.map((x, j) => (j === i ? { ...x, benefits: b } : x)) })}
+                  />
                 </div>
               </div>
             ))}
@@ -178,7 +290,12 @@ export function CompanyForm({ value, onChange, companyId }: { value: CompanyDraf
       <CardSection title="Informações comerciais" description="Base para diferenciais, argumentos e CTAs da página.">
         <div className="grid gap-5 sm:grid-cols-2">
           {COMMERCIAL_LISTS.map(({ key, label }) => (
-            <ListEditor key={key} label={label} values={(value.commercial_info[key] as string[] | undefined) ?? []} onChange={(v) => setCommercial({ [key]: v })} />
+            <ListEditor
+              key={key}
+              label={label}
+              values={(value.commercial_info[key] as string[] | undefined) ?? []}
+              onChange={(v) => setCommercial({ [key]: v })}
+            />
           ))}
           <Field label="Público-alvo" className="sm:col-span-2">
             <Textarea value={value.commercial_info.target_audience ?? ''} onChange={(e) => setCommercial({ target_audience: e.target.value || null })} />
@@ -190,7 +307,13 @@ export function CompanyForm({ value, onChange, companyId }: { value: CompanyDraf
         title={`Depoimentos (${value.testimonials.length})`}
         description="Somente depoimentos reais. A seção só aparece na página se houver algum."
         actions={
-          <Button type="button" variant="secondary" size="sm" icon={<Plus className="size-4" />} onClick={() => set({ testimonials: [...value.testimonials, { author: null, text: '', source_url: null }] })}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            icon={<Plus className="size-4" />}
+            onClick={() => set({ testimonials: [...value.testimonials, { author: null, text: '', source_url: null }] })}
+          >
             Adicionar
           </Button>
         }
@@ -200,10 +323,25 @@ export function CompanyForm({ value, onChange, companyId }: { value: CompanyDraf
             {value.testimonials.map((t, i) => (
               <div key={i} className="rounded-lg border border-zinc-200 p-4">
                 <div className="flex gap-2">
-                  <Input placeholder="Autor" value={t.author ?? ''} onChange={(e) => set({ testimonials: value.testimonials.map((x, j) => (j === i ? { ...x, author: e.target.value || null } : x)) })} />
-                  <Button type="button" variant="ghost" onClick={() => set({ testimonials: value.testimonials.filter((_, j) => j !== i) })} icon={<Trash2 className="size-4" />} aria-label="Remover depoimento" />
+                  <Input
+                    placeholder="Autor"
+                    value={t.author ?? ''}
+                    onChange={(e) => set({ testimonials: value.testimonials.map((x, j) => (j === i ? { ...x, author: e.target.value || null } : x)) })}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => set({ testimonials: value.testimonials.filter((_, j) => j !== i) })}
+                    icon={<Trash2 className="size-4" />}
+                    aria-label="Remover depoimento"
+                  />
                 </div>
-                <Textarea className="mt-2" placeholder="Texto do depoimento" value={t.text} onChange={(e) => set({ testimonials: value.testimonials.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)) })} />
+                <Textarea
+                  className="mt-2"
+                  placeholder="Texto do depoimento"
+                  value={t.text}
+                  onChange={(e) => set({ testimonials: value.testimonials.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)) })}
+                />
               </div>
             ))}
           </div>
@@ -277,9 +415,13 @@ function ImagesEditor({ images, onChange, companyId }: { images: CompanyImage[];
           ) : null}
           {images.length ? (
             allowed < images.length ? (
-              <Button type="button" size="sm" icon={<ShieldCheck className="size-4" />} onClick={() => setAll(true)}>Liberar todas</Button>
+              <Button type="button" size="sm" icon={<ShieldCheck className="size-4" />} onClick={() => setAll(true)}>
+                Liberar todas
+              </Button>
             ) : (
-              <Button type="button" variant="ghost" size="sm" onClick={() => setAll(false)}>Bloquear todas</Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setAll(false)}>
+                Bloquear todas
+              </Button>
             )
           ) : null}
         </div>
@@ -294,10 +436,21 @@ function ImagesEditor({ images, onChange, companyId }: { images: CompanyImage[];
       {images.length ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {images.map((img, i) => (
-            <div key={`${img.url}-${i}`} className={cn('overflow-hidden rounded-lg border transition', img.usage_allowed ? 'border-emerald-300 ring-1 ring-emerald-200' : 'border-zinc-200')}>
+            <div
+              key={`${img.url}-${i}`}
+              className={cn(
+                'overflow-hidden rounded-lg border transition',
+                img.usage_allowed ? 'border-emerald-300 ring-1 ring-emerald-200' : 'border-zinc-200',
+              )}
+            >
               <div className="relative aspect-[4/3] bg-zinc-100">
                 <Thumb url={img.url} alt={img.alt_text ?? ''} contain={img.type === 'logo'} />
-                <button type="button" onClick={() => onChange(images.filter((_, j) => j !== i))} className="absolute right-1.5 top-1.5 rounded-md bg-white/90 p-1.5 text-zinc-600 shadow-sm hover:text-red-600" aria-label="Remover imagem">
+                <button
+                  type="button"
+                  onClick={() => onChange(images.filter((_, j) => j !== i))}
+                  className="absolute right-1.5 top-1.5 rounded-md bg-white/90 p-1.5 text-zinc-600 shadow-sm hover:text-red-600"
+                  aria-label="Remover imagem"
+                >
                   <Trash2 className="size-3.5" />
                 </button>
                 <span className="absolute left-1.5 top-1.5 rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-600">
@@ -306,11 +459,25 @@ function ImagesEditor({ images, onChange, companyId }: { images: CompanyImage[];
               </div>
               <div className="space-y-2 p-2.5">
                 <Select className="h-8 text-xs" value={img.type} onChange={(e) => update(i, { type: e.target.value as ImageType })}>
-                  {IMAGE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  {IMAGE_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
                 </Select>
-                <Input className="h-8 text-xs" placeholder="Texto alternativo" value={img.alt_text ?? ''} onChange={(e) => update(i, { alt_text: e.target.value || null })} />
+                <Input
+                  className="h-8 text-xs"
+                  placeholder="Texto alternativo"
+                  value={img.alt_text ?? ''}
+                  onChange={(e) => update(i, { alt_text: e.target.value || null })}
+                />
                 <label className="flex cursor-pointer items-start gap-2 text-xs text-zinc-600">
-                  <input type="checkbox" className="mt-0.5 accent-emerald-600" checked={img.usage_allowed} onChange={(e) => update(i, { usage_allowed: e.target.checked })} />
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 accent-emerald-600"
+                    checked={img.usage_allowed}
+                    onChange={(e) => update(i, { usage_allowed: e.target.checked })}
+                  />
                   <span className="flex items-center gap-1">
                     {img.usage_allowed ? <ShieldCheck className="size-3.5 text-emerald-600" /> : null}
                     Tenho permissão de uso
@@ -327,11 +494,32 @@ function ImagesEditor({ images, onChange, companyId }: { images: CompanyImage[];
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
           <Link2 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
-          <Input className="pl-9" placeholder="Adicionar imagem por URL" value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addUrl(); } }} />
+          <Input
+            className="pl-9"
+            placeholder="Adicionar imagem por URL"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addUrl();
+              }
+            }}
+          />
         </div>
-        <Button type="button" variant="secondary" icon={<ImagePlus className="size-4" />} onClick={addUrl}>Adicionar URL</Button>
-        <Button type="button" variant="secondary" loading={uploading} icon={<Upload className="size-4" />} onClick={() => fileRef.current?.click()}>Enviar arquivo</Button>
-        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
+        <Button type="button" variant="secondary" icon={<ImagePlus className="size-4" />} onClick={addUrl}>
+          Adicionar URL
+        </Button>
+        <Button type="button" variant="secondary" loading={uploading} icon={<Upload className="size-4" />} onClick={() => fileRef.current?.click()}>
+          Enviar arquivo
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          hidden
+          onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
+        />
       </div>
     </CardSection>
   );
@@ -346,5 +534,14 @@ function Thumb({ url, alt, contain }: { url: string; alt: string; contain?: bool
       </div>
     );
   }
-  return <img src={url} alt={alt} loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} className={cn('h-full w-full', contain ? 'object-contain p-3' : 'object-cover')} />;
+  return (
+    <img
+      src={url}
+      alt={alt}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => setBroken(true)}
+      className={cn('h-full w-full', contain ? 'object-contain p-3' : 'object-cover')}
+    />
+  );
 }

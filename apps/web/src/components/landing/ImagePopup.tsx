@@ -34,7 +34,10 @@ function Chips<T>({ items, value, onChange }: { items: { value: T; label: string
           key={i.label}
           type="button"
           onClick={() => onChange(i.value)}
-          className={cn('whitespace-nowrap rounded-md border px-2 py-1 text-xs', value === i.value ? 'border-ink bg-ink text-white' : 'border-zinc-200 text-zinc-600 hover:border-zinc-400')}
+          className={cn(
+            'whitespace-nowrap rounded-md border px-2 py-1 text-xs',
+            value === i.value ? 'border-ink bg-ink text-white' : 'border-zinc-200 text-zinc-600 hover:border-zinc-400',
+          )}
         >
           {i.label}
         </button>
@@ -114,7 +117,7 @@ export function ImagePopup({
   const [fxSpeed, setFxSpeed] = useState(speed);
   // Giro de 90° em 90° (360° = sem giro)
   const rotate = (deg: 90 | -90) => {
-    const r = (((draft.rot ?? 0) + deg) % 360 + 360) % 360;
+    const r = ((((draft.rot ?? 0) + deg) % 360) + 360) % 360;
     set({ rot: r ? (r as 90 | 180 | 270) : undefined });
   };
   useEffect(() => setPct(Math.round(zoom * 100)), [zoom]);
@@ -162,7 +165,13 @@ export function ImagePopup({
   const color = draft.bc ?? '#ffffff';
 
   return createPortal(
-    <div ref={drag.ref} className="fixed z-50 max-h-[calc(100vh-16px)] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl" style={{ left: drag.pos.left, top: drag.pos.top, width }} role="dialog" aria-label="Opções da foto">
+    <div
+      ref={drag.ref}
+      className="fixed z-50 max-h-[calc(100vh-16px)] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl"
+      style={{ left: drag.pos.left, top: drag.pos.top, width }}
+      role="dialog"
+      aria-label="Opções da foto"
+    >
       <PopupHeader onGrab={drag.onGrab} onClose={onClose}>
         <p className="text-sm font-semibold">Editando: Foto</p>
         <p className="mt-0.5 text-[11px] text-zinc-500">As mudanças aparecem na hora na prévia</p>
@@ -170,15 +179,41 @@ export function ImagePopup({
       <div className="space-y-3">
         <Section title="Zoom e enquadramento">
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => zoomTo(pct - (pct <= 100 ? 10 : 20))} className="size-8 flex-none rounded-md border border-zinc-200 text-sm hover:border-zinc-400" aria-label="Diminuir zoom">−</button>
-            <input type="range" min={ZOOM_MIN} max={ZOOM_MAX} value={pct} onChange={(e) => zoomTo(Number(e.target.value))} className="w-full" aria-label="Zoom" />
-            <button type="button" onClick={() => zoomTo(pct + (pct < 100 ? 10 : 20))} className="size-8 flex-none rounded-md border border-zinc-200 text-sm hover:border-zinc-400" aria-label="Aumentar zoom">+</button>
+            <button
+              type="button"
+              onClick={() => zoomTo(pct - (pct <= 100 ? 10 : 20))}
+              className="size-8 flex-none rounded-md border border-zinc-200 text-sm hover:border-zinc-400"
+              aria-label="Diminuir zoom"
+            >
+              −
+            </button>
+            <input
+              type="range"
+              min={ZOOM_MIN}
+              max={ZOOM_MAX}
+              value={pct}
+              onChange={(e) => zoomTo(Number(e.target.value))}
+              className="w-full"
+              aria-label="Zoom"
+            />
+            <button
+              type="button"
+              onClick={() => zoomTo(pct + (pct < 100 ? 10 : 20))}
+              className="size-8 flex-none rounded-md border border-zinc-200 text-sm hover:border-zinc-400"
+              aria-label="Aumentar zoom"
+            >
+              +
+            </button>
             <span className="w-11 flex-none text-right text-xs tabular-nums text-zinc-500">{pct}%</span>
           </div>
           <div className="flex flex-col items-start gap-1">
-            <button type="button" onClick={onResetFocus} className="whitespace-nowrap text-[11px] text-zinc-500 hover:text-ink">⟲ Restaurar enquadramento</button>
+            <button type="button" onClick={onResetFocus} className="whitespace-nowrap text-[11px] text-zinc-500 hover:text-ink">
+              ⟲ Restaurar enquadramento
+            </button>
             {hasSize ? (
-              <button type="button" onClick={onResetSize} className="whitespace-nowrap text-[11px] text-zinc-500 hover:text-ink">Tirar corte e tamanho ({deviceLabel.toLowerCase()})</button>
+              <button type="button" onClick={onResetSize} className="whitespace-nowrap text-[11px] text-zinc-500 hover:text-ink">
+                Tirar corte e tamanho ({deviceLabel.toLowerCase()})
+              </button>
             ) : null}
           </div>
           <p className="text-[11px] text-zinc-400">Para enquadrar ou cortar, use o modo Fotos: arraste a foto ou as alças azuis das bordas.</p>
@@ -188,7 +223,12 @@ export function ImagePopup({
             {[
               { label: '⟲ Girar 90°', title: 'Girar 90° para a esquerda', onClick: () => rotate(-90), active: false },
               { label: '⟳ Girar 90°', title: 'Girar 90° para a direita', onClick: () => rotate(90), active: false },
-              { label: '⇆ Espelhar na horizontal', title: 'Espelhar na horizontal', onClick: () => set({ fh: draft.fh ? undefined : true }), active: !!draft.fh },
+              {
+                label: '⇆ Espelhar na horizontal',
+                title: 'Espelhar na horizontal',
+                onClick: () => set({ fh: draft.fh ? undefined : true }),
+                active: !!draft.fh,
+              },
               { label: '⇅ Espelhar na vertical', title: 'Espelhar na vertical', onClick: () => set({ fv: draft.fv ? undefined : true }), active: !!draft.fv },
             ].map((b) => (
               <button
@@ -196,7 +236,10 @@ export function ImagePopup({
                 type="button"
                 title={b.title}
                 onClick={b.onClick}
-                className={cn('whitespace-nowrap rounded-md border px-2 py-1 text-xs', b.active ? 'border-ink bg-ink text-white' : 'border-zinc-200 text-zinc-600 hover:border-zinc-400')}
+                className={cn(
+                  'whitespace-nowrap rounded-md border px-2 py-1 text-xs',
+                  b.active ? 'border-ink bg-ink text-white' : 'border-zinc-200 text-zinc-600 hover:border-zinc-400',
+                )}
               >
                 {b.label}
               </button>
@@ -204,8 +247,14 @@ export function ImagePopup({
           </div>
           {draft.rot || draft.fh || draft.fv ? (
             <p className="flex items-center gap-3 text-[11px] text-zinc-500">
-              <span>{[draft.rot ? `Girada ${draft.rot}°` : '', draft.fh ? 'espelhada na horizontal' : '', draft.fv ? 'espelhada na vertical' : ''].filter(Boolean).join(' · ')}</span>
-              <button type="button" onClick={() => set({ rot: undefined, fh: undefined, fv: undefined })} className="text-zinc-500 hover:text-ink">⟲ Desfazer</button>
+              <span>
+                {[draft.rot ? `Girada ${draft.rot}°` : '', draft.fh ? 'espelhada na horizontal' : '', draft.fv ? 'espelhada na vertical' : '']
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+              <button type="button" onClick={() => set({ rot: undefined, fh: undefined, fv: undefined })} className="text-zinc-500 hover:text-ink">
+                ⟲ Desfazer
+              </button>
             </p>
           ) : null}
         </Section>
@@ -214,7 +263,13 @@ export function ImagePopup({
           {draft.bw ? (
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-zinc-600">Cor da borda</span>
-              <input type="color" value={color} onChange={(e) => set({ bc: e.target.value.toLowerCase() })} className="h-8 w-12 cursor-pointer rounded border border-zinc-200 bg-white p-0.5" aria-label="Cor da borda" />
+              <input
+                type="color"
+                value={color}
+                onChange={(e) => set({ bc: e.target.value.toLowerCase() })}
+                className="h-8 w-12 cursor-pointer rounded border border-zinc-200 bg-white p-0.5"
+                aria-label="Cor da borda"
+              />
               <input
                 key={color}
                 defaultValue={color}
@@ -231,7 +286,9 @@ export function ImagePopup({
           <div>
             <Slider label="Cantos arredondados" value={draft.r ?? 0} max={300} onChange={(v) => set({ r: v })} />
             {draft.r !== undefined ? (
-              <button type="button" onClick={() => set({ r: undefined })} className="mt-1 text-[11px] text-zinc-400 hover:text-ink">Voltar aos cantos do modelo</button>
+              <button type="button" onClick={() => set({ r: undefined })} className="mt-1 text-[11px] text-zinc-400 hover:text-ink">
+                Voltar aos cantos do modelo
+              </button>
             ) : null}
           </div>
           <div>
@@ -272,7 +329,10 @@ export function ImagePopup({
                 }
               }}
               placeholder="https://… , e-mail ou telefone"
-              className={cn('h-8 min-w-0 flex-1 rounded-md border px-2 text-xs outline-none focus:border-zinc-400', linkError ? 'border-red-400' : 'border-zinc-200')}
+              className={cn(
+                'h-8 min-w-0 flex-1 rounded-md border px-2 text-xs outline-none focus:border-zinc-400',
+                linkError ? 'border-red-400' : 'border-zinc-200',
+              )}
               aria-label="Endereço do link"
             />
             <button type="button" onClick={applyLink} className="whitespace-nowrap rounded-md border border-ink bg-ink px-2 text-xs text-white">
@@ -284,13 +344,29 @@ export function ImagePopup({
             <>
               <div>
                 <p className="mb-1 text-xs font-medium text-zinc-600">Abrir em</p>
-                <Chips items={[{ value: true, label: 'Nova aba' }, { value: false, label: 'Mesma aba' }]} value={!!draft.nt} onChange={(v) => set({ nt: v ? true : undefined })} />
+                <Chips
+                  items={[
+                    { value: true, label: 'Nova aba' },
+                    { value: false, label: 'Mesma aba' },
+                  ]}
+                  value={!!draft.nt}
+                  onChange={(v) => set({ nt: v ? true : undefined })}
+                />
               </div>
               <div>
                 <p className="mb-1 text-xs font-medium text-zinc-600">Borda indicando o link</p>
-                <Chips items={[{ value: true, label: 'Com borda' }, { value: false, label: 'Sem borda' }]} value={!!draft.lb} onChange={(v) => set({ lb: v ? true : undefined })} />
+                <Chips
+                  items={[
+                    { value: true, label: 'Com borda' },
+                    { value: false, label: 'Sem borda' },
+                  ]}
+                  value={!!draft.lb}
+                  onChange={(v) => set({ lb: v ? true : undefined })}
+                />
               </div>
-              <button type="button" onClick={removeLink} className="text-[11px] text-zinc-500 hover:text-red-600">Remover link</button>
+              <button type="button" onClick={removeLink} className="text-[11px] text-zinc-500 hover:text-red-600">
+                Remover link
+              </button>
             </>
           ) : (
             <p className="text-[11px] text-zinc-400">Na página publicada, clicar na foto abre o link.</p>
@@ -307,7 +383,9 @@ export function ImagePopup({
             {TEXT_EFFECT_GROUPS.map((g) => (
               <optgroup key={g.title} label={g.title}>
                 {g.items.map((i) => (
-                  <option key={i.value} value={i.value}>{i.label}</option>
+                  <option key={i.value} value={i.value}>
+                    {i.label}
+                  </option>
                 ))}
               </optgroup>
             ))}
@@ -331,7 +409,11 @@ export function ImagePopup({
                 className="w-full"
                 aria-label="Velocidade do efeito"
               />
-              <span className="flex justify-between text-[10px] text-zinc-400"><span>Mais lento</span><span>1x</span><span>Mais rápido</span></span>
+              <span className="flex justify-between text-[10px] text-zinc-400">
+                <span>Mais lento</span>
+                <span>1x</span>
+                <span>Mais rápido</span>
+              </span>
             </label>
           ) : null}
         </Section>
@@ -349,7 +431,9 @@ export function ImagePopup({
         </button>
       </div>
       <div className="mt-3 flex justify-end">
-        <Button size="sm" onClick={onClose}>Pronto</Button>
+        <Button size="sm" onClick={onClose}>
+          Pronto
+        </Button>
       </div>
     </div>,
     document.body,

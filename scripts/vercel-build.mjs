@@ -46,10 +46,10 @@ fs.writeFileSync(
 );
 
 // CSP do painel: a mesma do servidor (apps/api/src/middleware/security.ts), com os hashes dos scripts da página
-const adminCsp = execSync(
-  `node --import tsx -e "import('./src/middleware/security.ts').then((m) => process.stdout.write(m.ADMIN_CSP))"`,
-  { cwd: path.join(repoRoot, 'apps', 'api'), env: { ...process.env, NODE_ENV: 'development' } },
-).toString();
+const adminCsp = execSync(`node --import tsx -e "import('./src/middleware/security.ts').then((m) => process.stdout.write(m.ADMIN_CSP))"`, {
+  cwd: path.join(repoRoot, 'apps', 'api'),
+  env: { ...process.env, NODE_ENV: 'development' },
+}).toString();
 if (!adminCsp.includes("default-src 'self'")) throw new Error('[vercel-build] CSP do painel não gerada');
 
 fs.writeFileSync(

@@ -24,7 +24,8 @@ const PROVIDERS: Record<KeyProvider, { name: string; title: string; description:
   rapidapi: {
     name: 'Chave do RapidAPI (Maps)',
     title: 'Chaves do RapidAPI — Maps',
-    description: 'Para o Google Maps: usadas em "Buscar empresas" e nas fotos do perfil da empresa no Google. Cada pesquisa passa para a próxima chave ativa (rodízio); sem cota, inválida ou sem assinatura da API, a próxima é usada.',
+    description:
+      'Para o Google Maps: usadas em "Buscar empresas" e nas fotos do perfil da empresa no Google. Cada pesquisa passa para a próxima chave ativa (rodízio); sem cota, inválida ou sem assinatura da API, a próxima é usada.',
     envVar: 'RAPIDAPI_KEY',
     label: 'Nova chave do RapidAPI (Maps)',
     hint: 'Em rapidapi.com → seu app → "Authorization" (X-RapidAPI-Key). A chave é testada antes de salvar.',
@@ -106,51 +107,55 @@ function RapidGeminiConfigForm({ onKeyAdded }: { onKeyAdded: () => void }) {
   if (loading || !form) return <LoadingBlock rows={1} />;
   return (
     <div className="space-y-3">
-    <div className="space-y-2 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-3">
-      <Field
-        label="Colar MCP configuration"
-        hint={'No RapidAPI, abra a API → aba "MCP" → copie o "MCP configuration" e cole aqui. Também aceita o código do Playground. O host e a chave são lidos sozinhos.'}
-      >
-        <Textarea
-          rows={5}
-          value={pasted}
-          onChange={(e) => setPasted(e.target.value)}
-          placeholder={'{\n  "mcpServers": {\n    "RapidAPI Hub - …": {\n      "command": "npx",\n      "args": ["mcp-remote", "https://mcp.rapidapi.com", "--header", "x-api-host: …p.rapidapi.com", "--header", "x-api-key: …"]\n    }\n  }\n}'}
-          className="font-mono text-xs"
-        />
-      </Field>
-      <Button type="button" onClick={() => void applyPasted()} loading={applying} disabled={!pasted.trim()}>
-        Usar esta configuração
-      </Button>
-    </div>
-    <form onSubmit={save} className="grid gap-3 rounded-lg border border-zinc-200 p-3 sm:grid-cols-2">
-      <Field label="X-RapidAPI-Host" hint="Na página da API no RapidAPI → Endpoints → cabeçalhos do exemplo.">
-        <Input required value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} placeholder="algo.p.rapidapi.com" />
-      </Field>
-      <Field label="Caminho do endpoint" hint="Parte depois do host na URL do exemplo (POST).">
-        <Input value={form.path} onChange={(e) => setForm({ ...form, path: e.target.value })} placeholder="/" />
-      </Field>
-      <Field label="Formato do pedido" hint={'"Google" = corpo com contents/parts; "OpenAI" = corpo com messages.'}>
-        <Select value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value as RapidGeminiConfig['format'] })}>
-          <option value="google">Google (contents)</option>
-          <option value="openai">OpenAI (messages)</option>
-          <option value="template">Corpo do Playground</option>
-        </Select>
-      </Field>
-      <Field label="Modelo" hint="Enviado no formato OpenAI.">
-        <Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder="gemini-2.5-flash" />
-      </Field>
-      {form.format === 'template' ? (
-        <Field label="Corpo do pedido" hint={'JSON do Playground com "{{prompt}}" onde vai o texto.'} className="sm:col-span-2">
-          <Textarea rows={4} value={form.template ?? ''} onChange={(e) => setForm({ ...form, template: e.target.value })} className="font-mono text-xs" />
+      <div className="space-y-2 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-3">
+        <Field
+          label="Colar MCP configuration"
+          hint={
+            'No RapidAPI, abra a API → aba "MCP" → copie o "MCP configuration" e cole aqui. Também aceita o código do Playground. O host e a chave são lidos sozinhos.'
+          }
+        >
+          <Textarea
+            rows={5}
+            value={pasted}
+            onChange={(e) => setPasted(e.target.value)}
+            placeholder={
+              '{\n  "mcpServers": {\n    "RapidAPI Hub - …": {\n      "command": "npx",\n      "args": ["mcp-remote", "https://mcp.rapidapi.com", "--header", "x-api-host: …p.rapidapi.com", "--header", "x-api-key: …"]\n    }\n  }\n}'
+            }
+            className="font-mono text-xs"
+          />
         </Field>
-      ) : null}
-      <div className="sm:col-span-2">
-        <Button type="submit" loading={saving} variant="secondary">
-          Salvar API
+        <Button type="button" onClick={() => void applyPasted()} loading={applying} disabled={!pasted.trim()}>
+          Usar esta configuração
         </Button>
       </div>
-    </form>
+      <form onSubmit={save} className="grid gap-3 rounded-lg border border-zinc-200 p-3 sm:grid-cols-2">
+        <Field label="X-RapidAPI-Host" hint="Na página da API no RapidAPI → Endpoints → cabeçalhos do exemplo.">
+          <Input required value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} placeholder="algo.p.rapidapi.com" />
+        </Field>
+        <Field label="Caminho do endpoint" hint="Parte depois do host na URL do exemplo (POST).">
+          <Input value={form.path} onChange={(e) => setForm({ ...form, path: e.target.value })} placeholder="/" />
+        </Field>
+        <Field label="Formato do pedido" hint={'"Google" = corpo com contents/parts; "OpenAI" = corpo com messages.'}>
+          <Select value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value as RapidGeminiConfig['format'] })}>
+            <option value="google">Google (contents)</option>
+            <option value="openai">OpenAI (messages)</option>
+            <option value="template">Corpo do Playground</option>
+          </Select>
+        </Field>
+        <Field label="Modelo" hint="Enviado no formato OpenAI.">
+          <Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder="gemini-2.5-flash" />
+        </Field>
+        {form.format === 'template' ? (
+          <Field label="Corpo do pedido" hint={'JSON do Playground com "{{prompt}}" onde vai o texto.'} className="sm:col-span-2">
+            <Textarea rows={4} value={form.template ?? ''} onChange={(e) => setForm({ ...form, template: e.target.value })} className="font-mono text-xs" />
+          </Field>
+        ) : null}
+        <div className="sm:col-span-2">
+          <Button type="submit" loading={saving} variant="secondary">
+            Salvar API
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -183,7 +188,10 @@ function QuotaBars({ quota, at }: { quota: NonNullable<AIKeyInfo['quota']>; at: 
               </span>
             </div>
             <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-zinc-100">
-              <div className={cn('h-full rounded-full', pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500')} style={{ width: `${pct}%` }} />
+              <div
+                className={cn('h-full rounded-full', pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500')}
+                style={{ width: `${pct}%` }}
+              />
             </div>
             <div className="mt-0.5 text-[11px] text-zinc-500">
               {fmtInt(used)} de {fmtInt(q.limit)} · restam {fmtInt(q.remaining)}
@@ -249,9 +257,7 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
 
   /** Rola a tela até a chave na lista (depois de recarregar) para ela ficar visível. */
   const showKey = (id: string) => {
-    void reload().then(() =>
-      requestAnimationFrame(() => document.getElementById(`key-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })),
-    );
+    void reload().then(() => requestAnimationFrame(() => document.getElementById(`key-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })));
   };
 
   const toggle = async (k: AIKeyInfo) => {
@@ -299,10 +305,7 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
   const activeCount = (data?.keys.filter((k) => k.active).length ?? 0) + (data?.env_key ? 1 : 0);
 
   return (
-    <CardSection
-      title={cfg.title}
-      description={cfg.description}
-    >
+    <CardSection title={cfg.title} description={cfg.description}>
       {error ? (
         <ErrorBlock message={error} onRetry={reload} />
       ) : loading && !data ? (
@@ -311,7 +314,8 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
         <div className="space-y-4">
           {!data.provider_active ? (
             <p className="flex gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
-              <AlertTriangle className="size-4 flex-none" /> O provedor de IA do servidor não é o Gemini: estas chaves só serão usadas quando AI_PROVIDER=gemini.
+              <AlertTriangle className="size-4 flex-none" /> O provedor de IA do servidor não é o Gemini: estas chaves só serão usadas quando
+              AI_PROVIDER=gemini.
             </p>
           ) : null}
 
@@ -322,49 +326,80 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
               <li className="flex items-center gap-3 px-3 py-2.5 text-sm">
                 <KeyRound className="size-4 flex-none text-zinc-400" />
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium">Chave do servidor <span className="font-mono text-zinc-500">•••• {data.env_key.last4}</span></div>
+                  <div className="font-medium">
+                    Chave do servidor <span className="font-mono text-zinc-500">•••• {data.env_key.last4}</span>
+                  </div>
                   <div className="text-xs text-zinc-500">Variável de ambiente {cfg.envVar} · no rodízio</div>
                 </div>
-                <button type="button" onClick={() => setToDelete({ id: 'env', label: 'Chave do servidor', last4: data.env_key!.last4 })} title="Remover chave" aria-label="Remover chave do servidor" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
+                <button
+                  type="button"
+                  onClick={() => setToDelete({ id: 'env', label: 'Chave do servidor', last4: data.env_key!.last4 })}
+                  title="Remover chave"
+                  aria-label="Remover chave do servidor"
+                  className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600"
+                >
                   <Trash2 className="size-4" />
                 </button>
               </li>
             ) : null}
             {/* Ativas primeiro (também logo depois de ativar/desativar), depois as desativadas; na ordem de cadastro */}
             {[...data.keys]
-              .sort((a, b) => Number(b.active) - Number(a.active) || Number(noCredits(a)) - Number(noCredits(b)) || String(a.created_at).localeCompare(String(b.created_at)))
+              .sort(
+                (a, b) =>
+                  Number(b.active) - Number(a.active) ||
+                  Number(noCredits(a)) - Number(noCredits(b)) ||
+                  String(a.created_at).localeCompare(String(b.created_at)),
+              )
               .map((k) => (
-              <li key={k.id} id={`key-${k.id}`} className={cn('flex items-center gap-3 px-3 py-2.5 text-sm', k.id === newId && 'bg-emerald-50')}>
-                <KeyRound className="size-4 flex-none text-zinc-400" />
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium">
-                    {k.label || cfg.name} <span className="font-mono text-zinc-500">•••• {k.last4}</span>
-                    {k.id === newId ? <span className="ml-2 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">Esta chave</span> : null}
-                    {k.active && noCredits(k) ? <span className="ml-2 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-800">Sem créditos</span> : null}
-                  </div>
-                  <div className="text-xs text-zinc-500">
-                    Cadastrada em {formatDate(k.created_at, true)} · {k.uses} {k.uses === 1 ? 'uso' : 'usos'} · {k.last_used_at ? `último uso ${formatDate(k.last_used_at, true)}` : 'ainda não usada'}
-                  </div>
-                  {k.quota ? <QuotaBars quota={k.quota} at={k.quota_at} /> : null}
-                  {k.quota_until ? (
-                    <div className="mt-0.5 text-xs text-amber-700" title={k.last_error ?? undefined}>
-                      Limite diário do Google atingido ({formatDate(k.last_error_at, true)}). Libera em {formatDate(k.quota_until, true)}.
+                <li key={k.id} id={`key-${k.id}`} className={cn('flex items-center gap-3 px-3 py-2.5 text-sm', k.id === newId && 'bg-emerald-50')}>
+                  <KeyRound className="size-4 flex-none text-zinc-400" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium">
+                      {k.label || cfg.name} <span className="font-mono text-zinc-500">•••• {k.last4}</span>
+                      {k.id === newId ? (
+                        <span className="ml-2 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">Esta chave</span>
+                      ) : null}
+                      {k.active && noCredits(k) ? (
+                        <span className="ml-2 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-800">Sem créditos</span>
+                      ) : null}
                     </div>
-                  ) : k.last_error ? (
-                    <div className="mt-0.5 line-clamp-2 break-words text-xs text-red-600 [overflow-wrap:anywhere]" title={k.last_error}>
-                      Último erro ({formatDate(k.last_error_at, true)}): {k.last_error}
+                    <div className="text-xs text-zinc-500">
+                      Cadastrada em {formatDate(k.created_at, true)} · {k.uses} {k.uses === 1 ? 'uso' : 'usos'} ·{' '}
+                      {k.last_used_at ? `último uso ${formatDate(k.last_used_at, true)}` : 'ainda não usada'}
                     </div>
-                  ) : null}
-                </div>
-                <button type="button" onClick={() => void test(k)} disabled={busyId === k.id} title="Testar a chave agora" aria-label="Testar chave" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50">
-                  <RefreshCw className={cn('size-4', busyId === k.id && 'animate-spin')} />
-                </button>
-                <StatusToggle status={k.active ? 'ativa' : 'inativa'} loading={busyId === k.id} onToggle={() => void toggle(k)} />
-                <button type="button" onClick={() => setToDelete(k)} title="Remover chave" aria-label="Remover chave" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
-                  <Trash2 className="size-4" />
-                </button>
-              </li>
-            ))}
+                    {k.quota ? <QuotaBars quota={k.quota} at={k.quota_at} /> : null}
+                    {k.quota_until ? (
+                      <div className="mt-0.5 text-xs text-amber-700" title={k.last_error ?? undefined}>
+                        Limite diário do Google atingido ({formatDate(k.last_error_at, true)}). Libera em {formatDate(k.quota_until, true)}.
+                      </div>
+                    ) : k.last_error ? (
+                      <div className="mt-0.5 line-clamp-2 break-words text-xs text-red-600 [overflow-wrap:anywhere]" title={k.last_error}>
+                        Último erro ({formatDate(k.last_error_at, true)}): {k.last_error}
+                      </div>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void test(k)}
+                    disabled={busyId === k.id}
+                    title="Testar a chave agora"
+                    aria-label="Testar chave"
+                    className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50"
+                  >
+                    <RefreshCw className={cn('size-4', busyId === k.id && 'animate-spin')} />
+                  </button>
+                  <StatusToggle status={k.active ? 'ativa' : 'inativa'} loading={busyId === k.id} onToggle={() => void toggle(k)} />
+                  <button
+                    type="button"
+                    onClick={() => setToDelete(k)}
+                    title="Remover chave"
+                    aria-label="Remover chave"
+                    className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                </li>
+              ))}
             {!data.env_key && !data.keys.length ? <li className="px-3 py-4 text-center text-sm text-zinc-500">Nenhuma chave cadastrada.</li> : null}
           </ul>
           <p className="text-xs text-zinc-500">
@@ -373,7 +408,16 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
 
           <form onSubmit={add} className="grid gap-3 sm:grid-cols-[1fr_180px_auto] sm:items-end">
             <Field label={cfg.label} hint={cfg.hint}>
-              <Input value={key} onChange={(e) => setKey(e.target.value)} required minLength={20} autoComplete="off" spellCheck={false} className="font-mono" placeholder={cfg.placeholder} />
+              <Input
+                value={key}
+                onChange={(e) => setKey(e.target.value)}
+                required
+                minLength={20}
+                autoComplete="off"
+                spellCheck={false}
+                className="font-mono"
+                placeholder={cfg.placeholder}
+              />
             </Field>
             <Field label="Nome (opcional)">
               <Input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={60} placeholder="Ex.: Conta 2" />
@@ -390,7 +434,10 @@ export function AIKeysSection({ provider = 'gemini' }: { provider?: KeyProvider 
         title="Remover chave?"
         description={
           <>
-            A chave <strong>{toDelete?.label || 'sem nome'} (•••• {toDelete?.last4})</strong>{' '}
+            A chave{' '}
+            <strong>
+              {toDelete?.label || 'sem nome'} (•••• {toDelete?.last4})
+            </strong>{' '}
             {toDelete?.id === 'env'
               ? `sai do rodízio. Ela continua na variável ${cfg.envVar} do servidor, mas deixa de ser usada.`
               : 'sai do rodízio e é apagada do sistema.'}

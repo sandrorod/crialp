@@ -17,7 +17,17 @@ import * as repo from '../repositories/landingPages.js';
 import { LandingContentEditSchema, type LandingContent } from '../services/ai/schemas.js';
 import { DEFAULT_LABELS } from '../landing/labels.js';
 import { TEXT_EFFECTS } from '../landing/elementColors.js';
-import { CUSTOM_PLACEMENT, HEADING_FAMILY, PHOTO_SHAPES, IMAGE_PLACEMENTS, normalizeThemeSettings, PRESETS, SECTION_PLACEMENT, TEMPLATE_KEYS, TEMPLATES } from '../landing/theme.js';
+import {
+  CUSTOM_PLACEMENT,
+  HEADING_FAMILY,
+  PHOTO_SHAPES,
+  IMAGE_PLACEMENTS,
+  normalizeThemeSettings,
+  PRESETS,
+  SECTION_PLACEMENT,
+  TEMPLATE_KEYS,
+  TEMPLATES,
+} from '../landing/theme.js';
 import { publicUrl, refreshSnapshot, renderFromData } from '../landing/publish.js';
 import { renderUnavailablePage } from '../landing/render.js';
 import { IMAGE_FILTERS, IMAGE_SHADOWS } from '../landing/imageStyle.js';
@@ -39,7 +49,14 @@ function serialize(lp: repo.LandingPageRow) {
 
 landingPagesRouter.get('/', async (req, res) => {
   const user = authUser(req);
-  const q = z.object({ search: z.string().max(200).optional(), status: z.string().max(20).optional(), segment: z.string().max(200).optional(), wp: z.enum(['com', 'sem']).optional().catch(undefined) }).parse(req.query);
+  const q = z
+    .object({
+      search: z.string().max(200).optional(),
+      status: z.string().max(20).optional(),
+      segment: z.string().max(200).optional(),
+      wp: z.enum(['com', 'sem']).optional().catch(undefined),
+    })
+    .parse(req.query);
   const [items, segments] = await Promise.all([repo.listLandingPages(user.organizationId, q), repo.landingPageSegments(user.organizationId)]);
   res.json({ items: items.map((i) => ({ ...i, public_url: publicUrl(i) })), facets: { segments } });
 });
@@ -82,7 +99,13 @@ landingPagesRouter.get('/:id', async (req, res) => {
   const company = await getCompanyFull(user.organizationId, lp.company_id);
   res.json({
     ...serialize(lp),
-    company: company && { id: company.id, name: company.name, segment: company.segment, testimonials: company.testimonials.length, images_allowed: company.images.filter((i) => i.usage_allowed).length },
+    company: company && {
+      id: company.id,
+      name: company.name,
+      segment: company.segment,
+      testimonials: company.testimonials.length,
+      images_allowed: company.images.filter((i) => i.usage_allowed).length,
+    },
     versions: await repo.listVersions(lp.id),
     screenshot: await getScreenshotInfo(lp.id),
     seller_name: lp.seller_id ? ((await one<{ name: string }>('select name from users where id = $1', [lp.seller_id]))?.name ?? null) : null,
@@ -196,16 +219,17 @@ const ContentUpdateSchema = z.object({
     heroVariant: z.enum(['split', 'centered', 'image']).optional(), // "image" é legado: vira "split"
     // Cores por seção: { "services": { "bg": "#0b1b2b", "text": null, "accent": "#ffcc00" }, ... }
     sections: z
-      .record(
-        z.string().max(60),
-        z.object({ bg: z.string().max(9).nullish(), text: z.string().max(9).nullish(), accent: z.string().max(9).nullish() }),
-      )
+      .record(z.string().max(60), z.object({ bg: z.string().max(9).nullish(), text: z.string().max(9).nullish(), accent: z.string().max(9).nullish() }))
       .optional(),
     // Local de cada foto: { "<url>": "hero" | "about" | "gallery" | "hidden" | "logo" | "custom:<id>" }; ausente = automático
-    images: z.record(z.string().max(2048), z.union([z.enum(IMAGE_PLACEMENTS), z.string().regex(CUSTOM_PLACEMENT), z.string().regex(SECTION_PLACEMENT)])).optional(),
+    images: z
+      .record(z.string().max(2048), z.union([z.enum(IMAGE_PLACEMENTS), z.string().regex(CUSTOM_PLACEMENT), z.string().regex(SECTION_PLACEMENT)]))
+      .optional(),
     template: z.enum(TEMPLATE_KEYS).optional(),
     // Ponto de corte das fotos do topo/"sobre": { "<url>": { "x": 0-100, "y": 0-100 } }
-    focus: z.record(z.string().max(2048), z.object({ x: z.number().min(0).max(100), y: z.number().min(0).max(100), z: z.number().min(0.1).max(3).optional() })).optional(),
+    focus: z
+      .record(z.string().max(2048), z.object({ x: z.number().min(0).max(100), y: z.number().min(0).max(100), z: z.number().min(0.1).max(3).optional() }))
+      .optional(),
     imageOrder: z.array(z.string().max(2048)).max(300).optional(),
     // Onde o logotipo aparece: cabeçalho, início do conteúdo ou seção "Sobre"
     logoPlacement: z.enum(['header', 'hero', 'about']).optional(),
@@ -236,7 +260,10 @@ const ContentUpdateSchema = z.object({
         mobile: z.number().min(0).max(100).nullish(),
         // Espaço próprio de cada seção, arrastado na prévia: { desktop: { "about": 60 }, mobile: {...} }
         sections: z
-          .object({ desktop: z.record(z.string().max(60), z.number().min(0).max(150)).optional(), mobile: z.record(z.string().max(60), z.number().min(0).max(150)).optional() })
+          .object({
+            desktop: z.record(z.string().max(60), z.number().min(0).max(150)).optional(),
+            mobile: z.record(z.string().max(60), z.number().min(0).max(150)).optional(),
+          })
           .optional(),
         // Largura dos títulos e dos textos (% da área), por layout
         titleWidth: z.object({ desktop: z.number().min(0).max(100).nullish(), mobile: z.number().min(0).max(100).nullish() }).optional(),
@@ -273,8 +300,18 @@ const ContentUpdateSchema = z.object({
       .optional(),
   }),
   seo: z.object({
-    seo_title: z.string().trim().max(120).nullish().transform((v) => v || null),
-    seo_description: z.string().trim().max(320).nullish().transform((v) => v || null),
+    seo_title: z
+      .string()
+      .trim()
+      .max(120)
+      .nullish()
+      .transform((v) => v || null),
+    seo_description: z
+      .string()
+      .trim()
+      .max(320)
+      .nullish()
+      .transform((v) => v || null),
     seo_keywords: z.array(z.string().trim().max(80)).max(20).default([]),
     og_image: safeUrl,
   }),
@@ -398,7 +435,8 @@ landingPagesRouter.patch('/:id/settings', async (req, res) => {
     req.body,
   );
   // Conta de cliente só troca o endereço da página; domínio personalizado fica com a equipe
-  if ((user.role === 'client' || user.role === 'seller') && body.custom_domain !== undefined) throw new AppError(403, 'Você não tem permissão para alterar o domínio.', 'FORBIDDEN');
+  if ((user.role === 'client' || user.role === 'seller') && body.custom_domain !== undefined)
+    throw new AppError(403, 'Você não tem permissão para alterar o domínio.', 'FORBIDDEN');
   if (body.slug !== undefined && body.slug !== lp.slug) {
     if (!isValidSlug(body.slug)) throw new AppError(400, 'Endereço inválido: use apenas letras minúsculas, números e hífens.');
     if (await repo.getLandingPageBySlug(body.slug)) throw new AppError(409, 'Este endereço já está em uso.');
@@ -495,7 +533,9 @@ landingPagesRouter.put('/:id/client-access', requireRole(...MANAGER_ROLES), asyn
   const lp = await loadOr404(user.organizationId, String(req.params.id));
   const body = parseBody(ClientAccessSchema, req.body);
   const current = await findClient(lp.id);
-  const taken = await one<{ id: string; role: string; organization_id: string }>('select id, role, organization_id from users where lower(email) = $1', [body.email]);
+  const taken = await one<{ id: string; role: string; organization_id: string }>('select id, role, organization_id from users where lower(email) = $1', [
+    body.email,
+  ]);
   if (taken && (taken.role !== 'client' || taken.organization_id !== user.organizationId)) {
     throw new AppError(409, 'Este e-mail já é de uma conta da equipe (não de cliente). Use outro e-mail.', 'CONFLICT');
   }
@@ -511,7 +551,12 @@ landingPagesRouter.put('/:id/client-access', requireRole(...MANAGER_ROLES), asyn
     }
   } else if (current && !current.other_sites.length) {
     // E-mail novo e a conta só tem este site: troca o e-mail dela
-    await query('update users set name = coalesce($2, name), email = $3, password_hash = coalesce($4, password_hash) where id = $1', [current.id, body.name || null, body.email, hash]);
+    await query('update users set name = coalesce($2, name), email = $3, password_hash = coalesce($4, password_hash) where id = $1', [
+      current.id,
+      body.name || null,
+      body.email,
+      hash,
+    ]);
   } else {
     if (!hash) throw new AppError(400, 'Defina uma senha para o cliente.');
     const created = await one<{ id: string }>(

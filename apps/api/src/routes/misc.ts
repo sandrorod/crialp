@@ -68,7 +68,12 @@ miscRouter.post('/uploads', uploadLimiter, upload.single('file'), async (req, re
 
 // ─── Atendimento (tabela atendimento_lp): textos de respostas editados em Configurações ─────
 const RespostasSchema = z.object({
-  titulo: z.string().trim().max(300, 'Título muito longo (máximo de 300 caracteres).').nullish().transform((v) => v || null),
+  titulo: z
+    .string()
+    .trim()
+    .max(300, 'Título muito longo (máximo de 300 caracteres).')
+    .nullish()
+    .transform((v) => v || null),
   respostas: z.string().max(4_000_000, 'Texto muito grande (máximo de 4 milhões de caracteres).').nullable(),
 });
 const ATENDIMENTO_COLUMNS = 'id::text, titulo, respostas';
@@ -140,14 +145,14 @@ miscRouter.post('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async
     try {
       await aiService.testGeminiKey(body.key);
     } catch (err) {
-      const msg = err instanceof AIProviderError ? err.userMessage ?? err.message : 'Não foi possível validar a chave.';
+      const msg = err instanceof AIProviderError ? (err.userMessage ?? err.message) : 'Não foi possível validar a chave.';
       throw new AppError(400, `Chave recusada pelo Gemini: ${msg}`);
     }
   } else if (provider === 'rapidapi_gemini') {
     try {
       await rapidGemini.testKey(body.key);
     } catch (err) {
-      const msg = err instanceof AIProviderError ? err.userMessage ?? err.message : 'Não foi possível validar a chave.';
+      const msg = err instanceof AIProviderError ? (err.userMessage ?? err.message) : 'Não foi possível validar a chave.';
       throw new AppError(400, `Chave recusada: ${msg}`);
     }
   } else {
@@ -167,25 +172,38 @@ miscRouter.post('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async
 });
 
 // API de Gemini do RapidAPI usada pelas "Chaves do RapidAPI — Gemini" (cada API tem host e formato próprios)
-const RapidGeminiConfigSchema = z.object({
-  host: z.string().trim().toLowerCase().regex(/^[a-z0-9.-]+\.p\.rapidapi\.com$/, 'Host inválido: use o X-RapidAPI-Host (algo.p.rapidapi.com).'),
-  path: z.string().trim().max(200).regex(/^\/?[\w\-./?=&%:]*$/, 'Caminho inválido.'),
-  format: z.enum(['google', 'openai', 'template']),
-  model: z.string().trim().max(80),
-  template: z
-    .string()
-    .max(20000)
-    .optional()
-    .refine((t) => {
-      if (!t) return true;
-      try {
-        JSON.parse(t.split('"{{prompt}}"').join('""'));
-        return true;
-      } catch {
-        return false;
-      }
-    }, 'Corpo do pedido inválido.'),
-}).refine((c) => c.format !== 'template' || !!c.template?.includes('"{{prompt}}"'), { message: 'O corpo do pedido precisa ter "{{prompt}}" onde vai o texto.', path: ['template'] });
+const RapidGeminiConfigSchema = z
+  .object({
+    host: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[a-z0-9.-]+\.p\.rapidapi\.com$/, 'Host inválido: use o X-RapidAPI-Host (algo.p.rapidapi.com).'),
+    path: z
+      .string()
+      .trim()
+      .max(200)
+      .regex(/^\/?[\w\-./?=&%:]*$/, 'Caminho inválido.'),
+    format: z.enum(['google', 'openai', 'template']),
+    model: z.string().trim().max(80),
+    template: z
+      .string()
+      .max(20000)
+      .optional()
+      .refine((t) => {
+        if (!t) return true;
+        try {
+          JSON.parse(t.split('"{{prompt}}"').join('""'));
+          return true;
+        } catch {
+          return false;
+        }
+      }, 'Corpo do pedido inválido.'),
+  })
+  .refine((c) => c.format !== 'template' || !!c.template?.includes('"{{prompt}}"'), {
+    message: 'O corpo do pedido precisa ter "{{prompt}}" onde vai o texto.',
+    path: ['template'],
+  });
 
 miscRouter.get('/settings/rapidapi-gemini', requireRole(...MANAGER_ROLES), async (_req, res) => {
   res.json(await getRapidGeminiConfig());
@@ -215,7 +233,7 @@ miscRouter.post('/settings/keys/:provider/:id/test', requireRole(...MANAGER_ROLE
     else if (provider === 'rapidapi_gemini') await rapidGemini.testKey(key.key);
     else await testRapidApiKey(key.key);
   } catch (err) {
-    const msg = err instanceof AIProviderError ? err.userMessage ?? err.message : err instanceof Error ? err.message : 'Não foi possível validar a chave.';
+    const msg = err instanceof AIProviderError ? (err.userMessage ?? err.message) : err instanceof Error ? err.message : 'Não foi possível validar a chave.';
     await aiKeyStore.recordError(key.id, err instanceof Error ? err.message : String(err));
     throw new AppError(400, `A chave ainda não responde: ${msg}`);
   }
@@ -259,7 +277,15 @@ miscRouter.get('/settings/rapid-gemini/diagnose', requireRole(...MANAGER_ROLES),
       continue;
     }
     const headers = Object.fromEntries([...r.headers.entries()].filter(([h]) => /ratelimit|rapidapi|server|content-type|x-request|date/i.test(h)));
-    results.push({ variant: v.name, method: v.method ?? 'POST', path, status: r.status, ms: Date.now() - started, body: (await r.text()).slice(0, 1500), headers });
+    results.push({
+      variant: v.name,
+      method: v.method ?? 'POST',
+      path,
+      status: r.status,
+      ms: Date.now() - started,
+      body: (await r.text()).slice(0, 1500),
+      headers,
+    });
   }
   res.json({ host: cfg.host, path: cfg.path, format: cfg.format, model: cfg.model, key_last4: key.key.slice(-4), results });
 });

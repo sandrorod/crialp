@@ -44,7 +44,9 @@ async function loadImage(file: File): Promise<{ source: CanvasImageSource; width
       // imageOrientation corrige fotos de celular que vêm "deitadas" (EXIF).
       const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
       return { source: bmp, width: bmp.width, height: bmp.height, close: () => bmp.close() };
-    } catch { /* cai no <img> abaixo */ }
+    } catch {
+      /* cai no <img> abaixo */
+    }
   }
   const url = URL.createObjectURL(file);
   try {
@@ -71,9 +73,7 @@ async function encode(canvas: HTMLCanvasElement, quality: number, transparent: b
   const webp = await canvasToBlob(canvas, 'image/webp', quality);
   // Navegador sem encoder WebP devolve PNG silenciosamente.
   if (webp && webp.type === 'image/webp') return webp;
-  return transparent
-    ? canvasToBlob(canvas, 'image/png', 1)
-    : canvasToBlob(canvas, 'image/jpeg', quality);
+  return transparent ? canvasToBlob(canvas, 'image/png', 1) : canvasToBlob(canvas, 'image/jpeg', quality);
 }
 
 const EXT_BY_TYPE: Record<string, string> = { 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png' };

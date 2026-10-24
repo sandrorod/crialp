@@ -43,5 +43,5 @@ export async function urlErrorsFor(orgId: string, urls: (string | null | undefin
     if (j.status === 'error' && j.error && !/interrompido pelo usuário/i.test(j.error)) byKey.set(k, { error: j.error, at: j.created_at });
     else if (j.status === 'done') byKey.delete(k);
   }
-  return keys.map((k) => (k ? byKey.get(k) ?? null : null));
+  return keys.map((k) => (k ? (byKey.get(k) ?? null) : null));
 }

@@ -20,9 +20,13 @@ export function PhotoGrid({ photos, cols, className }: { photos: LpImage[]; cols
       {photoRows(photos, cols).map((row) =>
         // Linha incompleta: ocupa só a largura de row.length fotos, para ficar do tamanho das outras
         row.length < cols ? (
-          <div key={row[0].url} className="jrow jrow-part" style={{ '--jn': cols, '--jk': row.length } as CSSProperties}>{row.map(figure)}</div>
+          <div key={row[0].url} className="jrow jrow-part" style={{ '--jn': cols, '--jk': row.length } as CSSProperties}>
+            {row.map(figure)}
+          </div>
         ) : (
-          <div key={row[0].url} className="jrow">{row.map(figure)}</div>
+          <div key={row[0].url} className="jrow">
+            {row.map(figure)}
+          </div>
         ),
       )}
     </div>

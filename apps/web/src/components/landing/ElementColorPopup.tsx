@@ -67,19 +67,49 @@ export function useDraggablePopup(initial: { left: number; top: number }, width:
 }
 
 /** Topo do quadro: alça de arrastar, título e fechar. */
-export function PopupHeader({ onGrab, onClose, children }: { onGrab: (e: ReactPointerEvent<HTMLElement>) => void; onClose: () => void; children: React.ReactNode }) {
+export function PopupHeader({
+  onGrab,
+  onClose,
+  children,
+}: {
+  onGrab: (e: ReactPointerEvent<HTMLElement>) => void;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <div onPointerDown={onGrab} className="-mx-4 -mt-4 mb-3 flex cursor-move touch-none select-none items-start justify-between gap-2 rounded-t-xl px-4 pb-1 pt-2" title="Arraste para mudar o quadro de lugar">
+    <div
+      onPointerDown={onGrab}
+      className="-mx-4 -mt-4 mb-3 flex cursor-move touch-none select-none items-start justify-between gap-2 rounded-t-xl px-4 pb-1 pt-2"
+      title="Arraste para mudar o quadro de lugar"
+    >
       <div className="min-w-0">
         <GripHorizontal className="mb-1 size-4 text-zinc-300" aria-hidden />
         {children}
       </div>
-      <button type="button" onClick={onClose} className="mt-4 rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-ink" aria-label="Fechar"><X className="size-4" /></button>
+      <button type="button" onClick={onClose} className="mt-4 rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-ink" aria-label="Fechar">
+        <X className="size-4" />
+      </button>
     </div>
   );
 }
 
-function ColorRow({ label, value, original, changed, onChange, onReset, tones }: { label: string; value: string; original: string; changed: boolean; onChange: (v: string) => void; onReset: () => void; tones?: ToneRow[] }) {
+function ColorRow({
+  label,
+  value,
+  original,
+  changed,
+  onChange,
+  onReset,
+  tones,
+}: {
+  label: string;
+  value: string;
+  original: string;
+  changed: boolean;
+  onChange: (v: string) => void;
+  onReset: () => void;
+  tones?: ToneRow[];
+}) {
   const [text, setText] = useState(value);
   useEffect(() => setText(value), [value]);
   return (
@@ -93,7 +123,13 @@ function ColorRow({ label, value, original, changed, onChange, onReset, tones }:
         ) : null}
       </div>
       <div className="flex items-center gap-2">
-        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-9 w-12 flex-none cursor-pointer rounded border border-zinc-200 bg-white p-0.5" aria-label={label} />
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 w-12 flex-none cursor-pointer rounded border border-zinc-200 bg-white p-0.5"
+          aria-label={label}
+        />
         <input
           value={text}
           onChange={(e) => {
@@ -153,7 +189,14 @@ function SizeRow({ value, changed, onChange, onReset }: { value: number; changed
         ) : null}
       </div>
       <div className="flex items-center gap-2">
-        <button type="button" onClick={() => onChange(clamp(value - step))} className="h-9 w-10 flex-none rounded-md border border-zinc-200 text-sm font-semibold hover:bg-zinc-50" aria-label="Diminuir fonte">A−</button>
+        <button
+          type="button"
+          onClick={() => onChange(clamp(value - step))}
+          className="h-9 w-10 flex-none rounded-md border border-zinc-200 text-sm font-semibold hover:bg-zinc-50"
+          aria-label="Diminuir fonte"
+        >
+          A−
+        </button>
         <div className="flex h-9 flex-1 items-center rounded-md border border-zinc-200 px-2">
           <input
             type="number"
@@ -166,7 +209,14 @@ function SizeRow({ value, changed, onChange, onReset }: { value: number; changed
           />
           <span className="text-xs text-zinc-400">px</span>
         </div>
-        <button type="button" onClick={() => onChange(clamp(value + step))} className="h-9 w-10 flex-none rounded-md border border-zinc-200 text-sm font-semibold hover:bg-zinc-50" aria-label="Aumentar fonte">A+</button>
+        <button
+          type="button"
+          onClick={() => onChange(clamp(value + step))}
+          className="h-9 w-10 flex-none rounded-md border border-zinc-200 text-sm font-semibold hover:bg-zinc-50"
+          aria-label="Aumentar fonte"
+        >
+          A+
+        </button>
       </div>
     </div>
   );
@@ -195,7 +245,9 @@ export function ElementColorPopup({
 }) {
   const other: Device = device === 'mobile' ? 'desktop' : 'mobile';
   const hasSame = picked.similarCount > 1;
-  const [scope, setScope] = useState<'exact' | 'similar'>(() => (hasSame && colors[device][picked.similar] && !colors[device][picked.exact] ? 'similar' : 'exact'));
+  const [scope, setScope] = useState<'exact' | 'similar'>(() =>
+    hasSame && colors[device][picked.similar] && !colors[device][picked.exact] ? 'similar' : 'exact',
+  );
   const selector = scope === 'exact' ? picked.exact : picked.similar;
   const saved: ElementColor | undefined = colors[device][selector];
   const [text, setText] = useState<string | null>(saved?.text ?? null);
@@ -232,8 +284,15 @@ export function ElementColorPopup({
     for (const d of both ? [device, other] : [device]) {
       // Fonte, estilo, efeito, exclusão e posição (definidos em outros modos) continuam valendo
       const { font, bold, italic, underline, fx, fxSpeed, hidden, mx, my, href, nt } = next[d][selector] ?? {};
-      const keep = Object.fromEntries(Object.entries({ font, bold, italic, underline, fx, fxSpeed, hidden, mx, my, href, nt }).filter(([, v]) => v !== undefined));
-      const merged: ElementColor = { ...keep, ...(entry?.text ? { text: entry.text } : {}), ...(entry?.bg ? { bg: entry.bg } : {}), ...(entry?.size ? { size: entry.size } : {}) };
+      const keep = Object.fromEntries(
+        Object.entries({ font, bold, italic, underline, fx, fxSpeed, hidden, mx, my, href, nt }).filter(([, v]) => v !== undefined),
+      );
+      const merged: ElementColor = {
+        ...keep,
+        ...(entry?.text ? { text: entry.text } : {}),
+        ...(entry?.bg ? { bg: entry.bg } : {}),
+        ...(entry?.size ? { size: entry.size } : {}),
+      };
       if (Object.keys(merged).length) next[d][selector] = merged;
       else delete next[d][selector];
       // "Todos iguais": a cor própria deste elemento (mais forte) sairia diferente dos outros
@@ -256,7 +315,13 @@ export function ElementColorPopup({
   const DeviceIcon = device === 'mobile' ? Smartphone : Monitor;
 
   return createPortal(
-    <div ref={drag.ref} className="fixed z-50 max-h-[calc(100vh-16px)] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl" style={{ left: drag.pos.left, top: drag.pos.top, width }} role="dialog" aria-label="Alterar cor e tamanho do elemento">
+    <div
+      ref={drag.ref}
+      className="fixed z-50 max-h-[calc(100vh-16px)] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl"
+      style={{ left: drag.pos.left, top: drag.pos.top, width }}
+      role="dialog"
+      aria-label="Alterar cor e tamanho do elemento"
+    >
       <PopupHeader onGrab={drag.onGrab} onClose={onClose}>
         <p className="text-sm font-semibold">Editando: {picked.label}</p>
         <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-zinc-500">
@@ -269,8 +334,20 @@ export function ElementColorPopup({
         <p className="mb-1 text-xs font-medium text-zinc-600">Aplicar em</p>
         {hasSame ? (
           <div className="grid grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1 text-xs font-medium">
-            {([['exact', 'Só este'], ['similar', `Todos iguais (${picked.similarCount})`]] as const).map(([k, l]) => (
-              <button key={k} type="button" onClick={() => setScope(k)} className={cn('rounded-md px-2 py-1.5', scope === k ? 'bg-brand-600 text-white shadow-sm' : 'text-zinc-600 hover:bg-white')}>{l}</button>
+            {(
+              [
+                ['exact', 'Só este'],
+                ['similar', `Todos iguais (${picked.similarCount})`],
+              ] as const
+            ).map(([k, l]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setScope(k)}
+                className={cn('rounded-md px-2 py-1.5', scope === k ? 'bg-brand-600 text-white shadow-sm' : 'text-zinc-600 hover:bg-white')}
+              >
+                {l}
+              </button>
             ))}
           </div>
         ) : null}
@@ -285,8 +362,24 @@ export function ElementColorPopup({
 
       <p className="mb-2 border-t border-zinc-100 pt-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Cores e tamanho</p>
       <div className="space-y-3">
-        <ColorRow label="Cor da fonte (texto)" value={text ?? picked.text} original={picked.text} changed={!!text} onChange={setText} onReset={() => setText(null)} tones={tones} />
-        <ColorRow label={picked.bgTransparent ? 'Cor de fundo (hoje transparente)' : 'Cor de fundo'} value={bg ?? picked.bg} original={picked.bg} changed={!!bg} onChange={setBg} onReset={() => setBg(null)} tones={tones} />
+        <ColorRow
+          label="Cor da fonte (texto)"
+          value={text ?? picked.text}
+          original={picked.text}
+          changed={!!text}
+          onChange={setText}
+          onReset={() => setText(null)}
+          tones={tones}
+        />
+        <ColorRow
+          label={picked.bgTransparent ? 'Cor de fundo (hoje transparente)' : 'Cor de fundo'}
+          value={bg ?? picked.bg}
+          original={picked.bg}
+          changed={!!bg}
+          onChange={setBg}
+          onReset={() => setBg(null)}
+          tones={tones}
+        />
         <SizeRow value={size ?? picked.size} changed={!!size} onChange={setSize} onReset={() => setSize(null)} />
       </div>
 
@@ -297,11 +390,21 @@ export function ElementColorPopup({
 
       <div className="mt-4 flex items-center justify-between gap-2">
         {saved ? (
-          <button type="button" onClick={() => write(null)} className="text-xs text-zinc-500 hover:text-red-600">Voltar às cores do modelo</button>
-        ) : <span />}
+          <button type="button" onClick={() => write(null)} className="text-xs text-zinc-500 hover:text-red-600">
+            Voltar às cores do modelo
+          </button>
+        ) : (
+          <span />
+        )}
         <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" onClick={() => write({ ...(text ? { text } : {}), ...(bg ? { bg } : {}), ...(size ? { size } : {}) })} disabled={!text && !bg && !size && !saved}>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => write({ ...(text ? { text } : {}), ...(bg ? { bg } : {}), ...(size ? { size } : {}) })}
+            disabled={!text && !bg && !size && !saved}
+          >
             {scope === 'similar' ? `Aplicar nos ${picked.similarCount}` : 'Aplicar'}
           </Button>
         </div>
@@ -357,20 +460,42 @@ export function SectionColorPopup({
   const drag = useDraggablePopup({ left, top }, width);
 
   return createPortal(
-    <div ref={drag.ref} className="fixed z-50 max-h-[calc(100vh-16px)] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl" style={{ left: drag.pos.left, top: drag.pos.top, width }} role="dialog" aria-label="Cor de fundo da seção">
+    <div
+      ref={drag.ref}
+      className="fixed z-50 max-h-[calc(100vh-16px)] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl"
+      style={{ left: drag.pos.left, top: drag.pos.top, width }}
+      role="dialog"
+      aria-label="Cor de fundo da seção"
+    >
       <PopupHeader onGrab={drag.onGrab} onClose={onClose}>
         <p className="text-sm font-semibold">Seção {label}</p>
         <p className="mt-0.5 text-[11px] text-zinc-500">Cor de fundo da seção inteira (celular e computador)</p>
       </PopupHeader>
-      <ColorRow label="Cor de fundo" value={bg ?? original} original={original} changed={!!bg && bg !== saved} onChange={setBg} onReset={() => setBg(saved)} tones={tones} />
+      <ColorRow
+        label="Cor de fundo"
+        value={bg ?? original}
+        original={original}
+        changed={!!bg && bg !== saved}
+        onChange={setBg}
+        onReset={() => setBg(saved)}
+        tones={tones}
+      />
       <p className="mt-2 text-[11px] text-zinc-500">A cor dos textos da seção se ajusta para continuar legível.</p>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         {saved ? (
-          <button type="button" onClick={() => onSave(null)} className="text-xs text-zinc-500 hover:text-red-600">Voltar à cor do modelo</button>
-        ) : <span />}
+          <button type="button" onClick={() => onSave(null)} className="text-xs text-zinc-500 hover:text-red-600">
+            Voltar à cor do modelo
+          </button>
+        ) : (
+          <span />
+        )}
         <div className="ml-auto flex gap-2">
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" onClick={() => onSave(bg)} disabled={!bg || bg === saved}>Aplicar</Button>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button size="sm" onClick={() => onSave(bg)} disabled={!bg || bg === saved}>
+            Aplicar
+          </Button>
         </div>
       </div>
     </div>,

@@ -46,12 +46,18 @@ export function ClientLevelsPage() {
       <PageHeader
         title="Nível cliente"
         description="Níveis escolhidos ao gerar a Landing Page, junto com o vendedor."
-        actions={<Button icon={<Plus className="size-4" />} onClick={() => setEditing('new')}>Novo nível</Button>}
+        actions={
+          <Button icon={<Plus className="size-4" />} onClick={() => setEditing('new')}>
+            Novo nível
+          </Button>
+        }
       />
 
       <Card>
         {error ? (
-          <div className="p-4"><ErrorBlock message={error} onRetry={reload} /></div>
+          <div className="p-4">
+            <ErrorBlock message={error} onRetry={reload} />
+          </div>
         ) : loading && !data ? (
           <LoadingBlock />
         ) : !data?.length ? (
@@ -59,7 +65,11 @@ export function ClientLevelsPage() {
             icon={<Layers className="size-5" />}
             title="Nenhum nível cadastrado"
             description="Crie níveis como Bronze, Prata e Ouro para classificar os clientes."
-            action={<Button icon={<Plus className="size-4" />} onClick={() => setEditing('new')}>Novo nível</Button>}
+            action={
+              <Button icon={<Plus className="size-4" />} onClick={() => setEditing('new')}>
+                Novo nível
+              </Button>
+            }
           />
         ) : (
           <div className="overflow-x-auto">
@@ -80,15 +90,31 @@ export function ClientLevelsPage() {
                       <div className="font-medium text-ink">{l.name}</div>
                       {l.description ? <div className="text-xs text-zinc-500">{l.description}</div> : null}
                     </td>
-                    <td data-label="Valor" className="px-3 py-3.5 font-medium text-ink">{formatPrice(l.price) ?? <span className="font-normal text-zinc-400">—</span>}</td>
-                    <td data-label="Landing Pages" className="px-3 py-3.5 text-zinc-600">{l.landing_pages}</td>
-                    <td data-label="Criação" className="px-3 py-3.5 text-zinc-500">{formatDate(l.created_at)}</td>
+                    <td data-label="Valor" className="px-3 py-3.5 font-medium text-ink">
+                      {formatPrice(l.price) ?? <span className="font-normal text-zinc-400">—</span>}
+                    </td>
+                    <td data-label="Landing Pages" className="px-3 py-3.5 text-zinc-600">
+                      {l.landing_pages}
+                    </td>
+                    <td data-label="Criação" className="px-3 py-3.5 text-zinc-500">
+                      {formatDate(l.created_at)}
+                    </td>
                     <td className="px-5 py-3.5">
                       <div className="flex justify-end gap-1">
-                        <button type="button" onClick={() => setEditing(l)} title="Editar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
+                        <button
+                          type="button"
+                          onClick={() => setEditing(l)}
+                          title="Editar"
+                          className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink"
+                        >
                           <Pencil className="size-4" />
                         </button>
-                        <button type="button" onClick={() => setToDelete(l)} title="Excluir" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
+                        <button
+                          type="button"
+                          onClick={() => setToDelete(l)}
+                          title="Excluir"
+                          className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600"
+                        >
                           <Trash2 className="size-4" />
                         </button>
                       </div>
@@ -102,7 +128,7 @@ export function ClientLevelsPage() {
       </Card>
 
       <LevelFormModal
-        key={editing === 'new' ? 'new' : editing?.id ?? 'none'}
+        key={editing === 'new' ? 'new' : (editing?.id ?? 'none')}
         target={editing}
         onClose={() => setEditing(null)}
         onSaved={() => {
@@ -170,8 +196,12 @@ function LevelFormModal({ target, onClose, onSaved }: { target: ClientLevel | 'n
       busy={saving}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button type="submit" form="level-form" loading={saving}>{isNew ? 'Criar nível' : 'Salvar'}</Button>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="level-form" loading={saving}>
+            {isNew ? 'Criar nível' : 'Salvar'}
+          </Button>
         </>
       }
     >

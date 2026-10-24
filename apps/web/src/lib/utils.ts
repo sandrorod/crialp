@@ -5,7 +5,12 @@ export function cn(...classes: (string | false | null | undefined)[]) {
 export function formatDate(value: string | null | undefined, withTime = false) {
   if (!value) return '—';
   const d = new Date(value);
-  return d.toLocaleDateString('pt-BR', withTime ? { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' } : { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return d.toLocaleDateString(
+    'pt-BR',
+    withTime
+      ? { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }
+      : { day: '2-digit', month: '2-digit', year: 'numeric' },
+  );
 }
 
 export function relativeTime(value: string) {
@@ -40,7 +45,8 @@ export function shortUrl(url: string | null | undefined, max = 48): string {
   try {
     const u = new URL(url);
     // Links do Google Maps ficam enormes: mostra só o que identifica
-    if (/(^|\.)google\.[a-z.]+$/i.test(u.hostname) && u.pathname.startsWith('/maps')) return 'Google Maps' + (u.searchParams.get('query') ? ` · ${decodeURIComponent(u.searchParams.get('query')!).split(',')[0]}` : '');
+    if (/(^|\.)google\.[a-z.]+$/i.test(u.hostname) && u.pathname.startsWith('/maps'))
+      return 'Google Maps' + (u.searchParams.get('query') ? ` · ${decodeURIComponent(u.searchParams.get('query')!).split(',')[0]}` : '');
     text = decodeURIComponent(text);
   } catch {
     /* mantém o texto como veio */

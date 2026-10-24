@@ -15,7 +15,11 @@ function Colored({ ctx, name, children }: { ctx: RenderContext; name: string; ch
   const colors = ctx.theme.sections[name];
   const vars = name === 'final_cta' ? finalCtaVars(ctx.theme, colors) : sectionVars(ctx.theme, colors);
   // Sempre há um contêiner: o editor o usa para arrastar seções e o celular para reordená-las
-  return <div data-section={name} style={(vars ?? undefined) as CSSProperties | undefined}>{children}</div>;
+  return (
+    <div data-section={name} style={(vars ?? undefined) as CSSProperties | undefined}>
+      {children}
+    </div>
+  );
 }
 import type { RenderContext } from './context.js';
 import type { LabelKey } from './labels.js';
@@ -161,7 +165,11 @@ export function renderLandingPage(ctx: RenderContext): string {
 
   // Alterna fundos para dar ritmo visual (a faixa de diferenciais e o CTA têm fundo próprio)
   let altToggle = false;
-  const body = sections.map((key) => <Colored key={key} ctx={ctx} name={key}>{renderSection(key)}</Colored>);
+  const body = sections.map((key) => (
+    <Colored key={key} ctx={ctx} name={key}>
+      {renderSection(key)}
+    </Colored>
+  ));
   function renderSection(key: SectionOrderKey) {
     if (key === 'differentials') {
       altToggle = false;
@@ -175,15 +183,24 @@ export function renderLandingPage(ctx: RenderContext): string {
       return section ? <CustomSectionView key={key} ctx={ctx} section={section} alt={alt} /> : null;
     }
     switch (key) {
-      case 'about': return <AboutSection key={key} ctx={ctx} alt={alt} />;
-      case 'services': return <ServicesSection key={key} ctx={ctx} alt={alt} />;
-      case 'products': return <ProductsSection key={key} ctx={ctx} alt={alt} />;
-      case 'gallery': return <GallerySection key={key} ctx={ctx} alt={alt} />;
-      case 'testimonials': return <TestimonialsSection key={key} ctx={ctx} alt={alt} />;
-      case 'reviews': return <ReviewsSection key={key} ctx={ctx} alt={alt} />;
-      case 'faq': return <FaqSection key={key} ctx={ctx} alt={alt} />;
-      case 'contact': return <ContactSection key={key} ctx={ctx} alt={alt} />;
-      default: return null;
+      case 'about':
+        return <AboutSection key={key} ctx={ctx} alt={alt} />;
+      case 'services':
+        return <ServicesSection key={key} ctx={ctx} alt={alt} />;
+      case 'products':
+        return <ProductsSection key={key} ctx={ctx} alt={alt} />;
+      case 'gallery':
+        return <GallerySection key={key} ctx={ctx} alt={alt} />;
+      case 'testimonials':
+        return <TestimonialsSection key={key} ctx={ctx} alt={alt} />;
+      case 'reviews':
+        return <ReviewsSection key={key} ctx={ctx} alt={alt} />;
+      case 'faq':
+        return <FaqSection key={key} ctx={ctx} alt={alt} />;
+      case 'contact':
+        return <ContactSection key={key} ctx={ctx} alt={alt} />;
+      default:
+        return null;
     }
   }
 
@@ -215,7 +232,8 @@ export function renderLandingPage(ctx: RenderContext): string {
         {ctx.editable ? (
           <style
             dangerouslySetInnerHTML={{
-              __html: '[data-lp-hide-empty]:has([data-lp-empty]:empty)>.ico{display:none}.lp-social-hint{margin-top:24px;padding:12px 14px;border:1px dashed currentColor;border-radius:10px;font-size:13px;opacity:.6}html:not(.lp-mode-textos) [data-lp-empty]:empty,html:not(.lp-mode-textos) [data-lp-hide-empty]:has([data-lp-empty]:empty){display:none!important}',
+              __html:
+                '[data-lp-hide-empty]:has([data-lp-empty]:empty)>.ico{display:none}.lp-social-hint{margin-top:24px;padding:12px 14px;border:1px dashed currentColor;border-radius:10px;font-size:13px;opacity:.6}html:not(.lp-mode-textos) [data-lp-empty]:empty,html:not(.lp-mode-textos) [data-lp-hide-empty]:has([data-lp-empty]:empty){display:none!important}',
             }}
           />
         ) : null}
@@ -226,7 +244,9 @@ export function renderLandingPage(ctx: RenderContext): string {
         <style id="lp-image-size" dangerouslySetInnerHTML={{ __html: styleText(imageSizesCss(theme.imageSize)) }} />
         <style id="lp-image-style" dangerouslySetInnerHTML={{ __html: styleText(imageStylesCss(theme.imageStyle, theme.focus)) }} />
         {/* Efeitos de movimento dos textos (lidos pelo script abaixo) */}
-        {textEffectsJson(theme.elementColors) ? <script type="application/json" id="lp-fx" dangerouslySetInnerHTML={{ __html: textEffectsJson(theme.elementColors)! }} /> : null}
+        {textEffectsJson(theme.elementColors) ? (
+          <script type="application/json" id="lp-fx" dangerouslySetInnerHTML={{ __html: textEffectsJson(theme.elementColors)! }} />
+        ) : null}
         <script dangerouslySetInnerHTML={{ __html: REVEAL_SCRIPT }} />
         {/* Links de botões, emojis e ícones (só na página publicada) */}
         {!ctx.editable && elementLinksJson(theme.elementColors) ? (
@@ -244,14 +264,22 @@ export function renderLandingPage(ctx: RenderContext): string {
         ) : null}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ctx) }} />
       </head>
-      <body className={`tpl-${theme.template}${theme.photoShape ? ` photos-${theme.photoShape}` : ''}${theme.photoCols ? ` photos-cols-${theme.photoCols}` : ''}`}>
-        <a className="skip" href="#conteudo">{ctx.labels.skip_link}</a>
+      <body
+        className={`tpl-${theme.template}${theme.photoShape ? ` photos-${theme.photoShape}` : ''}${theme.photoCols ? ` photos-cols-${theme.photoCols}` : ''}`}
+      >
+        <a className="skip" href="#conteudo">
+          {ctx.labels.skip_link}
+        </a>
         <Header ctx={ctx} nav={nav} />
         <main id="conteudo">
-          <Colored ctx={ctx} name="hero"><HeroSection ctx={ctx} /></Colored>
+          <Colored ctx={ctx} name="hero">
+            <HeroSection ctx={ctx} />
+          </Colored>
           {body}
         </main>
-        <Colored ctx={ctx} name="footer"><Footer ctx={ctx} /></Colored>
+        <Colored ctx={ctx} name="footer">
+          <Footer ctx={ctx} />
+        </Colored>
         <WhatsAppFloat ctx={ctx} />
       </body>
     </html>

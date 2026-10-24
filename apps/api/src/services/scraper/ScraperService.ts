@@ -33,8 +33,8 @@ export interface ScrapeResult {
   pages: ScrapedPage[];
   jsonLd: unknown[];
   found: {
-    phones: string[];     // dígitos normalizados (55DDDNNNN...)
-    whatsapps: string[];  // dígitos normalizados
+    phones: string[]; // dígitos normalizados (55DDDNNNN...)
+    whatsapps: string[]; // dígitos normalizados
     emails: string[];
     socials: { network: SocialNetwork; url: string }[];
     zipCodes: string[];
@@ -44,8 +44,7 @@ export interface ScrapeResult {
   corpus: string;
 }
 
-const USER_AGENT =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36 LPBot/1.0';
+const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36 LPBot/1.0';
 const MAX_BYTES = 3 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
 const MAX_EXTRA_PAGES = 12;
@@ -112,13 +111,52 @@ function originalOfThumbnail(url: string): string | null {
 }
 
 const PAGE_KEYWORDS = [
-  'sobre', 'quem-somos', 'quemsomos', 'empresa', 'institucional', 'historia',
-  'servico', 'servicos', 'serviços', 'solucoes', 'soluções', 'tratamento', 'especialidade', 'area-de-atuacao', 'atuacao',
-  'produto', 'produtos', 'cardapio', 'cardápio', 'menu', 'planos', 'modalidades',
-  'contato', 'fale-conosco', 'faleconosco', 'localizacao', 'onde-estamos', 'unidades',
-  'depoimentos', 'avaliacoes', 'clientes',
+  'sobre',
+  'quem-somos',
+  'quemsomos',
+  'empresa',
+  'institucional',
+  'historia',
+  'servico',
+  'servicos',
+  'serviços',
+  'solucoes',
+  'soluções',
+  'tratamento',
+  'especialidade',
+  'area-de-atuacao',
+  'atuacao',
+  'produto',
+  'produtos',
+  'cardapio',
+  'cardápio',
+  'menu',
+  'planos',
+  'modalidades',
+  'contato',
+  'fale-conosco',
+  'faleconosco',
+  'localizacao',
+  'onde-estamos',
+  'unidades',
+  'depoimentos',
+  'avaliacoes',
+  'clientes',
   // Páginas com mais fotos do negócio
-  'galeria', 'fotos', 'portfolio', 'portfólio', 'projetos', 'obras', 'trabalhos', 'ambiente', 'estrutura', 'instalacoes', 'instalações', 'espaco', 'espaço', 'nosso-espaco',
+  'galeria',
+  'fotos',
+  'portfolio',
+  'portfólio',
+  'projetos',
+  'obras',
+  'trabalhos',
+  'ambiente',
+  'estrutura',
+  'instalacoes',
+  'instalações',
+  'espaco',
+  'espaço',
+  'nosso-espaco',
 ];
 
 /**
@@ -135,7 +173,10 @@ const DIRECTORIES: { host: RegExp; aliases: string[] }[] = [
   { host: /(^|\.)tripadvisor\.com(\.br)?$/, aliases: ['tripadvisor'] },
   { host: /(^|\.)reclameaqui\.com\.br$/, aliases: ['reclameaqui', 'reclame aqui'] },
   { host: /(^|\.)(linktr\.ee|beacons\.ai|bio\.link|linkin\.bio)$/, aliases: ['linktree', 'linktr.ee', 'beacons'] },
-  { host: /(^|\.)(apontador|guiamais|telelistas|solutudo|encontrasp|encontrabrasil)\.com\.br$/, aliases: ['apontador', 'guiamais', 'telelistas', 'solutudo', 'encontra'] },
+  {
+    host: /(^|\.)(apontador|guiamais|telelistas|solutudo|encontrasp|encontrabrasil)\.com\.br$/,
+    aliases: ['apontador', 'guiamais', 'telelistas', 'solutudo', 'encontra'],
+  },
   { host: /(^|\.)(habitissimo|triider)\.com\.br$/, aliases: ['habitissimo', 'triider'] },
   { host: /(^|\.)(zapimoveis|vivareal|olx)\.com\.br$/, aliases: ['zapimoveis', 'vivareal', 'olx'] },
   { host: /(^|\.)sympla\.com\.br$/, aliases: ['sympla'] },
@@ -143,9 +184,36 @@ const DIRECTORIES: { host: RegExp; aliases: string[] }[] = [
 
 /** Primeiro segmento de caminho que não identifica o perfil (ex.: /delivery/..., /perfil/...). */
 const GENERIC_SEGMENTS = new Set([
-  'delivery', 'perfil', 'profile', 'p', 'u', 'user', 'usuario', 'empresa', 'empresas', 'restaurante', 'loja', 'store',
-  'b', 'biz', 'local', 'anuncio', 'imovel', 'evento', 'e', 'dentistas', 'dentista', 'medicos', 'medico', 'profissionais',
-  'profissional', 'clinicas', 'clinica', 'advogados', 'servicos', 'estabelecimento',
+  'delivery',
+  'perfil',
+  'profile',
+  'p',
+  'u',
+  'user',
+  'usuario',
+  'empresa',
+  'empresas',
+  'restaurante',
+  'loja',
+  'store',
+  'b',
+  'biz',
+  'local',
+  'anuncio',
+  'imovel',
+  'evento',
+  'e',
+  'dentistas',
+  'dentista',
+  'medicos',
+  'medico',
+  'profissionais',
+  'profissional',
+  'clinicas',
+  'clinica',
+  'advogados',
+  'servicos',
+  'estabelecimento',
 ]);
 
 /** Último segmento com identificador no fim (…-eb626cd7, …/12345): padrão típico de perfil em marketplace. */
@@ -354,7 +422,7 @@ function extractJsonLd($: cheerio.CheerioAPI): unknown[] {
   $('script[type="application/ld+json"]').each((_, el) => {
     try {
       const parsed = JSON.parse($(el).contents().text());
-      const items = Array.isArray(parsed) ? parsed : parsed?.['@graph'] ?? [parsed];
+      const items = Array.isArray(parsed) ? parsed : (parsed?.['@graph'] ?? [parsed]);
       for (const item of items) out.push(item);
     } catch {
       /* JSON-LD inválido: ignorar */
@@ -373,7 +441,11 @@ function pageText($: cheerio.CheerioAPI, scope: ProfileScope | null = null): str
   $body.find('h1, h2, h3').each((_, el) => {
     $(el).prepend('\n## ');
   });
-  const lines = $body.text().split('\n').map(cleanLine).filter((l) => l.length > 1);
+  const lines = $body
+    .text()
+    .split('\n')
+    .map(cleanLine)
+    .filter((l) => l.length > 1);
   return lines.join('\n');
 }
 
@@ -399,7 +471,7 @@ export class ScraperService {
       if (scope && !(url.hostname === base.hostname && url.pathname.startsWith(scope.pathPrefix))) return;
       if (/\.(pdf|jpe?g|png|gif|webp|zip|docx?|xlsx?|mp4)$/i.test(url.pathname)) return;
       const key = url.toString();
-      if (key === base.toString() || url.pathname === '/' ) return;
+      if (key === base.toString() || url.pathname === '/') return;
       const haystack = `${decodeURIComponent(url.pathname)} ${$first(el).text()}`.toLowerCase();
       if (/(wp-login|wp-admin|login|carrinho|cart|checkout|minha-conta|account|politica-de-cookies|\/tag\/|\/author\/|\/page\/\d)/i.test(url.pathname)) return;
       // Páginas com palavras-chave primeiro; depois as demais páginas internas (menu, rodapé)
@@ -461,7 +533,9 @@ export class ScraperService {
     // e o mesmo arquivo em endereços diferentes (mesma impressão digital): fica uma
     const seenPhoto = new Set<string>();
     const distinct = kept.filter((img) => {
-      const k = `${imageKey(img.url).replace(/-\d{1,2}$/, '').replace(/[_\s-]+/g, '-')}|${img.width}x${img.height}`;
+      const k = `${imageKey(img.url)
+        .replace(/-\d{1,2}$/, '')
+        .replace(/[_\s-]+/g, '-')}|${img.width}x${img.height}`;
       const f = img.fingerprint ? `f:${img.fingerprint}` : null;
       if (seenPhoto.has(k) || (f && seenPhoto.has(f))) return false;
       seenPhoto.add(k);
@@ -491,7 +565,11 @@ export class ScraperService {
       if (/\.(svg)(\?|$)/i.test(url.pathname) && !logoHint) return;
       if (/\.ico$/i.test(url.pathname) || /favicon/i.test(url.pathname)) return;
       // Pixels de rastreamento e espaçadores (pelo nome do arquivo, não pelo domínio: "pixel-p1.s3..." é foto de verdade)
-      if (/(^|\/)(pixel|tracking|spacer|blank|1x1|transparent)(\.[a-z]+)?$/i.test(url.pathname) || /(^|\.)facebook\.com$/i.test(url.hostname) && url.pathname.startsWith('/tr')) return;
+      if (
+        /(^|\/)(pixel|tracking|spacer|blank|1x1|transparent)(\.[a-z]+)?$/i.test(url.pathname) ||
+        (/(^|\.)facebook\.com$/i.test(url.hostname) && url.pathname.startsWith('/tr'))
+      )
+        return;
       const key = url.toString();
       const prev = images.get(key);
       if (prev) {
@@ -514,9 +592,7 @@ export class ScraperService {
       if (scope) $scope.find(PLATFORM_CHROME).remove();
 
       const title = cleanLine($('title').first().text());
-      const description = cleanLine(
-        $('meta[name="description"]').attr('content') ?? $('meta[property="og:description"]').attr('content') ?? '',
-      );
+      const description = cleanLine($('meta[name="description"]').attr('content') ?? $('meta[property="og:description"]').attr('content') ?? '');
 
       // Links: telefone, e-mail, WhatsApp, redes sociais
       $scope.find('a[href]').each((_, el) => {
@@ -581,7 +657,8 @@ export class ScraperService {
         const alt = $el.attr('alt') ?? '';
         const marker = `${src} ${alt} ${$el.attr('class') ?? ''} ${$el.attr('id') ?? ''}`.toLowerCase();
         const inHeader = $el.closest('header, nav, .header, #header, .navbar').length > 0;
-        const logoHint = marker.includes('logo') || marker.includes('marca') || (inHeader && $el.closest('a[href="/"], a[href="./"], .logo, .brand').length > 0);
+        const logoHint =
+          marker.includes('logo') || marker.includes('marca') || (inHeader && $el.closest('a[href="/"], a[href="./"], .logo, .brand').length > 0);
         addImage(src, url, alt, inHeader ? 'cabeçalho' : 'conteúdo', logoHint);
       });
       // Imagens de fundo declaradas em <style> (banners e seções montados por construtores de site)
@@ -636,7 +713,12 @@ export class ScraperService {
       if (!item || typeof item !== 'object') return false;
       const type = String([item['@type']].flat()[0] ?? '');
       if (/^(BreadcrumbList|WebSite|SearchAction|SiteNavigationElement|WebPage)$/i.test(type)) return false;
-      if (scope && /^(Organization|Corporation)$/i.test(type) && mentionsPlatform(`${item.name ?? ''} ${item.legalName ?? ''} ${item.url ?? ''} ${JSON.stringify(item.brand ?? '')}`, scope)) return false;
+      if (
+        scope &&
+        /^(Organization|Corporation)$/i.test(type) &&
+        mentionsPlatform(`${item.name ?? ''} ${item.legalName ?? ''} ${item.url ?? ''} ${JSON.stringify(item.brand ?? '')}`, scope)
+      )
+        return false;
       const key = JSON.stringify(item);
       if (seenLd.has(key)) return false;
       seenLd.add(key);
@@ -669,10 +751,7 @@ export class ScraperService {
       if (typeof img === 'string') addImage(img, fetched[0].url, item.name ?? '', 'json-ld');
     }
 
-    const corpus = [
-      ...pages.map((p) => `${p.title}\n${p.description}\n${p.text}`),
-      JSON.stringify(jsonLd),
-    ].join('\n');
+    const corpus = [...pages.map((p) => `${p.title}\n${p.description}\n${p.text}`), JSON.stringify(jsonLd)].join('\n');
 
     return {
       requestedUrl: requested.toString(),
@@ -727,9 +806,7 @@ export function buildAnalysisDocument(scrape: ScrapeResult): string {
       `Redes sociais: ${f.socials.map((s) => `${s.network}: ${s.url}`).join(' | ') || 'nenhuma'}`,
   );
   if (scrape.images.length) {
-    parts.push(
-      `\n=== IMAGENS ENCONTRADAS ===\n` + describeImages(scrape.images),
-    );
+    parts.push(`\n=== IMAGENS ENCONTRADAS ===\n` + describeImages(scrape.images));
   }
   return parts.join('\n');
 }

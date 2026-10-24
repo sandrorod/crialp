@@ -44,8 +44,9 @@ function canAccess(user: User, pathname: string) {
   // Vendedor: editor só das Landing Pages atribuídas a ele
   if (user.role === 'seller' && pathname.startsWith('/landing-pages/')) return clientSites(user).some((id) => pathname === `/landing-pages/${id}`);
   const role = user.role;
-  const item = NAV.filter((n) => (n.end ? pathname === n.to : pathname === n.to || pathname.startsWith(`${n.to}/`)))
-    .sort((a, b) => b.to.length - a.to.length)[0];
+  const item = NAV.filter((n) => (n.end ? pathname === n.to : pathname === n.to || pathname.startsWith(`${n.to}/`))).sort(
+    (a, b) => b.to.length - a.to.length,
+  )[0];
   return item ? item.roles.includes(role) : STAFF.includes(role);
 }
 
@@ -62,7 +63,10 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
       <nav className="flex-1 space-y-0.5 px-3 py-2">
-        {(user?.role === 'client' ? [{ to: clientHome(user), label: clientSites(user).length > 1 ? 'Meus sites' : 'Meu site', icon: PanelsTopLeft, end: true }] : NAV.filter((n) => user && n.roles.includes(user.role))).map(({ to, label, icon: Icon, end }) => (
+        {(user?.role === 'client'
+          ? [{ to: clientHome(user), label: clientSites(user).length > 1 ? 'Meus sites' : 'Meu site', icon: PanelsTopLeft, end: true }]
+          : NAV.filter((n) => user && n.roles.includes(user.role))
+        ).map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
@@ -89,10 +93,22 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <div className="truncate text-[13px] font-medium">{user?.name}</div>
             <div className="truncate text-[11px] text-zinc-500">{user?.email}</div>
           </div>
-          <button type="button" onClick={() => setAccount(true)} className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink" title="Minha conta (nome e senha)" aria-label="Minha conta">
+          <button
+            type="button"
+            onClick={() => setAccount(true)}
+            className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink"
+            title="Minha conta (nome e senha)"
+            aria-label="Minha conta"
+          >
             <UserCog className="size-4" />
           </button>
-          <button type="button" onClick={() => void logout()} className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink" title="Sair" aria-label="Sair">
+          <button
+            type="button"
+            onClick={() => void logout()}
+            className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink"
+            title="Sair"
+            aria-label="Sair"
+          >
             <LogOut className="size-4" />
           </button>
         </div>
@@ -118,7 +134,11 @@ export function AdminLayout() {
   }
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   if (user.role === 'client' && !clientSites(user).length) {
-    return <div className="grid min-h-screen place-items-center p-6 text-center text-sm text-zinc-500">Esta conta não está ligada a nenhum site. Fale com o administrador.</div>;
+    return (
+      <div className="grid min-h-screen place-items-center p-6 text-center text-sm text-zinc-500">
+        Esta conta não está ligada a nenhum site. Fale com o administrador.
+      </div>
+    );
   }
   if (!canAccess(user, location.pathname)) return <Navigate to={homeFor(user)} replace />;
 
@@ -148,7 +168,12 @@ export function AdminLayout() {
 
       {/* Editor de Landing Page: largura total da tela; demais páginas com largura de leitura */}
       {/* Editor da LP: margem de cima 80% menor (linha da versão colada no topo) */}
-      <main className={cn('mx-auto px-4 pb-6 sm:px-6 lg:pb-8', /^\/landing-pages\/[^/]+/.test(location.pathname) ? 'max-w-none pt-[5px] lg:px-8 lg:pt-[6px]' : 'max-w-[1280px] pt-6 lg:px-10 lg:pt-8')}>
+      <main
+        className={cn(
+          'mx-auto px-4 pb-6 sm:px-6 lg:pb-8',
+          /^\/landing-pages\/[^/]+/.test(location.pathname) ? 'max-w-none pt-[5px] lg:px-8 lg:pt-[6px]' : 'max-w-[1280px] pt-6 lg:px-10 lg:pt-8',
+        )}
+      >
         <Outlet />
       </main>
     </div>

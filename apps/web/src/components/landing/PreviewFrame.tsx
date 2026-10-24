@@ -120,14 +120,20 @@ function attachFocusDrag(
     // Barra de zoom (só existe na prévia do editor, não na página publicada)
     const bar = doc.createElement('div');
     bar.dataset.lpUi = 'zoom';
-    bar.setAttribute('style', `position:absolute;right:${px(10)};bottom:${px(10)};z-index:5;display:flex;gap:${px(4)};padding:${px(4)};border-radius:999px;background:rgba(17,17,17,.72);backdrop-filter:blur(6px);box-shadow:0 6px 18px rgba(0,0,0,.25)`);
+    bar.setAttribute(
+      'style',
+      `position:absolute;right:${px(10)};bottom:${px(10)};z-index:5;display:flex;gap:${px(4)};padding:${px(4)};border-radius:999px;background:rgba(17,17,17,.72);backdrop-filter:blur(6px);box-shadow:0 6px 18px rgba(0,0,0,.25)`,
+    );
     const mkButton = (label: string, title: string, onClick: () => void) => {
       const b = doc.createElement('button');
       b.type = 'button';
       b.textContent = label;
       b.title = title;
       b.setAttribute('aria-label', title);
-      b.setAttribute('style', `width:${px(30)};height:${px(30)};border:0;border-radius:999px;background:transparent;color:#fff;font:600 ${px(17)}/1 system-ui,sans-serif;cursor:pointer`);
+      b.setAttribute(
+        'style',
+        `width:${px(30)};height:${px(30)};border:0;border-radius:999px;background:transparent;color:#fff;font:600 ${px(17)}/1 system-ui,sans-serif;cursor:pointer`,
+      );
       b.addEventListener('mouseenter', () => (b.style.background = 'rgba(255,255,255,.18)'));
       b.addEventListener('mouseleave', () => (b.style.background = 'transparent'));
       b.addEventListener('click', (e) => {
@@ -406,7 +412,8 @@ export function PreviewFrame({
     onSectionPick(d, (p) => {
       if (!onSectionBgRef.current) return;
       // Cor que aparece hoje: a da <section> (ou do contêiner), senão a da página
-      const wrap = d.querySelector<HTMLElement>(`[data-section="${p.key}"]`) ?? d.querySelector<HTMLElement>(p.key === 'header' ? '.site-header' : '.site-footer');
+      const wrap =
+        d.querySelector<HTMLElement>(`[data-section="${p.key}"]`) ?? d.querySelector<HTMLElement>(p.key === 'header' ? '.site-header' : '.site-footer');
       const win = d.defaultView;
       const bgOf = (el: Element | null | undefined) => (el && win ? cssColorToHex(win.getComputedStyle(el).backgroundColor) : null);
       const original = bgOf(wrap?.firstElementChild) ?? bgOf(wrap) ?? bgOf(d.body) ?? '#ffffff';
@@ -417,10 +424,17 @@ export function PreviewFrame({
     if (onFocusRef.current) {
       const openImage = (img: HTMLImageElement, at: { x: number; y: number }) => setImagePick(imagePickFor(img, at.x, at.y));
       const sizeOf = (key: string) => imageSizeRef.current?.[device]?.[key];
-      attachFocusDrag(d, () => focusRef.current, (url, f) => onFocusRef.current?.(url, f), uiScale, openImage, {
-        get: (img) => cropOf(img, sizeOf),
-        save: (key, box) => onImageSizeRef.current?.({ [key]: box }),
-      });
+      attachFocusDrag(
+        d,
+        () => focusRef.current,
+        (url, f) => onFocusRef.current?.(url, f),
+        uiScale,
+        openImage,
+        {
+          get: (img) => cropOf(img, sizeOf),
+          save: (key, box) => onImageSizeRef.current?.({ [key]: box }),
+        },
+      );
       onImagePick(d, setImagePick);
     }
     setColorsCss(d, elementColorsCss(colorsRef.current));
@@ -429,7 +443,12 @@ export function PreviewFrame({
     setSpacingCss(d, sectionSpacingCss(spacingRef.current));
     setImageSizeCss(d, imageSizesCss(imageSizeRef.current));
     if (onImageSizeRef.current) {
-      attachImageResize(d, (url) => imageSizeRef.current?.[device]?.[url], (changes) => onImageSizeRef.current?.(changes), uiScale);
+      attachImageResize(
+        d,
+        (url) => imageSizeRef.current?.[device]?.[url],
+        (changes) => onImageSizeRef.current?.(changes),
+        uiScale,
+      );
     }
     if (onSpacingRef.current) attachSpacingDrag(d, (key, pct) => onSpacingRef.current?.(key, pct), uiScale);
     if (onReorderRef.current) attachSectionDrag(d, (keys) => onReorderRef.current?.(keys), uiScale, orderRef.current);
@@ -622,7 +641,9 @@ export function PreviewFrame({
     const sizeOwner = sizes[sizeKey] ? sizeKey : sizes[url] ? url : null;
     const saved = elementColors?.[device]?.[selector];
     const setFocusLive = (next: ImageFocus) => {
-      doc()?.querySelectorAll<HTMLImageElement>('img[data-lp-img]').forEach((img) => img.dataset.lpImg === url && applyFocus(img, next));
+      doc()
+        ?.querySelectorAll<HTMLImageElement>('img[data-lp-img]')
+        .forEach((img) => img.dataset.lpImg === url && applyFocus(img, next));
       focusRef.current = { ...focusRef.current, [url]: next };
       onFocus(url, next);
     };
@@ -707,8 +728,18 @@ export function PreviewFrame({
   if (device === 'mobile') {
     return (
       <div ref={box} className="mx-auto w-[390px] max-w-full overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-black/5">
-        <iframe ref={frame} title="Prévia da Landing Page" src={src} srcDoc={html ?? undefined} onLoad={onLoad} className="w-full border-0" style={{ height }} />
-        {popup}{sectionPopup}{imagePopup}
+        <iframe
+          ref={frame}
+          title="Prévia da Landing Page"
+          src={src}
+          srcDoc={html ?? undefined}
+          onLoad={onLoad}
+          className="w-full border-0"
+          style={{ height }}
+        />
+        {popup}
+        {sectionPopup}
+        {imagePopup}
       </div>
     );
   }
@@ -726,7 +757,9 @@ export function PreviewFrame({
           style={{ width: DESKTOP_WIDTH, height: height / scale, transform: `scale(${scale})` }}
         />
       ) : null}
-      {popup}{sectionPopup}{imagePopup}
+      {popup}
+      {sectionPopup}
+      {imagePopup}
     </div>
   );
 }

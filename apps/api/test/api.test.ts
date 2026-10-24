@@ -206,8 +206,14 @@ describe('Isolamento entre organizações (A não acessa B)', () => {
   });
 
   it('processamentos (jobs) de B não podem ser lidos nem cancelados por A', async () => {
-    const jobB = (await one<{ id: string }>(`insert into jobs (organization_id, type, input, status) values ($1, 'analyze_url', '{}', 'running') returning id`, [s.orgB]))!.id;
-    const jobA = (await one<{ id: string }>(`insert into jobs (organization_id, type, input, status, step) values ($1, 'analyze_url', '{}', 'running', 2) returning id`, [s.orgA]))!.id;
+    const jobB = (await one<{ id: string }>(
+      `insert into jobs (organization_id, type, input, status) values ($1, 'analyze_url', '{}', 'running') returning id`,
+      [s.orgB],
+    ))!.id;
+    const jobA = (await one<{ id: string }>(
+      `insert into jobs (organization_id, type, input, status, step) values ($1, 'analyze_url', '{}', 'running', 2) returning id`,
+      [s.orgA],
+    ))!.id;
     const a = await asUser('dono-a@teste.dev');
     assert.equal((await a.call('GET', `/api/jobs/${jobB}`)).status, 404);
     assert.equal((await a.call('POST', `/api/jobs/${jobB}/cancel`)).status, 404);
@@ -333,7 +339,12 @@ describe('Conteúdo malicioso nas páginas', () => {
     };
     const res = await a.call('PUT', `/api/landing-pages/${s.a2.lpId}/content`, {
       ...editBody(evil, theme),
-      seo: { seo_title: '"><script>alert(6)</script>', seo_description: null, seo_keywords: ['</title><script>alert(7)</script>'], og_image: 'javascript:alert(8)' },
+      seo: {
+        seo_title: '"><script>alert(6)</script>',
+        seo_description: null,
+        seo_keywords: ['</title><script>alert(7)</script>'],
+        og_image: 'javascript:alert(8)',
+      },
     });
     assert.ok([200, 400].includes(res.status), `status ${res.status}`);
     if (res.status === 400) {
@@ -390,7 +401,11 @@ describe('Uploads', () => {
     const a = await asUser('dono-a@teste.dev');
     const html = await a.call('POST', '/api/uploads', form(Buffer.from('<html><script>alert(1)</script></html>'), 'foto.png', 'image/png'));
     assert.equal(html.status, 400);
-    const svg = await a.call('POST', '/api/uploads', form(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>'), 'logo.svg', 'image/svg+xml'));
+    const svg = await a.call(
+      'POST',
+      '/api/uploads',
+      form(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>'), 'logo.svg', 'image/svg+xml'),
+    );
     assert.equal(svg.status, 400);
   });
 

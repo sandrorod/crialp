@@ -45,10 +45,11 @@ export interface JobHandle {
  */
 export class JobService {
   async create(orgId: string, type: JobType, input: object) {
-    const row = await one<{ id: string }>(
-      `insert into jobs (organization_id, type, input) values ($1, $2, $3) returning id`,
-      [orgId, type, JSON.stringify(input)],
-    );
+    const row = await one<{ id: string }>(`insert into jobs (organization_id, type, input) values ($1, $2, $3) returning id`, [
+      orgId,
+      type,
+      JSON.stringify(input),
+    ]);
     return row!.id;
   }
 
@@ -120,10 +121,11 @@ export class JobService {
 
   /** Interrompe um processamento em andamento (a tarefa para na próxima etapa, sem salvar). */
   async cancel(orgId: string, id: string) {
-    const res = await query(
-      `update jobs set status = 'error', error = $3 where id = $1 and organization_id = $2 and status in ('queued','running')`,
-      [id, orgId, CANCELED_MESSAGE],
-    );
+    const res = await query(`update jobs set status = 'error', error = $3 where id = $1 and organization_id = $2 and status in ('queued','running')`, [
+      id,
+      orgId,
+      CANCELED_MESSAGE,
+    ]);
     return (res.rowCount ?? 0) > 0;
   }
 

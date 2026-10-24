@@ -49,12 +49,18 @@ export function UsersPage() {
       <PageHeader
         title="Subusuários"
         description="Crie contas de Administrador ou Vendedor para a sua equipe."
-        actions={<Button icon={<Plus className="size-4" />} onClick={() => setEditing('new')}>Novo subusuário</Button>}
+        actions={
+          <Button icon={<Plus className="size-4" />} onClick={() => setEditing('new')}>
+            Novo subusuário
+          </Button>
+        }
       />
 
       <Card>
         {error ? (
-          <div className="p-4"><ErrorBlock message={error} onRetry={reload} /></div>
+          <div className="p-4">
+            <ErrorBlock message={error} onRetry={reload} />
+          </div>
         ) : loading && !data ? (
           <LoadingBlock />
         ) : !data?.length ? (
@@ -80,22 +86,41 @@ export function UsersPage() {
                       <td className="px-5 py-3.5 font-medium text-ink">
                         {u.name} {isMe ? <span className="ml-1 text-xs font-normal text-zinc-400">(você)</span> : null}
                       </td>
-                      <td data-label="E-mail" className="px-3 py-3.5 text-zinc-600">{u.email}</td>
+                      <td data-label="E-mail" className="px-3 py-3.5 text-zinc-600">
+                        {u.email}
+                      </td>
                       <td data-label="Tipo" className="px-3 py-3.5">
-                        <span className={cn('inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium', u.role === 'seller' ? 'bg-amber-50 text-amber-700' : 'bg-zinc-100 text-zinc-700')}>
+                        <span
+                          className={cn(
+                            'inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium',
+                            u.role === 'seller' ? 'bg-amber-50 text-amber-700' : 'bg-zinc-100 text-zinc-700',
+                          )}
+                        >
                           {ROLE_LABELS[u.role] ?? u.role}
                         </span>
                       </td>
-                      <td data-label="Último acesso" className="px-3 py-3.5 text-zinc-500">{u.last_login_at ? formatDate(u.last_login_at, true) : 'Nunca acessou'}</td>
+                      <td data-label="Último acesso" className="px-3 py-3.5 text-zinc-500">
+                        {u.last_login_at ? formatDate(u.last_login_at, true) : 'Nunca acessou'}
+                      </td>
                       <td className="px-5 py-3.5">
                         <div className="flex justify-end gap-1">
                           {!locked ? (
-                            <button type="button" onClick={() => setEditing(u)} title="Editar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
+                            <button
+                              type="button"
+                              onClick={() => setEditing(u)}
+                              title="Editar"
+                              className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink"
+                            >
                               <Pencil className="size-4" />
                             </button>
                           ) : null}
                           {!isMe && u.role !== 'owner' ? (
-                            <button type="button" onClick={() => setToDelete(u)} title="Excluir" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
+                            <button
+                              type="button"
+                              onClick={() => setToDelete(u)}
+                              title="Excluir"
+                              className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600"
+                            >
                               <Trash2 className="size-4" />
                             </button>
                           ) : null}
@@ -111,7 +136,7 @@ export function UsersPage() {
       </Card>
 
       <UserFormModal
-        key={editing === 'new' ? 'new' : editing?.id ?? 'none'}
+        key={editing === 'new' ? 'new' : (editing?.id ?? 'none')}
         target={editing}
         isSelf={editing !== 'new' && editing?.id === me?.id}
         onClose={() => setEditing(null)}
@@ -123,7 +148,11 @@ export function UsersPage() {
       <ConfirmDialog
         open={!!toDelete}
         title="Excluir subusuário?"
-        description={<><strong>{toDelete?.name}</strong> perde o acesso ao sistema. As prospecções registradas por ele continuam no histórico.</>}
+        description={
+          <>
+            <strong>{toDelete?.name}</strong> perde o acesso ao sistema. As prospecções registradas por ele continuam no histórico.
+          </>
+        }
         confirmLabel="Excluir"
         danger
         loading={deleting}
@@ -177,8 +206,12 @@ function UserFormModal({ target, isSelf, onClose, onSaved }: { target: SubUser |
       busy={saving}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button type="submit" form="user-form" loading={saving}>{isNew ? 'Criar conta' : 'Salvar'}</Button>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="user-form" loading={saving}>
+            {isNew ? 'Criar conta' : 'Salvar'}
+          </Button>
         </>
       }
     >
@@ -201,7 +234,15 @@ function UserFormModal({ target, isSelf, onClose, onSaved }: { target: SubUser |
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required maxLength={200} autoComplete="off" />
         </Field>
         <Field label={isNew ? 'Senha' : 'Nova senha'} hint={isNew ? 'Mínimo de 8 caracteres.' : 'Deixe em branco para manter a senha atual.'}>
-          <Input type="text" value={password} onChange={(e) => setPassword(e.target.value)} required={isNew} minLength={8} maxLength={200} autoComplete="new-password" />
+          <Input
+            type="text"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required={isNew}
+            minLength={8}
+            maxLength={200}
+            autoComplete="new-password"
+          />
         </Field>
       </form>
     </Modal>

@@ -40,7 +40,11 @@ const MIME: Record<string, string> = { jpg: 'image/jpeg', png: 'image/png', webp
  */
 class DatabaseStorage implements StorageService {
   async save(buffer: Buffer, ext: string) {
-    const row = await one<{ id: string }>('insert into lp_uploads (content_type, data, size) values ($1, $2, $3) returning id', [MIME[ext] ?? 'application/octet-stream', buffer, buffer.length]);
+    const row = await one<{ id: string }>('insert into lp_uploads (content_type, data, size) values ($1, $2, $3) returning id', [
+      MIME[ext] ?? 'application/octet-stream',
+      buffer,
+      buffer.length,
+    ]);
     return `/uploads/db/${row!.id}.${ext}`;
   }
 }

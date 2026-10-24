@@ -1,6 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Building2, Loader2, Copy, Download, ExternalLink, Image as ImageIcon, Monitor, Move, MoveVertical, Palette, PenLine, RefreshCw, Rows3, Save, Smartphone, Sparkles, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Building2,
+  Loader2,
+  Copy,
+  Download,
+  ExternalLink,
+  Image as ImageIcon,
+  Monitor,
+  Move,
+  MoveVertical,
+  Palette,
+  PenLine,
+  RefreshCw,
+  Rows3,
+  Save,
+  Smartphone,
+  Sparkles,
+  Trash2,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { ClientAccessTab, OwnAccessTab } from '@/components/landing/ClientAccessTab';
 import { ContentTab } from '@/components/landing/ContentTab';
@@ -36,12 +55,37 @@ const TABS: { key: Tab; label: string }[] = [
 const STAFF_TABS: Tab[] = ['publicacao', 'cliente'];
 
 const MODES: { key: PreviewMode; label: string; icon: typeof Monitor; hint: string }[] = [
-  { key: 'textos', label: 'Textos', icon: PenLine, hint: 'Textos contornados para editar ali mesmo (Enter ou clicar fora confirma; Esc desfaz). Em qualquer modo, clicar num elemento abre as opções dele.' },
-  { key: 'fotos', label: 'Fotos', icon: ImageIcon, hint: 'Arraste a foto para ajustar o enquadramento e as alças azuis das bordas para cortar (duplo clique tira o corte). Clique na foto para zoom, borda, sombra e as demais opções.' },
-  { key: 'mover', label: 'Mover', icon: Move, hint: 'Arraste qualquer foto ou texto para o ponto da seção onde quer deixá-lo (no celular, com o dedo). Ele não sai da área da seção. Duplo clique volta à posição original.' },
+  {
+    key: 'textos',
+    label: 'Textos',
+    icon: PenLine,
+    hint: 'Textos contornados para editar ali mesmo (Enter ou clicar fora confirma; Esc desfaz). Em qualquer modo, clicar num elemento abre as opções dele.',
+  },
+  {
+    key: 'fotos',
+    label: 'Fotos',
+    icon: ImageIcon,
+    hint: 'Arraste a foto para ajustar o enquadramento e as alças azuis das bordas para cortar (duplo clique tira o corte). Clique na foto para zoom, borda, sombra e as demais opções.',
+  },
+  {
+    key: 'mover',
+    label: 'Mover',
+    icon: Move,
+    hint: 'Arraste qualquer foto ou texto para o ponto da seção onde quer deixá-lo (no celular, com o dedo). Ele não sai da área da seção. Duplo clique volta à posição original.',
+  },
   { key: 'secoes', label: 'Seções', icon: Rows3, hint: 'Arraste as seções pelo botão ⠿ (ou use ↑ ↓) para mudar a ordem.' },
-  { key: 'espacos', label: 'Espaços', icon: MoveVertical, hint: 'Arraste a alça azul "↕ Espaço" na borda de baixo de cada seção: para cima diminui a margem interna, para baixo aumenta. Duplo clique volta ao padrão.' },
-  { key: 'cores', label: 'Cores', icon: Palette, hint: 'Clique em qualquer elemento (título, texto, botão, fundo…) para escolher a cor da fonte, do fundo e o tamanho.' },
+  {
+    key: 'espacos',
+    label: 'Espaços',
+    icon: MoveVertical,
+    hint: 'Arraste a alça azul "↕ Espaço" na borda de baixo de cada seção: para cima diminui a margem interna, para baixo aumenta. Duplo clique volta ao padrão.',
+  },
+  {
+    key: 'cores',
+    label: 'Cores',
+    icon: Palette,
+    hint: 'Clique em qualquer elemento (título, texto, botão, fundo…) para escolher a cor da fonte, do fundo e o tamanho.',
+  },
 ];
 
 /** Botões só com ícone da linha de ações: mesmo tamanho, fundo, borda e cor em todos. */
@@ -73,10 +117,45 @@ function readIconAt(content: LandingContent, path: string): string | null {
  */
 function renderedThemeKey(t: ThemeSettings | null | undefined, c: LandingContent | null | undefined) {
   if (!t) return '';
-  const { preset, primary, accent, background, heroVariant, sections, images, template, imageOrder, logoPlacement, removeEmojis, brand, hideMap, blend, photoShape, photoCols } = t;
+  const {
+    preset,
+    primary,
+    accent,
+    background,
+    heroVariant,
+    sections,
+    images,
+    template,
+    imageOrder,
+    logoPlacement,
+    removeEmojis,
+    brand,
+    hideMap,
+    blend,
+    photoShape,
+    photoCols,
+  } = t;
   // Todo o conteúdo (textos, seções desativadas, ordem, seções personalizadas) também é renderizado no servidor
   // (blend = tons das duas cores; photoShape = formato das fotos)
-  return JSON.stringify({ preset, primary, accent, background: background ?? null, heroVariant, sections, images, template, imageOrder, logoPlacement, removeEmojis, brand, hideMap: hideMap === true, blend: blend === true, photoShape: photoShape ?? null, photoCols: photoCols ?? null, content: c ?? null });
+  return JSON.stringify({
+    preset,
+    primary,
+    accent,
+    background: background ?? null,
+    heroVariant,
+    sections,
+    images,
+    template,
+    imageOrder,
+    logoPlacement,
+    removeEmojis,
+    brand,
+    hideMap: hideMap === true,
+    blend: blend === true,
+    photoShape: photoShape ?? null,
+    photoCols: photoCols ?? null,
+    content: c ?? null,
+  });
 }
 
 export function LandingPageEditorPage() {
@@ -110,11 +189,7 @@ export function LandingPageEditorPage() {
     }
     const section = s.section ?? '';
     const labelPath = s.path?.startsWith('labels.') && /^(labels\.(nav_|header_cta|skip_link|footer_note|whatsapp))/.test(s.path);
-    const id = s.socials
-      ? 'socials'
-      : labelPath || section === 'header' || section === 'footer'
-        ? 'labels'
-        : section;
+    const id = s.socials ? 'socials' : labelPath || section === 'header' || section === 'footer' ? 'labels' : section;
     if (!id) return;
     // Campo mais específico primeiro: "services.items.1.benefit" → "services.items.1" → "services.items" → "services".
     // Clique num cartão (sem texto próprio): o item do primeiro texto dentro dele
@@ -292,7 +367,12 @@ export function LandingPageEditorPage() {
   }, [focusGroup, tab]);
 
   if (error) return <ErrorBlock message={error} onRetry={reload} />;
-  if (loading && !lp) return <Card><LoadingBlock rows={8} /></Card>;
+  if (loading && !lp)
+    return (
+      <Card>
+        <LoadingBlock rows={8} />
+      </Card>
+    );
   if (!lp || !content || !theme || !seo) return null;
 
   const save = async () => {
@@ -341,10 +421,12 @@ export function LandingPageEditorPage() {
     }
   };
 
-  const change = <T,>(setter: (v: T) => void) => (v: T) => {
-    setter(v);
-    setDirty(true);
-  };
+  const change =
+    <T,>(setter: (v: T) => void) =>
+    (v: T) => {
+      setter(v);
+      setDirty(true);
+    };
   const generating = !!jobId;
   // Mesmo nome do topo da página (cabeçalho da LP): o editado na prévia, senão o nome fantasia, senão a razão
   const headerName = content.overrides?.['company.name']?.trim() || company?.trade_name || company?.name || lp.company?.name || lp.title;
@@ -361,69 +443,140 @@ export function LandingPageEditorPage() {
             <Link to={restricted ? '/meus-sites' : '/landing-pages'} className="inline-flex items-center gap-1.5 hover:text-ink">
               <ArrowLeft className="size-4" /> {isSeller ? 'Minhas Landing Pages' : isClient ? 'Meus sites' : 'Landing Pages'}
             </Link>
-            <span className="text-zinc-300" aria-hidden>|</span>
+            <span className="text-zinc-300" aria-hidden>
+              |
+            </span>
           </>
         ) : null}
         <a href={lp.public_url} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1 break-all text-brand-600 hover:underline">
           {lp.public_url.replace(/^https?:\/\//, '')} <ExternalLink className="size-3.5" />
         </a>
-        <button type="button" onClick={() => actions.copyUrl(lp.public_url)} className="inline-flex items-center gap-1 hover:text-ink"><Copy className="size-3.5" /> Copiar</button>
-        <span>v{lp.current_version} · atualizada {formatDate(lp.updated_at, true)}</span>
+        <button type="button" onClick={() => actions.copyUrl(lp.public_url)} className="inline-flex items-center gap-1 hover:text-ink">
+          <Copy className="size-3.5" /> Copiar
+        </button>
+        <span>
+          v{lp.current_version} · atualizada {formatDate(lp.updated_at, true)}
+        </span>
         {restricted ? null : (
           <span className="inline-flex items-center gap-1.5">
             · Vendedor
-            <SellerCell landingPageId={lp.id} sellerId={seller.id} sellerName={seller.name} sellers={sellers} canAssign={canAssign} onChanged={(s) => setSellerOverride(s)} />
+            <SellerCell
+              landingPageId={lp.id}
+              sellerId={seller.id}
+              sellerName={seller.name}
+              sellers={sellers}
+              canAssign={canAssign}
+              onChanged={(s) => setSellerOverride(s)}
+            />
           </span>
         )}
-        <span className="text-zinc-300" aria-hidden>|</span>
+        <span className="text-zinc-300" aria-hidden>
+          |
+        </span>
         {/* Prévia: computador/celular, recarregar e abrir em nova aba */}
         <div className="flex items-center gap-1">
           <div className="flex rounded-lg bg-zinc-100 p-0.5">
             {(['desktop', 'mobile'] as const).map((d) => (
-              <button type="button" key={d} onClick={() => setDevice(d)} className={cn('rounded-md p-1.5', device === d ? 'bg-white shadow-sm' : 'text-zinc-500')} aria-label={d === 'desktop' ? 'Prévia no computador' : 'Prévia no celular'} title={d === 'desktop' ? 'Prévia no computador' : 'Prévia no celular'}>
+              <button
+                type="button"
+                key={d}
+                onClick={() => setDevice(d)}
+                className={cn('rounded-md p-1.5', device === d ? 'bg-white shadow-sm' : 'text-zinc-500')}
+                aria-label={d === 'desktop' ? 'Prévia no computador' : 'Prévia no celular'}
+                title={d === 'desktop' ? 'Prévia no computador' : 'Prévia no celular'}
+              >
                 {d === 'desktop' ? <Monitor className="size-4" /> : <Smartphone className="size-4" />}
               </button>
             ))}
           </div>
-          <button type="button" onClick={() => setFrameKey((k) => k + 1)} className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100" aria-label="Recarregar prévia" title="Recarregar prévia"><RefreshCw className="size-4" /></button>
-          <a href={landingPageService.previewUrl(lp.id)} target="_blank" rel="noreferrer" className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100" aria-label="Abrir prévia em nova aba" title="Abrir prévia em nova aba"><ExternalLink className="size-4" /></a>
+          <button
+            type="button"
+            onClick={() => setFrameKey((k) => k + 1)}
+            className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100"
+            aria-label="Recarregar prévia"
+            title="Recarregar prévia"
+          >
+            <RefreshCw className="size-4" />
+          </button>
+          <a
+            href={landingPageService.previewUrl(lp.id)}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100"
+            aria-label="Abrir prévia em nova aba"
+            title="Abrir prévia em nova aba"
+          >
+            <ExternalLink className="size-4" />
+          </a>
         </div>
         {/* Ações da página, alinhadas à direita */}
-        {restricted ? null : <div className="ml-auto flex flex-wrap justify-end gap-1.5">
-          <Link to={`/empresas/${lp.company_id}`} className={ICON_ACTION} aria-label="Editar empresa" title="Editar empresa"><Building2 className="size-4" /></Link>
-          <button type="button" onClick={() => setRegenOpen(true)} disabled={generating} className={ICON_ACTION} aria-label="Regenerar" title="Regenerar a Landing Page">
-            {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-          </button>
-          {/* Sempre visível: sem imagem ainda (LP antiga ou falha), gera e já baixa */}
-          <button
-            type="button"
-            disabled={shotBusy}
-            onClick={() => (shot?.available ? downloadShot(shot.created_at) : generateShot(true))}
-            className={ICON_ACTION}
-            aria-label="Baixar imagem JPG"
-            title={shot?.available ? `Baixar imagem JPG (topo e "Sobre nós"), gerada ${formatDate(shot.created_at, true)}` : 'Gerar e baixar imagem JPG (topo e "Sobre nós")'}
-          >
-            <ImageIcon className="size-4" />
-          </button>
-          {/* Novo print da página; o envio ao Google Drive é automático */}
-          <button
-            type="button"
-            disabled={shotBusy}
-            onClick={() => generateShot()}
-            className={ICON_ACTION}
-            aria-label="Novo print"
-            title={shotBusy ? 'Gerando o print…' : 'Novo print: gerar um novo print da página e enviar ao Google Drive'}
-          >
-            <RefreshCw className={shotBusy ? 'size-4 animate-spin' : 'size-4'} />
-          </button>
-          {shot?.drive_file_id ? (
-            <a href={`https://drive.google.com/file/d/${shot.drive_file_id}/view`} target="_blank" rel="noreferrer" className={ICON_ACTION} aria-label="Drive" title={shot.drive_error ?? 'Abrir a imagem no Google Drive'}>
-              <ExternalLink className="size-4" />
+        {restricted ? null : (
+          <div className="ml-auto flex flex-wrap justify-end gap-1.5">
+            <Link to={`/empresas/${lp.company_id}`} className={ICON_ACTION} aria-label="Editar empresa" title="Editar empresa">
+              <Building2 className="size-4" />
+            </Link>
+            <button
+              type="button"
+              onClick={() => setRegenOpen(true)}
+              disabled={generating}
+              className={ICON_ACTION}
+              aria-label="Regenerar"
+              title="Regenerar a Landing Page"
+            >
+              {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+            </button>
+            {/* Sempre visível: sem imagem ainda (LP antiga ou falha), gera e já baixa */}
+            <button
+              type="button"
+              disabled={shotBusy}
+              onClick={() => (shot?.available ? downloadShot(shot.created_at) : generateShot(true))}
+              className={ICON_ACTION}
+              aria-label="Baixar imagem JPG"
+              title={
+                shot?.available
+                  ? `Baixar imagem JPG (topo e "Sobre nós"), gerada ${formatDate(shot.created_at, true)}`
+                  : 'Gerar e baixar imagem JPG (topo e "Sobre nós")'
+              }
+            >
+              <ImageIcon className="size-4" />
+            </button>
+            {/* Novo print da página; o envio ao Google Drive é automático */}
+            <button
+              type="button"
+              disabled={shotBusy}
+              onClick={() => generateShot()}
+              className={ICON_ACTION}
+              aria-label="Novo print"
+              title={shotBusy ? 'Gerando o print…' : 'Novo print: gerar um novo print da página e enviar ao Google Drive'}
+            >
+              <RefreshCw className={shotBusy ? 'size-4 animate-spin' : 'size-4'} />
+            </button>
+            {shot?.drive_file_id ? (
+              <a
+                href={`https://drive.google.com/file/d/${shot.drive_file_id}/view`}
+                target="_blank"
+                rel="noreferrer"
+                className={ICON_ACTION}
+                aria-label="Drive"
+                title={shot.drive_error ?? 'Abrir a imagem no Google Drive'}
+              >
+                <ExternalLink className="size-4" />
+              </a>
+            ) : null}
+            <a href={landingPageService.exportUrl(lp.id)} className={ICON_ACTION} aria-label="Exportar HTML" title="Exportar HTML">
+              <Download className="size-4" />
             </a>
-          ) : null}
-          <a href={landingPageService.exportUrl(lp.id)} className={ICON_ACTION} aria-label="Exportar HTML" title="Exportar HTML"><Download className="size-4" /></a>
-          <button type="button" onClick={() => setDeleteOpen(true)} className={cn(ICON_ACTION, 'hover:border-red-200 hover:text-red-600')} aria-label="Excluir" title="Excluir"><Trash2 className="size-4" /></button>
-        </div>}
+            <button
+              type="button"
+              onClick={() => setDeleteOpen(true)}
+              className={cn(ICON_ACTION, 'hover:border-red-200 hover:text-red-600')}
+              aria-label="Excluir"
+              title="Excluir"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {generating ? (
@@ -445,12 +598,23 @@ export function LandingPageEditorPage() {
               {/* Nome da página (o mesmo do topo da LP) e ativar/desativar, na linha dos modos */}
               <div className="flex min-w-0 items-center gap-3">
                 <h1 className="truncate text-lg font-semibold tracking-tight">{headerName}</h1>
-                {restricted ? null : <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />}
+                {restricted ? null : (
+                  <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />
+                )}
               </div>
               {/* No celular os modos quebram em mais de uma linha (sem rolagem lateral) */}
               <div className="flex max-w-full flex-wrap justify-center gap-0.5 rounded-lg bg-white p-0.5 shadow-sm ring-1 ring-black/5">
                 {MODES.map((m) => (
-                  <button type="button" key={m.key} onClick={() => setMode(m.key)} title={m.hint} className={cn('inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium', mode === m.key ? 'bg-ink text-white' : 'text-zinc-600 hover:text-ink')}>
+                  <button
+                    type="button"
+                    key={m.key}
+                    onClick={() => setMode(m.key)}
+                    title={m.hint}
+                    className={cn(
+                      'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium',
+                      mode === m.key ? 'bg-ink text-white' : 'text-zinc-600 hover:text-ink',
+                    )}
+                  >
                     <m.icon className="size-3.5" /> {m.label}
                   </button>
                 ))}
@@ -459,7 +623,8 @@ export function LandingPageEditorPage() {
               <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 lg:justify-self-end">
                 {dirty ? <span className="text-xs font-medium text-amber-700">Há alterações não salvas.</span> : null}
                 {mode === 'secoes' && device === 'mobile' && theme.mobileOrder?.length ? (
-                  <button type="button"
+                  <button
+                    type="button"
                     onClick={() => {
                       setTheme((t) => (t ? { ...t, mobileOrder: [] } : t));
                       setDirty(true);
@@ -473,108 +638,108 @@ export function LandingPageEditorPage() {
               </div>
             </div>
             <div ref={previewBoxRef} className="relative">
-            {previewLoading ? (
-              <div className="absolute inset-0 z-10 grid place-items-center rounded-lg bg-white/60 backdrop-blur-[2px]" role="status" aria-live="polite">
-                <div className="flex flex-col items-center gap-3 rounded-xl bg-white px-6 py-5 shadow-lg ring-1 ring-black/5">
-                  <Loader2 className="size-9 animate-spin text-brand-600" />
-                  <span className="text-sm font-medium text-zinc-700">Carregando…</span>
+              {previewLoading ? (
+                <div className="absolute inset-0 z-10 grid place-items-center rounded-lg bg-white/60 backdrop-blur-[2px]" role="status" aria-live="polite">
+                  <div className="flex flex-col items-center gap-3 rounded-xl bg-white px-6 py-5 shadow-lg ring-1 ring-black/5">
+                    <Loader2 className="size-9 animate-spin text-brand-600" />
+                    <span className="text-sm font-medium text-zinc-700">Carregando…</span>
+                  </div>
                 </div>
-              </div>
-            ) : null}
-            <PreviewFrame
-              key={`${frameKey}-${device}`}
-              src={landingPageService.previewUrl(lp.id)}
-              html={draftHtml}
-              device={device}
-              height={previewHeight}
-              focus={theme.focus}
-              onFocus={(url, f) => {
-                setTheme((t) => (t ? { ...t, focus: { ...t.focus, [url]: f } } : t));
-                setDirty(true);
-              }}
-              mode={mode}
-              sectionOrder={device === 'mobile' && theme.mobileOrder?.length ? theme.mobileOrder : content.section_order}
-              onReorder={(keys) => {
-                // Celular tem ordem própria; no computador muda a ordem normal das seções
-                if (device === 'mobile') setTheme((t) => (t ? { ...t, mobileOrder: keys } : t));
-                else {
-                  const next = { ...content, section_order: mergeSectionOrder(content.section_order, keys) };
+              ) : null}
+              <PreviewFrame
+                key={`${frameKey}-${device}`}
+                src={landingPageService.previewUrl(lp.id)}
+                html={draftHtml}
+                device={device}
+                height={previewHeight}
+                focus={theme.focus}
+                onFocus={(url, f) => {
+                  setTheme((t) => (t ? { ...t, focus: { ...t.focus, [url]: f } } : t));
+                  setDirty(true);
+                }}
+                mode={mode}
+                sectionOrder={device === 'mobile' && theme.mobileOrder?.length ? theme.mobileOrder : content.section_order}
+                onReorder={(keys) => {
+                  // Celular tem ordem própria; no computador muda a ordem normal das seções
+                  if (device === 'mobile') setTheme((t) => (t ? { ...t, mobileOrder: keys } : t));
+                  else {
+                    const next = { ...content, section_order: mergeSectionOrder(content.section_order, keys) };
+                    frameKeyShown.current = renderedThemeKey(theme, next);
+                    setContent(next);
+                  }
+                  setDirty(true);
+                }}
+                onSelect={showFieldsFor}
+                onText={(path, value) => {
+                  const next = applyTextEdit(content, path, value);
+                  if (!next) {
+                    toast.error('Este texto não pode ficar vazio.');
+                    return false;
+                  }
                   frameKeyShown.current = renderedThemeKey(theme, next);
                   setContent(next);
-                }
-                setDirty(true);
-              }}
-              onSelect={showFieldsFor}
-              onText={(path, value) => {
-                const next = applyTextEdit(content, path, value);
-                if (!next) {
-                  toast.error('Este texto não pode ficar vazio.');
-                  return false;
-                }
-                frameKeyShown.current = renderedThemeKey(theme, next);
-                setContent(next);
-                setDirty(true);
-                return true;
-              }}
-              onIcon={(path, style) => setIconEdit({ path, style })}
-              elementColors={theme.elementColors}
-              sectionSpacing={theme.sectionSpacing}
-              onSpacing={(key, pct) => {
-                setTheme((t) => {
-                  if (!t) return t;
-                  const sp = t.sectionSpacing ?? {};
-                  const map = { ...(sp.sections?.[device] ?? {}) };
-                  if (pct === null) delete map[key];
-                  else map[key] = pct;
-                  return { ...t, sectionSpacing: { ...sp, sections: { ...sp.sections, [device]: map } } };
-                });
-                setDirty(true);
-              }}
-              sectionColors={theme.sections}
-              onSectionBg={(key, bg) => {
-                setTheme((t) => {
-                  if (!t) return t;
-                  const cur = { ...(t.sections?.[key] ?? {}) };
-                  if (bg) cur.bg = bg;
-                  else delete cur.bg;
-                  const sections = { ...t.sections };
-                  if (cur.bg || cur.text || cur.accent) sections[key] = cur;
-                  else delete sections[key];
-                  return { ...t, sections };
-                });
-                setDirty(true);
-              }}
-              imageSize={theme.imageSize}
-              onImageSize={(changes) => {
-                setTheme((t) => {
-                  if (!t) return t;
-                  const all = t.imageSize ?? {};
-                  const map = { ...(all[device] ?? {}) };
-                  // Chave "<seção>|<url>": cada seção guarda o tamanho da foto separado
-                  for (const [key, box] of Object.entries(changes)) {
-                    if (box) map[key] = box;
-                    else delete map[key];
-                  }
-                  return { ...t, imageSize: { ...all, [device]: map } };
-                });
-                setDirty(true);
-              }}
-              imageStyle={theme.imageStyle}
-              onImageStyle={(url, look) => {
-                setTheme((t) => {
-                  if (!t) return t;
-                  const all = { ...(t.imageStyle ?? {}) };
-                  if (look) all[url] = look;
-                  else delete all[url];
-                  return { ...t, imageStyle: all };
-                });
-                setDirty(true);
-              }}
-              onElementColors={(colors) => {
-                setTheme((t) => (t ? { ...t, elementColors: colors } : t));
-                setDirty(true);
-              }}
-            />
+                  setDirty(true);
+                  return true;
+                }}
+                onIcon={(path, style) => setIconEdit({ path, style })}
+                elementColors={theme.elementColors}
+                sectionSpacing={theme.sectionSpacing}
+                onSpacing={(key, pct) => {
+                  setTheme((t) => {
+                    if (!t) return t;
+                    const sp = t.sectionSpacing ?? {};
+                    const map = { ...(sp.sections?.[device] ?? {}) };
+                    if (pct === null) delete map[key];
+                    else map[key] = pct;
+                    return { ...t, sectionSpacing: { ...sp, sections: { ...sp.sections, [device]: map } } };
+                  });
+                  setDirty(true);
+                }}
+                sectionColors={theme.sections}
+                onSectionBg={(key, bg) => {
+                  setTheme((t) => {
+                    if (!t) return t;
+                    const cur = { ...(t.sections?.[key] ?? {}) };
+                    if (bg) cur.bg = bg;
+                    else delete cur.bg;
+                    const sections = { ...t.sections };
+                    if (cur.bg || cur.text || cur.accent) sections[key] = cur;
+                    else delete sections[key];
+                    return { ...t, sections };
+                  });
+                  setDirty(true);
+                }}
+                imageSize={theme.imageSize}
+                onImageSize={(changes) => {
+                  setTheme((t) => {
+                    if (!t) return t;
+                    const all = t.imageSize ?? {};
+                    const map = { ...(all[device] ?? {}) };
+                    // Chave "<seção>|<url>": cada seção guarda o tamanho da foto separado
+                    for (const [key, box] of Object.entries(changes)) {
+                      if (box) map[key] = box;
+                      else delete map[key];
+                    }
+                    return { ...t, imageSize: { ...all, [device]: map } };
+                  });
+                  setDirty(true);
+                }}
+                imageStyle={theme.imageStyle}
+                onImageStyle={(url, look) => {
+                  setTheme((t) => {
+                    if (!t) return t;
+                    const all = { ...(t.imageStyle ?? {}) };
+                    if (look) all[url] = look;
+                    else delete all[url];
+                    return { ...t, imageStyle: all };
+                  });
+                  setDirty(true);
+                }}
+                onElementColors={(colors) => {
+                  setTheme((t) => (t ? { ...t, elementColors: colors } : t));
+                  setDirty(true);
+                }}
+              />
             </div>
           </div>
         </Card>
@@ -583,29 +748,103 @@ export function LandingPageEditorPage() {
         <div ref={sideRef} className="min-w-0">
           <div className="mb-3 flex flex-wrap gap-1 rounded-lg bg-zinc-100 p-1">
             {/* Cliente: vê "Publicação" só para escolher o endereço da página */}
-            {TABS.filter((t) => !STAFF_TABS.includes(t.key) || t.key === 'publicacao' || (t.key === 'cliente' ? canManageAccess || isClient : !restricted)).map((t) => (
-              <button type="button" key={t.key} onClick={() => setTab(t.key)} className={cn('shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition', tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink')}>
-                {t.label}
-              </button>
-            ))}
+            {TABS.filter((t) => !STAFF_TABS.includes(t.key) || t.key === 'publicacao' || (t.key === 'cliente' ? canManageAccess || isClient : !restricted)).map(
+              (t) => (
+                <button
+                  type="button"
+                  key={t.key}
+                  onClick={() => setTab(t.key)}
+                  className={cn(
+                    'shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition',
+                    tab === t.key ? 'bg-white text-ink shadow-sm' : 'text-zinc-500 hover:text-ink',
+                  )}
+                >
+                  {t.label}
+                </button>
+              ),
+            )}
           </div>
           <div ref={panelRef} className="xl:h-[max(420px,calc(100vh-300px))] xl:overflow-y-auto xl:pr-1">
-            {tab === 'textos' ? <ContentTab content={content} onChange={change(setContent)} company={company} theme={theme} onThemeChange={change(setTheme)} lpId={lp.id} onReviewsUpdated={() => { void reloadCompany(); refresh(); }} /> : null}
-            {tab === 'modelo' ? <Card className="p-5"><TemplateTab theme={theme} onChange={change(setTheme)} hasPhoto={!!company?.images.some((i) => i.usage_allowed && i.type !== 'logo')} /></Card> : null}
-            {tab === 'fotos' ? <Card className="p-5"><PhotosTab theme={theme} onChange={change(setTheme)} images={company?.images ?? null} onAddPhotos={addPhotos} onRemovePhotos={removePhotos} sectionOrder={content.section_order} customSections={content.custom_sections} /></Card> : null}
-            {tab === 'visual' ? <Card className="p-5"><DesignTab theme={theme} onChange={change(setTheme)} content={content} /></Card> : null}
-            {tab === 'seo' ? <Card className="p-5"><SeoTab seo={seo} onChange={change(setSeo)} slug={lp.slug} /></Card> : null}
-            {tab === 'publicacao' ? <Card className="p-5"><PublishTab lp={lp} onUpdated={refresh} slugOnly={restricted} /></Card> : null}
-            {tab === 'cliente' && canManageAccess ? <Card className="p-5"><ClientAccessTab lpId={lp.id} /></Card> : null}
-            {tab === 'cliente' && isClient ? <Card className="p-5"><OwnAccessTab /></Card> : null}
+            {tab === 'textos' ? (
+              <ContentTab
+                content={content}
+                onChange={change(setContent)}
+                company={company}
+                theme={theme}
+                onThemeChange={change(setTheme)}
+                lpId={lp.id}
+                onReviewsUpdated={() => {
+                  void reloadCompany();
+                  refresh();
+                }}
+              />
+            ) : null}
+            {tab === 'modelo' ? (
+              <Card className="p-5">
+                <TemplateTab theme={theme} onChange={change(setTheme)} hasPhoto={!!company?.images.some((i) => i.usage_allowed && i.type !== 'logo')} />
+              </Card>
+            ) : null}
+            {tab === 'fotos' ? (
+              <Card className="p-5">
+                <PhotosTab
+                  theme={theme}
+                  onChange={change(setTheme)}
+                  images={company?.images ?? null}
+                  onAddPhotos={addPhotos}
+                  onRemovePhotos={removePhotos}
+                  sectionOrder={content.section_order}
+                  customSections={content.custom_sections}
+                />
+              </Card>
+            ) : null}
+            {tab === 'visual' ? (
+              <Card className="p-5">
+                <DesignTab theme={theme} onChange={change(setTheme)} content={content} />
+              </Card>
+            ) : null}
+            {tab === 'seo' ? (
+              <Card className="p-5">
+                <SeoTab seo={seo} onChange={change(setSeo)} slug={lp.slug} />
+              </Card>
+            ) : null}
+            {tab === 'publicacao' ? (
+              <Card className="p-5">
+                <PublishTab lp={lp} onUpdated={refresh} slugOnly={restricted} />
+              </Card>
+            ) : null}
+            {tab === 'cliente' && canManageAccess ? (
+              <Card className="p-5">
+                <ClientAccessTab lpId={lp.id} />
+              </Card>
+            ) : null}
+            {tab === 'cliente' && isClient ? (
+              <Card className="p-5">
+                <OwnAccessTab />
+              </Card>
+            ) : null}
             {tab === 'versoes' ? <VersionsTab lp={lp} onRestored={refresh} /> : null}
           </div>
           {['modelo', 'textos', 'fotos', 'visual', 'seo'].includes(tab) ? (
             <div className="sticky bottom-0 mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white/95 p-3 backdrop-blur">
               <span className="text-xs text-zinc-500">{dirty ? 'Alterações não salvas' : 'Sem alterações'}</span>
               <div className="ml-auto flex gap-2">
-                {dirty ? <Button variant="ghost" size="sm" onClick={() => { setContent(lp.content); setTheme(lp.theme); setSeo({ seo_title: lp.seo_title, seo_description: lp.seo_description, seo_keywords: lp.seo_keywords, og_image: lp.og_image }); setDirty(false); }}>Descartar</Button> : null}
-                <Button size="sm" onClick={save} loading={saving} disabled={!dirty} icon={<Save className="size-4" />}>Salvar</Button>
+                {dirty ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setContent(lp.content);
+                      setTheme(lp.theme);
+                      setSeo({ seo_title: lp.seo_title, seo_description: lp.seo_description, seo_keywords: lp.seo_keywords, og_image: lp.og_image });
+                      setDirty(false);
+                    }}
+                  >
+                    Descartar
+                  </Button>
+                ) : null}
+                <Button size="sm" onClick={save} loading={saving} disabled={!dirty} icon={<Save className="size-4" />}>
+                  Salvar
+                </Button>
               </div>
             </div>
           ) : null}

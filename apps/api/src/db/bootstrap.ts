@@ -25,10 +25,12 @@ export async function ensureAdmin(log = console.log) {
   const hash = await bcrypt.hash(password, 12);
   await transaction(async (db) => {
     const org = await db.query<{ id: string }>(`insert into organizations (name) values ($1) returning id`, ['Principal']);
-    await db.query(
-      `insert into users (organization_id, name, email, password_hash, role) values ($1, $2, $3, $4, 'owner')`,
-      [org.rows[0].id, name, email.toLowerCase(), hash],
-    );
+    await db.query(`insert into users (organization_id, name, email, password_hash, role) values ($1, $2, $3, $4, 'owner')`, [
+      org.rows[0].id,
+      name,
+      email.toLowerCase(),
+      hash,
+    ]);
   });
   log(`[bootstrap] administrador criado: ${email}`);
 }

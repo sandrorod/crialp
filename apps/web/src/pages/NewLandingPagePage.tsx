@@ -1,6 +1,24 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { AlertTriangle, ArrowRight, Check, CircleSlash, Clock, FileSearch, Globe, Layers, Minus, Pause, PencilLine, Play, Plus, RotateCcw, SkipForward, Sparkles, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  Check,
+  CircleSlash,
+  Clock,
+  FileSearch,
+  Globe,
+  Layers,
+  Minus,
+  Pause,
+  PencilLine,
+  Play,
+  Plus,
+  RotateCcw,
+  SkipForward,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { CompanyForm, emptyDraft } from '@/components/company/CompanyForm';
 import { SellerPicker } from '@/components/SellerCell';
@@ -268,25 +286,51 @@ export function NewLandingPagePage() {
     <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-brand-100 bg-brand-50 px-4 py-2.5 text-sm">
       <Layers className="size-4 flex-none text-brand-600" />
       <span className="min-w-0 flex-1">
-        <strong>Lote: empresa {batch.index + 1} de {batch.items.length}</strong>
+        <strong>
+          Lote: empresa {batch.index + 1} de {batch.items.length}
+        </strong>
         <span className="text-zinc-600"> · {batch.items[batch.index].name}</span>
         {failedHere && countdown !== null ? <span className="block text-xs text-red-700">Pulando para a próxima em {countdown}s…</span> : null}
       </span>
       {rest === null ? (
-        <Button size="sm" variant="secondary" icon={<SkipForward className="size-3.5" />} onClick={() => { setCountdown(null); next(false); }} disabled={saving} title="Deixa esta empresa sem LP e passa para a próxima">
+        <Button
+          size="sm"
+          variant="secondary"
+          icon={<SkipForward className="size-3.5" />}
+          onClick={() => {
+            setCountdown(null);
+            next(false);
+          }}
+          disabled={saving}
+          title="Deixa esta empresa sem LP e passa para a próxima"
+        >
           {failedHere ? 'Próxima' : 'Pular'}
         </Button>
       ) : null}
-      <Button size="sm" variant="ghost" icon={<X className="size-3.5" />} onClick={cancelBatch}>Parar lote</Button>
+      <Button size="sm" variant="ghost" icon={<X className="size-3.5" />} onClick={cancelBatch}>
+        Parar lote
+      </Button>
       {/* Intervalo entre as LPs: muda a qualquer momento, inclusive durante a pausa */}
       <div className="flex w-full items-center gap-2 border-t border-brand-100 pt-2 text-xs text-zinc-600">
         <Clock className="size-3.5 flex-none" />
         <span>Intervalo entre as LPs:</span>
-        <button type="button" onClick={() => changeGap(gap - 1)} disabled={gap <= 0} className="grid size-7 place-items-center rounded-md border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40" aria-label="Diminuir intervalo">
+        <button
+          type="button"
+          onClick={() => changeGap(gap - 1)}
+          disabled={gap <= 0}
+          className="grid size-7 place-items-center rounded-md border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40"
+          aria-label="Diminuir intervalo"
+        >
           <Minus className="size-3.5" />
         </button>
         <span className="min-w-14 text-center font-semibold text-ink tabular-nums">{gap ? `${gap} min` : 'sem pausa'}</span>
-        <button type="button" onClick={() => changeGap(gap + 1)} disabled={gap >= GAP_MAX} className="grid size-7 place-items-center rounded-md border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40" aria-label="Aumentar intervalo">
+        <button
+          type="button"
+          onClick={() => changeGap(gap + 1)}
+          disabled={gap >= GAP_MAX}
+          className="grid size-7 place-items-center rounded-md border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40"
+          aria-label="Aumentar intervalo"
+        >
           <Plus className="size-3.5" />
         </button>
       </div>
@@ -303,16 +347,35 @@ export function NewLandingPagePage() {
           {restPaused ? <span className="text-xs font-normal">(pausado)</span> : null}
         </p>
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-emerald-100">
-          <div className="h-full bg-emerald-500 transition-[width] duration-1000 ease-linear" style={{ width: `${gap ? Math.min(100, 100 - (rest / (gap * 60)) * 100) : 100}%` }} />
+          <div
+            className="h-full bg-emerald-500 transition-[width] duration-1000 ease-linear"
+            style={{ width: `${gap ? Math.min(100, 100 - (rest / (gap * 60)) * 100) : 100}%` }}
+          />
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button size="sm" icon={<Play className="size-3.5" />} onClick={() => { setRest(null); next(true); }}>Começar agora</Button>
-          <Button size="sm" variant="secondary" icon={restPaused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />} onClick={() => setRestPaused((p) => !p)}>
+          <Button
+            size="sm"
+            icon={<Play className="size-3.5" />}
+            onClick={() => {
+              setRest(null);
+              next(true);
+            }}
+          >
+            Começar agora
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={restPaused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
+            onClick={() => setRestPaused((p) => !p)}
+          >
             {restPaused ? 'Continuar contagem' : 'Pausar'}
           </Button>
           {generate.job?.result ? (
             <Link to={`/landing-pages/${generate.job.result.landingPageId}`} target="_blank">
-              <Button size="sm" variant="ghost">Ver a LP gerada</Button>
+              <Button size="sm" variant="ghost">
+                Ver a LP gerada
+              </Button>
             </Link>
           ) : null}
         </div>
@@ -335,7 +398,9 @@ export function NewLandingPagePage() {
         </div>
         <Card className="p-5 sm:p-7">
           <form onSubmit={startAnalysis}>
-            <label htmlFor="url" className="mb-2 block text-sm font-medium">Site ou link do Google</label>
+            <label htmlFor="url" className="mb-2 block text-sm font-medium">
+              Site ou link do Google
+            </label>
             <div className="flex flex-col gap-3 sm:flex-row">
               <div className="relative flex-1">
                 <Globe className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
@@ -354,15 +419,23 @@ export function NewLandingPagePage() {
                 ANALISAR EMPRESA <ArrowRight className="size-4" />
               </Button>
             </div>
-            {urlError ? <p className="mt-3 flex items-center gap-2 text-sm text-red-600"><AlertTriangle className="size-4" /> {urlError}</p> : null}
+            {urlError ? (
+              <p className="mt-3 flex items-center gap-2 text-sm text-red-600">
+                <AlertTriangle className="size-4" /> {urlError}
+              </p>
+            ) : null}
             <p className="mt-3 text-xs text-zinc-500">
-              Empresa sem site? No Google Maps, abra o perfil da empresa, toque em <strong>Compartilhar</strong> → <strong>Copiar link</strong> e cole aqui. Os dados (endereço, telefone, horário, site) e as fotos vêm do perfil no Google (fotos exigem a “Local Business Data” assinada na chave do RapidAPI); depoimentos do Google não são copiados.
+              Empresa sem site? No Google Maps, abra o perfil da empresa, toque em <strong>Compartilhar</strong> → <strong>Copiar link</strong> e cole aqui. Os
+              dados (endereço, telefone, horário, site) e as fotos vêm do perfil no Google (fotos exigem a “Local Business Data” assinada na chave do RapidAPI);
+              depoimentos do Google não são copiados.
             </p>
             <label className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-lg bg-zinc-50 px-3 py-2.5 text-sm text-zinc-700">
               <input type="checkbox" className="mt-0.5 size-4 accent-zinc-900" checked={allowImages} onChange={(e) => setAllowImages(e.target.checked)} />
               <span>
                 <span className="font-medium text-ink">Usar as fotos do site na Landing Page</span>
-                <span className="block text-xs text-zinc-500">Declaro ter autorização da empresa para usar as imagens. Você ainda poderá remover fotos na revisão.</span>
+                <span className="block text-xs text-zinc-500">
+                  Declaro ter autorização da empresa para usar as imagens. Você ainda poderá remover fotos na revisão.
+                </span>
               </span>
             </label>
           </form>
@@ -381,7 +454,9 @@ export function NewLandingPagePage() {
         </Card>
         <p className="mt-5 text-center text-sm text-zinc-500">
           O site não tem as informações?{' '}
-          <button type="button" onClick={fillManually} className="font-medium text-ink underline-offset-2 hover:underline">Preencher manualmente</button>
+          <button type="button" onClick={fillManually} className="font-medium text-ink underline-offset-2 hover:underline">
+            Preencher manualmente
+          </button>
         </p>
       </div>
     );
@@ -395,12 +470,16 @@ export function NewLandingPagePage() {
       <div className="mx-auto max-w-xl pt-4 lg:pt-10">
         {batchBar}
         <h1 className="text-2xl font-semibold tracking-tight">Analisando empresa</h1>
-        <p className="mt-1 truncate text-sm text-zinc-500" title={url}>{shortUrl(url, 70)}</p>
+        <p className="mt-1 truncate text-sm text-zinc-500" title={url}>
+          {shortUrl(url, 70)}
+        </p>
         <Card className="mt-6 p-5 sm:p-6">
           <ProgressSteps current={Math.max(j?.step ?? 1, 1)} range={[1, 6]} failed={failed} />
           {!failed ? (
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2.5">
-              <p className="text-xs leading-relaxed text-zinc-500">A leitura e interpretação pela IA costuma levar de 30 segundos a 2 minutos. Você pode acompanhar por aqui.</p>
+              <p className="text-xs leading-relaxed text-zinc-500">
+                A leitura e interpretação pela IA costuma levar de 30 segundos a 2 minutos. Você pode acompanhar por aqui.
+              </p>
               {j?.status !== 'done' ? <StopJobButton jobId={analyzeJobId} /> : null}
             </div>
           ) : (
@@ -409,7 +488,15 @@ export function NewLandingPagePage() {
                 <CircleSlash className="mt-0.5 size-4 flex-none" /> {j?.error ?? analyze.networkError}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button size="sm" icon={<RotateCcw className="size-3.5" />} onClick={() => { setCountdown(null); setAnalyzeJobId(null); setStage('url'); }}>
+                <Button
+                  size="sm"
+                  icon={<RotateCcw className="size-3.5" />}
+                  onClick={() => {
+                    setCountdown(null);
+                    setAnalyzeJobId(null);
+                    setStage('url');
+                  }}
+                >
                   Tentar outra URL
                 </Button>
                 <Button size="sm" variant="secondary" icon={<PencilLine className="size-3.5" />} onClick={fillManually}>
@@ -445,8 +532,16 @@ export function NewLandingPagePage() {
               <p className="text-sm font-medium text-red-700">{j?.error ?? generate.networkError}</p>
               <p className="mt-1 text-xs text-red-600/80">Os dados da empresa já foram salvos.</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button size="sm" loading={saving} icon={<RotateCcw className="size-3.5" />} onClick={confirmAndGenerate}>Tentar novamente</Button>
-                {companyId ? <Link to={`/empresas/${companyId}`}><Button size="sm" variant="secondary">Ver empresa</Button></Link> : null}
+                <Button size="sm" loading={saving} icon={<RotateCcw className="size-3.5" />} onClick={confirmAndGenerate}>
+                  Tentar novamente
+                </Button>
+                {companyId ? (
+                  <Link to={`/empresas/${companyId}`}>
+                    <Button size="sm" variant="secondary">
+                      Ver empresa
+                    </Button>
+                  </Link>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -500,7 +595,9 @@ export function NewLandingPagePage() {
                 <div className="mb-2 text-xs text-zinc-500">Serviços encontrados</div>
                 <ul className="flex flex-wrap gap-x-5 gap-y-1.5">
                   {draft.services.map((s, i) => (
-                    <li key={i} className="flex items-center gap-1.5 text-sm"><Check className="size-4 text-emerald-600" /> {s.name}</li>
+                    <li key={i} className="flex items-center gap-1.5 text-sm">
+                      <Check className="size-4 text-emerald-600" /> {s.name}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -508,10 +605,16 @@ export function NewLandingPagePage() {
             <div className="mt-5 border-t border-zinc-100 pt-4">{assignment}</div>
           </Card>
           <Card className="p-5">
-            <div className="mb-3 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wider text-zinc-500"><FileSearch className="size-4" /> Fonte</div>
+            <div className="mb-3 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
+              <FileSearch className="size-4" /> Fonte
+            </div>
             <p className="text-sm text-zinc-600">{meta.pages.length} página(s) lida(s)</p>
             <ul className="mt-2 max-h-28 space-y-1 overflow-auto text-xs text-zinc-500">
-              {meta.pages.map((p) => <li key={p} className="truncate" title={p}>{shortUrl(p, 60)}</li>)}
+              {meta.pages.map((p) => (
+                <li key={p} className="truncate" title={p}>
+                  {shortUrl(p, 60)}
+                </li>
+              ))}
             </ul>
             {meta.missing_info.length ? (
               <div className="mt-4">
@@ -523,7 +626,9 @@ export function NewLandingPagePage() {
               <div className="mt-4">
                 <div className="text-xs font-medium text-red-700">Descartado por não constar na fonte</div>
                 <ul className="mt-1 space-y-0.5 text-xs text-zinc-500">
-                  {meta.removed.map((r) => <li key={r}>{r}</li>)}
+                  {meta.removed.map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
                 </ul>
               </div>
             ) : null}
@@ -541,7 +646,16 @@ export function NewLandingPagePage() {
       {/* Barra presa ao rodapé, na mesma largura das informações da empresa */}
       <div className="sticky bottom-0 z-20 -mb-6 mt-4 rounded-t-xl border border-b-0 border-zinc-200 bg-white/90 backdrop-blur lg:-mb-8">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <Button variant="ghost" onClick={() => { setCountdown(null); setStage('url'); }} disabled={saving}>Voltar</Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setCountdown(null);
+              setStage('url');
+            }}
+            disabled={saving}
+          >
+            Voltar
+          </Button>
           <div className="flex flex-wrap items-center justify-end gap-3">
             {/* Lote: confirma sozinho ao fim da contagem; "Alterar" para a contagem para editar com calma */}
             {batch && countdown !== null ? (
@@ -549,7 +663,14 @@ export function NewLandingPagePage() {
                 ALTERAR
               </Button>
             ) : null}
-            <Button variant="brand" size="lg" className="relative isolate overflow-hidden" loading={saving} onClick={confirmAndGenerate} icon={<Sparkles className="size-4" />}>
+            <Button
+              variant="brand"
+              size="lg"
+              className="relative isolate overflow-hidden"
+              loading={saving}
+              onClick={confirmAndGenerate}
+              icon={<Sparkles className="size-4" />}
+            >
               {/* Contagem do lote: a barra enche o botão até confirmar sozinho */}
               {batch && countdown !== null ? (
                 <span aria-hidden className="fill-bar absolute inset-y-0 left-0 -z-10 bg-white/30" style={{ animationDuration: `${BATCH_WAIT}s` }} />

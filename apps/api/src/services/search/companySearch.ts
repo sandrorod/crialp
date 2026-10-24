@@ -53,7 +53,10 @@ const notSubscribed = (r: { status: number; body: any }) => /not subscribed/i.te
 
 /** Resposta do RapidAPI que indica problema da chave (inválida, sem cota): vale tentar a próxima. */
 const keyProblem = (r: { status: number; body: any }) =>
-  r.status === 401 || r.status === 429 || (r.status === 403 && !/not subscribed/i.test(r.body?.message ?? '')) || /invalid api key|quota|exceeded|rate limit/i.test(r.body?.message ?? '');
+  r.status === 401 ||
+  r.status === 429 ||
+  (r.status === 403 && !/not subscribed/i.test(r.body?.message ?? '')) ||
+  /invalid api key|quota|exceeded|rate limit/i.test(r.body?.message ?? '');
 
 /**
  * Chave × API do RapidAPI que não vale tentar agora (como o "exhausted" do Gemini): sem cota, limite
@@ -66,8 +69,7 @@ const NOT_SUBSCRIBED_SKIP_MS = 3600_000;
 const skipKey = (keyId: string | null, host: string) => `${keyId}|${host}`;
 
 /** 429 do limite por segundo/minuto do plano (não é cota): esperar um pouco resolve. */
-export const isBurstLimit = (status: number, message: string) =>
-  status === 429 && !/quota|monthly|daily|per (day|month|hour)/i.test(message);
+export const isBurstLimit = (status: number, message: string) => status === 429 && !/quota|monthly|daily|per (day|month|hour)/i.test(message);
 const BURST_RETRY_DELAYS = [1200, 2500, 5000];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -143,12 +145,13 @@ export async function testRapidApiKey(key: string) {
   if (res.status === 401 || /invalid api key/i.test(body?.message ?? '')) throw new AppError(400, 'Chave recusada pelo RapidAPI: chave inválida.');
 }
 
-
 function formatPhone(raw: string | null | undefined): string | null {
   const d = toBrazilE164Digits(raw);
   if (!d) return raw?.trim() || null;
   const local = d.slice(2);
-  return local.length === 11 ? `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}` : `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  return local.length === 11
+    ? `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`
+    : `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
 }
 
 /** "Local Business Data" (fichas do Google Maps com telefone e endereço), se a chave assinar essa API. */
@@ -168,7 +171,10 @@ async function searchMaps(query: string, limit = PAGE_SIZE): Promise<FoundCompan
       description: b.type || null,
       google_url: b.place_link || null,
       source: 'maps',
-      photos: (b.photos_sample ?? []).map((x: any) => x?.photo_url).filter(Boolean).map(largePhoto),
+      photos: (b.photos_sample ?? [])
+        .map((x: any) => x?.photo_url)
+        .filter(Boolean)
+        .map(largePhoto),
       place_id: b.business_id || b.google_id || b.place_id || null,
     }),
   );
@@ -255,17 +261,13 @@ export async function googlePlaceReviews(p: { businessId?: string | null; query?
   if (r.status !== 200) return empty(fail(r, 'avaliações'));
   // Formatos da resposta: lista em "data", em "data.reviews" ou no primeiro item ("data[0].reviews")
   const d = r.body?.data;
-  const list: any[] = Array.isArray(d?.reviews)
-    ? d.reviews
-    : Array.isArray(d?.[0]?.reviews)
-      ? d[0].reviews
-      : Array.isArray(d)
-        ? d
-        : [];
+  const list: any[] = Array.isArray(d?.reviews) ? d.reviews : Array.isArray(d?.[0]?.reviews) ? d[0].reviews : Array.isArray(d) ? d : [];
   const seen = new Set<string>();
   const items: GoogleReviews['items'] = [];
   for (const x of list) {
-    const text = String(x?.review_text ?? x?.text ?? '').replace(/\s+/g, ' ').trim();
+    const text = String(x?.review_text ?? x?.text ?? '')
+      .replace(/\s+/g, ' ')
+      .trim();
     const author = String(x?.author_name ?? x?.author_title ?? '').trim();
     if (Number(x?.rating ?? x?.review_rating) !== 5 || text.length < 15 || !author || seen.has(text)) continue;
     seen.add(text);
@@ -287,7 +289,11 @@ export async function googlePlaceReviews(p: { businessId?: string | null; query?
     items,
     fetched_at: new Date().toISOString(),
     shown: REVIEWS_SHOWN,
-    error: items.length ? null : list.length ? `Nenhuma das ${list.length} avaliações lidas tem 5 estrelas com texto.` : 'O Google não devolveu avaliações para este local.',
+    error: items.length
+      ? null
+      : list.length
+        ? `Nenhuma das ${list.length} avaliações lidas tem 5 estrelas com texto.`
+        : 'O Google não devolveu avaliações para este local.',
   };
 }
 
@@ -295,11 +301,21 @@ const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCa
 
 /** Nome da empresa a partir do título da página: a parte do título que mais combina com o domínio. */
 function nameFromTitle(title: string, host: string): string {
-  const clean = title.replace(/\s*[-|–—•]\s*(Instagram|Facebook|Home|Início|Página Inicial)\s*$/i, '').replace(/\s*\(@[^)]*\)/, '').trim();
-  const parts = clean.split(/\s+[|–—•-]\s+|:\s+/).map((p) => p.trim()).filter((p) => p.length > 1);
+  const clean = title
+    .replace(/\s*[-|–—•]\s*(Instagram|Facebook|Home|Início|Página Inicial)\s*$/i, '')
+    .replace(/\s*\(@[^)]*\)/, '')
+    .trim();
+  const parts = clean
+    .split(/\s+[|–—•-]\s+|:\s+/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 1);
   if (parts.length < 2) return clean || host;
   const label = norm(host.replace(/^www\./, '').split('.')[0]);
-  const score = (p: string) => norm(p).split(/[^a-z0-9]+/).filter((w) => w.length > 1 && label.includes(w)).reduce((n, w) => n + w.length, 0);
+  const score = (p: string) =>
+    norm(p)
+      .split(/[^a-z0-9]+/)
+      .filter((w) => w.length > 1 && label.includes(w))
+      .reduce((n, w) => n + w.length, 0);
   return parts.reduce((best, p) => (score(p) > score(best) ? p : best), parts[parts.length - 1]);
 }
 
@@ -330,14 +346,18 @@ async function searchWeb(query: string, limit = 30): Promise<FoundCompany[]> {
     const host = url.hostname.toLowerCase();
     if (IGNORED_HOSTS.test(host)) continue;
     // Posts, reels e páginas soltas de redes sociais não são o perfil da empresa
-    if (/(^|\.)(instagram|facebook)\.com$/.test(host) && /^\/(p|reels?|explore|stories|tv|watch|events|groups|share|photo|story\.php|permalink\.php)(\/|$)/i.test(url.pathname)) continue;
+    if (
+      /(^|\.)(instagram|facebook)\.com$/.test(host) &&
+      /^\/(p|reels?|explore|stories|tv|watch|events|groups|share|photo|story\.php|permalink\.php)(\/|$)/i.test(url.pathname)
+    )
+      continue;
     // Instagram/Facebook: cada perfil é uma empresa; nos demais, uma empresa por domínio
-    const key = /(^|\.)(instagram|facebook)\.com$/.test(host) ? url.pathname.split('/')[1]?.toLowerCase() ?? host : host.replace(/^www\./, '');
+    const key = /(^|\.)(instagram|facebook)\.com$/.test(host) ? (url.pathname.split('/')[1]?.toLowerCase() ?? host) : host.replace(/^www\./, '');
     if (seen.has(key)) continue;
     seen.add(key);
     const description: string = item.description ?? '';
     // Telefone, celular ou WhatsApp: na descrição, no título ou no próprio link (wa.me/5511…)
-    const waDigits = /(^|\.)(wa\.me|whatsapp\.com)$/.test(host) ? (url.pathname.replace(/\D/g, '') || url.searchParams.get('phone')) : null;
+    const waDigits = /(^|\.)(wa\.me|whatsapp\.com)$/.test(host) ? url.pathname.replace(/\D/g, '') || url.searchParams.get('phone') : null;
     const phone =
       [description, item.title ?? ''].flatMap((t: string) => t.match(PHONE_RE) ?? []).find((m: string) => toBrazilE164Digits(m)) ??
       (waDigits && toBrazilE164Digits(waDigits) ? waDigits : null);
@@ -414,7 +434,8 @@ function toFound(p: Awaited<ReturnType<typeof aiService.searchGooglePlaces>>[num
 
 const mapError = (err: unknown) => {
   // Cota do Gemini, chave inválida etc.: mensagem clara em vez de "erro interno"
-  if (err instanceof AIProviderError) return new AppError(err.retryable ? 503 : 502, err.userMessage ?? 'Não foi possível consultar o Google Maps. Tente novamente.');
+  if (err instanceof AIProviderError)
+    return new AppError(err.retryable ? 503 : 502, err.userMessage ?? 'Não foi possível consultar o Google Maps. Tente novamente.');
   return err;
 };
 
@@ -438,20 +459,48 @@ async function pool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>
 
 /** Maiores cidades do Brasil (todas as capitais incluídas), em ordem de população: busca no país todo. */
 const BRAZIL_CITIES: [string, number, number][] = [
-  ['São Paulo - SP', -23.55, -46.63], ['Rio de Janeiro - RJ', -22.91, -43.17], ['Brasília - DF', -15.79, -47.88],
-  ['Salvador - BA', -12.97, -38.5], ['Fortaleza - CE', -3.73, -38.52], ['Belo Horizonte - MG', -19.92, -43.94],
-  ['Manaus - AM', -3.12, -60.02], ['Curitiba - PR', -25.43, -49.27], ['Recife - PE', -8.05, -34.88],
-  ['Goiânia - GO', -16.69, -49.26], ['Porto Alegre - RS', -30.03, -51.23], ['Belém - PA', -1.46, -48.49],
-  ['Guarulhos - SP', -23.45, -46.53], ['Campinas - SP', -22.91, -47.06], ['São Luís - MA', -2.53, -44.3],
-  ['Maceió - AL', -9.67, -35.74], ['Campo Grande - MS', -20.47, -54.62], ['Natal - RN', -5.79, -35.21],
-  ['Teresina - PI', -5.09, -42.8], ['João Pessoa - PB', -7.12, -34.86], ['Ribeirão Preto - SP', -21.18, -47.81],
-  ['Uberlândia - MG', -18.92, -48.28], ['Sorocaba - SP', -23.5, -47.46], ['Cuiabá - MT', -15.6, -56.1],
-  ['Aracaju - SE', -10.91, -37.07], ['Joinville - SC', -26.3, -48.85], ['Londrina - PR', -23.31, -51.16],
-  ['Juiz de Fora - MG', -21.76, -43.35], ['Florianópolis - SC', -27.59, -48.55], ['Santos - SP', -23.96, -46.33],
-  ['São José dos Campos - SP', -23.18, -45.88], ['Vitória - ES', -20.32, -40.34], ['Porto Velho - RO', -8.76, -63.9],
-  ['Feira de Santana - BA', -12.27, -38.97], ['São José do Rio Preto - SP', -20.81, -49.38], ['Maringá - PR', -23.42, -51.94],
-  ['Caxias do Sul - RS', -29.17, -51.18], ['Campina Grande - PB', -7.23, -35.88], ['Macapá - AP', 0.03, -51.07],
-  ['Boa Vista - RR', 2.82, -60.67], ['Rio Branco - AC', -9.97, -67.81], ['Palmas - TO', -10.18, -48.33],
+  ['São Paulo - SP', -23.55, -46.63],
+  ['Rio de Janeiro - RJ', -22.91, -43.17],
+  ['Brasília - DF', -15.79, -47.88],
+  ['Salvador - BA', -12.97, -38.5],
+  ['Fortaleza - CE', -3.73, -38.52],
+  ['Belo Horizonte - MG', -19.92, -43.94],
+  ['Manaus - AM', -3.12, -60.02],
+  ['Curitiba - PR', -25.43, -49.27],
+  ['Recife - PE', -8.05, -34.88],
+  ['Goiânia - GO', -16.69, -49.26],
+  ['Porto Alegre - RS', -30.03, -51.23],
+  ['Belém - PA', -1.46, -48.49],
+  ['Guarulhos - SP', -23.45, -46.53],
+  ['Campinas - SP', -22.91, -47.06],
+  ['São Luís - MA', -2.53, -44.3],
+  ['Maceió - AL', -9.67, -35.74],
+  ['Campo Grande - MS', -20.47, -54.62],
+  ['Natal - RN', -5.79, -35.21],
+  ['Teresina - PI', -5.09, -42.8],
+  ['João Pessoa - PB', -7.12, -34.86],
+  ['Ribeirão Preto - SP', -21.18, -47.81],
+  ['Uberlândia - MG', -18.92, -48.28],
+  ['Sorocaba - SP', -23.5, -47.46],
+  ['Cuiabá - MT', -15.6, -56.1],
+  ['Aracaju - SE', -10.91, -37.07],
+  ['Joinville - SC', -26.3, -48.85],
+  ['Londrina - PR', -23.31, -51.16],
+  ['Juiz de Fora - MG', -21.76, -43.35],
+  ['Florianópolis - SC', -27.59, -48.55],
+  ['Santos - SP', -23.96, -46.33],
+  ['São José dos Campos - SP', -23.18, -45.88],
+  ['Vitória - ES', -20.32, -40.34],
+  ['Porto Velho - RO', -8.76, -63.9],
+  ['Feira de Santana - BA', -12.27, -38.97],
+  ['São José do Rio Preto - SP', -20.81, -49.38],
+  ['Maringá - PR', -23.42, -51.94],
+  ['Caxias do Sul - RS', -29.17, -51.18],
+  ['Campina Grande - PB', -7.23, -35.88],
+  ['Macapá - AP', 0.03, -51.07],
+  ['Boa Vista - RR', 2.82, -60.67],
+  ['Rio Branco - AC', -9.97, -67.81],
+  ['Palmas - TO', -10.18, -48.33],
 ];
 const CITIES_PER_PAGE = 7;
 export const MAX_SEARCH_PAGE = Math.ceil(BRAZIL_CITIES.length / CITIES_PER_PAGE) - 1;
@@ -538,7 +587,9 @@ export async function searchCompanyPlaces(
         items,
         center: null,
         hasMore: nationalHasMore(query, page),
-        warning: failed ? `Só ${results.length - failed} de ${results.length} cidades foram consultadas (o RapidAPI não respondeu nas demais). Use "Buscar mais" ou tente de novo.` : null,
+        warning: failed
+          ? `Só ${results.length - failed} de ${results.length} cidades foram consultadas (o RapidAPI não respondeu nas demais). Use "Buscar mais" ou tente de novo.`
+          : null,
       };
     }
   }
@@ -583,7 +634,6 @@ export async function searchCompanyPlaces(
   return { items: found, center, hasMore, warning };
 }
 
-
 /** Lugar citado na pesquisa ("pizzaria em Campinas" → "Campinas"), para achar o centro no mapa. */
 function placeInQuery(query: string) {
   const m = /\sem\s+(.+)$/i.exec(query.trim());
@@ -599,7 +649,24 @@ const WEB_VARIANTS = ['', 'telefone', 'whatsapp', 'contato', 'orçamento', 'site
  * Sem os locais do Maps (chaves do Gemini desativadas / sem "Local Business Data"), uma consulta de sites
  * rende bem menos que 50 empresas: estas variações completam a página (2 por página, sem repetir entre páginas).
  */
-const FILL_VARIANTS = ['serviços', 'preço', 'atendimento', 'agendamento', 'avaliações', 'melhor', 'perto de mim', 'profissional', 'loja', 'unidade', 'horário de funcionamento', 'instagram', 'facebook', 'empresa de', 'especializada', 'fale conosco'];
+const FILL_VARIANTS = [
+  'serviços',
+  'preço',
+  'atendimento',
+  'agendamento',
+  'avaliações',
+  'melhor',
+  'perto de mim',
+  'profissional',
+  'loja',
+  'unidade',
+  'horário de funcionamento',
+  'instagram',
+  'facebook',
+  'empresa de',
+  'especializada',
+  'fale conosco',
+];
 const FILL_PER_PAGE = 2;
 
 const hostKey = (url: string | null) => {

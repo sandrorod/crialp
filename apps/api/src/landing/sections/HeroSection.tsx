@@ -10,9 +10,17 @@ function Copy({ ctx }: { ctx: RenderContext }) {
       {ctx.logo && ctx.theme.logoPlacement === 'hero' ? (
         <img className="body-logo hero-logo reveal" referrerPolicy="no-referrer" src={ctx.logo.url} alt={ctx.logo.alt} />
       ) : null}
-      {hero.eyebrow || ctx.editable ? <div className="eyebrow reveal" {...edOptional(ctx, 'hero.eyebrow', 'Linha de apoio (opcional)')}>{hero.eyebrow}</div> : null}
-      <h1 className="reveal" {...ed(ctx, 'hero.headline')}>{hero.headline}</h1>
-      <p className="sub reveal" {...ed(ctx, 'hero.subheadline')}>{hero.subheadline}</p>
+      {hero.eyebrow || ctx.editable ? (
+        <div className="eyebrow reveal" {...edOptional(ctx, 'hero.eyebrow', 'Linha de apoio (opcional)')}>
+          {hero.eyebrow}
+        </div>
+      ) : null}
+      <h1 className="reveal" {...ed(ctx, 'hero.headline')}>
+        {hero.headline}
+      </h1>
+      <p className="sub reveal" {...ed(ctx, 'hero.subheadline')}>
+        {hero.subheadline}
+      </p>
       <div className="hero-actions reveal">
         <CtaButton ctx={ctx} label={hero.primary_cta} path="hero.primary_cta" />
         {hero.secondary_cta || ctx.editable ? (
@@ -24,12 +32,14 @@ function Copy({ ctx }: { ctx: RenderContext }) {
       {/* Todos os destaques preenchidos (antes só os 4 primeiros apareciam) */}
       {hero.highlights.some((h) => h.trim()) ? (
         <ul className="highlights reveal">
-          {hero.highlights.map((h, i) => (h.trim() ? (
-            <li key={`${i}-${h}`}>
-              <Icon name="check" size={18} stroke={2.2} />
-              <span {...ed(ctx, `hero.highlights.${i}`)}>{h}</span>
-            </li>
-          ) : null))}
+          {hero.highlights.map((h, i) =>
+            h.trim() ? (
+              <li key={`${i}-${h}`}>
+                <Icon name="check" size={18} stroke={2.2} />
+                <span {...ed(ctx, `hero.highlights.${i}`)}>{h}</span>
+              </li>
+            ) : null,
+          )}
         </ul>
       ) : null}
     </>
@@ -41,11 +51,23 @@ function InfoCard({ ctx }: { ctx: RenderContext }) {
   const { company, links } = ctx;
   // key: rótulo editável (labels.*); data: texto do cadastro editável só nesta LP (overrides)
   const items: { icon: string; key: string; data: string; label: string; value: string; href?: string | null }[] = [];
-  if (company.opening_hours) items.push({ icon: 'clock', key: 'fact_hours', data: 'contact.hours', label: ctx.labels.fact_hours, value: company.opening_hours });
-  if (links.phoneLabel) items.push({ icon: 'phone', key: 'contact_phone', data: 'contact.phone', label: ctx.labels.contact_phone, value: links.phoneLabel, href: links.phone });
-  if (company.city) items.push({ icon: 'map-pin', key: 'fact_location', data: 'card.location', label: ctx.labels.fact_location, value: [company.neighborhood, [company.city, company.state].filter(Boolean).join(' – ')].filter(Boolean).join(', '), href: links.map });
-  if (company.email && items.length < 3) items.push({ icon: 'mail', key: 'contact_email', data: 'contact.email', label: ctx.labels.contact_email, value: company.email, href: links.email });
-  if (!items.length && company.segment) items.push({ icon: 'briefcase', key: 'fact_specialty', data: 'fact.specialty', label: ctx.labels.fact_specialty, value: company.segment });
+  if (company.opening_hours)
+    items.push({ icon: 'clock', key: 'fact_hours', data: 'contact.hours', label: ctx.labels.fact_hours, value: company.opening_hours });
+  if (links.phoneLabel)
+    items.push({ icon: 'phone', key: 'contact_phone', data: 'contact.phone', label: ctx.labels.contact_phone, value: links.phoneLabel, href: links.phone });
+  if (company.city)
+    items.push({
+      icon: 'map-pin',
+      key: 'fact_location',
+      data: 'card.location',
+      label: ctx.labels.fact_location,
+      value: [company.neighborhood, [company.city, company.state].filter(Boolean).join(' – ')].filter(Boolean).join(', '),
+      href: links.map,
+    });
+  if (company.email && items.length < 3)
+    items.push({ icon: 'mail', key: 'contact_email', data: 'contact.email', label: ctx.labels.contact_email, value: company.email, href: links.email });
+  if (!items.length && company.segment)
+    items.push({ icon: 'briefcase', key: 'fact_specialty', data: 'fact.specialty', label: ctx.labels.fact_specialty, value: company.segment });
   const name = cad(ctx, 'company.name', ctx.displayName);
 
   return (
@@ -55,19 +77,19 @@ function InfoCard({ ctx }: { ctx: RenderContext }) {
         {items.map((i) => {
           const v = cad(ctx, i.data, i.value);
           return (
-          <li key={i.label}>
-            <Icon name={i.icon} />
-            <div>
-              <small {...ed(ctx, `labels.${i.key}`)}>{i.label}</small>
-              {i.href ? (
-                <a href={i.href} {...(i.href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {})}>
+            <li key={i.label}>
+              <Icon name={i.icon} />
+              <div>
+                <small {...ed(ctx, `labels.${i.key}`)}>{i.label}</small>
+                {i.href ? (
+                  <a href={i.href} {...(i.href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {})}>
+                    <span {...v.attrs}>{v.text}</span>
+                  </a>
+                ) : (
                   <span {...v.attrs}>{v.text}</span>
-                </a>
-              ) : (
-                <span {...v.attrs}>{v.text}</span>
-              )}
-            </div>
-          </li>
+                )}
+              </div>
+            </li>
           );
         })}
       </ul>
@@ -84,7 +106,14 @@ export function HeroSection({ ctx }: { ctx: RenderContext }) {
       <section id="inicio" className="hero hero-centered hero-banner">
         <div className="banner-media reveal">
           {ctx.heroImage ? (
-            <img referrerPolicy="no-referrer" src={ctx.heroImage.url} alt={ctx.heroImage.alt} fetchPriority="high" data-lp-img={ctx.heroImage.url} style={ctx.heroImage.style} />
+            <img
+              referrerPolicy="no-referrer"
+              src={ctx.heroImage.url}
+              alt={ctx.heroImage.alt}
+              fetchPriority="high"
+              data-lp-img={ctx.heroImage.url}
+              style={ctx.heroImage.style}
+            />
           ) : (
             <div className="banner-fill">
               <span {...name.attrs}>{name.text}</span>
@@ -125,13 +154,27 @@ export function HeroSection({ ctx }: { ctx: RenderContext }) {
           <div className="hero-mosaic reveal">
             {[ctx.heroImage, ...ctx.heroExtras].map((img, i) => (
               <div key={img.url} className={`hero-media m-${'abc'[i]}`}>
-                <img referrerPolicy="no-referrer" src={img.url} alt={img.alt} {...(i === 0 ? { fetchPriority: 'high' as const } : { loading: 'lazy' as const })} data-lp-img={img.url} style={img.style} />
+                <img
+                  referrerPolicy="no-referrer"
+                  src={img.url}
+                  alt={img.alt}
+                  {...(i === 0 ? { fetchPriority: 'high' as const } : { loading: 'lazy' as const })}
+                  data-lp-img={img.url}
+                  style={img.style}
+                />
               </div>
             ))}
           </div>
         ) : ctx.heroImage ? (
           <div className="hero-media reveal">
-            <img referrerPolicy="no-referrer" src={ctx.heroImage.url} alt={ctx.heroImage.alt} fetchPriority="high" data-lp-img={ctx.heroImage.url} style={ctx.heroImage.style} />
+            <img
+              referrerPolicy="no-referrer"
+              src={ctx.heroImage.url}
+              alt={ctx.heroImage.alt}
+              fetchPriority="high"
+              data-lp-img={ctx.heroImage.url}
+              style={ctx.heroImage.style}
+            />
           </div>
         ) : (
           <InfoCard ctx={ctx} />

@@ -33,7 +33,11 @@ export async function saveConfig(orgId: string, apiUrl: string, apiKey: string |
       [orgId, url, encrypt(apiKey), instance],
     );
   } else {
-    const { rowCount } = await query('update lp_crm_whatsapp set api_url = $2, instance = $3, updated_at = now() where organization_id = $1', [orgId, url, instance]);
+    const { rowCount } = await query('update lp_crm_whatsapp set api_url = $2, instance = $3, updated_at = now() where organization_id = $1', [
+      orgId,
+      url,
+      instance,
+    ]);
     if (!rowCount) throw new AppError(400, 'Informe a chave da API.', 'BAD_REQUEST');
   }
 }
@@ -85,10 +89,13 @@ export async function evolution<T = any>(cfg: EvolutionConfig | null, method: st
   if (!res.ok) {
     const msg = data?.response?.message ?? data?.message ?? text;
     console.error(`[crm] evolution ${method} ${path} → ${res.status}`, msg);
-    throw Object.assign(new AppError(502, res.status === 401 ? 'Chave da Evolution API recusada.' : 'O servidor do WhatsApp recusou a operação.', 'CRM_WA_ERROR'), {
-      evolutionStatus: res.status,
-      evolutionMessage: JSON.stringify(msg),
-    });
+    throw Object.assign(
+      new AppError(502, res.status === 401 ? 'Chave da Evolution API recusada.' : 'O servidor do WhatsApp recusou a operação.', 'CRM_WA_ERROR'),
+      {
+        evolutionStatus: res.status,
+        evolutionMessage: JSON.stringify(msg),
+      },
+    );
   }
   return data as T;
 }
@@ -132,7 +139,12 @@ export const STATUS: Record<string, string> = {
 function mediaInfo(m: any): { mime: string | null; fileName: string | null } {
   const msg = m.message ?? {};
   const media =
-    msg.imageMessage ?? msg.videoMessage ?? msg.audioMessage ?? msg.stickerMessage ?? msg.documentMessage ?? msg.documentWithCaptionMessage?.message?.documentMessage;
+    msg.imageMessage ??
+    msg.videoMessage ??
+    msg.audioMessage ??
+    msg.stickerMessage ??
+    msg.documentMessage ??
+    msg.documentWithCaptionMessage?.message?.documentMessage;
   return { mime: media?.mimetype ?? null, fileName: media?.fileName ?? null };
 }
 
@@ -162,8 +174,15 @@ function messageType(m: any): string | null {
 
 /** Resumo da última mensagem na lista de conversas quando não há texto. */
 export const MEDIA_SUMMARY: Record<string, string> = {
-  image: '📷 Foto', gif: 'GIF', video: '🎥 Vídeo', audio: '🎤 Áudio', sticker: 'Figurinha', document: '📄 Documento',
-  location: '📍 Localização', contact: '👤 Contato', other: 'Mídia',
+  image: '📷 Foto',
+  gif: 'GIF',
+  video: '🎥 Vídeo',
+  audio: '🎤 Áudio',
+  sticker: 'Figurinha',
+  document: '📄 Documento',
+  location: '📍 Localização',
+  contact: '👤 Contato',
+  other: 'Mídia',
 };
 export const MEDIA_TYPES = new Set(['image', 'gif', 'video', 'audio', 'sticker', 'document']);
 
@@ -353,7 +372,18 @@ export async function registerMessage(m: IncomingMessage): Promise<{ conversatio
      on conflict (wa_message_id) do update set sent_by = coalesce(lp_crm_messages.sent_by, excluded.sent_by),
        media_mime = coalesce(lp_crm_messages.media_mime, excluded.media_mime)
      returning id, (xmax = 0) as inserted`,
-    [conv.id, m.direction, m.type, m.body, m.waMessageId, m.status ?? (m.direction === 'in' ? 'received' : 'sent'), m.sentBy ?? null, at, m.mediaMime ?? null, m.fileName ?? null],
+    [
+      conv.id,
+      m.direction,
+      m.type,
+      m.body,
+      m.waMessageId,
+      m.status ?? (m.direction === 'in' ? 'received' : 'sent'),
+      m.sentBy ?? null,
+      at,
+      m.mediaMime ?? null,
+      m.fileName ?? null,
+    ],
   );
   if (msg?.inserted) {
     await query(
@@ -394,7 +424,7 @@ const IMPORT_MESSAGES_PER_CHAT = 50;
 export async function importHistory(orgId: string, offset: number) {
   const cfg = await loadConfig(orgId);
   const raw = await evolution<any>(cfg, 'POST', `/chat/findChats/${cfg!.instance}`, {});
-  const chats: any[] = (Array.isArray(raw) ? raw : raw?.chats ?? [])
+  const chats: any[] = (Array.isArray(raw) ? raw : (raw?.chats ?? []))
     .filter((c: any) => {
       const jid = String(c.remoteJid ?? '');
       return jid.endsWith('@s.whatsapp.net') || (jid.endsWith('@lid') && !!c.lastMessage?.key?.remoteJidAlt);

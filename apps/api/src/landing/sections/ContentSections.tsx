@@ -11,10 +11,20 @@ export function AboutSection({ ctx, alt }: { ctx: RenderContext; alt: boolean })
   if (!about) return null;
   const { company } = ctx;
   const facts: { icon: string; key: string; data: string; label: string; value: string }[] = [];
-  if (company.segment) facts.push({ icon: 'briefcase', key: 'fact_specialty', data: 'fact.specialty', label: ctx.labels.fact_specialty, value: company.segment });
-  if (company.city) facts.push({ icon: 'map-pin', key: 'fact_location', data: 'fact.location', label: ctx.labels.fact_location, value: [company.city, company.state].filter(Boolean).join(' – ') });
-  if (company.opening_hours) facts.push({ icon: 'clock', key: 'fact_hours', data: 'contact.hours', label: ctx.labels.fact_hours, value: company.opening_hours });
-  if (company.commercial_info?.target_audience) facts.push({ icon: 'users', key: 'fact_audience', data: 'fact.audience', label: ctx.labels.fact_audience, value: company.commercial_info.target_audience });
+  if (company.segment)
+    facts.push({ icon: 'briefcase', key: 'fact_specialty', data: 'fact.specialty', label: ctx.labels.fact_specialty, value: company.segment });
+  if (company.city)
+    facts.push({
+      icon: 'map-pin',
+      key: 'fact_location',
+      data: 'fact.location',
+      label: ctx.labels.fact_location,
+      value: [company.city, company.state].filter(Boolean).join(' – '),
+    });
+  if (company.opening_hours)
+    facts.push({ icon: 'clock', key: 'fact_hours', data: 'contact.hours', label: ctx.labels.fact_hours, value: company.opening_hours });
+  if (company.commercial_info?.target_audience)
+    facts.push({ icon: 'users', key: 'fact_audience', data: 'fact.audience', label: ctx.labels.fact_audience, value: company.commercial_info.target_audience });
 
   return (
     <section id="sobre" className={`section${alt ? ' section-alt' : ''}`}>
@@ -23,14 +33,32 @@ export function AboutSection({ ctx, alt }: { ctx: RenderContext; alt: boolean })
           {ctx.logo && ctx.theme.logoPlacement === 'about' ? (
             <img className="body-logo about-logo reveal" referrerPolicy="no-referrer" src={ctx.logo.url} alt={ctx.logo.alt} loading="lazy" />
           ) : null}
-          <SectionHead eyebrow={ctx.labels.eyebrow_about} title={about.title} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_about'), title: ed(ctx, 'about.title') }} />
+          <SectionHead
+            eyebrow={ctx.labels.eyebrow_about}
+            title={about.title}
+            paths={{ eyebrow: ed(ctx, 'labels.eyebrow_about'), title: ed(ctx, 'about.title') }}
+          />
           <div className="reveal">
-            {about.paragraphs.map((p, i) => (p ? <p key={i} {...ed(ctx, `about.paragraphs.${i}`)}>{p}</p> : null))}
+            {about.paragraphs.map((p, i) =>
+              p ? (
+                <p key={i} {...ed(ctx, `about.paragraphs.${i}`)}>
+                  {p}
+                </p>
+              ) : null,
+            )}
           </div>
         </div>
         {ctx.aboutImage ? (
           <div className="about-media reveal">
-            <img referrerPolicy="no-referrer" src={ctx.aboutImage.url} alt={ctx.aboutImage.alt} loading="lazy" decoding="async" data-lp-img={ctx.aboutImage.url} style={ctx.aboutImage.style} />
+            <img
+              referrerPolicy="no-referrer"
+              src={ctx.aboutImage.url}
+              alt={ctx.aboutImage.alt}
+              loading="lazy"
+              decoding="async"
+              data-lp-img={ctx.aboutImage.url}
+              style={ctx.aboutImage.style}
+            />
           </div>
         ) : facts.length ? (
           <dl className="facts reveal">
@@ -57,13 +85,24 @@ export function ServicesSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
   return (
     <section id="servicos" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_services} title={s.title} lead={s.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_services'), title: ed(ctx, 'services.title'), lead: edOptional(ctx, 'services.subtitle', 'Texto de apoio (opcional)') }} />
+        <SectionHead
+          eyebrow={ctx.labels.eyebrow_services}
+          title={s.title}
+          lead={s.subtitle}
+          paths={{
+            eyebrow: ed(ctx, 'labels.eyebrow_services'),
+            title: ed(ctx, 'services.title'),
+            lead: edOptional(ctx, 'services.subtitle', 'Texto de apoio (opcional)'),
+          }}
+        />
         {list ? (
           <div className="rows">
             {s.items.map((item, i) => (
               <article key={item.name} className="row reveal">
                 <div className="row-lead">
-                  <span className="row-icon"><Icon name={item.icon} size={22} attrs={edIcon(ctx, `services.items.${i}.icon`)} /></span>
+                  <span className="row-icon">
+                    <Icon name={item.icon} size={22} attrs={edIcon(ctx, `services.items.${i}.icon`)} />
+                  </span>
                   <span className="num">{String(i + 1).padStart(2, '0')}</span>
                 </div>
                 <h3 {...ed(ctx, `services.items.${i}.name`)}>{item.name}</h3>
@@ -110,7 +149,16 @@ export function BenefitsSection({ ctx }: { ctx: RenderContext }) {
   return (
     <section id="diferenciais" className="section band">
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_differentials} title={d.title} lead={d.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_differentials'), title: ed(ctx, 'differentials.title'), lead: edOptional(ctx, 'differentials.subtitle', 'Texto de apoio (opcional)') }} />
+        <SectionHead
+          eyebrow={ctx.labels.eyebrow_differentials}
+          title={d.title}
+          lead={d.subtitle}
+          paths={{
+            eyebrow: ed(ctx, 'labels.eyebrow_differentials'),
+            title: ed(ctx, 'differentials.title'),
+            lead: edOptional(ctx, 'differentials.subtitle', 'Texto de apoio (opcional)'),
+          }}
+        />
         <div className="diff-grid reveal">
           {d.items.map((item, i) => (
             <div key={item.title} className="diff">
@@ -132,7 +180,16 @@ export function ProductsSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
   return (
     <section id="produtos" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_products} title={p.title} lead={p.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_products'), title: ed(ctx, 'products.title'), lead: edOptional(ctx, 'products.subtitle', 'Texto de apoio (opcional)') }} />
+        <SectionHead
+          eyebrow={ctx.labels.eyebrow_products}
+          title={p.title}
+          lead={p.subtitle}
+          paths={{
+            eyebrow: ed(ctx, 'labels.eyebrow_products'),
+            title: ed(ctx, 'products.title'),
+            lead: edOptional(ctx, 'products.subtitle', 'Texto de apoio (opcional)'),
+          }}
+        />
         <div className="grid">
           {p.items.map((item, i) => (
             <article key={item.name} className="card product reveal">
@@ -184,7 +241,16 @@ export function GallerySection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
   return (
     <section id="galeria" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_gallery} title={g.title} lead={g.subtitle} paths={{ eyebrow: ed(ctx, 'labels.eyebrow_gallery'), title: ed(ctx, 'gallery.title'), lead: edOptional(ctx, 'gallery.subtitle', 'Texto de apoio (opcional)') }} />
+        <SectionHead
+          eyebrow={ctx.labels.eyebrow_gallery}
+          title={g.title}
+          lead={g.subtitle}
+          paths={{
+            eyebrow: ed(ctx, 'labels.eyebrow_gallery'),
+            title: ed(ctx, 'gallery.title'),
+            lead: edOptional(ctx, 'gallery.subtitle', 'Texto de apoio (opcional)'),
+          }}
+        />
         {/* g-nN: a grade se ajusta à quantidade de fotos para nunca sobrar buraco (ver styles.ts) */}
         <GalleryGrid photos={photos.slice(0, visible)} cols={ctx.theme.photoCols} />
         {/* No editor todas as fotos aparecem abertas, sem o botão "Exibir mais" */}
@@ -247,7 +313,9 @@ function QuoteText({ ctx, id, text }: { ctx: RenderContext; id: string; text: st
   // No editor: o resumo com "Ler mais" aparece como na página; no modo Textos, o texto inteiro para editar
   return ctx.editable ? (
     <>
-      <p {...attrs} data-lp-ui="quote-edit">{full}</p>
+      <p {...attrs} data-lp-ui="quote-edit">
+        {full}
+      </p>
       {more}
     </>
   ) : (
@@ -262,12 +330,19 @@ export function TestimonialsSection({ ctx, alt }: { ctx: RenderContext; alt: boo
   return (
     <section id="depoimentos" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_testimonials} title={ctx.content.testimonials?.title ?? 'O que dizem nossos clientes'} center paths={{ eyebrow: ed(ctx, 'labels.eyebrow_testimonials'), title: ed(ctx, 'testimonials.title') }} />
+        <SectionHead
+          eyebrow={ctx.labels.eyebrow_testimonials}
+          title={ctx.content.testimonials?.title ?? 'O que dizem nossos clientes'}
+          center
+          paths={{ eyebrow: ed(ctx, 'labels.eyebrow_testimonials'), title: ed(ctx, 'testimonials.title') }}
+        />
         <div className="quotes">
           {items.slice(0, 6).map((t) => (
             <blockquote key={t.id} className="quote reveal">
               <QuoteText ctx={ctx} id={t.id} text={t.text} />
-              {t.author ? <footer {...cad(ctx, `testimonial.${t.id}.author`, t.author).attrs}>{cad(ctx, `testimonial.${t.id}.author`, t.author).text}</footer> : null}
+              {t.author ? (
+                <footer {...cad(ctx, `testimonial.${t.id}.author`, t.author).attrs}>{cad(ctx, `testimonial.${t.id}.author`, t.author).text}</footer>
+              ) : null}
             </blockquote>
           ))}
         </div>
@@ -281,7 +356,10 @@ export function TestimonialsSection({ ctx, alt }: { ctx: RenderContext; alt: boo
 function GoogleMark() {
   return (
     <svg className="rv-g" viewBox="0 0 48 48" width="22" height="22" aria-hidden="true">
-      <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z" />
+      <path
+        fill="#FFC107"
+        d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"
+      />
       <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
       <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
       <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z" />
@@ -289,7 +367,11 @@ function GoogleMark() {
   );
 }
 
-const Stars = () => <span className="rv-stars" role="img" aria-label="5 de 5 estrelas">★★★★★</span>;
+const Stars = () => (
+  <span className="rv-stars" role="img" aria-label="5 de 5 estrelas">
+    ★★★★★
+  </span>
+);
 
 /** Mês e ano da avaliação ("março de 2026"). */
 const reviewDate = (iso: string | null) => {
@@ -305,13 +387,22 @@ export function ReviewsSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
   return (
     <section id="avaliacoes" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
-        <SectionHead eyebrow={ctx.labels.eyebrow_reviews} title={ctx.labels.title_reviews} center paths={{ eyebrow: ed(ctx, 'labels.eyebrow_reviews'), title: ed(ctx, 'labels.title_reviews') }} />
+        <SectionHead
+          eyebrow={ctx.labels.eyebrow_reviews}
+          title={ctx.labels.title_reviews}
+          center
+          paths={{ eyebrow: ed(ctx, 'labels.eyebrow_reviews'), title: ed(ctx, 'labels.title_reviews') }}
+        />
         {g.rating != null ? (
           <p className="rv-summary reveal">
             <GoogleMark />
             <strong>{g.rating.toFixed(1).replace('.', ',')}</strong>
             <Stars />
-            {g.total ? <span>{g.total.toLocaleString('pt-BR')} <span {...ed(ctx, 'labels.reviews_based')}>{ctx.labels.reviews_based}</span></span> : null}
+            {g.total ? (
+              <span>
+                {g.total.toLocaleString('pt-BR')} <span {...ed(ctx, 'labels.reviews_based')}>{ctx.labels.reviews_based}</span>
+              </span>
+            ) : null}
           </p>
         ) : null}
         <div className="quotes">
@@ -320,7 +411,13 @@ export function ReviewsSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
               <Stars />
               <p>{r.text}</p>
               <footer className="rv-author">
-                {r.photo ? <img src={r.photo} alt="" width={40} height={40} loading="lazy" referrerPolicy="no-referrer" /> : <span className="rv-initial" aria-hidden="true">{r.author.charAt(0).toUpperCase()}</span>}
+                {r.photo ? (
+                  <img src={r.photo} alt="" width={40} height={40} loading="lazy" referrerPolicy="no-referrer" />
+                ) : (
+                  <span className="rv-initial" aria-hidden="true">
+                    {r.author.charAt(0).toUpperCase()}
+                  </span>
+                )}
                 <span>
                   <span className="rv-name">{r.author}</span>
                   {reviewDate(r.date) ? <small>{reviewDate(r.date)} · Google</small> : <small>Google</small>}
@@ -331,7 +428,9 @@ export function ReviewsSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
         </div>
         {g.url ? (
           <p className="rv-more">
-            <a href={g.url} target="_blank" rel="noopener noreferrer" {...ed(ctx, 'labels.reviews_more')}>{ctx.labels.reviews_more}</a>
+            <a href={g.url} target="_blank" rel="noopener noreferrer" {...ed(ctx, 'labels.reviews_more')}>
+              {ctx.labels.reviews_more}
+            </a>
           </p>
         ) : null}
       </div>
@@ -347,15 +446,17 @@ export function FaqSection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {
       <div className="container">
         <SectionHead eyebrow={ctx.labels.eyebrow_faq} title={f.title} center paths={{ eyebrow: ed(ctx, 'labels.eyebrow_faq'), title: ed(ctx, 'faq.title') }} />
         <div className="faq reveal">
-          {f.items.map((item, i) => !item.question ? null : (
-            <details key={`${i}-${item.question}`}>
-              <summary>
-                <span {...ed(ctx, `faq.items.${i}.question`)}>{item.question}</span>
-                <Icon name="plus" />
-              </summary>
-              <p {...ed(ctx, `faq.items.${i}.answer`)}>{item.answer}</p>
-            </details>
-          ))}
+          {f.items.map((item, i) =>
+            !item.question ? null : (
+              <details key={`${i}-${item.question}`}>
+                <summary>
+                  <span {...ed(ctx, `faq.items.${i}.question`)}>{item.question}</span>
+                  <Icon name="plus" />
+                </summary>
+                <p {...ed(ctx, `faq.items.${i}.answer`)}>{item.answer}</p>
+              </details>
+            ),
+          )}
         </div>
         <SectionPhotos ctx={ctx} name="faq" />
       </div>

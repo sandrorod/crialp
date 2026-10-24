@@ -64,17 +64,28 @@ export function richSegment(escaped: string): string {
     }
     // Fecha até a última abertura do mesmo tipo e reabre as que estavam por dentro (fechamento sem abertura: ignorado)
     let at = -1;
-    for (let i = stack.length - 1; i >= 0; i--) if (stack[i].kind === kind) { at = i; break; }
+    for (let i = stack.length - 1; i >= 0; i--)
+      if (stack[i].kind === kind) {
+        at = i;
+        break;
+      }
     if (at < 0) continue;
     const inner = stack.splice(at);
-    out += inner.slice().reverse().map((t) => closeTag(t.kind)).join('');
+    out += inner
+      .slice()
+      .reverse()
+      .map((t) => closeTag(t.kind))
+      .join('');
     for (const t of inner.slice(1)) {
       out += t.tag;
       stack.push(t);
     }
   }
   out += escaped.slice(last);
-  out += stack.reverse().map((t) => closeTag(t.kind)).join('');
+  out += stack
+    .reverse()
+    .map((t) => closeTag(t.kind))
+    .join('');
   return out;
 }
 

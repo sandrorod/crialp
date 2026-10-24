@@ -1,6 +1,23 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { TEXT_WIDTH_MIN } from './previewTools';
-import { Bookmark, Check, CheckCircle2, Clock, Copy, Globe, GripVertical, ImageOff, Link2, Loader2, RotateCcw, ShieldAlert, Trash2, Upload, X, XCircle } from 'lucide-react';
+import {
+  Bookmark,
+  Check,
+  CheckCircle2,
+  Clock,
+  Copy,
+  Globe,
+  GripVertical,
+  ImageOff,
+  Link2,
+  Loader2,
+  RotateCcw,
+  ShieldAlert,
+  Trash2,
+  Upload,
+  X,
+  XCircle,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, ConfirmDialog, Field, Input, ListEditor, Select, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
@@ -8,7 +25,19 @@ import { errorMessage } from '@/lib/api';
 import { cn, copyToClipboard, formatDate } from '@/lib/utils';
 import { brandTones, type ToneRow } from '@/lib/colorTones';
 import { colorPaletteService, landingPageService, miscService } from '@/services';
-import type { ColorPalette, CompanyImage, ElementColor, HeroVariant, ImagePlacement, LandingContent, TemplateKey, LandingPageDetail, SectionColors, SectionOrderKey, ThemeSettings } from '@/types';
+import type {
+  ColorPalette,
+  CompanyImage,
+  ElementColor,
+  HeroVariant,
+  ImagePlacement,
+  LandingContent,
+  TemplateKey,
+  LandingPageDetail,
+  SectionColors,
+  SectionOrderKey,
+  ThemeSettings,
+} from '@/types';
 
 // ─── Visual ─────────────────────────────────────────────────────────
 const HERO_VARIANTS: { value: HeroVariant; label: string; hint: string }[] = [
@@ -31,21 +60,52 @@ const SECTION_NAMES: Record<string, string> = {
   footer: 'Rodapé',
 };
 
-function ColorSlot({ label, value, fallback, onChange, palette, tones }: { label: string; value?: string | null; fallback: string; onChange: (v: string | null) => void; palette: string[]; tones: ToneRow[] }) {
+function ColorSlot({
+  label,
+  value,
+  fallback,
+  onChange,
+  palette,
+  tones,
+}: {
+  label: string;
+  value?: string | null;
+  fallback: string;
+  onChange: (v: string | null) => void;
+  palette: string[];
+  tones: ToneRow[];
+}) {
   return (
     <div className="min-w-0">
       <div className="mb-1 flex items-center justify-between text-[11px] text-zinc-500">
         <span>{label}</span>
-        {value ? <button type="button" className="text-zinc-400 hover:text-ink" onClick={() => onChange(null)}>padrão</button> : <span className="text-zinc-400">padrão</span>}
+        {value ? (
+          <button type="button" className="text-zinc-400 hover:text-ink" onClick={() => onChange(null)}>
+            padrão
+          </button>
+        ) : (
+          <span className="text-zinc-400">padrão</span>
+        )}
       </div>
       <div className="flex items-center gap-1.5">
-        <label className={cn('relative size-8 flex-none cursor-pointer overflow-hidden rounded-md ring-1', value ? 'ring-zinc-300' : 'ring-dashed ring-zinc-300')} style={{ background: value ?? fallback }} title="Escolher cor">
+        <label
+          className={cn('relative size-8 flex-none cursor-pointer overflow-hidden rounded-md ring-1', value ? 'ring-zinc-300' : 'ring-dashed ring-zinc-300')}
+          style={{ background: value ?? fallback }}
+          title="Escolher cor"
+        >
           <input type="color" className="absolute inset-0 cursor-pointer opacity-0" value={value ?? fallback} onChange={(e) => onChange(e.target.value)} />
           {!value ? <span className="absolute inset-0 grid place-items-center text-[9px] font-semibold text-white mix-blend-difference">auto</span> : null}
         </label>
         <div className="flex flex-wrap gap-1">
           {palette.map((c) => (
-            <button key={c} type="button" onClick={() => onChange(c)} className={cn('size-4 rounded ring-1 ring-black/10', value === c && 'ring-2 ring-ink')} style={{ background: c }} title={c} />
+            <button
+              key={c}
+              type="button"
+              onClick={() => onChange(c)}
+              className={cn('size-4 rounded ring-1 ring-black/10', value === c && 'ring-2 ring-ink')}
+              style={{ background: c }}
+              title={c}
+            />
           ))}
         </div>
       </div>
@@ -72,11 +132,26 @@ function ColorSlot({ label, value, fallback, onChange, palette, tones }: { label
 }
 
 /** Cores individuais de cada seção (sobrepõem as cores do projeto). */
-function SectionColorsEditor({ theme, onChange, content, palette, tones, defaults }: { theme: ThemeSettings; onChange: (t: ThemeSettings) => void; content: LandingContent; palette: string[]; tones: ToneRow[]; defaults: { bg: string; text: string; accent: string } }) {
+function SectionColorsEditor({
+  theme,
+  onChange,
+  content,
+  palette,
+  tones,
+  defaults,
+}: {
+  theme: ThemeSettings;
+  onChange: (t: ThemeSettings) => void;
+  content: LandingContent;
+  palette: string[];
+  tones: ToneRow[];
+  defaults: { bg: string; text: string; accent: string };
+}) {
   const sections = theme.sections ?? {};
   const customs = content.custom_sections ?? [];
   const keys: string[] = ['hero', ...content.section_order.filter((k: SectionOrderKey) => k !== 'final_cta'), 'final_cta', 'footer'];
-  const name = (k: string) => (k.startsWith('custom:') ? `★ ${customs.find((c) => c.id === k.slice(7))?.title || 'Seção personalizada'}` : SECTION_NAMES[k] ?? k);
+  const name = (k: string) =>
+    k.startsWith('custom:') ? `★ ${customs.find((c) => c.id === k.slice(7))?.title || 'Seção personalizada'}` : (SECTION_NAMES[k] ?? k);
   const update = (key: string, patch: Partial<SectionColors>) => {
     const next = { ...(sections[key] ?? {}), ...patch };
     const all = { ...sections, [key]: next };
@@ -88,7 +163,11 @@ function SectionColorsEditor({ theme, onChange, content, palette, tones, default
     <div>
       <div className="mb-1 flex items-center justify-between">
         <h4 className="text-sm font-semibold">Cores por seção</h4>
-        {customized ? <button type="button" className="text-xs text-zinc-500 hover:text-ink" onClick={() => onChange({ ...theme, sections: {} })}>Limpar todas ({customized})</button> : null}
+        {customized ? (
+          <button type="button" className="text-xs text-zinc-500 hover:text-ink" onClick={() => onChange({ ...theme, sections: {} })}>
+            Limpar todas ({customized})
+          </button>
+        ) : null}
       </div>
       <p className="mb-3 text-xs text-zinc-500">
         Defina fundo, texto e destaque de cada seção. Deixe em "auto" para seguir as cores do projeto; o texto é ajustado automaticamente para manter a leitura.
@@ -104,12 +183,23 @@ function SectionColorsEditor({ theme, onChange, content, palette, tones, default
                   <span className="size-3 flex-none rounded-sm ring-1 ring-black/10" style={{ background: c.bg ?? defaults.bg }} />
                   {name(k)}
                 </span>
-                {on ? <button type="button" className="text-[11px] text-zinc-400 hover:text-ink" onClick={() => update(k, { bg: null, text: null, accent: null })}>restaurar</button> : null}
+                {on ? (
+                  <button type="button" className="text-[11px] text-zinc-400 hover:text-ink" onClick={() => update(k, { bg: null, text: null, accent: null })}>
+                    restaurar
+                  </button>
+                ) : null}
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <ColorSlot label="Fundo" value={c.bg} fallback={defaults.bg} palette={palette} tones={tones} onChange={(v) => update(k, { bg: v })} />
                 <ColorSlot label="Texto" value={c.text} fallback={defaults.text} palette={palette} tones={tones} onChange={(v) => update(k, { text: v })} />
-                <ColorSlot label="Destaque" value={c.accent} fallback={defaults.accent} palette={palette} tones={tones} onChange={(v) => update(k, { accent: v })} />
+                <ColorSlot
+                  label="Destaque"
+                  value={c.accent}
+                  fallback={defaults.accent}
+                  palette={palette}
+                  tones={tones}
+                  onChange={(v) => update(k, { accent: v })}
+                />
               </div>
             </li>
           );
@@ -129,13 +219,22 @@ function ElementColorsSummary({ theme, onChange }: { theme: ThemeSettings; onCha
   return (
     <div className="border-t border-zinc-100 pt-6">
       <h4 className="mb-1 text-sm font-semibold">Cores e tamanhos de elementos</h4>
-      <p className="mb-3 text-xs text-zinc-500">Na prévia, no modo "Textos" clique num texto e use A− / A+ para o tamanho; no modo "Cores" clique em qualquer elemento para mudar cor e tamanho. Celular e computador são independentes.</p>
+      <p className="mb-3 text-xs text-zinc-500">
+        Na prévia, no modo "Textos" clique num texto e use A− / A+ para o tamanho; no modo "Cores" clique em qualquer elemento para mudar cor e tamanho. Celular
+        e computador são independentes.
+      </p>
       <ul className="space-y-1.5">
         {rows.map((r) => (
           <li key={r.key} className="flex items-center justify-between rounded-md bg-zinc-50 px-3 py-2 text-[13px]">
-            <span>{r.label}: {r.count ? `${r.count} ${r.count === 1 ? 'elemento personalizado' : 'elementos personalizados'}` : 'nenhum elemento personalizado'}</span>
+            <span>
+              {r.label}: {r.count ? `${r.count} ${r.count === 1 ? 'elemento personalizado' : 'elementos personalizados'}` : 'nenhum elemento personalizado'}
+            </span>
             {r.count ? (
-              <button type="button" className="text-xs text-zinc-500 hover:text-red-600" onClick={() => onChange({ ...theme, elementColors: { ...colors, [r.key]: {} } })}>
+              <button
+                type="button"
+                className="text-xs text-zinc-500 hover:text-red-600"
+                onClick={() => onChange({ ...theme, elementColors: { ...colors, [r.key]: {} } })}
+              >
                 Limpar
               </button>
             ) : null}
@@ -152,10 +251,7 @@ function ElementColorsSummary({ theme, onChange }: { theme: ThemeSettings; onCha
  */
 function manualColorCount(theme: ThemeSettings) {
   const sections = Object.keys(theme.sections ?? {}).length;
-  const elements = (['desktop', 'mobile'] as const).reduce(
-    (n, d) => n + Object.values(theme.elementColors?.[d] ?? {}).filter((c) => c.text || c.bg).length,
-    0,
-  );
+  const elements = (['desktop', 'mobile'] as const).reduce((n, d) => n + Object.values(theme.elementColors?.[d] ?? {}).filter((c) => c.text || c.bg).length, 0);
   return sections + elements;
 }
 function withoutManualColors(theme: ThemeSettings): ThemeSettings {
@@ -182,7 +278,11 @@ function portableSections(sections: ThemeSettings['sections']) {
 
 function sameColors(theme: ThemeSettings, p: ColorPalette) {
   const norm = (v: Record<string, SectionColors>) =>
-    JSON.stringify(Object.keys(v).sort().map((k) => [k, v[k].bg ?? null, v[k].text ?? null, v[k].accent ?? null]));
+    JSON.stringify(
+      Object.keys(v)
+        .sort()
+        .map((k) => [k, v[k].bg ?? null, v[k].text ?? null, v[k].accent ?? null]),
+    );
   return (
     theme.preset === p.preset &&
     (theme.primary ?? null)?.toLowerCase() === (p.primary ?? null)?.toLowerCase() &&
@@ -193,7 +293,15 @@ function sameColors(theme: ThemeSettings, p: ColorPalette) {
 }
 
 /** Combinações de cores salvas com nome: aplicar em um clique e salvar a atual (com o mesmo nome, atualiza). */
-function SavedPalettes({ theme, presets, onApply }: { theme: ThemeSettings; presets: { key: string; primary: string; accent: string; bg: string }[] | null; onApply: (p: ColorPalette) => void }) {
+function SavedPalettes({
+  theme,
+  presets,
+  onApply,
+}: {
+  theme: ThemeSettings;
+  presets: { key: string; primary: string; accent: string; bg: string }[] | null;
+  onApply: (p: ColorPalette) => void;
+}) {
   const { data: palettes, setData } = useAsync(() => colorPaletteService.list(), []);
   const [name, setName] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -210,7 +318,14 @@ function SavedPalettes({ theme, presets, onApply }: { theme: ThemeSettings; pres
     if (!name?.trim()) return;
     setSaving(true);
     try {
-      const saved = await colorPaletteService.save({ name: name.trim(), preset: theme.preset, primary: theme.primary ?? null, accent: theme.accent ?? null, background: theme.background ?? null, sections: portableSections(theme.sections) });
+      const saved = await colorPaletteService.save({
+        name: name.trim(),
+        preset: theme.preset,
+        primary: theme.primary ?? null,
+        accent: theme.accent ?? null,
+        background: theme.background ?? null,
+        sections: portableSections(theme.sections),
+      });
       setData((list) => [...(list ?? []).filter((p) => p.id !== saved.id), saved].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
       toast.success(taken ? `Combinação "${saved.name}" atualizada.` : `Combinação "${saved.name}" salva.`);
       setName(null);
@@ -241,20 +356,45 @@ function SavedPalettes({ theme, presets, onApply }: { theme: ThemeSettings; pres
       <div className="mb-2 flex items-center justify-between gap-2">
         <h4 className="text-sm font-semibold">Minhas combinações</h4>
         {name === null ? (
-          <Button type="button" variant="secondary" size="sm" icon={<Bookmark className="size-4" />} onClick={() => setName(active?.name ?? '')} disabled={!!active} title={active ? `Estas cores já estão salvas como "${active.name}"` : 'Salvar as cores atuais com um nome'}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            icon={<Bookmark className="size-4" />}
+            onClick={() => setName(active?.name ?? '')}
+            disabled={!!active}
+            title={active ? `Estas cores já estão salvas como "${active.name}"` : 'Salvar as cores atuais com um nome'}
+          >
             Salvar combinação
           </Button>
         ) : null}
       </div>
       {name !== null ? (
-        <form className="mb-3 space-y-1" onSubmit={(e) => { e.preventDefault(); void save(); }}>
+        <form
+          className="mb-3 space-y-1"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save();
+          }}
+        >
           <div className="flex gap-2">
             <Input autoFocus value={name} maxLength={60} placeholder="Nome da combinação (ex.: Azul e laranja)" onChange={(e) => setName(e.target.value)} />
-            <Button type="submit" size="sm" disabled={!name.trim() || saving} icon={saving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}>Salvar</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setName(null)}>Cancelar</Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={!name.trim() || saving}
+              icon={saving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+            >
+              Salvar
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setName(null)}>
+              Cancelar
+            </Button>
           </div>
           <p className="text-[11px] text-zinc-500">
-            {taken ? `Já existe "${taken.name}": as cores dela serão substituídas pelas atuais.` : 'Guarda o estilo, as três cores (fundo, principal e destaque) e as cores das seções.'}
+            {taken
+              ? `Já existe "${taken.name}": as cores dela serão substituídas pelas atuais.`
+              : 'Guarda o estilo, as três cores (fundo, principal e destaque) e as cores das seções.'}
           </p>
         </form>
       ) : null}
@@ -263,26 +403,45 @@ function SavedPalettes({ theme, presets, onApply }: { theme: ThemeSettings; pres
       ) : palettes.length ? (
         <div className="grid gap-2 sm:grid-cols-2">
           {palettes.map((p) => (
-            <div key={p.id} className={cn('group flex items-center gap-2 rounded-lg border p-2 transition', active?.id === p.id ? 'border-ink ring-1 ring-ink' : 'border-zinc-200 hover:border-zinc-300')}>
+            <div
+              key={p.id}
+              className={cn(
+                'group flex items-center gap-2 rounded-lg border p-2 transition',
+                active?.id === p.id ? 'border-ink ring-1 ring-ink' : 'border-zinc-200 hover:border-zinc-300',
+              )}
+            >
               <button type="button" onClick={() => onApply(p)} className="flex min-w-0 flex-1 items-center gap-3 text-left" title={`Aplicar "${p.name}"`}>
                 <span className="flex flex-none overflow-hidden rounded-md ring-1 ring-black/5">
-                  {swatch(p).map((c, i) => <span key={i} className="h-7 w-3.5" style={{ background: c }} />)}
+                  {swatch(p).map((c, i) => (
+                    <span key={i} className="h-7 w-3.5" style={{ background: c }} />
+                  ))}
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate text-[13px] font-medium">{p.name}</span>
                   <span className="block truncate text-[11px] text-zinc-500">
-                    {Object.keys(p.sections ?? {}).length ? `${Object.keys(p.sections).length} ${Object.keys(p.sections).length === 1 ? 'seção' : 'seções'} com cor própria` : 'Cores gerais'}
+                    {Object.keys(p.sections ?? {}).length
+                      ? `${Object.keys(p.sections).length} ${Object.keys(p.sections).length === 1 ? 'seção' : 'seções'} com cor própria`
+                      : 'Cores gerais'}
                   </span>
                 </span>
               </button>
-              <button type="button" onClick={() => setRemoving(p)} className="flex-none rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-red-600" aria-label={`Excluir "${p.name}"`} title="Excluir combinação">
+              <button
+                type="button"
+                onClick={() => setRemoving(p)}
+                className="flex-none rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-red-600"
+                aria-label={`Excluir "${p.name}"`}
+                title="Excluir combinação"
+              >
                 <X className="size-4" />
               </button>
             </div>
           ))}
         </div>
       ) : (
-        <p className="text-xs text-zinc-500">Ajuste as cores (estilo, fundo, cor principal, destaque ou cores das seções) e clique em "Salvar combinação" para usar de novo nesta e em outras páginas.</p>
+        <p className="text-xs text-zinc-500">
+          Ajuste as cores (estilo, fundo, cor principal, destaque ou cores das seções) e clique em "Salvar combinação" para usar de novo nesta e em outras
+          páginas.
+        </p>
       )}
       <ConfirmDialog
         open={!!removing}
@@ -318,7 +477,10 @@ export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSe
               key={p.key}
               type="button"
               onClick={() => onPalette({ ...theme, preset: p.key, primary: null, accent: null, background: null })}
-              className={cn('flex items-center gap-3 rounded-lg border p-3 text-left transition', theme.preset === p.key ? 'border-ink ring-1 ring-ink' : 'border-zinc-200 hover:border-zinc-300')}
+              className={cn(
+                'flex items-center gap-3 rounded-lg border p-3 text-left transition',
+                theme.preset === p.key ? 'border-ink ring-1 ring-ink' : 'border-zinc-200 hover:border-zinc-300',
+              )}
             >
               <span className="flex flex-none overflow-hidden rounded-md ring-1 ring-black/5">
                 <span className="h-8 w-4" style={{ background: p.bg }} />
@@ -327,7 +489,9 @@ export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSe
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-[13px] font-medium">{p.label.split(' — ')[0]}</span>
-                <span className="block truncate text-[11px] text-zinc-500">{p.label.split(' — ')[1] ?? ''} · {p.heading}</span>
+                <span className="block truncate text-[11px] text-zinc-500">
+                  {p.label.split(' — ')[1] ?? ''} · {p.heading}
+                </span>
               </span>
             </button>
           )) ?? <div className="skeleton h-24 rounded-lg sm:col-span-2" />}
@@ -339,22 +503,62 @@ export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSe
         {(['background', 'primary', 'accent'] as const).map((key) => {
           const value = theme[key] ?? (key === 'background' ? current?.bg : key === 'primary' ? current?.primary : current?.accent) ?? '#000000';
           return (
-            <Field key={key} label={key === 'background' ? 'Cor de fundo' : key === 'primary' ? 'Cor principal' : 'Cor de destaque'} hint={theme[key] ? 'Personalizada' : 'Padrão do estilo'}>
+            <Field
+              key={key}
+              label={key === 'background' ? 'Cor de fundo' : key === 'primary' ? 'Cor principal' : 'Cor de destaque'}
+              hint={theme[key] ? 'Personalizada' : 'Padrão do estilo'}
+            >
               <div className="flex gap-2">
-                <input type="color" value={value} onChange={(e) => onPalette({ ...theme, [key]: e.target.value })} className="h-10 w-12 cursor-pointer rounded-lg border border-zinc-200 bg-white p-1" />
-                <Input value={value} onChange={(e) => /^#[0-9a-f]{6}$/i.test(e.target.value) && onPalette({ ...theme, [key]: e.target.value })} className="font-mono uppercase" />
-                {theme[key] ? <Button type="button" variant="ghost" onClick={() => onPalette({ ...theme, [key]: null })} icon={<RotateCcw className="size-4" />} aria-label="Restaurar" /> : null}
+                <input
+                  type="color"
+                  value={value}
+                  onChange={(e) => onPalette({ ...theme, [key]: e.target.value })}
+                  className="h-10 w-12 cursor-pointer rounded-lg border border-zinc-200 bg-white p-1"
+                />
+                <Input
+                  value={value}
+                  onChange={(e) => /^#[0-9a-f]{6}$/i.test(e.target.value) && onPalette({ ...theme, [key]: e.target.value })}
+                  className="font-mono uppercase"
+                />
+                {theme[key] ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => onPalette({ ...theme, [key]: null })}
+                    icon={<RotateCcw className="size-4" />}
+                    aria-label="Restaurar"
+                  />
+                ) : null}
               </div>
             </Field>
           );
         })}
       </div>
-      <p className="-mt-3 text-xs text-zinc-500">O contraste é ajustado automaticamente para manter textos e botões legíveis (com fundo escuro, os textos ficam claros).</p>
+      <p className="-mt-3 text-xs text-zinc-500">
+        O contraste é ajustado automaticamente para manter textos e botões legíveis (com fundo escuro, os textos ficam claros).
+      </p>
 
-      <SavedPalettes theme={theme} presets={presets} onApply={(p) => change({ ...withoutManualColors({ ...theme, preset: p.preset as ThemeSettings['preset'], primary: p.primary, accent: p.accent, background: p.background, blend: true }), sections: p.sections })} />
+      <SavedPalettes
+        theme={theme}
+        presets={presets}
+        onApply={(p) =>
+          change({
+            ...withoutManualColors({
+              ...theme,
+              preset: p.preset as ThemeSettings['preset'],
+              primary: p.primary,
+              accent: p.accent,
+              background: p.background,
+              blend: true,
+            }),
+            sections: p.sections,
+          })
+        }
+      />
       {manual ? (
         <p className="-mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Há {manual === 1 ? '1 cor ajustada' : `${manual} cores ajustadas`} à mão (fundo de seção ou cor de elemento). Ao mudar a direção visual ou as cores acima, a página inteira passa a usar as novas cores e esses ajustes são substituídos. Para desfazer antes de salvar, use "Descartar".
+          Há {manual === 1 ? '1 cor ajustada' : `${manual} cores ajustadas`} à mão (fundo de seção ou cor de elemento). Ao mudar a direção visual ou as cores
+          acima, a página inteira passa a usar as novas cores e esses ajustes são substituídos. Para desfazer antes de salvar, use "Descartar".
         </p>
       ) : null}
 
@@ -366,7 +570,10 @@ export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSe
               key={v.value}
               type="button"
               onClick={() => onChange({ ...theme, heroVariant: v.value })}
-              className={cn('rounded-lg border p-3 text-left transition', theme.heroVariant === v.value ? 'border-ink ring-1 ring-ink' : 'border-zinc-200 hover:border-zinc-300')}
+              className={cn(
+                'rounded-lg border p-3 text-left transition',
+                theme.heroVariant === v.value ? 'border-ink ring-1 ring-ink' : 'border-zinc-200 hover:border-zinc-300',
+              )}
             >
               <span className="block text-[13px] font-medium">{v.label}</span>
               <span className="block text-[11px] text-zinc-500">{v.hint}</span>
@@ -384,7 +591,9 @@ export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSe
         />
         <span>
           <span className="block text-[13px] font-medium">Remover emojis da página</span>
-          <span className="block text-[11px] text-zinc-500">Tira os emojis de todos os textos (títulos, serviços, depoimentos, rodapé…). Desmarque para os emojis voltarem.</span>
+          <span className="block text-[11px] text-zinc-500">
+            Tira os emojis de todos os textos (títulos, serviços, depoimentos, rodapé…). Desmarque para os emojis voltarem.
+          </span>
         </span>
       </label>
 
@@ -397,7 +606,10 @@ export function DesignTab({ theme, onChange: change, content }: { theme: ThemeSe
         />
         <span>
           <span className="block text-[13px] font-medium">Mostrar mapa do endereço</span>
-          <span className="block text-[11px] text-zinc-500">Na seção de contato, um mapa do Google com a localização (pela rua do cadastro; sem rua, pelo nome da empresa na cidade). Desmarque para tirar o mapa da página.</span>
+          <span className="block text-[11px] text-zinc-500">
+            Na seção de contato, um mapa do Google com a localização (pela rua do cadastro; sem rua, pelo nome da empresa na cidade). Desmarque para tirar o
+            mapa da página.
+          </span>
         </span>
       </label>
 
@@ -435,7 +647,10 @@ function SectionSpacingEditor({ theme, onChange }: { theme: ThemeSettings; onCha
   return (
     <div className="border-t border-zinc-100 pt-6">
       <h4 className="mb-1 text-sm font-semibold">Margem interna das seções</h4>
-      <p className="mb-3 text-xs text-zinc-500">Espaço acima e abaixo do conteúdo de todas as seções. Menor = página mais compacta. Para ajustar uma seção só, use o modo "Espaços" na prévia e arraste a alça azul. Celular e computador são independentes.</p>
+      <p className="mb-3 text-xs text-zinc-500">
+        Espaço acima e abaixo do conteúdo de todas as seções. Menor = página mais compacta. Para ajustar uma seção só, use o modo "Espaços" na prévia e arraste
+        a alça azul. Celular e computador são independentes.
+      </p>
       <div className="space-y-3">
         {rows.map((r) => {
           const pct = spacing[r.key] ?? 100;
@@ -444,14 +659,36 @@ function SectionSpacingEditor({ theme, onChange }: { theme: ThemeSettings; onCha
               <div className="mb-1 flex items-center justify-between text-[13px]">
                 <span>{r.label}</span>
                 <span className="flex items-center gap-2 text-xs text-zinc-500">
-                  {pct}%{pct < 100 ? <button type="button" className="hover:text-ink" onClick={() => set(r.key, 100)}>padrão</button> : ' (padrão)'}
+                  {pct}%
+                  {pct < 100 ? (
+                    <button type="button" className="hover:text-ink" onClick={() => set(r.key, 100)}>
+                      padrão
+                    </button>
+                  ) : (
+                    ' (padrão)'
+                  )}
                 </span>
               </div>
-              <input type="range" min={20} max={100} step={5} value={pct} onChange={(e) => set(r.key, Number(e.target.value))} className="w-full accent-zinc-900" aria-label={`Margem interna das seções no ${r.label.toLowerCase()}`} />
+              <input
+                type="range"
+                min={20}
+                max={100}
+                step={5}
+                value={pct}
+                onChange={(e) => set(r.key, Number(e.target.value))}
+                className="w-full accent-zinc-900"
+                aria-label={`Margem interna das seções no ${r.label.toLowerCase()}`}
+              />
               {Object.keys(spacing.sections?.[r.key] ?? {}).length ? (
                 <div className="mt-1 flex items-center justify-between text-[11px] text-zinc-500">
                   <span>{Object.keys(spacing.sections?.[r.key] ?? {}).length} seção(ões) com espaço próprio (arrastado na prévia)</span>
-                  <button type="button" className="hover:text-red-600" onClick={() => onChange({ ...theme, sectionSpacing: { ...spacing, sections: { ...spacing.sections, [r.key]: {} } } })}>Limpar</button>
+                  <button
+                    type="button"
+                    className="hover:text-red-600"
+                    onClick={() => onChange({ ...theme, sectionSpacing: { ...spacing, sections: { ...spacing.sections, [r.key]: {} } } })}
+                  >
+                    Limpar
+                  </button>
                 </div>
               ) : null}
             </div>
@@ -487,7 +724,9 @@ function TextWidthEditor({ theme, onChange }: { theme: ThemeSettings; onChange: 
       {groups.map((g) => (
         <div key={g.kind}>
           <h4 className="mb-1 text-sm font-semibold">{g.title}</h4>
-          <p className="mb-3 text-xs text-zinc-500">{g.hint} Menor = faixa mais estreita, com o mesmo tamanho de letra. Celular e computador são independentes.</p>
+          <p className="mb-3 text-xs text-zinc-500">
+            {g.hint} Menor = faixa mais estreita, com o mesmo tamanho de letra. Celular e computador são independentes.
+          </p>
           <div className="space-y-3">
             {rows.map((r) => {
               const pct = spacing[g.kind]?.[r.key] ?? 100;
@@ -496,7 +735,14 @@ function TextWidthEditor({ theme, onChange }: { theme: ThemeSettings; onChange: 
                   <div className="mb-1 flex items-center justify-between text-[13px]">
                     <span>{r.label}</span>
                     <span className="flex items-center gap-2 text-xs text-zinc-500">
-                      {pct}%{pct < 100 ? <button type="button" className="hover:text-ink" onClick={() => set(g.kind, r.key, 100)}>padrão</button> : ' (padrão)'}
+                      {pct}%
+                      {pct < 100 ? (
+                        <button type="button" className="hover:text-ink" onClick={() => set(g.kind, r.key, 100)}>
+                          padrão
+                        </button>
+                      ) : (
+                        ' (padrão)'
+                      )}
                     </span>
                   </div>
                   <input
@@ -526,44 +772,65 @@ function TemplateThumb({ template }: { template: TemplateKey }) {
   const hero = {
     classico: (
       <div className="flex gap-2 p-2">
-        <div className="flex-1 space-y-1 pt-1">{bar('90%', 'bg-zinc-500')}{bar('70%')}{bar('40%', 'mt-2 h-2 bg-zinc-800')}</div>
+        <div className="flex-1 space-y-1 pt-1">
+          {bar('90%', 'bg-zinc-500')}
+          {bar('70%')}
+          {bar('40%', 'mt-2 h-2 bg-zinc-800')}
+        </div>
         <div className="h-10 w-9 rounded bg-zinc-300" />
       </div>
     ),
     moderno: (
       <div className="flex gap-2 p-2">
         <div className="size-10 rounded-xl bg-zinc-300" />
-        <div className="flex-1 space-y-1 pt-2">{bar('85%', 'bg-zinc-500')}{bar('55%')}</div>
+        <div className="flex-1 space-y-1 pt-2">
+          {bar('85%', 'bg-zinc-500')}
+          {bar('55%')}
+        </div>
       </div>
     ),
     minimalista: (
       <div className="space-y-1 p-2">
-        {bar('75%', 'bg-zinc-500')}{bar('45%')}
+        {bar('75%', 'bg-zinc-500')}
+        {bar('45%')}
         <div className="mt-1 h-5 w-full bg-zinc-300" />
       </div>
     ),
     elegante: (
       <div className="flex flex-col items-center gap-1 p-2">
-        {bar('70%', 'bg-zinc-500')}{bar('45%')}
-        <div className="mt-0.5 h-5 w-4/5 rounded border border-zinc-300 p-0.5"><div className="h-full rounded-sm bg-zinc-300" /></div>
+        {bar('70%', 'bg-zinc-500')}
+        {bar('45%')}
+        <div className="mt-0.5 h-5 w-4/5 rounded border border-zinc-300 p-0.5">
+          <div className="h-full rounded-sm bg-zinc-300" />
+        </div>
       </div>
     ),
     impacto: (
       <div className="flex gap-2 bg-zinc-800 p-2.5">
-        <div className="flex-1 space-y-1 pt-1">{bar('95%', 'h-2.5 bg-white')}{bar('60%', 'bg-zinc-500')}</div>
+        <div className="flex-1 space-y-1 pt-1">
+          {bar('95%', 'h-2.5 bg-white')}
+          {bar('60%', 'bg-zinc-500')}
+        </div>
         <div className="h-10 w-8 bg-zinc-400 shadow-[4px_4px_0_#a1a1aa]" />
       </div>
     ),
     revista: (
       <div className="flex items-end gap-2 border-b-2 border-zinc-800 p-2">
         <div className="h-11 w-8 bg-zinc-300" />
-        <div className="flex-1 space-y-1">{bar('100%', 'h-2.5 rounded-none bg-zinc-800')}{bar('80%', 'rounded-none bg-zinc-800')}{bar('50%', 'rounded-none')}</div>
+        <div className="flex-1 space-y-1">
+          {bar('100%', 'h-2.5 rounded-none bg-zinc-800')}
+          {bar('80%', 'rounded-none bg-zinc-800')}
+          {bar('50%', 'rounded-none')}
+        </div>
       </div>
     ),
     blocos: (
       <div className="p-1.5">
         <div className="flex gap-2 rounded-lg bg-zinc-200 p-1.5">
-          <div className="flex-1 space-y-1 pt-1">{bar('85%', 'bg-zinc-500')}{bar('55%')}</div>
+          <div className="flex-1 space-y-1 pt-1">
+            {bar('85%', 'bg-zinc-500')}
+            {bar('55%')}
+          </div>
           <div className="h-8 w-8 rounded-md bg-zinc-400" />
         </div>
       </div>
@@ -571,19 +838,28 @@ function TemplateThumb({ template }: { template: TemplateKey }) {
     noturno: (
       <div className="relative flex gap-2 overflow-hidden bg-zinc-950 p-2.5">
         <div className="absolute -left-3 -top-4 size-14 rounded-full bg-indigo-500/40 blur-md" />
-        <div className="relative flex-1 space-y-1 pt-1">{bar('90%', 'bg-white')}{bar('55%', 'bg-zinc-600')}</div>
+        <div className="relative flex-1 space-y-1 pt-1">
+          {bar('90%', 'bg-white')}
+          {bar('55%', 'bg-zinc-600')}
+        </div>
         <div className="relative h-9 w-8 rounded bg-zinc-700 ring-1 ring-indigo-400/50" />
       </div>
     ),
     capa: (
       <div className="relative h-[52px] bg-zinc-400">
-        <div className="absolute bottom-1.5 left-1.5 w-1/2 space-y-1 rounded bg-white p-1.5 shadow">{bar('90%', 'bg-zinc-500')}{bar('60%')}</div>
+        <div className="absolute bottom-1.5 left-1.5 w-1/2 space-y-1 rounded bg-white p-1.5 shadow">
+          {bar('90%', 'bg-zinc-500')}
+          {bar('60%')}
+        </div>
       </div>
     ),
     organico: (
       <div className="relative flex gap-2 overflow-hidden p-2">
         <div className="absolute -right-4 -top-5 size-14 rounded-full bg-zinc-200" />
-        <div className="relative flex-1 space-y-1 pt-1">{bar('85%', 'bg-zinc-500')}{bar('55%')}</div>
+        <div className="relative flex-1 space-y-1 pt-1">
+          {bar('85%', 'bg-zinc-500')}
+          {bar('55%')}
+        </div>
         <div className="relative size-10 bg-zinc-300 [border-radius:58%_42%_46%_54%/52%_44%_56%_48%]" />
       </div>
     ),
@@ -591,31 +867,51 @@ function TemplateThumb({ template }: { template: TemplateKey }) {
       <div className="relative flex gap-2 overflow-hidden p-2">
         <div className="absolute -left-2 -top-4 size-12 rounded-full bg-sky-300/50 blur-md" />
         <div className="absolute -top-3 right-6 size-10 rounded-full bg-fuchsia-300/40 blur-md" />
-        <div className="relative flex-1 space-y-1 pt-1"><span className="mb-1 block h-1.5 w-6 rounded-full border border-zinc-300 bg-white" />{bar('85%', 'bg-zinc-500')}{bar('55%')}</div>
+        <div className="relative flex-1 space-y-1 pt-1">
+          <span className="mb-1 block h-1.5 w-6 rounded-full border border-zinc-300 bg-white" />
+          {bar('85%', 'bg-zinc-500')}
+          {bar('55%')}
+        </div>
         <div className="relative h-10 w-9 rounded-lg bg-zinc-300" />
       </div>
     ),
     linhas: (
       <div className="relative flex gap-2 p-2 [background-image:linear-gradient(#e4e4e7_1px,transparent_1px),linear-gradient(90deg,#e4e4e7_1px,transparent_1px)] [background-size:10px_10px]">
-        <div className="flex-1 space-y-1 pt-1">{bar('85%', 'bg-zinc-500')}{bar('55%')}</div>
-        <div className="h-10 w-9 rounded border border-zinc-300 bg-zinc-100 p-0.5"><div className="h-full rounded-sm bg-zinc-300" /></div>
+        <div className="flex-1 space-y-1 pt-1">
+          {bar('85%', 'bg-zinc-500')}
+          {bar('55%')}
+        </div>
+        <div className="h-10 w-9 rounded border border-zinc-300 bg-zinc-100 p-0.5">
+          <div className="h-full rounded-sm bg-zinc-300" />
+        </div>
       </div>
     ),
     suave: (
       <div className="flex gap-2 bg-zinc-100 p-2">
-        <div className="flex-1 space-y-1 pt-1"><span className="mb-1 block h-1.5 w-7 rounded-full bg-white shadow-sm" />{bar('85%', 'bg-zinc-500')}{bar('55%')}</div>
+        <div className="flex-1 space-y-1 pt-1">
+          <span className="mb-1 block h-1.5 w-7 rounded-full bg-white shadow-sm" />
+          {bar('85%', 'bg-zinc-500')}
+          {bar('55%')}
+        </div>
         <div className="h-10 w-9 rounded-xl border-2 border-white bg-zinc-300 shadow" />
       </div>
     ),
     estudio: (
       <div className="flex h-[52px]">
-        <div className="flex-1 space-y-1 p-2 pt-3">{bar('90%', 'bg-zinc-500')}{bar('60%')}</div>
+        <div className="flex-1 space-y-1 p-2 pt-3">
+          {bar('90%', 'bg-zinc-500')}
+          {bar('60%')}
+        </div>
         <div className="w-1/2 bg-zinc-300" />
       </div>
     ),
     degrade: (
       <div className="flex gap-2 bg-gradient-to-br from-indigo-100 via-white to-pink-100 p-2">
-        <div className="flex-1 space-y-1 pt-1">{bar('85%', 'bg-zinc-500')}{bar('55%')}<span className="mt-1.5 block h-2 w-8 rounded-full bg-gradient-to-r from-indigo-500 to-pink-500" /></div>
+        <div className="flex-1 space-y-1 pt-1">
+          {bar('85%', 'bg-zinc-500')}
+          {bar('55%')}
+          <span className="mt-1.5 block h-2 w-8 rounded-full bg-gradient-to-r from-indigo-500 to-pink-500" />
+        </div>
         <div className="h-10 w-9 rounded-lg bg-zinc-300 shadow-[4px_4px_0_#fbcfe8]" />
       </div>
     ),
@@ -623,8 +919,16 @@ function TemplateThumb({ template }: { template: TemplateKey }) {
       <div>
         <div className="h-2 bg-emerald-900" />
         <div className="flex gap-2 p-2">
-          <div className="flex-1 space-y-1 pt-1">{bar('90%', 'bg-zinc-600')}{bar('60%')}<span className="mt-1.5 block h-2 w-8 rounded-full bg-emerald-500" /></div>
-          <div className="grid h-10 w-12 grid-cols-2 grid-rows-2 gap-0.5"><div className="row-span-2 rounded bg-zinc-300" /><div className="rounded bg-zinc-300" /><div className="rounded bg-zinc-300" /></div>
+          <div className="flex-1 space-y-1 pt-1">
+            {bar('90%', 'bg-zinc-600')}
+            {bar('60%')}
+            <span className="mt-1.5 block h-2 w-8 rounded-full bg-emerald-500" />
+          </div>
+          <div className="grid h-10 w-12 grid-cols-2 grid-rows-2 gap-0.5">
+            <div className="row-span-2 rounded bg-zinc-300" />
+            <div className="rounded bg-zinc-300" />
+            <div className="rounded bg-zinc-300" />
+          </div>
         </div>
       </div>
     ),
@@ -632,33 +936,182 @@ function TemplateThumb({ template }: { template: TemplateKey }) {
       <div>
         <div className="h-7 bg-gradient-to-r from-sky-300 via-zinc-300 to-amber-200" />
         <div className="h-0.5 bg-gradient-to-r from-sky-600 to-amber-500" />
-        <div className="flex flex-col items-center space-y-1 p-2">{bar('70%', 'bg-zinc-600')}{bar('45%')}<span className="mt-1 block h-2 w-8 rounded-full bg-zinc-700" /></div>
+        <div className="flex flex-col items-center space-y-1 p-2">
+          {bar('70%', 'bg-zinc-600')}
+          {bar('45%')}
+          <span className="mt-1 block h-2 w-8 rounded-full bg-zinc-700" />
+        </div>
       </div>
     ),
   }[template];
   const body = {
-    classico: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded border border-zinc-300 bg-white" />)}</div>,
-    moderno: <><div className="mx-auto mb-1">{bar('40px', 'mx-auto bg-zinc-500')}</div><div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="grid h-5 place-items-center rounded-lg bg-white shadow"><span className="size-1.5 rounded-full bg-zinc-400" /></div>)}</div></>,
-    minimalista: <div className="space-y-1.5">{[0, 1, 2].map((i) => <div key={i} className="flex gap-1 border-b border-zinc-200 pb-1">{bar('8px', 'bg-zinc-400')}{bar('55%')}</div>)}</div>,
-    elegante: <><div className="mb-1">{bar('40px', 'mx-auto bg-zinc-500')}</div><div className="space-y-1">{[0, 1].map((i) => <div key={i} className="flex gap-1 border-b border-zinc-200 pb-1">{bar('8px', 'bg-zinc-400')}{bar('60%')}</div>)}</div></>,
-    revista: <div className="grid grid-cols-3 gap-1.5">{[0, 1, 2].map((i) => <div key={i} className="space-y-1 border-t-2 border-zinc-800 pt-1">{bar('80%', 'rounded-none bg-zinc-500')}{bar('60%', 'rounded-none')}</div>)}</div>,
-    blocos: <div className="grid grid-cols-3 gap-1"><div className="col-span-2 h-5 rounded-md bg-zinc-700" /><div className="h-5 rounded-md bg-white" /><div className="h-5 rounded-md bg-white" /><div className="col-span-2 h-5 rounded-md bg-white" /></div>,
-    noturno: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="grid h-5 place-items-center rounded border border-white/10 bg-white/5"><span className="size-1.5 rounded-full bg-indigo-300" /></div>)}</div>,
-    capa: <div className="flex gap-1 overflow-hidden">{[0, 1, 2, 3].map((i) => <div key={i} className="h-7 w-7 flex-none rounded bg-zinc-300" />)}</div>,
-    organico: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-7 bg-zinc-300 [border-radius:999px_999px_6px_6px]" />)}</div>,
-    aurora: <><div className="mb-1">{bar('40px', 'mx-auto bg-zinc-500')}</div><div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="grid h-5 place-items-center rounded-lg border border-zinc-200 bg-white/70"><span className="size-1.5 rounded-full bg-sky-300" /></div>)}</div></>,
-    linhas: <div className="grid grid-cols-3 overflow-hidden rounded border border-zinc-300">{[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="h-3.5 border border-zinc-200 bg-white" />)}</div>,
-    suave: <div className="grid grid-cols-3 gap-1 rounded bg-zinc-100 p-1">{[0, 1, 2].map((i) => <div key={i} className="grid h-5 place-items-center rounded-lg bg-white shadow-sm"><span className="size-2 rounded-full bg-zinc-500" /></div>)}</div>,
-    estudio: <div className="flex gap-2"><div className="w-1/3 space-y-1">{bar('90%', 'bg-zinc-500')}{bar('60%')}</div><div className="flex-1 space-y-1.5">{[0, 1].map((i) => <div key={i} className="border-t border-zinc-700 pt-1">{bar('70%')}</div>)}</div></div>,
-    degrade: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded-md border border-zinc-200 bg-white p-0.5"><span className="block size-2.5 rounded bg-gradient-to-br from-indigo-500 to-pink-500" /></div>)}</div>,
-    oficio: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded-md border border-zinc-200 bg-white p-0.5"><span className="block size-2.5 rounded bg-emerald-100 ring-1 ring-emerald-700/40" /></div>)}</div>,
-    banner: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="h-5 rounded border border-t-2 border-zinc-200 border-t-sky-600 bg-white" />)}</div>,
-    impacto: <div className="grid grid-cols-3 gap-1">{[0, 1, 2].map((i) => <div key={i} className="relative h-5 rounded border-t-2 border-zinc-800 bg-white shadow-sm"><span className="absolute right-0.5 top-0.5 text-[6px] font-bold leading-none text-zinc-300">0{i + 1}</span></div>)}</div>,
+    classico: (
+      <div className="grid grid-cols-3 gap-1">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-5 rounded border border-zinc-300 bg-white" />
+        ))}
+      </div>
+    ),
+    moderno: (
+      <>
+        <div className="mx-auto mb-1">{bar('40px', 'mx-auto bg-zinc-500')}</div>
+        <div className="grid grid-cols-3 gap-1">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="grid h-5 place-items-center rounded-lg bg-white shadow">
+              <span className="size-1.5 rounded-full bg-zinc-400" />
+            </div>
+          ))}
+        </div>
+      </>
+    ),
+    minimalista: (
+      <div className="space-y-1.5">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex gap-1 border-b border-zinc-200 pb-1">
+            {bar('8px', 'bg-zinc-400')}
+            {bar('55%')}
+          </div>
+        ))}
+      </div>
+    ),
+    elegante: (
+      <>
+        <div className="mb-1">{bar('40px', 'mx-auto bg-zinc-500')}</div>
+        <div className="space-y-1">
+          {[0, 1].map((i) => (
+            <div key={i} className="flex gap-1 border-b border-zinc-200 pb-1">
+              {bar('8px', 'bg-zinc-400')}
+              {bar('60%')}
+            </div>
+          ))}
+        </div>
+      </>
+    ),
+    revista: (
+      <div className="grid grid-cols-3 gap-1.5">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="space-y-1 border-t-2 border-zinc-800 pt-1">
+            {bar('80%', 'rounded-none bg-zinc-500')}
+            {bar('60%', 'rounded-none')}
+          </div>
+        ))}
+      </div>
+    ),
+    blocos: (
+      <div className="grid grid-cols-3 gap-1">
+        <div className="col-span-2 h-5 rounded-md bg-zinc-700" />
+        <div className="h-5 rounded-md bg-white" />
+        <div className="h-5 rounded-md bg-white" />
+        <div className="col-span-2 h-5 rounded-md bg-white" />
+      </div>
+    ),
+    noturno: (
+      <div className="grid grid-cols-3 gap-1">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="grid h-5 place-items-center rounded border border-white/10 bg-white/5">
+            <span className="size-1.5 rounded-full bg-indigo-300" />
+          </div>
+        ))}
+      </div>
+    ),
+    capa: (
+      <div className="flex gap-1 overflow-hidden">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-7 w-7 flex-none rounded bg-zinc-300" />
+        ))}
+      </div>
+    ),
+    organico: (
+      <div className="grid grid-cols-3 gap-1">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-7 bg-zinc-300 [border-radius:999px_999px_6px_6px]" />
+        ))}
+      </div>
+    ),
+    aurora: (
+      <>
+        <div className="mb-1">{bar('40px', 'mx-auto bg-zinc-500')}</div>
+        <div className="grid grid-cols-3 gap-1">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="grid h-5 place-items-center rounded-lg border border-zinc-200 bg-white/70">
+              <span className="size-1.5 rounded-full bg-sky-300" />
+            </div>
+          ))}
+        </div>
+      </>
+    ),
+    linhas: (
+      <div className="grid grid-cols-3 overflow-hidden rounded border border-zinc-300">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="h-3.5 border border-zinc-200 bg-white" />
+        ))}
+      </div>
+    ),
+    suave: (
+      <div className="grid grid-cols-3 gap-1 rounded bg-zinc-100 p-1">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="grid h-5 place-items-center rounded-lg bg-white shadow-sm">
+            <span className="size-2 rounded-full bg-zinc-500" />
+          </div>
+        ))}
+      </div>
+    ),
+    estudio: (
+      <div className="flex gap-2">
+        <div className="w-1/3 space-y-1">
+          {bar('90%', 'bg-zinc-500')}
+          {bar('60%')}
+        </div>
+        <div className="flex-1 space-y-1.5">
+          {[0, 1].map((i) => (
+            <div key={i} className="border-t border-zinc-700 pt-1">
+              {bar('70%')}
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+    degrade: (
+      <div className="grid grid-cols-3 gap-1">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-5 rounded-md border border-zinc-200 bg-white p-0.5">
+            <span className="block size-2.5 rounded bg-gradient-to-br from-indigo-500 to-pink-500" />
+          </div>
+        ))}
+      </div>
+    ),
+    oficio: (
+      <div className="grid grid-cols-3 gap-1">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-5 rounded-md border border-zinc-200 bg-white p-0.5">
+            <span className="block size-2.5 rounded bg-emerald-100 ring-1 ring-emerald-700/40" />
+          </div>
+        ))}
+      </div>
+    ),
+    banner: (
+      <div className="grid grid-cols-3 gap-1">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-5 rounded border border-t-2 border-zinc-200 border-t-sky-600 bg-white" />
+        ))}
+      </div>
+    ),
+    impacto: (
+      <div className="grid grid-cols-3 gap-1">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="relative h-5 rounded border-t-2 border-zinc-800 bg-white shadow-sm">
+            <span className="absolute right-0.5 top-0.5 text-[6px] font-bold leading-none text-zinc-300">0{i + 1}</span>
+          </div>
+        ))}
+      </div>
+    ),
   }[template];
   return (
     <div className="overflow-hidden rounded-md border border-zinc-200 bg-zinc-50" aria-hidden>
       {hero}
-      <div className={cn('p-2', template === 'noturno' ? 'bg-zinc-900' : template === 'minimalista' || template === 'revista' ? 'bg-white' : 'bg-zinc-100')}>{body}</div>
+      <div className={cn('p-2', template === 'noturno' ? 'bg-zinc-900' : template === 'minimalista' || template === 'revista' ? 'bg-white' : 'bg-zinc-100')}>
+        {body}
+      </div>
     </div>
   );
 }
@@ -669,11 +1122,13 @@ export function TemplateTab({ theme, onChange, hasPhoto }: { theme: ThemeSetting
   return (
     <div className="space-y-4">
       <p className="text-xs text-zinc-500">
-        O modelo define a estrutura da página e se adapta ao conteúdo: sem foto liberada, o topo usa uma versão sem imagem, e a disposição dos serviços muda conforme a quantidade. As cores e fontes continuam em "Cores e estilo".
+        O modelo define a estrutura da página e se adapta ao conteúdo: sem foto liberada, o topo usa uma versão sem imagem, e a disposição dos serviços muda
+        conforme a quantidade. As cores e fontes continuam em "Cores e estilo".
       </p>
       {manualColorCount(theme) ? (
         <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Ao trocar de modelo, a página inteira passa a seguir o modelo e as cores de "Cores e estilo": os fundos de seção e as cores de elementos ajustados à mão são substituídos. Para desfazer antes de salvar, use "Descartar".
+          Ao trocar de modelo, a página inteira passa a seguir o modelo e as cores de "Cores e estilo": os fundos de seção e as cores de elementos ajustados à
+          mão são substituídos. Para desfazer antes de salvar, use "Descartar".
         </p>
       ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
@@ -684,7 +1139,10 @@ export function TemplateTab({ theme, onChange, hasPhoto }: { theme: ThemeSetting
             // Ao trocar de modelo, o topo segue a recomendação do modelo para o conteúdo atual
             // Novo modelo vale para a página inteira: sai qualquer cor feita à mão
             onClick={() => onChange(withoutManualColors({ ...theme, template: t.key, heroVariant: hasPhoto ? t.hero.withPhoto : t.hero.withoutPhoto }))}
-            className={cn('rounded-lg border p-2.5 text-left transition', current === t.key ? 'border-ink ring-1 ring-ink' : 'border-zinc-200 hover:border-zinc-300')}
+            className={cn(
+              'rounded-lg border p-2.5 text-left transition',
+              current === t.key ? 'border-ink ring-1 ring-ink' : 'border-zinc-200 hover:border-zinc-300',
+            )}
             aria-pressed={current === t.key}
           >
             <TemplateThumb template={t.key} />
@@ -773,7 +1231,9 @@ function AddPhotos({ onAdd }: { onAdd: (photos: NewPhoto[]) => Promise<void> }) 
       <h4 className="mb-1 text-sm font-semibold">Adicionar fotos à galeria</h4>
       <p className="mb-2 text-xs text-zinc-500">As fotos entram no cadastro da empresa, já liberadas para uso, e aparecem no início da galeria.</p>
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="secondary" size="sm" loading={busy} icon={<Upload className="size-4" />} onClick={() => fileRef.current?.click()}>Enviar fotos</Button>
+        <Button type="button" variant="secondary" size="sm" loading={busy} icon={<Upload className="size-4" />} onClick={() => fileRef.current?.click()}>
+          Enviar fotos
+        </Button>
         <input
           ref={fileRef}
           type="file"
@@ -787,8 +1247,16 @@ function AddPhotos({ onAdd }: { onAdd: (photos: NewPhoto[]) => Promise<void> }) 
           }}
         />
         <div className="flex w-full min-w-0 gap-2">
-          <Input value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), void addUrl())} placeholder="https://… (URL da foto)" className="h-9 min-w-0 text-[13px]" />
-          <Button type="button" variant="secondary" size="sm" disabled={busy || !url.trim()} icon={<Link2 className="size-4" />} onClick={() => void addUrl()}>Adicionar</Button>
+          <Input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), void addUrl())}
+            placeholder="https://… (URL da foto)"
+            className="h-9 min-w-0 text-[13px]"
+          />
+          <Button type="button" variant="secondary" size="sm" disabled={busy || !url.trim()} icon={<Link2 className="size-4" />} onClick={() => void addUrl()}>
+            Adicionar
+          </Button>
         </div>
       </div>
     </div>
@@ -839,8 +1307,7 @@ export function PhotosTab({
       setLogoBusy(false);
     }
   };
-  const logo =
-    images.find((i) => i.usage_allowed && theme.images?.[i.url] === 'logo') ?? images.find((i) => i.type === 'logo' && i.usage_allowed);
+  const logo = images.find((i) => i.usage_allowed && theme.images?.[i.url] === 'logo') ?? images.find((i) => i.type === 'logo' && i.usage_allowed);
   const logoBox = (
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 p-3">
       {logo ? (
@@ -873,9 +1340,16 @@ export function PhotosTab({
       </Field>
       <Field
         label="Onde mostrar o logotipo"
-        hint={logo ? 'No “Sobre”, se a seção não aparecer, o logo vai para o início do conteúdo.' : 'Escolha “Logotipo” em uma das fotos abaixo (ou envie o arquivo do logo).'}
+        hint={
+          logo
+            ? 'No “Sobre”, se a seção não aparecer, o logo vai para o início do conteúdo.'
+            : 'Escolha “Logotipo” em uma das fotos abaixo (ou envie o arquivo do logo).'
+        }
       >
-        <Select value={theme.logoPlacement ?? 'header'} onChange={(e) => onChange({ ...theme, logoPlacement: e.target.value as ThemeSettings['logoPlacement'] })}>
+        <Select
+          value={theme.logoPlacement ?? 'header'}
+          onChange={(e) => onChange({ ...theme, logoPlacement: e.target.value as ThemeSettings['logoPlacement'] })}
+        >
           <option value="header">Topo da página (cabeçalho)</option>
           <option value="hero">Corpo da página: início, acima do título</option>
           <option value="about">Corpo da página: seção “Sobre”</option>
@@ -896,10 +1370,14 @@ export function PhotosTab({
 
   // Foto de uma seção criada que foi excluída volta para o automático (como na renderização)
   const customIds = new Set(customSections.map((s) => s.id));
-  const chosen = Object.fromEntries(
-    Object.entries(theme.images ?? {}).filter(([, p]) => !isCustom(p) || customIds.has(p.slice(7))),
-  ) as Record<string, ImagePlacement>;
-  const resolved = resolvePlacements(allowed.map((i) => i.url), chosen);
+  const chosen = Object.fromEntries(Object.entries(theme.images ?? {}).filter(([, p]) => !isCustom(p) || customIds.has(p.slice(7)))) as Record<
+    string,
+    ImagePlacement
+  >;
+  const resolved = resolvePlacements(
+    allowed.map((i) => i.url),
+    chosen,
+  );
   const sectionName = (p: `custom:${string}`) => customSections.find((s) => `custom:${s.id}` === p)?.title.trim() || 'Seção personalizada';
   const placementLabel = (p: ImagePlacement) =>
     isCustom(p) ? `Seção "${sectionName(p)}"` : isSection(p) ? `Seção "${SECTION_NAMES[p.slice(8)] ?? p.slice(8)}"` : PLACEMENT_LABELS[p];
@@ -1019,15 +1497,16 @@ export function PhotosTab({
     }
   };
   // Foto usada como logotipo fica fora da galeria, mas está na página: não entra no "Apagar todas"
-  const outside = listed.slice(activeCount).map((i) => i.url).filter((u) => chosen[u] !== 'logo');
+  const outside = listed
+    .slice(activeCount)
+    .map((i) => i.url)
+    .filter((u) => chosen[u] !== 'logo');
 
   if (!allowed.length) {
     return (
       <div className="space-y-4">
         {logoBox}
-        <p className="text-sm text-zinc-500">
-          Nenhuma foto liberada para uso. Adicione fotos abaixo ou libere as fotos coletadas em "Editar empresa".
-        </p>
+        <p className="text-sm text-zinc-500">Nenhuma foto liberada para uso. Adicione fotos abaixo ou libere as fotos coletadas em "Editar empresa".</p>
         <AddPhotos onAdd={addPhotos} />
       </div>
     );
@@ -1037,10 +1516,14 @@ export function PhotosTab({
     <div className="space-y-4">
       {logoBox}
       <p className="text-xs text-zinc-500">
-        Escolha onde cada foto aparece e arraste pela alça para mudar a ordem. Em "Automático", as fotos preenchem o topo, a seção "Sobre" e a galeria, seguindo a ordem da lista. Seções criadas em "Textos" também aparecem na lista e podem receber fotos.
+        Escolha onde cada foto aparece e arraste pela alça para mudar a ordem. Em "Automático", as fotos preenchem o topo, a seção "Sobre" e a galeria, seguindo
+        a ordem da lista. Seções criadas em "Textos" também aparecem na lista e podem receber fotos.
       </p>
       {theme.heroVariant === 'centered' ? (
-        <p className="text-xs text-amber-700">O topo está no estilo "Centralizado": com uma foto em "Automático" ou "Topo", ela aparece e o topo fica "Dividido". Para o topo sem foto, coloque as fotos em outra posição (Sobre, Galeria ou Oculta).</p>
+        <p className="text-xs text-amber-700">
+          O topo está no estilo "Centralizado": com uma foto em "Automático" ou "Topo", ela aparece e o topo fica "Dividido". Para o topo sem foto, coloque as
+          fotos em outra posição (Sobre, Galeria ou Oculta).
+        </p>
       ) : null}
       {galleryCount === 1 ? <p className="text-xs text-amber-700">A galeria só aparece com pelo menos 2 fotos.</p> : null}
 
@@ -1049,11 +1532,13 @@ export function PhotosTab({
       <div>
         <div className="mb-1.5 text-[13px] font-medium text-zinc-700">Formato das fotos</div>
         <div className="grid grid-cols-3 gap-1 rounded-lg bg-zinc-100 p-1 text-xs font-medium">
-          {([
-            [undefined, 'Do modelo'],
-            ['square', '◼ Quadradas'],
-            ['landscape', '▬ Horizontais'],
-          ] as const).map(([value, label]) => (
+          {(
+            [
+              [undefined, 'Do modelo'],
+              ['square', '◼ Quadradas'],
+              ['landscape', '▬ Horizontais'],
+            ] as const
+          ).map(([value, label]) => (
             <button
               key={label}
               type="button"
@@ -1084,7 +1569,9 @@ export function PhotosTab({
           >
             <option value="">Do modelo</option>
             {[2, 3, 4, 5].map((n) => (
-              <option key={n} value={n}>{n}</option>
+              <option key={n} value={n}>
+                {n}
+              </option>
             ))}
           </select>
         </label>
@@ -1099,7 +1586,11 @@ export function PhotosTab({
             {i === activeCount ? (
               <li className="flex items-center justify-between gap-2 pt-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
                 Fora da página ({listed.length - activeCount})
-                <button type="button" onClick={() => setToRemove(outside)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 normal-case tracking-normal text-zinc-500 hover:bg-red-50 hover:text-red-600">
+                <button
+                  type="button"
+                  onClick={() => setToRemove(outside)}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 normal-case tracking-normal text-zinc-500 hover:bg-red-50 hover:text-red-600"
+                >
                   <Trash2 className="size-3.5" /> Apagar todas
                 </button>
               </li>
@@ -1118,34 +1609,53 @@ export function PhotosTab({
               }}
               onDrop={(e) => e.preventDefault()}
               onDragEnd={dragEnd}
-              className={cn('flex items-center gap-2 rounded-lg border border-zinc-200 bg-white p-2 transition', dragging === img.url && 'opacity-50 ring-2 ring-brand-500')}
+              className={cn(
+                'flex items-center gap-2 rounded-lg border border-zinc-200 bg-white p-2 transition',
+                dragging === img.url && 'opacity-50 ring-2 ring-brand-500',
+              )}
             >
               <span className="cursor-grab text-zinc-400 hover:text-ink active:cursor-grabbing" title="Arraste para reordenar" aria-hidden>
                 <GripVertical className="size-4" />
               </span>
               <PhotoThumb url={img.url} alt={img.alt_text ?? ''} dimmed={!isActive(img.url) && chosen[img.url] !== 'logo'} />
               <div className="min-w-0 flex-1">
-                <Select className="h-9 text-[13px]" value={chosen[img.url] ?? ''} onChange={(e) => setPlacement(img.url, e.target.value as ImagePlacement | '')}>
+                <Select
+                  className="h-9 text-[13px]"
+                  value={chosen[img.url] ?? ''}
+                  onChange={(e) => setPlacement(img.url, e.target.value as ImagePlacement | '')}
+                >
                   <option value="">Automático{chosen[img.url] ? '' : ` (${placementLabel(resolved[img.url])})`}</option>
                   {(Object.keys(PLACEMENT_LABELS) as (keyof typeof PLACEMENT_LABELS)[]).map((p) => (
-                    <option key={p} value={p}>{PLACEMENT_LABELS[p]}</option>
+                    <option key={p} value={p}>
+                      {PLACEMENT_LABELS[p]}
+                    </option>
                   ))}
                   <optgroup label="Seções da página">
                     {SECTION_PHOTO_KEYS.filter((k) => !sectionOrder || sectionOrder.includes(k) || k === 'contact' || k === 'final_cta').map((k) => (
-                      <option key={k} value={`section:${k}`}>{placementLabel(`section:${k}`)}</option>
+                      <option key={k} value={`section:${k}`}>
+                        {placementLabel(`section:${k}`)}
+                      </option>
                     ))}
                   </optgroup>
                   {customSections.length ? (
                     <optgroup label="Seções criadas">
                       {customSections.map((s) => (
-                        <option key={s.id} value={`custom:${s.id}`}>{placementLabel(`custom:${s.id}`)}</option>
+                        <option key={s.id} value={`custom:${s.id}`}>
+                          {placementLabel(`custom:${s.id}`)}
+                        </option>
                       ))}
                     </optgroup>
                   ) : null}
                 </Select>
                 {img.alt_text ? <p className="mt-1 truncate text-[11px] text-zinc-500">{img.alt_text}</p> : null}
               </div>
-              <button type="button" onClick={() => setToRemove([img.url])} title="Apagar foto" aria-label="Apagar foto" className="flex-none rounded-md p-2 text-zinc-400 hover:bg-red-50 hover:text-red-600">
+              <button
+                type="button"
+                onClick={() => setToRemove([img.url])}
+                title="Apagar foto"
+                aria-label="Apagar foto"
+                className="flex-none rounded-md p-2 text-zinc-400 hover:bg-red-50 hover:text-red-600"
+              >
                 <Trash2 className="size-4" />
               </button>
             </li>
@@ -1166,7 +1676,8 @@ export function PhotosTab({
 
       {blocked.length ? (
         <p className="text-xs text-zinc-500">
-          {blocked.length} {blocked.length === 1 ? 'foto está' : 'fotos estão'} sem permissão de uso e não {blocked.length === 1 ? 'aparece' : 'aparecem'} na página. Libere em "Editar empresa".
+          {blocked.length} {blocked.length === 1 ? 'foto está' : 'fotos estão'} sem permissão de uso e não {blocked.length === 1 ? 'aparece' : 'aparecem'} na
+          página. Libere em "Editar empresa".
         </p>
       ) : null}
     </div>
@@ -1178,7 +1689,9 @@ function PhotoThumb({ url, alt, dimmed }: { url: string; alt: string; dimmed: bo
   return (
     <div className={cn('size-16 flex-none overflow-hidden rounded-md bg-zinc-100', dimmed && 'opacity-40')}>
       {broken ? (
-        <div className="grid h-full place-items-center text-zinc-400"><ImageOff className="size-5" /></div>
+        <div className="grid h-full place-items-center text-zinc-400">
+          <ImageOff className="size-5" />
+        </div>
       ) : (
         <img src={url} alt={alt} loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} className="h-full w-full object-cover" />
       )}
@@ -1202,7 +1715,12 @@ export function SeoTab({ seo, onChange, slug }: { seo: SeoState; onChange: (s: S
       <Field label="Title" hint={<span className={t.length > 60 ? 'text-amber-600' : ''}>{t.length}/60 caracteres recomendados</span>}>
         <Input value={t} onChange={(e) => onChange({ ...seo, seo_title: e.target.value || null })} />
       </Field>
-      <Field label="Meta description" hint={<span className={d.length > 160 || (d.length > 0 && d.length < 110) ? 'text-amber-600' : ''}>{d.length}/160 caracteres (ideal entre 120 e 160)</span>}>
+      <Field
+        label="Meta description"
+        hint={
+          <span className={d.length > 160 || (d.length > 0 && d.length < 110) ? 'text-amber-600' : ''}>{d.length}/160 caracteres (ideal entre 120 e 160)</span>
+        }
+      >
         <Textarea value={d} onChange={(e) => onChange({ ...seo, seo_description: e.target.value || null })} />
       </Field>
       <ListEditor label="Palavras-chave" values={seo.seo_keywords} onChange={(v) => onChange({ ...seo, seo_keywords: v })} />
@@ -1233,7 +1751,9 @@ export function PublishTab({ lp, onUpdated, slugOnly = false }: { lp: LandingPag
   const [slug, setSlug] = useState(lp.slug);
   const [domain, setDomain] = useState(lp.custom_domain ?? '');
   const [busy, setBusy] = useState<string | null>(null);
-  const [verification, setVerification] = useState<{ ok: boolean; expected: { cname: string; a: string[] }; found: { cname: string[]; a: string[] } } | null>(null);
+  const [verification, setVerification] = useState<{ ok: boolean; expected: { cname: string; a: string[] }; found: { cname: string[]; a: string[] } } | null>(
+    null,
+  );
   const base = lp.path_url.replace(/\/lp\/[^/]+$/, '');
   const st = DOMAIN_STATUS[lp.domain_status] ?? DOMAIN_STATUS.none;
   // Endereço livre? Confere enquanto digita (espera uma pausa na digitação)
@@ -1275,79 +1795,120 @@ export function PublishTab({ lp, onUpdated, slugOnly = false }: { lp: LandingPag
         <h4 className="mb-1 text-sm font-semibold">Endereço da página</h4>
         <p className="mb-3 text-xs text-zinc-500">Único, sem acentos e sem caracteres especiais.</p>
         <div className="flex gap-2">
-          <div className={cn('flex h-10 flex-1 items-center overflow-hidden rounded-lg border bg-white focus-within:ring-3', slugTaken ? 'border-red-400 focus-within:border-red-500 focus-within:ring-red-100' : 'border-zinc-200 focus-within:border-brand-500 focus-within:ring-brand-100')}>
+          <div
+            className={cn(
+              'flex h-10 flex-1 items-center overflow-hidden rounded-lg border bg-white focus-within:ring-3',
+              slugTaken
+                ? 'border-red-400 focus-within:border-red-500 focus-within:ring-red-100'
+                : 'border-zinc-200 focus-within:border-brand-500 focus-within:ring-brand-100',
+            )}
+          >
             <span className="hidden whitespace-nowrap border-r border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-500 sm:block">/lp/</span>
-            <input className="h-full min-w-0 flex-1 px-3 text-sm outline-none" value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))} />
+            <input
+              className="h-full min-w-0 flex-1 px-3 text-sm outline-none"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+            />
           </div>
-          <Button variant="secondary" disabled={slug === lp.slug || slugChecking || slugTaken} loading={busy === 'slug'} onClick={() => run('slug', () => landingPageService.updateSettings(lp.id, { slug }), 'Endereço atualizado.')}>
+          <Button
+            variant="secondary"
+            disabled={slug === lp.slug || slugChecking || slugTaken}
+            loading={busy === 'slug'}
+            onClick={() => run('slug', () => landingPageService.updateSettings(lp.id, { slug }), 'Endereço atualizado.')}
+          >
             Salvar
           </Button>
         </div>
         {slug !== lp.slug ? (
           <p className={cn('mt-2 flex items-center gap-1.5 text-xs', slugChecking ? 'text-zinc-500' : slugTaken ? 'text-red-600' : 'text-emerald-600')}>
-            {slugChecking ? <Loader2 className="size-3.5 animate-spin" /> : slugTaken ? <XCircle className="size-3.5" /> : <CheckCircle2 className="size-3.5" />}
+            {slugChecking ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : slugTaken ? (
+              <XCircle className="size-3.5" />
+            ) : (
+              <CheckCircle2 className="size-3.5" />
+            )}
             {slugChecking ? 'Verificando se o endereço está livre…' : slugTaken ? checked?.error : 'Endereço disponível.'}
           </p>
         ) : null}
-        <button type="button" onClick={async () => (await copyToClipboard(lp.path_url)) && toast.success('URL copiada.')} className="mt-2 inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-ink">
+        <button
+          type="button"
+          onClick={async () => (await copyToClipboard(lp.path_url)) && toast.success('URL copiada.')}
+          className="mt-2 inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-ink"
+        >
           <Copy className="size-3.5" /> {lp.path_url}
         </button>
       </div>
 
-      {slugOnly ? null : <div className="border-t border-zinc-100 pt-6">
-        <h4 className="mb-1 text-sm font-semibold">Domínio personalizado</h4>
-        <p className="mb-3 text-xs text-zinc-500">Ex.: www.empresa.com.br passa a exibir esta Landing Page diretamente.</p>
-        <div className="flex gap-2">
-          <Input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="www.empresa.com.br" />
-          <Button
-            variant="secondary"
-            disabled={(domain || null) === lp.custom_domain}
-            loading={busy === 'domain'}
-            onClick={() => run('domain', () => landingPageService.updateSettings(lp.id, { custom_domain: domain.trim() || null }), domain.trim() ? 'Domínio salvo.' : 'Domínio removido.')}
-          >
-            Salvar
-          </Button>
-        </div>
-        {lp.custom_domain ? (
-          <div className="mt-4 rounded-lg border border-zinc-200 p-4 text-sm">
-            <div className="flex items-center justify-between gap-3">
-              <span className={cn('flex items-center gap-1.5 font-medium', st.cls)}><st.icon className="size-4" /> {st.label}</span>
-              <Button
-                size="sm"
-                variant="secondary"
-                loading={busy === 'verify'}
-                onClick={async () => {
-                  setBusy('verify');
-                  try {
-                    const r = await landingPageService.verifyDomain(lp.id);
-                    setVerification(r.verification);
-                    toast[r.verification.ok ? 'success' : 'error'](r.verification.ok ? 'DNS verificado.' : 'O DNS ainda não aponta para o servidor.');
-                    onUpdated();
-                  } catch (err) {
-                    toast.error(errorMessage(err));
-                  } finally {
-                    setBusy(null);
-                  }
-                }}
-              >
-                Verificar DNS
-              </Button>
-            </div>
-            <div className="mt-3 space-y-1 text-xs text-zinc-600">
-              <p>No provedor do domínio, crie um registro:</p>
-              <p className="rounded bg-zinc-50 px-2 py-1.5 font-mono">CNAME {lp.custom_domain} → {new URL(base).hostname}</p>
-              <p>Para domínio raiz (sem www), use um registro A com o IP do servidor.</p>
-              <p className="flex items-center gap-1.5 pt-1"><ShieldAlert className="size-3.5" /> HTTPS: emitido automaticamente pelo proxy (ver README → Domínios personalizados). SSL: {lp.ssl_status}.</p>
-            </div>
-            {verification && !verification.ok ? (
-              <p className="mt-3 text-xs text-red-600">
-                Encontrado: {verification.found.cname.join(', ') || verification.found.a.join(', ') || 'nenhum registro'}. Esperado: CNAME {verification.expected.cname}
-                {verification.expected.a.length ? ` ou A ${verification.expected.a.join(', ')}` : ''}.
-              </p>
-            ) : null}
+      {slugOnly ? null : (
+        <div className="border-t border-zinc-100 pt-6">
+          <h4 className="mb-1 text-sm font-semibold">Domínio personalizado</h4>
+          <p className="mb-3 text-xs text-zinc-500">Ex.: www.empresa.com.br passa a exibir esta Landing Page diretamente.</p>
+          <div className="flex gap-2">
+            <Input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="www.empresa.com.br" />
+            <Button
+              variant="secondary"
+              disabled={(domain || null) === lp.custom_domain}
+              loading={busy === 'domain'}
+              onClick={() =>
+                run(
+                  'domain',
+                  () => landingPageService.updateSettings(lp.id, { custom_domain: domain.trim() || null }),
+                  domain.trim() ? 'Domínio salvo.' : 'Domínio removido.',
+                )
+              }
+            >
+              Salvar
+            </Button>
           </div>
-        ) : null}
-      </div>}
+          {lp.custom_domain ? (
+            <div className="mt-4 rounded-lg border border-zinc-200 p-4 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className={cn('flex items-center gap-1.5 font-medium', st.cls)}>
+                  <st.icon className="size-4" /> {st.label}
+                </span>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={busy === 'verify'}
+                  onClick={async () => {
+                    setBusy('verify');
+                    try {
+                      const r = await landingPageService.verifyDomain(lp.id);
+                      setVerification(r.verification);
+                      toast[r.verification.ok ? 'success' : 'error'](r.verification.ok ? 'DNS verificado.' : 'O DNS ainda não aponta para o servidor.');
+                      onUpdated();
+                    } catch (err) {
+                      toast.error(errorMessage(err));
+                    } finally {
+                      setBusy(null);
+                    }
+                  }}
+                >
+                  Verificar DNS
+                </Button>
+              </div>
+              <div className="mt-3 space-y-1 text-xs text-zinc-600">
+                <p>No provedor do domínio, crie um registro:</p>
+                <p className="rounded bg-zinc-50 px-2 py-1.5 font-mono">
+                  CNAME {lp.custom_domain} → {new URL(base).hostname}
+                </p>
+                <p>Para domínio raiz (sem www), use um registro A com o IP do servidor.</p>
+                <p className="flex items-center gap-1.5 pt-1">
+                  <ShieldAlert className="size-3.5" /> HTTPS: emitido automaticamente pelo proxy (ver README → Domínios personalizados). SSL: {lp.ssl_status}.
+                </p>
+              </div>
+              {verification && !verification.ok ? (
+                <p className="mt-3 text-xs text-red-600">
+                  Encontrado: {verification.found.cname.join(', ') || verification.found.a.join(', ') || 'nenhum registro'}. Esperado: CNAME{' '}
+                  {verification.expected.cname}
+                  {verification.expected.a.length ? ` ou A ${verification.expected.a.join(', ')}` : ''}.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }
@@ -1359,12 +1920,20 @@ export function VersionsTab({ lp, onRestored }: { lp: LandingPageDetail; onResto
     <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-200">
       {lp.versions.map((v) => (
         <li key={v.version} className="flex items-center gap-3 px-4 py-3">
-          <span className={cn('grid size-8 flex-none place-items-center rounded-md text-xs font-semibold', v.version === lp.current_version ? 'bg-ink text-white' : 'bg-zinc-100 text-zinc-600')}>
+          <span
+            className={cn(
+              'grid size-8 flex-none place-items-center rounded-md text-xs font-semibold',
+              v.version === lp.current_version ? 'bg-ink text-white' : 'bg-zinc-100 text-zinc-600',
+            )}
+          >
             v{v.version}
           </span>
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium">{v.note ?? 'Versão'}</div>
-            <div className="text-xs text-zinc-500">{formatDate(v.created_at, true)}{v.author ? ` · ${v.author}` : ''}</div>
+            <div className="text-xs text-zinc-500">
+              {formatDate(v.created_at, true)}
+              {v.author ? ` · ${v.author}` : ''}
+            </div>
           </div>
           {v.version === lp.current_version ? (
             <span className="text-xs text-zinc-500">Atual</span>

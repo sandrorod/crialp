@@ -92,7 +92,9 @@ export async function reencryptWithCurrentSecret() {
   if (!env.jwtSecretPrevious) return;
   const previous = env.jwtSecretPrevious;
   const redo = async (table: string, column: string, idColumn: string, extraWhere = '') => {
-    const { rows } = await query<{ id: string; v: string }>(`select ${idColumn}::text as id, ${column} as v from ${table} where ${column} is not null ${extraWhere}`);
+    const { rows } = await query<{ id: string; v: string }>(
+      `select ${idColumn}::text as id, ${column} as v from ${table} where ${column} is not null ${extraWhere}`,
+    );
     for (const r of rows) {
       if (decryptWith(r.v, env.jwtSecret) !== null) continue;
       const plain = decryptWith(r.v, previous);
@@ -135,7 +137,11 @@ export const QUOTA_ERROR = /\b429\b|quota|exhausted|rate.?limit/i;
  */
 export function lastQuotaReset(now = new Date()): Date {
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+    timeZone: 'America/Los_Angeles',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
   }).formatToParts(now);
   const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
   const sinceMidnight = ((get('hour') * 60 + get('minute')) * 60 + get('second')) * 1000 + now.getMilliseconds();
@@ -295,10 +301,10 @@ export const aiKeyStore = {
     const quota = quotaFromHeaders(headers);
     if (!quota) return;
     const named = api ? Object.fromEntries(Object.entries(quota).map(([k, v]) => [`${api} · ${k}`, v])) : quota;
-    await query(
-      `update ai_api_keys set quota = ${api ? "coalesce(quota, '{}'::jsonb) || $2::jsonb" : '$2::jsonb'}, quota_at = now() where key_hash = $1`,
-      [hashKey(key), JSON.stringify(named)],
-    ).catch(() => {});
+    await query(`update ai_api_keys set quota = ${api ? "coalesce(quota, '{}'::jsonb) || $2::jsonb" : '$2::jsonb'}, quota_at = now() where key_hash = $1`, [
+      hashKey(key),
+      JSON.stringify(named),
+    ]).catch(() => {});
   },
 
   async clearError(id: string | null) {

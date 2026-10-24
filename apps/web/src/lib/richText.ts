@@ -53,17 +53,28 @@ export function richToHtml(text: string): string {
       continue;
     }
     let at = -1;
-    for (let i = stack.length - 1; i >= 0; i--) if (stack[i].kind === kind) { at = i; break; }
+    for (let i = stack.length - 1; i >= 0; i--)
+      if (stack[i].kind === kind) {
+        at = i;
+        break;
+      }
     if (at < 0) continue;
     const inner = stack.splice(at);
-    out += inner.slice().reverse().map((t) => closeTag(t.kind)).join('');
+    out += inner
+      .slice()
+      .reverse()
+      .map((t) => closeTag(t.kind))
+      .join('');
     for (const t of inner.slice(1)) {
       out += t.tag;
       stack.push(t);
     }
   }
   out += escaped.slice(last);
-  out += stack.reverse().map((t) => closeTag(t.kind)).join('');
+  out += stack
+    .reverse()
+    .map((t) => closeTag(t.kind))
+    .join('');
   return out.replace(/\n/g, '<br>');
 }
 
@@ -102,7 +113,10 @@ function formatsOf(el: HTMLElement): string[] {
   if (tag === 'I' || tag === 'EM' || st.fontStyle === 'italic') f.push('i');
   if (tag === 'A') {
     const href = el.getAttribute('href');
-    if (href && isLinkUrl(href)) f.push(`a=${st.textDecorationLine === 'none' || st.textDecoration.startsWith('none') ? 'x' : 'u'}${el.getAttribute('target') === '_blank' ? 'n' : 's'}|${encodeLinkUrl(href)}`);
+    if (href && isLinkUrl(href))
+      f.push(
+        `a=${st.textDecorationLine === 'none' || st.textDecoration.startsWith('none') ? 'x' : 'u'}${el.getAttribute('target') === '_blank' ? 'n' : 's'}|${encodeLinkUrl(href)}`,
+      );
   } else if (tag === 'U' || st.textDecoration.includes('underline') || st.textDecorationLine.includes('underline')) f.push('u');
   const color = (tag === 'FONT' && el.getAttribute('color')) || st.color;
   const hex = color ? toHex(color) : null;

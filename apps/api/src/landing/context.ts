@@ -162,10 +162,7 @@ export function buildContext(opts: {
       const pos = `${f.x}% ${f.y}%`;
       // Zoom a partir do mesmo ponto: o recorte continua centrado onde o usuário escolheu.
       // Abaixo de 100% a foto encolhe na mesma proporção (sem salto), deixando espaço livre em volta
-      const style =
-        f.z && f.z !== 1
-          ? { objectPosition: pos, transform: `scale(${f.z})`, transformOrigin: pos }
-          : { objectPosition: pos };
+      const style = f.z && f.z !== 1 ? { objectPosition: pos, transform: `scale(${f.z})`, transformOrigin: pos } : { objectPosition: pos };
       return { url: i.url, alt: i.alt_text || displayName, style };
     });
   // Local escolhido no editor; fotos sem escolha preenchem topo, "sobre" e galeria nessa ordem.
@@ -177,8 +174,7 @@ export function buildContext(opts: {
   };
   const visible = photos.filter((p) => place(p.url) !== 'hidden');
   const heroImage = visible.find((p) => place(p.url) === 'hero') ?? visible.find((p) => !place(p.url)) ?? null;
-  const aboutImage =
-    visible.find((p) => p !== heroImage && place(p.url) === 'about') ?? visible.find((p) => p !== heroImage && !place(p.url)) ?? null;
+  const aboutImage = visible.find((p) => p !== heroImage && place(p.url) === 'about') ?? visible.find((p) => p !== heroImage && !place(p.url)) ?? null;
   // Galeria: todas as fotos; a página mostra 9 e as demais ficam atrás do botão "Exibir mais"
   let galleryPool = visible.filter((p) => p !== heroImage && p !== aboutImage && (place(p.url) === 'gallery' || !place(p.url)));
   // Modelo Ofício: topo em mosaico de 3 fotos (as 2 seguintes em "Automático"), se a galeria ainda ficar com 2 ou mais
@@ -236,10 +232,7 @@ export function buildContext(opts: {
     const own = content.overrides?.[`social.${network}`];
     return socialUrl(network, own !== undefined ? own : fromCompany);
   };
-  const socials = [
-    ...SOCIAL_NETWORKS.map((n) => [n, social(n, company[n])] as const),
-    ...company.other_socials.map((s) => [s.network, s.url] as const),
-  ]
+  const socials = [...SOCIAL_NETWORKS.map((n) => [n, social(n, company[n])] as const), ...company.other_socials.map((s) => [s.network, s.url] as const)]
     .filter(([, url]) => safeHref(url))
     .map(([network, url]) => ({ network: network as string, url: url as string }));
 

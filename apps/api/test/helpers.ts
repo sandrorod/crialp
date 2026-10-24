@@ -41,10 +41,13 @@ export function content(headline = 'Atendimento de qualidade'): LandingContent {
 }
 
 async function user(orgId: string, email: string, role: string) {
-  const row = await one<{ id: string }>(
-    `insert into users (organization_id, name, email, password_hash, role) values ($1, $2, $3, $4, $5) returning id`,
-    [orgId, email.split('@')[0], email, await bcrypt.hash(PASSWORD, 4), role],
-  );
+  const row = await one<{ id: string }>(`insert into users (organization_id, name, email, password_hash, role) values ($1, $2, $3, $4, $5) returning id`, [
+    orgId,
+    email.split('@')[0],
+    email,
+    await bcrypt.hash(PASSWORD, 4),
+    role,
+  ]);
   return row!.id;
 }
 

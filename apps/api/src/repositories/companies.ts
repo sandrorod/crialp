@@ -4,9 +4,31 @@ import type { CompanyInput } from '../lib/validation.js';
 import { dropNullText } from '../lib/nullText.js';
 
 export const COMPANY_COLUMNS = [
-  'name', 'trade_name', 'legal_name', 'description', 'segment', 'reference_url', 'logo_url',
-  'phone', 'mobile', 'whatsapp', 'email', 'address', 'number', 'neighborhood', 'city', 'state', 'zip_code',
-  'website', 'instagram', 'facebook', 'youtube', 'linkedin', 'tiktok', 'other_socials', 'opening_hours',
+  'name',
+  'trade_name',
+  'legal_name',
+  'description',
+  'segment',
+  'reference_url',
+  'logo_url',
+  'phone',
+  'mobile',
+  'whatsapp',
+  'email',
+  'address',
+  'number',
+  'neighborhood',
+  'city',
+  'state',
+  'zip_code',
+  'website',
+  'instagram',
+  'facebook',
+  'youtube',
+  'linkedin',
+  'tiktok',
+  'other_socials',
+  'opening_hours',
   'commercial_info',
 ] as const;
 
@@ -74,7 +96,7 @@ export interface CompanyFull extends CompanyRow {
 const JSON_COLUMNS = new Set(['other_socials', 'commercial_info']);
 const colValue = (input: CompanyInput, col: (typeof COMPANY_COLUMNS)[number]) => {
   const v = (input as any)[col];
-  return JSON_COLUMNS.has(col) ? JSON.stringify(v ?? (col === 'other_socials' ? [] : {})) : v ?? null;
+  return JSON_COLUMNS.has(col) ? JSON.stringify(v ?? (col === 'other_socials' ? [] : {})) : (v ?? null);
 };
 
 /** Acrescenta fotos ao fim da lista da empresa (já liberadas para uso). Ignora URLs repetidas. */
@@ -82,19 +104,19 @@ export async function appendCompanyImages(orgId: string, companyId: string, imag
   return transaction(async (db) => {
     const owner = await db.query('select 1 from companies where id = $1 and organization_id = $2', [companyId, orgId]);
     if (!owner.rowCount) return false;
-    const { rows } = await db.query<{ url: string; pos: number }>(
-      'select url, position as pos from company_images where company_id = $1',
-      [companyId],
-    );
+    const { rows } = await db.query<{ url: string; pos: number }>('select url, position as pos from company_images where company_id = $1', [companyId]);
     const existing = new Set(rows.map((r) => r.url));
     let pos = rows.reduce((m, r) => Math.max(m, r.pos), -1);
     for (const img of images) {
       if (existing.has(img.url)) continue;
       existing.add(img.url);
-      await db.query(
-        `insert into company_images (company_id, url, type, alt_text, source, usage_allowed, position) values ($1,$2,'gallery',$3,$4,true,$5)`,
-        [companyId, img.url, img.alt_text, img.source, ++pos],
-      );
+      await db.query(`insert into company_images (company_id, url, type, alt_text, source, usage_allowed, position) values ($1,$2,'gallery',$3,$4,true,$5)`, [
+        companyId,
+        img.url,
+        img.alt_text,
+        img.source,
+        ++pos,
+      ]);
     }
     return true;
   });
@@ -115,28 +137,44 @@ async function replaceChildren(db: pg.PoolClient, companyId: string, input: Comp
   await db.query('delete from company_testimonials where company_id = $1', [companyId]);
 
   for (const [i, s] of input.services.entries()) {
-    await db.query(
-      `insert into company_services (company_id, name, description, benefits, details, position) values ($1,$2,$3,$4,$5,$6)`,
-      [companyId, s.name, s.description, JSON.stringify(s.benefits), s.details, i],
-    );
+    await db.query(`insert into company_services (company_id, name, description, benefits, details, position) values ($1,$2,$3,$4,$5,$6)`, [
+      companyId,
+      s.name,
+      s.description,
+      JSON.stringify(s.benefits),
+      s.details,
+      i,
+    ]);
   }
   for (const [i, p] of input.products.entries()) {
-    await db.query(
-      `insert into company_products (company_id, name, description, features, benefits, position) values ($1,$2,$3,$4,$5,$6)`,
-      [companyId, p.name, p.description, JSON.stringify(p.features), JSON.stringify(p.benefits), i],
-    );
+    await db.query(`insert into company_products (company_id, name, description, features, benefits, position) values ($1,$2,$3,$4,$5,$6)`, [
+      companyId,
+      p.name,
+      p.description,
+      JSON.stringify(p.features),
+      JSON.stringify(p.benefits),
+      i,
+    ]);
   }
   for (const [i, img] of input.images.entries()) {
-    await db.query(
-      `insert into company_images (company_id, url, type, alt_text, source, usage_allowed, position) values ($1,$2,$3,$4,$5,$6,$7)`,
-      [companyId, img.url, img.type, img.alt_text, img.source, img.usage_allowed, i],
-    );
+    await db.query(`insert into company_images (company_id, url, type, alt_text, source, usage_allowed, position) values ($1,$2,$3,$4,$5,$6,$7)`, [
+      companyId,
+      img.url,
+      img.type,
+      img.alt_text,
+      img.source,
+      img.usage_allowed,
+      i,
+    ]);
   }
   for (const [i, t] of input.testimonials.entries()) {
-    await db.query(
-      `insert into company_testimonials (company_id, author, text, source_url, position) values ($1,$2,$3,$4,$5)`,
-      [companyId, t.author, t.text, t.source_url, i],
-    );
+    await db.query(`insert into company_testimonials (company_id, author, text, source_url, position) values ($1,$2,$3,$4,$5)`, [
+      companyId,
+      t.author,
+      t.text,
+      t.source_url,
+      i,
+    ]);
   }
 }
 
@@ -145,10 +183,7 @@ export async function createCompany(orgId: string, userId: string, input: Compan
     const cols = [...COMPANY_COLUMNS, 'organization_id', 'created_by', 'source_meta'];
     const values = [...COMPANY_COLUMNS.map((c) => colValue(input, c)), orgId, userId, JSON.stringify(sourceMeta)];
     const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
-    const { rows } = await db.query<{ id: string }>(
-      `insert into companies (${cols.join(', ')}) values (${placeholders}) returning id`,
-      values,
-    );
+    const { rows } = await db.query<{ id: string }>(`insert into companies (${cols.join(', ')}) values (${placeholders}) returning id`, values);
     await replaceChildren(db, rows[0].id, input);
     return rows[0].id;
   });
@@ -252,10 +287,9 @@ export async function listCompanies(orgId: string, f: CompanyFilters) {
       limit 500`,
     params,
   );
-  const facets = await query<{ segment: string | null; city: string | null }>(
-    `select distinct segment, city from companies where organization_id = $1`,
-    [orgId],
-  );
+  const facets = await query<{ segment: string | null; city: string | null }>(`select distinct segment, city from companies where organization_id = $1`, [
+    orgId,
+  ]);
   const uniq = (arr: (string | null)[]) => [...new Set(arr.filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   return {
     items: rows,
@@ -278,7 +312,11 @@ export function companyUrlKey(raw: string | null | undefined): string | null {
       return `${host}${path}${id ? `?${id.toLowerCase().replace(/^places\//, '')}` : ''}`;
     }
     // Links cujo identificador está nos parâmetros (WhatsApp "send?phone=", perfil do Facebook "profile.php?id=")
-    const param = /(^|\.)whatsapp\.com$/.test(host) ? u.searchParams.get('phone')?.replace(/\D/g, '') : /(^|\.)facebook\.com$/.test(host) && path === '/profile.php' ? u.searchParams.get('id') : null;
+    const param = /(^|\.)whatsapp\.com$/.test(host)
+      ? u.searchParams.get('phone')?.replace(/\D/g, '')
+      : /(^|\.)facebook\.com$/.test(host) && path === '/profile.php'
+        ? u.searchParams.get('id')
+        : null;
     return `${host}${path}${param ? `?${param}` : ''}`;
   } catch {
     return null;
@@ -308,12 +346,24 @@ export function companyNameKey(raw: string | null | undefined): string | null {
 export async function findDuplicateCompany(
   orgId: string,
   probe: {
-    url?: string | null; website?: string | null; name?: string | null; tradeName?: string | null;
-    phones?: (string | null | undefined)[]; zip?: string | null;
+    url?: string | null;
+    website?: string | null;
+    name?: string | null;
+    tradeName?: string | null;
+    phones?: (string | null | undefined)[];
+    zip?: string | null;
   },
   ignoreId?: string,
 ): Promise<{ id: string; name: string; reason: 'link' | 'nome e telefone' | 'nome e CEP' } | null> {
-  const { rows } = await query<{ id: string; name: string; trade_name: string | null; reference_url: string | null; website: string | null; phones: string | null; zip_code: string | null }>(
+  const { rows } = await query<{
+    id: string;
+    name: string;
+    trade_name: string | null;
+    reference_url: string | null;
+    website: string | null;
+    phones: string | null;
+    zip_code: string | null;
+  }>(
     `select id, name, trade_name, reference_url, website, concat_ws('|', phone, mobile, whatsapp) as phones, zip_code
        from companies where organization_id = $1`,
     [orgId],
@@ -332,11 +382,20 @@ export async function findDuplicateCompany(
     if (c.id === ignoreId) continue;
     const ref = companyUrlKey(c.reference_url);
     const site = companyUrlKey(c.website);
-    if ((ref && urlKeys.has(ref)) || (ref && !ref.includes('/') && homeKeys.has(ref)) || (site && !site.includes('/') && homeKeys.has(site) && !ref?.includes('/'))) {
+    if (
+      (ref && urlKeys.has(ref)) ||
+      (ref && !ref.includes('/') && homeKeys.has(ref)) ||
+      (site && !site.includes('/') && homeKeys.has(site) && !ref?.includes('/'))
+    ) {
       return { id: c.id, name: c.trade_name || c.name, reason: 'link' };
     }
     if ([c.name, c.trade_name].map(companyNameKey).some((k) => k && nameKeys.has(k))) {
-      if ((c.phones ?? '').split('|').map(last8).some((p) => p && probePhones.has(p))) {
+      if (
+        (c.phones ?? '')
+          .split('|')
+          .map(last8)
+          .some((p) => p && probePhones.has(p))
+      ) {
         return { id: c.id, name: c.trade_name || c.name, reason: 'nome e telefone' };
       }
       if (probeZip.length === 8 && (c.zip_code ?? '').replace(/\D/g, '') === probeZip) {
@@ -359,7 +418,9 @@ const isIdentifyingKey = (k: string | null): k is string =>
   !!k &&
   (!isPlatformKey(k) ||
     // Google: só com o código do local (ou a ficha /maps/place/...); demais plataformas: com o perfil no caminho
-    (/(^|\.)(google\.[a-z.]+|goo\.gl|g\.co|share\.google)$/.test(k.split(/[/?]/)[0]) ? /\?.|\/maps\/place\/./.test(k) : /[/?][^/?]/.test(k) && !/^[^/?]+\/(send|profile\.php|pages|people|groups)$/.test(k)));
+    (/(^|\.)(google\.[a-z.]+|goo\.gl|g\.co|share\.google)$/.test(k.split(/[/?]/)[0])
+      ? /\?.|\/maps\/place\/./.test(k)
+      : /[/?][^/?]/.test(k) && !/^[^/?]+\/(send|profile\.php|pages|people|groups)$/.test(k)));
 /** Domínio da chave (sem caminho), só quando é domínio próprio da empresa. */
 export const ownDomain = (k: string | null) => (k && !isPlatformKey(k) ? k.split(/[/?]/)[0] : null);
 
@@ -384,9 +445,18 @@ export async function matchRegisteredCompanies(
   items: { url: string | null; website: string | null; google_url?: string | null; name: string; phone: string | null; address?: string | null }[],
 ): Promise<(RegisteredMatch | null)[]> {
   const { rows } = await query<{
-    id: string; name: string; trade_name: string | null; reference_url: string | null; website: string | null; phones: string | null;
-    zip_code: string | null; google_urls: string[] | null; lp_error: string | null;
-    lp_id: string | null; lp_slug: string | null; lp_status: string | null;
+    id: string;
+    name: string;
+    trade_name: string | null;
+    reference_url: string | null;
+    website: string | null;
+    phones: string | null;
+    zip_code: string | null;
+    google_urls: string[] | null;
+    lp_error: string | null;
+    lp_id: string | null;
+    lp_slug: string | null;
+    lp_status: string | null;
   }>(
     `select c.id, c.name, c.trade_name, c.reference_url, c.website, concat_ws('|', c.phone, c.mobile, c.whatsapp) as phones, c.zip_code, c.lp_error,
             -- Links do perfil no Google usados na coleta (e, em cadastros antigos, as páginas lidas)
@@ -425,7 +495,11 @@ export async function matchRegisteredCompanies(
       zip: (c.zip_code ?? '').replace(/\D/g, '').length === 8 ? c.zip_code!.replace(/\D/g, '') : null,
       domains: [ref, site].map(ownDomain).filter((d): d is string => !!d),
       names: [c.name, c.trade_name].map(companyNameKey).filter((k): k is string => !!k),
-      phones: (c.phones ?? '').split('|').map(digits).filter((d) => d.length >= 8).map((d) => d.slice(-8)),
+      phones: (c.phones ?? '')
+        .split('|')
+        .map(digits)
+        .filter((d) => d.length >= 8)
+        .map((d) => d.slice(-8)),
     };
   });
   // Nome parecido: igual, ou um contém o outro inteiro ("Clínica X" × "Clínica X - Unidade Centro")

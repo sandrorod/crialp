@@ -2,7 +2,20 @@ import { useDeferredValue, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { AlertTriangle, Building2, Eye, Pencil, PanelsTopLeft, Plus, Search, Share2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBlock, PageHeader, Pagination, Select, StatusBadge, StatusToggle } from '@/components/ui';
+import {
+  Button,
+  Card,
+  ConfirmDialog,
+  EmptyState,
+  ErrorBlock,
+  Input,
+  LoadingBlock,
+  PageHeader,
+  Pagination,
+  Select,
+  StatusBadge,
+  StatusToggle,
+} from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { usePagination } from '@/hooks/usePagination';
 import { useLandingPageActions } from '@/hooks/useLandingPageActions';
@@ -70,11 +83,15 @@ export function CompaniesPage() {
           </div>
           <Select value={segment} onChange={(e) => setSegment(e.target.value)} aria-label="Segmento">
             <option value="">Todos os segmentos</option>
-            {data?.facets.segments.map((s) => <option key={s}>{s}</option>)}
+            {data?.facets.segments.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
           </Select>
           <Select value={city} onChange={(e) => setCity(e.target.value)} aria-label="Cidade">
             <option value="">Todas as cidades</option>
-            {data?.facets.cities.map((c) => <option key={c}>{c}</option>)}
+            {data?.facets.cities.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
           </Select>
           <Select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
             <option value="">Todos os status</option>
@@ -86,7 +103,9 @@ export function CompaniesPage() {
         </div>
 
         {error ? (
-          <div className="p-4"><ErrorBlock message={error} onRetry={reload} /></div>
+          <div className="p-4">
+            <ErrorBlock message={error} onRetry={reload} />
+          </div>
         ) : loading && !data ? (
           <LoadingBlock />
         ) : !data?.items.length ? (
@@ -94,79 +113,136 @@ export function CompaniesPage() {
             icon={<Building2 className="size-5" />}
             title={filtered ? 'Nenhuma empresa encontrada' : 'Nenhuma empresa cadastrada'}
             description={filtered ? 'Ajuste a busca ou os filtros.' : 'Cadastre uma empresa informando a URL do site dela.'}
-            action={!filtered ? <Link to="/nova"><Button icon={<Plus className="size-4" />}>Cadastrar pela URL</Button></Link> : undefined}
+            action={
+              !filtered ? (
+                <Link to="/nova">
+                  <Button icon={<Plus className="size-4" />}>Cadastrar pela URL</Button>
+                </Link>
+              ) : undefined
+            }
           />
         ) : (
           <>
-          <div className="overflow-x-auto">
-            <table className="table-cards w-full min-w-[980px] text-sm">
-              <thead>
-                <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
-                  <th className="px-5 py-3">Empresa</th>
-                  <th className="px-3 py-3">Segmento</th>
-                  <th className="px-3 py-3">Cidade</th>
-                  <th className="px-3 py-3">Contato</th>
-                  <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3">Data</th>
-                  <th className="px-5 py-3 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {pager.items.map((c) => (
-                  <tr key={c.id} className="transition hover:bg-zinc-50/70">
-                    <td className="px-5 py-3.5">
-                      <Link to={`/empresas/${c.id}`} className="font-medium text-ink hover:underline">{c.name}</Link>
-                    </td>
-                    <td data-label="Segmento" className="px-3 py-3.5 text-zinc-600">{c.segment ?? '—'}</td>
-                    <td data-label="Cidade" className="px-3 py-3.5 text-zinc-600">{c.city ? `${c.city}${c.state ? ` – ${c.state}` : ''}` : '—'}</td>
-                    <td data-label="Contato" className="px-3 py-3.5 text-zinc-600">{c.whatsapp || c.phone || c.email || '—'}</td>
-                    <td data-label="Status" className="px-3 py-3.5">
-                      {c.landing_page_id && c.status ? (
-                        <StatusToggle status={c.status} loading={actions.busyId === c.landing_page_id} onToggle={() => actions.toggleStatus(c.landing_page_id!, c.status!)} />
-                      ) : c.lp_error ? (
-                        // A geração da LP falhou: marca em vermelho com o motivo (passar o mouse)
-                        <span
-                          title={`${c.lp_error}${c.lp_error_at ? ` (${formatDate(c.lp_error_at, true)})` : ''}`}
-                          className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 ring-1 ring-red-200"
-                        >
-                          <AlertTriangle className="size-3.5" /> Erro ao gerar
-                        </span>
-                      ) : (
-                        <StatusBadge status={null} />
-                      )}
-                    </td>
-                    <td data-label="Data" className="px-3 py-3.5 text-zinc-500">{formatDate(c.created_at)}</td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex justify-end gap-1">
-                        {c.slug ? (
-                          <>
-                            <a href={`/lp/${c.slug}`} target="_blank" rel="noreferrer" title="Visualizar" aria-label="Visualizar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
-                              <Eye className="size-4" />
-                            </a>
-                            <button type="button" onClick={() => void shareLink(c.slug!)} title="Copiar link da Landing Page" aria-label="Copiar link da Landing Page" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
-                              <Share2 className="size-4" />
-                            </button>
-                          </>
-                        ) : null}
-                        <button type="button" onClick={() => navigate(`/empresas/${c.id}`)} title="Editar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
-                          <Pencil className="size-4" />
-                        </button>
-                        {c.landing_page_id ? (
-                          <button type="button" onClick={() => navigate(`/landing-pages/${c.landing_page_id}`)} title="Landing Page" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
-                            <PanelsTopLeft className="size-4" />
-                          </button>
-                        ) : null}
-                        <button type="button" onClick={() => setToDelete(c)} title="Excluir" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
-                          <Trash2 className="size-4" />
-                        </button>
-                      </div>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="table-cards w-full min-w-[980px] text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
+                    <th className="px-5 py-3">Empresa</th>
+                    <th className="px-3 py-3">Segmento</th>
+                    <th className="px-3 py-3">Cidade</th>
+                    <th className="px-3 py-3">Contato</th>
+                    <th className="px-3 py-3">Status</th>
+                    <th className="px-3 py-3">Data</th>
+                    <th className="px-5 py-3 text-right">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Pagination page={pager.page} pages={pager.pages} total={pager.total} pageSize={pager.pageSize} onPage={(p) => { pager.setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {pager.items.map((c) => (
+                    <tr key={c.id} className="transition hover:bg-zinc-50/70">
+                      <td className="px-5 py-3.5">
+                        <Link to={`/empresas/${c.id}`} className="font-medium text-ink hover:underline">
+                          {c.name}
+                        </Link>
+                      </td>
+                      <td data-label="Segmento" className="px-3 py-3.5 text-zinc-600">
+                        {c.segment ?? '—'}
+                      </td>
+                      <td data-label="Cidade" className="px-3 py-3.5 text-zinc-600">
+                        {c.city ? `${c.city}${c.state ? ` – ${c.state}` : ''}` : '—'}
+                      </td>
+                      <td data-label="Contato" className="px-3 py-3.5 text-zinc-600">
+                        {c.whatsapp || c.phone || c.email || '—'}
+                      </td>
+                      <td data-label="Status" className="px-3 py-3.5">
+                        {c.landing_page_id && c.status ? (
+                          <StatusToggle
+                            status={c.status}
+                            loading={actions.busyId === c.landing_page_id}
+                            onToggle={() => actions.toggleStatus(c.landing_page_id!, c.status!)}
+                          />
+                        ) : c.lp_error ? (
+                          // A geração da LP falhou: marca em vermelho com o motivo (passar o mouse)
+                          <span
+                            title={`${c.lp_error}${c.lp_error_at ? ` (${formatDate(c.lp_error_at, true)})` : ''}`}
+                            className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 ring-1 ring-red-200"
+                          >
+                            <AlertTriangle className="size-3.5" /> Erro ao gerar
+                          </span>
+                        ) : (
+                          <StatusBadge status={null} />
+                        )}
+                      </td>
+                      <td data-label="Data" className="px-3 py-3.5 text-zinc-500">
+                        {formatDate(c.created_at)}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex justify-end gap-1">
+                          {c.slug ? (
+                            <>
+                              <a
+                                href={`/lp/${c.slug}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Visualizar"
+                                aria-label="Visualizar"
+                                className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink"
+                              >
+                                <Eye className="size-4" />
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => void shareLink(c.slug!)}
+                                title="Copiar link da Landing Page"
+                                aria-label="Copiar link da Landing Page"
+                                className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink"
+                              >
+                                <Share2 className="size-4" />
+                              </button>
+                            </>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/empresas/${c.id}`)}
+                            title="Editar"
+                            className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink"
+                          >
+                            <Pencil className="size-4" />
+                          </button>
+                          {c.landing_page_id ? (
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/landing-pages/${c.landing_page_id}`)}
+                              title="Landing Page"
+                              className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink"
+                            >
+                              <PanelsTopLeft className="size-4" />
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => setToDelete(c)}
+                            title="Excluir"
+                            className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination
+              page={pager.page}
+              pages={pager.pages}
+              total={pager.total}
+              pageSize={pager.pageSize}
+              onPage={(p) => {
+                pager.setPage(p);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           </>
         )}
       </Card>
@@ -176,8 +252,7 @@ export function CompaniesPage() {
         title="Excluir empresa?"
         description={
           <>
-            <strong>{toDelete?.name}</strong> e todos os dados vinculados (serviços, imagens e Landing Page) serão excluídos
-            permanentemente.
+            <strong>{toDelete?.name}</strong> e todos os dados vinculados (serviços, imagens e Landing Page) serão excluídos permanentemente.
           </>
         }
         confirmLabel="Excluir"

@@ -11,9 +11,11 @@ crmWebhookRouter.post('/:orgId', async (req, res) => {
   if (!orgId.success || !validWebhookToken(orgId.data, token)) return res.status(401).json({ error: 'unauthorized' });
 
   // Evolution manda "messages.upsert" ou "MESSAGES_UPSERT" conforme a configuração
-  const event = String(req.body?.event ?? '').toLowerCase().replace(/_/g, '.');
+  const event = String(req.body?.event ?? '')
+    .toLowerCase()
+    .replace(/_/g, '.');
   const data = req.body?.data;
-  const list: any[] = Array.isArray(data) ? data : data?.messages ?? (data ? [data] : []);
+  const list: any[] = Array.isArray(data) ? data : (data?.messages ?? (data ? [data] : []));
 
   if (event === 'messages.upsert') {
     for (const m of list) await ingestEvolutionRecord(orgId.data, m);

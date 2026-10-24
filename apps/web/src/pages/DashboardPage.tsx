@@ -49,7 +49,7 @@ export function DashboardPage() {
                   {c.value ?? 0}
                 </button>
               ) : (
-                c.value ?? 0
+                (c.value ?? 0)
               )}
             </div>
           </Card>
@@ -66,7 +66,9 @@ export function DashboardPage() {
           </div>
           {loading ? (
             <div className="space-y-2 p-5">
-              {[0, 1, 2].map((i) => <div key={i} className="skeleton h-12 rounded-lg" />)}
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="skeleton h-12 rounded-lg" />
+              ))}
             </div>
           ) : data && data.recent.length ? (
             <ul className="divide-y divide-zinc-100">
@@ -78,7 +80,9 @@ export function DashboardPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">{lp.company_name}</div>
-                      <div className="truncate text-xs text-zinc-500">/lp/{lp.slug} · {lp.segment ?? 'Sem segmento'}</div>
+                      <div className="truncate text-xs text-zinc-500">
+                        /lp/{lp.slug} · {lp.segment ?? 'Sem segmento'}
+                      </div>
                     </div>
                     <span className="hidden text-xs text-zinc-400 sm:block">{relativeTime(lp.created_at)}</span>
                     <StatusBadge status={lp.status} />
@@ -105,9 +109,7 @@ export function DashboardPage() {
           <div className="relative">
             <Sparkles className="size-6 text-brand-100" />
             <h3 className="mt-4 text-lg font-semibold">Crie uma LP a partir de uma URL</h3>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-              Cole o endereço do site. A IA coleta os dados reais da empresa, você revisa e publica.
-            </p>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-400">Cole o endereço do site. A IA coleta os dados reais da empresa, você revisa e publica.</p>
             <Link to="/nova" className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-white hover:underline">
               Começar agora <ArrowUpRight className="size-4" />
             </Link>
@@ -131,9 +133,7 @@ function WpListModal({ kind, onClose }: { kind: 'verified' | 'missing' | null; o
   const items = useMemo(() => {
     const q = search.trim().toLowerCase();
     const digits = q.replace(/\D/g, '');
-    return (data?.items ?? []).filter(
-      (i) => !q || i.name.toLowerCase().includes(q) || (digits && (i.number ?? '').replace(/\D/g, '').includes(digits)),
-    );
+    return (data?.items ?? []).filter((i) => !q || i.name.toLowerCase().includes(q) || (digits && (i.number ?? '').replace(/\D/g, '').includes(digits)));
   }, [data, search]);
 
   return (
@@ -165,7 +165,9 @@ function WpListModal({ kind, onClose }: { kind: 'verified' | 'missing' | null; o
             {items.length ? (
               items.map((i) => (
                 <div key={i.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-4 py-2.5 text-sm">
-                  <span className="truncate" title={i.name}>{i.name}</span>
+                  <span className="truncate" title={i.name}>
+                    {i.name}
+                  </span>
                   <span className="font-mono tabular-nums text-zinc-700">{i.number ?? <span className="font-sans text-zinc-400">sem número</span>}</span>
                   <span className="w-20 text-right">
                     {i.wp_testado ? (

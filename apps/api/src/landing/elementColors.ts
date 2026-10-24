@@ -34,11 +34,30 @@ export interface ElementColor {
 /** Efeitos de movimento dos textos. Mantenha igual em apps/web/src/components/landing/previewTools.ts. */
 export const TEXT_EFFECTS = [
   // Entrada (tocam uma vez quando o texto aparece)
-  'fade', 'up', 'down', 'left', 'right', 'zoom', 'zoomout', 'bounce', 'blur', 'flip', 'rotate', 'swing', 'expand', 'typing',
+  'fade',
+  'up',
+  'down',
+  'left',
+  'right',
+  'zoom',
+  'zoomout',
+  'bounce',
+  'blur',
+  'flip',
+  'rotate',
+  'swing',
+  'expand',
+  'typing',
   // Chamar atenção (aparecem e se mexem uma vez)
-  'shake', 'rubber', 'tada',
+  'shake',
+  'rubber',
+  'tada',
   // Destaque (também tocam uma vez)
-  'pulse', 'heartbeat', 'float', 'glow', 'blink',
+  'pulse',
+  'heartbeat',
+  'float',
+  'glow',
+  'blink',
 ] as const;
 export type TextEffect = (typeof TEXT_EFFECTS)[number];
 
@@ -182,10 +201,7 @@ function rules(map: Record<string, ElementColor>) {
 export function elementColorsCss(colors: ElementColors): string {
   const desktop = rules(colors.desktop);
   const mobile = rules(colors.mobile);
-  return [
-    desktop ? `@media(min-width:${MOBILE_MAX + 1}px){${desktop}}` : '',
-    mobile ? `@media(max-width:${MOBILE_MAX}px){${mobile}}` : '',
-  ].join('');
+  return [desktop ? `@media(min-width:${MOBILE_MAX + 1}px){${desktop}}` : '', mobile ? `@media(max-width:${MOBILE_MAX}px){${mobile}}` : ''].join('');
 }
 
 /**
@@ -194,7 +210,10 @@ export function elementColorsCss(colors: ElementColors): string {
  */
 export function textEffectsJson(colors: ElementColors): string | null {
   const list: [string, TextEffect, 'd' | 'm'][] = [];
-  for (const [layout, map] of [['d', colors.desktop], ['m', colors.mobile]] as const) {
+  for (const [layout, map] of [
+    ['d', colors.desktop],
+    ['m', colors.mobile],
+  ] as const) {
     for (const [sel, c] of Object.entries(map)) if (c.fx) list.push([sel, c.fx, layout]);
   }
   // Evita fechar a tag <script> dentro do JSON

@@ -42,9 +42,7 @@ export function formatBrazilPhone(value: string | null | undefined): string {
   const local = d.slice(2);
   const ddd = local.slice(0, 2);
   const rest = local.slice(2);
-  return rest.length === 9
-    ? `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`
-    : `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
+  return rest.length === 9 ? `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}` : `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
 }
 
 export function telLink(value: string | null | undefined): string | null {

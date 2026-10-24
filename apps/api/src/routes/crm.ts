@@ -176,10 +176,9 @@ crmRouter.get('/contacts/:id', async (req, res) => {
   const user = authUser(req);
   const contact = await ensureContact(user, uuidParam.parse(req.params.id));
   res.json(
-    await one(
-      `select ct.*, coalesce(c.trade_name, c.name) as company_name from lp_crm_contacts ct join companies c on c.id = ct.company_id where ct.id = $1`,
-      [contact.id],
-    ),
+    await one(`select ct.*, coalesce(c.trade_name, c.name) as company_name from lp_crm_contacts ct join companies c on c.id = ct.company_id where ct.id = $1`, [
+      contact.id,
+    ]),
   );
 });
 
@@ -334,7 +333,11 @@ const DealSchema = z.object({
   stage_id: uuidParam,
   title: z.string().trim().min(1, 'Informe o título do negócio.').max(200),
   value: z.coerce.number().min(0).max(1e12).default(0),
-  expected_close: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish().or(z.literal('').transform(() => null)),
+  expected_close: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullish()
+    .or(z.literal('').transform(() => null)),
   notes: longText(3000),
 });
 
@@ -349,7 +352,10 @@ async function checkDealRefs(user: AuthUser, b: z.infer<typeof DealSchema>) {
 }
 
 async function ensureDeal(user: AuthUser, id: string) {
-  const deal = await one<{ id: string; company_id: string }>('select id, company_id from lp_crm_deals where id = $1 and organization_id = $2', [id, user.organizationId]);
+  const deal = await one<{ id: string; company_id: string }>('select id, company_id from lp_crm_deals where id = $1 and organization_id = $2', [
+    id,
+    user.organizationId,
+  ]);
   if (!deal) throw notFound('Negócio não encontrado.');
   await ensureCompany(user, deal.company_id);
   return deal;
@@ -438,7 +444,11 @@ crmRouter.get('/tasks', async (req, res) => {
 const TaskSchema = z.object({
   title: z.string().trim().min(1, 'Descreva a tarefa.').max(300),
   description: longText(3000),
-  due_at: z.string().datetime({ offset: true }).nullish().or(z.literal('').transform(() => null)),
+  due_at: z
+    .string()
+    .datetime({ offset: true })
+    .nullish()
+    .or(z.literal('').transform(() => null)),
   company_id: uuidParam.nullish().or(z.literal('').transform(() => null)),
   assignee_id: uuidParam.nullish().or(z.literal('').transform(() => null)),
 });
@@ -577,20 +587,23 @@ crmRouter.get('/labels', async (req, res) => {
 crmRouter.post('/labels', async (req, res) => {
   const user = authUser(req);
   const b = parseBody(LabelSchema, req.body);
-  const created = await one(
-    'insert into lp_crm_labels (organization_id, name, color) values ($1, $2, $3) returning id, name, color',
-    [user.organizationId, b.name, b.color.toLowerCase()],
-  ).catch(labelError);
+  const created = await one('insert into lp_crm_labels (organization_id, name, color) values ($1, $2, $3) returning id, name, color', [
+    user.organizationId,
+    b.name,
+    b.color.toLowerCase(),
+  ]).catch(labelError);
   res.status(201).json(created);
 });
 
 crmRouter.put('/labels/:id', async (req, res) => {
   const user = authUser(req);
   const b = parseBody(LabelSchema, req.body);
-  const updated = await one(
-    'update lp_crm_labels set name = $3, color = $4 where id = $1 and organization_id = $2 returning id, name, color',
-    [uuidParam.parse(req.params.id), user.organizationId, b.name, b.color.toLowerCase()],
-  ).catch(labelError);
+  const updated = await one('update lp_crm_labels set name = $3, color = $4 where id = $1 and organization_id = $2 returning id, name, color', [
+    uuidParam.parse(req.params.id),
+    user.organizationId,
+    b.name,
+    b.color.toLowerCase(),
+  ]).catch(labelError);
   if (!updated) throw notFound('Etiqueta não encontrada.');
   res.json(updated);
 });
@@ -608,14 +621,13 @@ crmRouter.put('/conversations/:id/labels', async (req, res) => {
   const conv = await ensureConversation(user, uuidParam.parse(req.params.id));
   const { label_ids } = parseBody(z.object({ label_ids: z.array(uuidParam).max(30) }), req.body);
   const valid = label_ids.length
-    ? (await query<{ id: string }>('select id from lp_crm_labels where organization_id = $1 and id = any($2::uuid[])', [user.organizationId, label_ids])).rows.map((r) => r.id)
+    ? (
+        await query<{ id: string }>('select id from lp_crm_labels where organization_id = $1 and id = any($2::uuid[])', [user.organizationId, label_ids])
+      ).rows.map((r) => r.id)
     : [];
   await query('delete from lp_crm_conversation_labels where conversation_id = $1', [conv.id]);
   if (valid.length) {
-    await query(
-      'insert into lp_crm_conversation_labels (conversation_id, label_id) select $1, unnest($2::uuid[]) on conflict do nothing',
-      [conv.id, valid],
-    );
+    await query('insert into lp_crm_conversation_labels (conversation_id, label_id) select $1, unnest($2::uuid[]) on conflict do nothing', [conv.id, valid]);
   }
   res.json({ ok: true });
 });
@@ -702,10 +714,16 @@ crmRouter.post('/conversations/:id/read', async (req, res) => {
 crmRouter.delete('/messages/:id', async (req, res) => {
   const user = authUser(req);
   const { everyone } = z.object({ everyone: z.enum(['true', 'false']).optional() }).parse(req.query);
-  const msg = await one<{ id: string; conversation_id: string; direction: string; wa_message_id: string | null; revoked_at: string | null; created_at: string }>(
-    'select id, conversation_id, direction, wa_message_id, revoked_at, created_at from lp_crm_messages where id = $1 and hidden_at is null',
-    [uuidParam.parse(req.params.id)],
-  );
+  const msg = await one<{
+    id: string;
+    conversation_id: string;
+    direction: string;
+    wa_message_id: string | null;
+    revoked_at: string | null;
+    created_at: string;
+  }>('select id, conversation_id, direction, wa_message_id, revoked_at, created_at from lp_crm_messages where id = $1 and hidden_at is null', [
+    uuidParam.parse(req.params.id),
+  ]);
   if (!msg) throw notFound('Mensagem não encontrada.');
   const conv = await ensureConversation(user, msg.conversation_id);
 
@@ -796,7 +814,13 @@ async function sendViaEvolution(orgId: string, path: string, body: unknown) {
 }
 
 /** Grava a mensagem enviada e liga a conversa à empresa escolhida. */
-async function recordSent(user: AuthUser, number: string, companyTarget: string | null, sent: any, msg: { type: string; body: string | null; mediaMime?: string | null; fileName?: string | null }) {
+async function recordSent(
+  user: AuthUser,
+  number: string,
+  companyTarget: string | null,
+  sent: any,
+  msg: { type: string; body: string | null; mediaMime?: string | null; fileName?: string | null },
+) {
   const jid: string = sent?.key?.remoteJid ?? `${number}@s.whatsapp.net`;
   const r = await registerMessage({
     orgId: user.organizationId,
@@ -829,7 +853,10 @@ const MediaSchema = z.object({
   contact_id: uuidParam.optional(),
   company_id: uuidParam.optional(),
   kind: z.enum(['image', 'gif', 'video', 'audio', 'document']),
-  mime: z.string().max(100).regex(/^[\w.+-]+\/[\w.+-]+$/, 'Tipo de arquivo inválido.'),
+  mime: z
+    .string()
+    .max(100)
+    .regex(/^[\w.+-]+\/[\w.+-]+$/, 'Tipo de arquivo inválido.'),
   file_name: z.string().trim().max(200).optional(),
   data: z.string().min(1).max(4_300_000),
   caption: z.string().trim().max(1000).optional(),
@@ -877,10 +904,14 @@ const SAFE_INLINE_MIME = /^(image\/(jpeg|png|webp|gif)|audio\/[\w.+-]+|video\/(m
 // Arquivo da mídia de uma mensagem (só para quem acessa a conversa)
 crmRouter.get('/media/:id', async (req, res) => {
   const user = authUser(req);
-  const msg = await one<{ id: string; conversation_id: string; type: string; wa_message_id: string | null; media_mime: string | null; file_name: string | null }>(
-    'select id, conversation_id, type, wa_message_id, media_mime, file_name from lp_crm_messages where id = $1',
-    [uuidParam.parse(req.params.id)],
-  );
+  const msg = await one<{
+    id: string;
+    conversation_id: string;
+    type: string;
+    wa_message_id: string | null;
+    media_mime: string | null;
+    file_name: string | null;
+  }>('select id, conversation_id, type, wa_message_id, media_mime, file_name from lp_crm_messages where id = $1', [uuidParam.parse(req.params.id)]);
   if (!msg || !MEDIA_TYPES.has(msg.type)) throw notFound('Arquivo não encontrado.');
   await ensureConversation(user, msg.conversation_id);
   const media = await loadMedia(user.organizationId, msg);
@@ -930,7 +961,10 @@ wa.put('/', async (req, res) => {
     z.object({
       api_url: z.string().trim().url('Informe a URL da Evolution API (https://…).').max(300),
       api_key: z.string().trim().max(300).optional(),
-      instance: z.string().trim().regex(/^[\w-]{2,60}$/, 'Nome da instância: letras, números, - ou _.'),
+      instance: z
+        .string()
+        .trim()
+        .regex(/^[\w-]{2,60}$/, 'Nome da instância: letras, números, - ou _.'),
     }),
     req.body,
   );
@@ -948,7 +982,13 @@ wa.post('/connect', async (req, res) => {
   const user = authUser(req);
   const { cfg, state } = await connectionState(user.organizationId);
   if (state === 'missing') {
-    await evolution(cfg, 'POST', '/instance/create', { instanceName: cfg!.instance, integration: 'WHATSAPP-BAILEYS', qrcode: false, groupsIgnore: true, syncFullHistory: true });
+    await evolution(cfg, 'POST', '/instance/create', {
+      instanceName: cfg!.instance,
+      integration: 'WHATSAPP-BAILEYS',
+      qrcode: false,
+      groupsIgnore: true,
+      syncFullHistory: true,
+    });
   }
   await evolution(cfg, 'POST', `/webhook/set/${cfg!.instance}`, {
     webhook: { enabled: true, url: webhookUrl(user.organizationId), byEvents: false, base64: false, events: WEBHOOK_EVENTS },
@@ -957,7 +997,9 @@ wa.post('/connect', async (req, res) => {
   // Ao ler o QR o celular manda o histórico das conversas (depois trazido por "Importar conversas")
   const settings = await evolution<Record<string, unknown>>(cfg, 'GET', `/settings/find/${cfg!.instance}`).catch(() => null);
   if (settings && settings.syncFullHistory !== true) {
-    await evolution(cfg, 'POST', `/settings/set/${cfg!.instance}`, { ...settings, syncFullHistory: true }).catch((err) => console.error('[crm] syncFullHistory', err));
+    await evolution(cfg, 'POST', `/settings/set/${cfg!.instance}`, { ...settings, syncFullHistory: true }).catch((err) =>
+      console.error('[crm] syncFullHistory', err),
+    );
   }
   const r = await evolution(cfg, 'GET', `/instance/connect/${cfg!.instance}`);
   res.json({ state: (await connectionState(user.organizationId)).state, qrcode: r?.base64 ?? null, pairing_code: r?.pairingCode ?? null });

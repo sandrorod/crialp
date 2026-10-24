@@ -110,7 +110,17 @@ export function AtendimentoSection() {
   );
 }
 
-function AtendimentoEditor({ item, onClose, onSaved, onDelete }: { item: AtendimentoItem; onClose: () => void; onSaved: (row: AtendimentoItem) => void; onDelete: () => void }) {
+function AtendimentoEditor({
+  item,
+  onClose,
+  onSaved,
+  onDelete,
+}: {
+  item: AtendimentoItem;
+  onClose: () => void;
+  onSaved: (row: AtendimentoItem) => void;
+  onDelete: () => void;
+}) {
   const [title, setTitle] = useState(item.titulo ?? '');
   const [text, setText] = useState(item.respostas ?? '');
   const [saving, setSaving] = useState(false);

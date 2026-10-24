@@ -55,8 +55,7 @@ export function normalizeSectionSpacing(input: any): SectionSpacing {
 }
 
 function normalizeWidth(input: any): { desktop?: number; mobile?: number } | undefined {
-  const pick = (v: unknown) =>
-    typeof v === 'number' && Number.isFinite(v) && v < 100 ? Math.round(Math.max(TEXT_WIDTH_MIN, v)) : undefined;
+  const pick = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v < 100 ? Math.round(Math.max(TEXT_WIDTH_MIN, v)) : undefined);
   const d = pick(input?.desktop);
   const m = pick(input?.mobile);
   return d || m ? { ...(d ? { desktop: d } : {}), ...(m ? { mobile: m } : {}) } : undefined;
@@ -68,9 +67,15 @@ const TITLE_SEL = '.hero h1,.section-head h2,.final h2,.custom-text h3,.blk-head
 const TEXT_SEL = '.hero .sub,.hero p,.section-head .lead,.about-text p,.custom-text p,.blk-text p,.final p';
 // Onde o modelo centraliza o texto, a faixa mais estreita continua no meio
 const CENTERED_SEL = [
-  '.hero-centered', '.section-head.center', '.final', '.custom-center', '.tpl-elegante .hero-split .container',
+  '.hero-centered',
+  '.section-head.center',
+  '.final',
+  '.custom-center',
+  '.tpl-elegante .hero-split .container',
   ...['aurora', 'elegante', 'moderno', 'organico'].map((t) => `.tpl-${t} .section>.container>.section-head`),
-].map((c) => `${c} :is(h1,h2,h3,p,.lead,.sub)`).join(',');
+]
+  .map((c) => `${c} :is(h1,h2,h3,p,.lead,.sub)`)
+  .join(',');
 function textWidthRules(title: number | undefined, text: number | undefined) {
   if (!title && !text) return '';
   return (
@@ -79,7 +84,6 @@ function textWidthRules(title: number | undefined, text: number | undefined) {
     `:is(${CENTERED_SEL}){margin-left:auto;margin-right:auto}`
   );
 }
-
 
 const scale = (pct: number) => +((BASE_SCALE * pct) / 100).toFixed(4);
 
@@ -92,8 +96,5 @@ export function sectionSpacingCss(s: SectionSpacing): string {
       .join('');
   const desktop = layout(s.desktop, s.sections?.desktop) + textWidthRules(s.titleWidth?.desktop, s.textWidth?.desktop);
   const mobile = layout(s.mobile, s.sections?.mobile) + textWidthRules(s.titleWidth?.mobile, s.textWidth?.mobile);
-  return [
-    desktop ? `@media(min-width:${MOBILE_MAX + 1}px){${desktop}}` : '',
-    mobile ? `@media(max-width:${MOBILE_MAX}px){${mobile}}` : '',
-  ].join('');
+  return [desktop ? `@media(min-width:${MOBILE_MAX + 1}px){${desktop}}` : '', mobile ? `@media(max-width:${MOBILE_MAX}px){${mobile}}` : ''].join('');
 }

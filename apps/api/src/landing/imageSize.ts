@@ -95,9 +95,13 @@ function cropCss(frame: string, key: string, b: ImageBox): string {
   const r = (n: number) => Math.round(n * 1000) / 1000;
   const bw = b.w ?? 100;
   const decl = [
-    b.iw !== undefined ? `width:${r((b.iw / bw) * 100)}%!important;max-width:none!important;margin-left:-${r(((b.il ?? 0) / bw) * 100)}%!important;flex:none` : '',
+    b.iw !== undefined
+      ? `width:${r((b.iw / bw) * 100)}%!important;max-width:none!important;margin-left:-${r(((b.il ?? 0) / bw) * 100)}%!important;flex:none`
+      : '',
     b.ih !== undefined ? `height:${b.ih}px!important;max-height:none!important;margin-top:-${b.it ?? 0}px!important` : '',
-  ].filter(Boolean).join(';');
+  ]
+    .filter(Boolean)
+    .join(';');
   if (!decl) return '';
   const m = SECTION_KEY.exec(key);
   return `${frame}>img[data-lp-img="${cssString(m ? m[2] : key)}"]{${decl}}`;
@@ -115,7 +119,9 @@ export function imageSizesCss(s: ImageSizes | undefined): string {
           // !important: vence as proporções fixas de cada modelo (ex.: foto quadrada, capa em tela cheia)
           b.w !== undefined ? `width:${b.w}%!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important` : '',
           b.h !== undefined ? `height:${b.h}px!important;aspect-ratio:auto!important;min-height:0!important;align-self:start` : '',
-        ].filter(Boolean).join(';');
+        ]
+          .filter(Boolean)
+          .join(';');
         const frame = frameSelector(url);
         return (decl ? `${frame}{${decl}}` : '') + cropCss(frame, url, b);
       })

@@ -22,8 +22,7 @@ const fingerprintOf = (buf: Buffer) => crypto.createHash('sha1').update(buf.suba
  */
 const HEAD_BYTES = 512 * 1024;
 
-const BROWSER_UA =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 
 /** Lê largura/altura do cabeçalho binário (PNG, JPEG, GIF, WebP, AVIF) sem baixar a imagem inteira. */
 export function parseImageSize(buf: Uint8Array): ImageSize | null {

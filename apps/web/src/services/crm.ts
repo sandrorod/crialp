@@ -19,7 +19,15 @@ const qs = (params: Record<string, string | undefined>) => {
 };
 
 export type ContactInput = Omit<CrmContact, 'id'>;
-export type DealInput = { company_id: string; contact_id: string | null; stage_id: string; title: string; value: number; expected_close: string | null; notes: string | null };
+export type DealInput = {
+  company_id: string;
+  contact_id: string | null;
+  stage_id: string;
+  title: string;
+  value: number;
+  expected_close: string | null;
+  notes: string | null;
+};
 export type SendTo = { conversation_id?: string; contact_id?: string; company_id?: string };
 export type OutgoingMedia = { kind: 'image' | 'gif' | 'video' | 'audio' | 'document'; mime: string; file_name?: string; data: string; caption?: string };
 export type StageInput = { name: string; color: string; kind: 'open' | 'won' | 'lost' };
@@ -53,7 +61,9 @@ export const crmService = {
   removeTask: (id: string) => api.del(`/crm/tasks/${id}`),
 
   conversations: (f: { unlinked?: boolean; label?: string; search?: string } = {}) =>
-    api.get<CrmConversation[]>(`/crm/conversations${qs({ unlinked: f.unlinked ? 'true' : undefined, label: f.label || undefined, search: f.search?.trim() || undefined })}`),
+    api.get<CrmConversation[]>(
+      `/crm/conversations${qs({ unlinked: f.unlinked ? 'true' : undefined, label: f.label || undefined, search: f.search?.trim() || undefined })}`,
+    ),
   labels: () => api.get<CrmLabel[]>('/crm/labels'),
   createLabel: (l: { name: string; color: string }) => api.post<CrmLabel>('/crm/labels', l),
   updateLabel: (id: string, l: { name: string; color: string }) => api.put<CrmLabel>(`/crm/labels/${id}`, l),
@@ -84,8 +94,7 @@ export const crmService = {
 
 // ─── Formatação ─────────────────────────────────────────────────────
 
-export const money = (v: number | string | null | undefined) =>
-  Number(v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+export const money = (v: number | string | null | undefined) => Number(v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export function phone(v: string | null | undefined) {
   if (!v) return '';
@@ -96,8 +105,7 @@ export function phone(v: string | null | undefined) {
   return v;
 }
 
-export const dateTime = (iso: string | null | undefined) =>
-  iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+export const dateTime = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
 
 /** Mesma chave do banco (lp_crm_wa_key): 55 + DDD + 8 últimos dígitos, por causa do 9º dígito do WhatsApp. */
 export function waKey(v: string | null | undefined) {

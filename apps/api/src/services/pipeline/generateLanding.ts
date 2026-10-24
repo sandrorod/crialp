@@ -49,7 +49,7 @@ function enforceFacts(content: Omit<LandingContent, 'section_order'> & { section
   const photos = c.images.filter((i) => i.usage_allowed && i.type !== 'logo').length;
   const out = {
     ...content,
-    testimonials: c.testimonials.length ? content.testimonials ?? { title: 'O que dizem nossos clientes' } : null,
+    testimonials: c.testimonials.length ? (content.testimonials ?? { title: 'O que dizem nossos clientes' }) : null,
     products: c.products.length ? content.products : null,
     gallery: photos >= 2 ? content.gallery : null,
     hero: { ...content.hero, highlights: content.hero.highlights.slice(0, 4) },

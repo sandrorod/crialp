@@ -49,19 +49,33 @@ export function MyAccountModal({ onClose }: { onClose: () => void }) {
       busy={saving}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button type="submit" form="my-account" loading={saving}>Salvar</Button>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="my-account" loading={saving}>
+            Salvar
+          </Button>
         </>
       }
     >
       <form id="my-account" onSubmit={save} className="space-y-4">
-        <Field label="Nome"><Input required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label="Nome">
+          <Input required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
         <div className="border-t border-zinc-100 pt-4">
-          <p className="mb-3 text-[13px] font-medium text-zinc-700">Trocar senha <span className="font-normal text-zinc-400">(deixe em branco para manter)</span></p>
+          <p className="mb-3 text-[13px] font-medium text-zinc-700">
+            Trocar senha <span className="font-normal text-zinc-400">(deixe em branco para manter)</span>
+          </p>
           <div className="space-y-3">
-            <Field label="Senha atual"><Input type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} /></Field>
-            <Field label="Nova senha" hint="Mínimo de 8 caracteres."><Input type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} /></Field>
-            <Field label="Confirmar nova senha"><Input type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></Field>
+            <Field label="Senha atual">
+              <Input type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+            </Field>
+            <Field label="Nova senha" hint="Mínimo de 8 caracteres.">
+              <Input type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
+            </Field>
+            <Field label="Confirmar nova senha">
+              <Input type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            </Field>
           </div>
         </div>
       </form>

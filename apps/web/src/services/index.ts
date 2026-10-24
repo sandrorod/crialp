@@ -66,13 +66,27 @@ export type { AnalysisResult };
 export const searchService = {
   /** Locais do Google Maps; `page` > 0 busca em anéis mais largos ao redor do mesmo centro */
   places: (q: string, near: { lat: number; lng: number } | null, page = 0, searchId?: string | null, filter: SiteFilter = 'todos') =>
-    api.get<{ items: FoundCompany[]; center: { latitude: number; longitude: number } | null; has_more: boolean; warning: string | null; search_id: string | null }>(
+    api.get<{
+      items: FoundCompany[];
+      center: { latitude: number; longitude: number } | null;
+      has_more: boolean;
+      warning: string | null;
+      search_id: string | null;
+    }>(
       `/company-search${qs({ q, type: 'locais', filter, lat: near?.lat.toFixed(5), lng: near?.lng.toFixed(5), page: String(page), search_id: searchId ?? undefined })}`,
     ),
   /** Histórico de pesquisas salvas */
   history: (q?: string) => api.get<{ items: SavedSearchItem[] }>(`/company-searches${q?.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`),
   saved: (id: string) =>
-    api.get<{ id: string; query: string; center: { latitude: number; longitude: number } | null; page: number; has_more: boolean; results: FoundCompany[]; updated_at: string }>(`/company-searches/${id}`),
+    api.get<{
+      id: string;
+      query: string;
+      center: { latitude: number; longitude: number } | null;
+      page: number;
+      has_more: boolean;
+      results: FoundCompany[];
+      updated_at: string;
+    }>(`/company-searches/${id}`),
   removeSaved: (id: string) => api.del(`/company-searches/${id}`),
   /** "Ignorar" um resultado: some da lista e não aparece mais em novas pesquisas (unignore desfaz) */
   ignore: (c: Pick<FoundCompany, 'url' | 'website' | 'google_url' | 'place_id' | 'name'>) =>
@@ -110,11 +124,17 @@ export const landingPageService = {
   labels: () => api.get<Record<string, string>>('/landing-pages/labels'),
   saveContent: (
     id: string,
-    body: { content: LandingContent; theme: ThemeSettings; seo: { seo_title: string | null; seo_description: string | null; seo_keywords: string[]; og_image: string | null }; note?: string },
+    body: {
+      content: LandingContent;
+      theme: ThemeSettings;
+      seo: { seo_title: string | null; seo_description: string | null; seo_keywords: string[]; og_image: string | null };
+      note?: string;
+    },
   ) => api.put<LandingPage>(`/landing-pages/${id}/content`, body),
   /** Ao ativar, a resposta traz o print da página gerado (e enviado ao Google Drive) */
   /** Aba Publicação: o endereço está livre? */
-  checkSlug: (id: string, slug: string) => api.get<{ available: boolean; error: string | null }>(`/landing-pages/${id}/slug-check?slug=${encodeURIComponent(slug)}`),
+  checkSlug: (id: string, slug: string) =>
+    api.get<{ available: boolean; error: string | null }>(`/landing-pages/${id}/slug-check?slug=${encodeURIComponent(slug)}`),
   setStatus: (id: string, status: LpStatus) => api.patch<LandingPage & { screenshot: LandingScreenshot | null }>(`/landing-pages/${id}/status`, { status }),
   publish: (id: string) => api.post<LandingPage>(`/landing-pages/${id}/publish`),
   updateSettings: (id: string, body: { slug?: string; custom_domain?: string | null }) => api.patch<LandingPage>(`/landing-pages/${id}/settings`, body),
@@ -172,9 +192,9 @@ export const miscService = {
   settings: () =>
     api.get<{ user: User; ai: { provider: string; model: string; configured: boolean }; app_url: string; storage: string; environment: string }>('/settings'),
   /** Chaves com rodízio por provedor (Gemini e RapidAPI) */
-  apiKeys: (provider: KeyProvider) =>
-    api.get<{ keys: AIKeyInfo[]; env_key: { last4: string } | null; provider_active: boolean }>(`/settings/keys/${provider}`),
-  addApiKey: (provider: KeyProvider, key: string, label?: string) => api.post<AIKeyInfo & { moved_from?: string }>(`/settings/keys/${provider}`, { key, label: label || null }),
+  apiKeys: (provider: KeyProvider) => api.get<{ keys: AIKeyInfo[]; env_key: { last4: string } | null; provider_active: boolean }>(`/settings/keys/${provider}`),
+  addApiKey: (provider: KeyProvider, key: string, label?: string) =>
+    api.post<AIKeyInfo & { moved_from?: string }>(`/settings/keys/${provider}`, { key, label: label || null }),
   updateApiKey: (provider: KeyProvider, id: string, body: { active?: boolean; label?: string | null }) => api.patch(`/settings/keys/${provider}/${id}`, body),
   testApiKey: (provider: KeyProvider, id: string) => api.post<{ ok: true }>(`/settings/keys/${provider}/${id}/test`, {}),
   removeApiKey: (provider: KeyProvider, id: string) => api.del(`/settings/keys/${provider}/${id}`),
@@ -215,8 +235,14 @@ export const salesService = {
 export const colorPaletteService = {
   list: () => api.get<ColorPalette[]>('/color-palettes'),
   /** Com o nome de uma combinação já salva, substitui as cores dela */
-  save: (body: { name: string; preset: string; primary: string | null; accent: string | null; background: string | null; sections: Record<string, SectionColors> }) =>
-    api.post<ColorPalette>('/color-palettes', body),
+  save: (body: {
+    name: string;
+    preset: string;
+    primary: string | null;
+    accent: string | null;
+    background: string | null;
+    sections: Record<string, SectionColors>;
+  }) => api.post<ColorPalette>('/color-palettes', body),
   remove: (id: string) => api.del(`/color-palettes/${id}`),
 };
 

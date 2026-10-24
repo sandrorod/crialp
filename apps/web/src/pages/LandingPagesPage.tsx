@@ -50,7 +50,9 @@ export function LandingPagesPage() {
             <option value="">Todas as categorias</option>
             {/* Categoria escolhida continua na lista mesmo que deixe de existir */}
             {[...new Set([...(data?.facets.segments ?? []), ...(segment ? [segment] : [])])].map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
           </Select>
           <Select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
@@ -66,7 +68,9 @@ export function LandingPagesPage() {
         </div>
 
         {error ? (
-          <div className="p-4"><ErrorBlock message={error} onRetry={reload} /></div>
+          <div className="p-4">
+            <ErrorBlock message={error} onRetry={reload} />
+          </div>
         ) : loading && !data ? (
           <LoadingBlock />
         ) : !data?.items.length ? (
@@ -74,63 +78,122 @@ export function LandingPagesPage() {
             icon={<PanelsTopLeft className="size-5" />}
             title="Nenhuma Landing Page encontrada"
             description={search || status || segment || wp ? 'Ajuste a busca ou o filtro.' : 'Gere a primeira Landing Page a partir de uma URL.'}
-            action={!search && !status && !segment && !wp ? <Link to="/nova"><Button icon={<Plus className="size-4" />}>Criar Landing Page</Button></Link> : undefined}
+            action={
+              !search && !status && !segment && !wp ? (
+                <Link to="/nova">
+                  <Button icon={<Plus className="size-4" />}>Criar Landing Page</Button>
+                </Link>
+              ) : undefined
+            }
           />
         ) : (
           <>
-          <div className="overflow-x-auto">
-            <table className="table-cards w-full min-w-[980px] text-sm">
-              <thead>
-                <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
-                  <th className="px-5 py-3">Empresa</th>
-                  <th className="px-3 py-3">Vendedor</th>
-                  <th className="px-3 py-3">Nível</th>
-                  <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3">Criação</th>
-                  <th className="px-3 py-3">Última atualização</th>
-                  <th className="px-5 py-3 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {pager.items.map((lp) => (
-                  <tr key={lp.id} className="transition hover:bg-zinc-50/70">
-                    <td className="px-5 py-3.5">
-                      <Link to={`/landing-pages/${lp.id}`} className="font-medium hover:underline">{lp.company_name}</Link>
-                      <div className="text-xs text-zinc-500">{lp.segment ?? '—'} · v{lp.current_version}</div>
-                    </td>
-                    <td data-label="Vendedor" className="px-3 py-3.5">
-                      <SellerCell landingPageId={lp.id} sellerId={lp.seller_id} sellerName={lp.seller_name} sellers={sellers} canAssign={canAssign} onChanged={reload} />
-                    </td>
-                    <td data-label="Nível" className="px-3 py-3.5">
-                      <ClientLevelCell landingPageId={lp.id} levelId={lp.client_level_id} levelName={lp.client_level_name} levels={clientLevels.levels} canAssign={clientLevels.canAssign} onChanged={reload} />
-                    </td>
-                    <td data-label="Status" className="px-3 py-3.5">
-                      <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />
-                    </td>
-                    <td data-label="Criação" className="px-3 py-3.5 text-zinc-500">{formatDate(lp.created_at)}</td>
-                    <td data-label="Última atualização" className="px-3 py-3.5 text-zinc-500">{formatDate(lp.updated_at, true)}</td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex justify-end gap-1">
-                        <a href={landingPageService.previewUrl(lp.id)} target="_blank" rel="noreferrer" title="Visualizar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
-                          <Eye className="size-4" />
-                        </a>
-                        <button type="button" onClick={() => actions.copyUrl(lp.public_url)} title="Copiar link da Landing Page" aria-label="Copiar link da Landing Page" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
-                          <Share2 className="size-4" />
-                        </button>
-                        <button type="button" onClick={() => navigate(`/landing-pages/${lp.id}`)} title="Editar" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
-                          <Pencil className="size-4" />
-                        </button>
-                        <button type="button" onClick={() => setToDelete(lp)} title="Excluir" className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600">
-                          <Trash2 className="size-4" />
-                        </button>
-                      </div>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="table-cards w-full min-w-[980px] text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
+                    <th className="px-5 py-3">Empresa</th>
+                    <th className="px-3 py-3">Vendedor</th>
+                    <th className="px-3 py-3">Nível</th>
+                    <th className="px-3 py-3">Status</th>
+                    <th className="px-3 py-3">Criação</th>
+                    <th className="px-3 py-3">Última atualização</th>
+                    <th className="px-5 py-3 text-right">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Pagination page={pager.page} pages={pager.pages} total={pager.total} pageSize={pager.pageSize} onPage={(p) => { pager.setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {pager.items.map((lp) => (
+                    <tr key={lp.id} className="transition hover:bg-zinc-50/70">
+                      <td className="px-5 py-3.5">
+                        <Link to={`/landing-pages/${lp.id}`} className="font-medium hover:underline">
+                          {lp.company_name}
+                        </Link>
+                        <div className="text-xs text-zinc-500">
+                          {lp.segment ?? '—'} · v{lp.current_version}
+                        </div>
+                      </td>
+                      <td data-label="Vendedor" className="px-3 py-3.5">
+                        <SellerCell
+                          landingPageId={lp.id}
+                          sellerId={lp.seller_id}
+                          sellerName={lp.seller_name}
+                          sellers={sellers}
+                          canAssign={canAssign}
+                          onChanged={reload}
+                        />
+                      </td>
+                      <td data-label="Nível" className="px-3 py-3.5">
+                        <ClientLevelCell
+                          landingPageId={lp.id}
+                          levelId={lp.client_level_id}
+                          levelName={lp.client_level_name}
+                          levels={clientLevels.levels}
+                          canAssign={clientLevels.canAssign}
+                          onChanged={reload}
+                        />
+                      </td>
+                      <td data-label="Status" className="px-3 py-3.5">
+                        <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />
+                      </td>
+                      <td data-label="Criação" className="px-3 py-3.5 text-zinc-500">
+                        {formatDate(lp.created_at)}
+                      </td>
+                      <td data-label="Última atualização" className="px-3 py-3.5 text-zinc-500">
+                        {formatDate(lp.updated_at, true)}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex justify-end gap-1">
+                          <a
+                            href={landingPageService.previewUrl(lp.id)}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Visualizar"
+                            className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink"
+                          >
+                            <Eye className="size-4" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => actions.copyUrl(lp.public_url)}
+                            title="Copiar link da Landing Page"
+                            aria-label="Copiar link da Landing Page"
+                            className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink"
+                          >
+                            <Share2 className="size-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/landing-pages/${lp.id}`)}
+                            title="Editar"
+                            className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink"
+                          >
+                            <Pencil className="size-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setToDelete(lp)}
+                            title="Excluir"
+                            className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination
+              page={pager.page}
+              pages={pager.pages}
+              total={pager.total}
+              pageSize={pager.pageSize}
+              onPage={(p) => {
+                pager.setPage(p);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           </>
         )}
       </Card>
@@ -140,8 +203,7 @@ export function LandingPagesPage() {
         title="Excluir Landing Page?"
         description={
           <>
-            A página de <strong>{toDelete?.company_name}</strong> e todo o histórico de versões serão excluídos. Os dados da empresa
-            são mantidos.
+            A página de <strong>{toDelete?.company_name}</strong> e todo o histórico de versões serão excluídos. Os dados da empresa são mantidos.
           </>
         }
         confirmLabel="Excluir"

@@ -31,35 +31,67 @@ const WIDTHS: { value: BlockWidth; label: string }[] = [
 export function newBlock(type: BlockType, width?: BlockWidth): SectionBlock {
   const id = newId();
   switch (type) {
-    case 'heading': return { id, type, width: width ?? 'full', text: 'Novo título' };
-    case 'text': return { id, type, width: width ?? 'full', text: 'Escreva o texto aqui.' };
-    case 'image': return { id, type, width: width ?? 'full', url: '', alt: '', caption: null };
-    case 'icon': return { id, type, width: width ?? 'third', icon: 'star', title: 'Título do destaque', text: null };
-    case 'button': return { id, type, width: width ?? 'full', label: 'Fale conosco', url: '' };
-    case 'divider': return { id, type, width: 'full' };
+    case 'heading':
+      return { id, type, width: width ?? 'full', text: 'Novo título' };
+    case 'text':
+      return { id, type, width: width ?? 'full', text: 'Escreva o texto aqui.' };
+    case 'image':
+      return { id, type, width: width ?? 'full', url: '', alt: '', caption: null };
+    case 'icon':
+      return { id, type, width: width ?? 'third', icon: 'star', title: 'Título do destaque', text: null };
+    case 'button':
+      return { id, type, width: width ?? 'full', label: 'Fale conosco', url: '' };
+    case 'divider':
+      return { id, type, width: 'full' };
   }
 }
 
 /** Modelos de seção prontos (criados com elementos de exemplo). */
 export const SECTION_TEMPLATES: { key: string; label: string; description: string; build: () => Omit<CustomSection, 'id'> }[] = [
-  { key: 'blank', label: 'Em branco', description: 'Só o título; adicione os elementos que quiser.', build: () => ({ eyebrow: null, title: 'Nova seção', paragraphs: [], items: [], blocks: [], align: 'left' }) },
+  {
+    key: 'blank',
+    label: 'Em branco',
+    description: 'Só o título; adicione os elementos que quiser.',
+    build: () => ({ eyebrow: null, title: 'Nova seção', paragraphs: [], items: [], blocks: [], align: 'left' }),
+  },
   {
     key: 'text-image',
     label: 'Texto e imagem',
     description: 'Texto de um lado, imagem do outro.',
-    build: () => ({ eyebrow: null, title: 'Nova seção', paragraphs: [], items: [], blocks: [newBlock('text', 'half'), newBlock('image', 'half')], align: 'left' }),
+    build: () => ({
+      eyebrow: null,
+      title: 'Nova seção',
+      paragraphs: [],
+      items: [],
+      blocks: [newBlock('text', 'half'), newBlock('image', 'half')],
+      align: 'left',
+    }),
   },
   {
     key: 'icons',
     label: 'Cards com ícones',
     description: 'Três destaques, cada um com ícone, título e descrição.',
-    build: () => ({ eyebrow: null, title: 'Nova seção', paragraphs: [], items: [], blocks: [newBlock('icon'), newBlock('icon'), newBlock('icon')], align: 'left' }),
+    build: () => ({
+      eyebrow: null,
+      title: 'Nova seção',
+      paragraphs: [],
+      items: [],
+      blocks: [newBlock('icon'), newBlock('icon'), newBlock('icon')],
+      align: 'left',
+    }),
   },
   {
     key: 'photos',
     label: 'Galeria de imagens',
     description: 'Três imagens lado a lado (adicione mais se quiser).',
-    build: () => ({ eyebrow: null, title: 'Nova seção', paragraphs: [], items: [], blocks: [newBlock('image', 'third'), newBlock('image', 'third'), newBlock('image', 'third')], align: 'left' }),
+    build: () => ({
+      eyebrow: null,
+      title: 'Nova seção',
+      paragraphs: [],
+      items: [],
+      blocks: [newBlock('image', 'third'), newBlock('image', 'third'), newBlock('image', 'third')],
+      align: 'left',
+    }),
   },
   {
     key: 'image',
@@ -80,7 +112,9 @@ export function NewSectionButton({ onCreate }: { onCreate: (s: Omit<CustomSectio
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
-      <Button type="button" variant="secondary" size="sm" icon={<Plus className="size-3.5" />} onClick={() => setOpen((o) => !o)}>Nova seção</Button>
+      <Button type="button" variant="secondary" size="sm" icon={<Plus className="size-3.5" />} onClick={() => setOpen((o) => !o)}>
+        Nova seção
+      </Button>
       {open ? (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
@@ -135,14 +169,31 @@ function ImageField({ value, onChange, company }: { value: string; onChange: (ur
       {value ? (
         <div className="relative w-40">
           <img src={value} alt="" referrerPolicy="no-referrer" className="h-24 w-40 rounded-md object-cover ring-1 ring-zinc-200" />
-          <button type="button" onClick={() => confirmDelete('esta imagem do elemento') && onChange('')} className="absolute right-1 top-1 rounded bg-white/90 p-0.5 text-zinc-600 hover:text-red-600" aria-label="Tirar imagem"><X className="size-3.5" /></button>
+          <button
+            type="button"
+            onClick={() => confirmDelete('esta imagem do elemento') && onChange('')}
+            className="absolute right-1 top-1 rounded bg-white/90 p-0.5 text-zinc-600 hover:text-red-600"
+            aria-label="Tirar imagem"
+          >
+            <X className="size-3.5" />
+          </button>
         </div>
       ) : null}
       <div className="flex flex-wrap gap-2">
-        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(e) => void upload(e.target.files?.[0])} />
-        <Button type="button" variant="secondary" size="sm" loading={uploading} icon={<Upload className="size-3.5" />} onClick={() => fileRef.current?.click()}>Enviar imagem</Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className="hidden"
+          onChange={(e) => void upload(e.target.files?.[0])}
+        />
+        <Button type="button" variant="secondary" size="sm" loading={uploading} icon={<Upload className="size-3.5" />} onClick={() => fileRef.current?.click()}>
+          Enviar imagem
+        </Button>
         {photos.length ? (
-          <Button type="button" variant="secondary" size="sm" icon={<ImageIcon className="size-3.5" />} onClick={() => setPicking((p) => !p)}>Imagens da empresa</Button>
+          <Button type="button" variant="secondary" size="sm" icon={<ImageIcon className="size-3.5" />} onClick={() => setPicking((p) => !p)}>
+            Imagens da empresa
+          </Button>
         ) : null}
       </div>
       {picking ? (
@@ -209,7 +260,17 @@ function BlockFields({ block: b, onChange, company }: { block: SectionBlock; onC
 }
 
 /** Lista de elementos da seção: adicionar, editar, reordenar e excluir. */
-export function BlocksEditor({ blocks, onChange, company, path }: { blocks: SectionBlock[]; onChange: (b: SectionBlock[]) => void; company?: Company | null; path?: string }) {
+export function BlocksEditor({
+  blocks,
+  onChange,
+  company,
+  path,
+}: {
+  blocks: SectionBlock[];
+  onChange: (b: SectionBlock[]) => void;
+  company?: Company | null;
+  path?: string;
+}) {
   const update = (i: number, b: SectionBlock) => onChange(blocks.map((x, j) => (j === i ? b : x)));
   const move = (i: number, dir: -1 | 1) => {
     const j = i + dir;
@@ -226,13 +287,33 @@ export function BlocksEditor({ blocks, onChange, company, path }: { blocks: Sect
           <div className="flex items-center gap-1.5">
             <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{TYPE_LABEL[b.type]}</span>
             {b.type !== 'divider' ? (
-              <select className="h-7 rounded-md border border-zinc-200 bg-white px-1.5 text-xs text-zinc-700" value={b.width} onChange={(e) => update(i, { ...b, width: e.target.value as BlockWidth })} aria-label="Largura">
-                {WIDTHS.map((w) => <option key={w.value} value={w.value}>{w.label}</option>)}
+              <select
+                className="h-7 rounded-md border border-zinc-200 bg-white px-1.5 text-xs text-zinc-700"
+                value={b.width}
+                onChange={(e) => update(i, { ...b, width: e.target.value as BlockWidth })}
+                aria-label="Largura"
+              >
+                {WIDTHS.map((w) => (
+                  <option key={w.value} value={w.value}>
+                    {w.label}
+                  </option>
+                ))}
               </select>
             ) : null}
-            <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-100" onClick={() => move(i, -1)} aria-label="Subir"><ArrowUp className="size-3.5" /></button>
-            <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-100" onClick={() => move(i, 1)} aria-label="Descer"><ArrowDown className="size-3.5" /></button>
-            <button type="button" className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600" onClick={() => confirmDelete(`este elemento (${TYPE_LABEL[b.type].toLowerCase()})`) && onChange(blocks.filter((_, j) => j !== i))} aria-label="Excluir elemento"><Trash2 className="size-3.5" /></button>
+            <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-100" onClick={() => move(i, -1)} aria-label="Subir">
+              <ArrowUp className="size-3.5" />
+            </button>
+            <button type="button" className="rounded p-1 text-zinc-500 hover:bg-zinc-100" onClick={() => move(i, 1)} aria-label="Descer">
+              <ArrowDown className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600"
+              onClick={() => confirmDelete(`este elemento (${TYPE_LABEL[b.type].toLowerCase()})`) && onChange(blocks.filter((_, j) => j !== i))}
+              aria-label="Excluir elemento"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
           </div>
           <BlockFields block={b} onChange={(nb) => update(i, nb)} company={company} />
         </div>

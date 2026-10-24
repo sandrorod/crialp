@@ -37,10 +37,14 @@ export async function saveSources(companyId: string, payload: SourcePayload) {
   await transaction(async (db) => {
     await db.query('delete from company_sources where company_id = $1', [companyId]);
     for (const [i, p] of payload.pages.entries()) {
-      await db.query(
-        `insert into company_sources (company_id, url, title, description, content, position) values ($1,$2,$3,$4,$5,$6)`,
-        [companyId, p.url, p.title || null, p.description || null, p.content, i],
-      );
+      await db.query(`insert into company_sources (company_id, url, title, description, content, position) values ($1,$2,$3,$4,$5,$6)`, [
+        companyId,
+        p.url,
+        p.title || null,
+        p.description || null,
+        p.content,
+        i,
+      ]);
     }
     await db.query('update companies set source_data = $2 where id = $1', [companyId, JSON.stringify(payload.data)]);
   });

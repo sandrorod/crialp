@@ -7,7 +7,11 @@ const HEX = /^#[0-9a-f]{6}$/i;
 function mix(a: string, b: string, amount: number) {
   const A = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
   const B = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
-  return `#${A.map((c, i) => Math.round(c + (B[i] - c) * amount).toString(16).padStart(2, '0')).join('')}`;
+  return `#${A.map((c, i) =>
+    Math.round(c + (B[i] - c) * amount)
+      .toString(16)
+      .padStart(2, '0'),
+  ).join('')}`;
 }
 
 /** Clareado (misturado ao branco) → cor pura → escurecido (misturado ao preto). */

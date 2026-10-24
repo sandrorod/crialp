@@ -2,40 +2,71 @@ import { z } from 'zod';
 
 // ─── Vocabulários controlados ───────────────────────────────────────
 export const DESIGN_PRESETS = [
-  'health',       // odontologia, clínicas, saúde
-  'legal',        // advocacia, contabilidade, consultoria
-  'fitness',      // academias, esportes
-  'food',         // restaurantes, cafés, padarias
-  'realestate',   // imobiliárias, arquitetura, construtoras
-  'beauty',       // estética, salões, spas
-  'automotive',   // oficinas, auto centers, indústria
-  'tech',         // software, agências, marketing
-  'education',    // escolas, cursos
+  'health', // odontologia, clínicas, saúde
+  'legal', // advocacia, contabilidade, consultoria
+  'fitness', // academias, esportes
+  'food', // restaurantes, cafés, padarias
+  'realestate', // imobiliárias, arquitetura, construtoras
+  'beauty', // estética, salões, spas
+  'automotive', // oficinas, auto centers, indústria
+  'tech', // software, agências, marketing
+  'education', // escolas, cursos
   'professional', // serviços em geral (padrão)
   // Paletas de estilo (servem a qualquer segmento)
-  'ocean',        // azul-petróleo e âmbar, leve
-  'forest',       // verde natural, sustentável, pet, jardinagem
-  'terracotta',   // terracota quente, artesanal, decoração
-  'lavender',     // lilás e rosa, delicado, bem-estar, infantil
-  'graphite',     // preto e branco minimalista, estúdios, arquitetura
-  'coral',        // coral vibrante, eventos, moda, jovem
-  'mint',         // verde-menta, fresco, saúde, limpeza
-  'midnight',     // azul-noite e dourado, escuro e premium
-  'sand',         // bege e marrom, luxo discreto
-  'royal',        // azul-marinho e dourado, institucional
+  'ocean', // azul-petróleo e âmbar, leve
+  'forest', // verde natural, sustentável, pet, jardinagem
+  'terracotta', // terracota quente, artesanal, decoração
+  'lavender', // lilás e rosa, delicado, bem-estar, infantil
+  'graphite', // preto e branco minimalista, estúdios, arquitetura
+  'coral', // coral vibrante, eventos, moda, jovem
+  'mint', // verde-menta, fresco, saúde, limpeza
+  'midnight', // azul-noite e dourado, escuro e premium
+  'sand', // bege e marrom, luxo discreto
+  'royal', // azul-marinho e dourado, institucional
 ] as const;
 export type DesignPreset = (typeof DESIGN_PRESETS)[number];
 
-export const SECTION_KEYS = [
-  'about', 'services', 'differentials', 'products', 'gallery', 'testimonials', 'reviews', 'faq', 'contact', 'final_cta',
-] as const;
+export const SECTION_KEYS = ['about', 'services', 'differentials', 'products', 'gallery', 'testimonials', 'reviews', 'faq', 'contact', 'final_cta'] as const;
 export type SectionKey = (typeof SECTION_KEYS)[number];
 
 export const ICONS = [
-  'check', 'star', 'shield', 'clock', 'heart', 'users', 'sparkles', 'calendar', 'briefcase', 'home', 'building',
-  'wrench', 'zap', 'target', 'award', 'leaf', 'truck', 'smile', 'package', 'chart', 'lightbulb', 'scale',
-  'dumbbell', 'utensils', 'car', 'scissors', 'stethoscope', 'graduation', 'code', 'camera', 'globe', 'tooth',
-  'sliders', 'phone', 'mail', 'map-pin', 'message',
+  'check',
+  'star',
+  'shield',
+  'clock',
+  'heart',
+  'users',
+  'sparkles',
+  'calendar',
+  'briefcase',
+  'home',
+  'building',
+  'wrench',
+  'zap',
+  'target',
+  'award',
+  'leaf',
+  'truck',
+  'smile',
+  'package',
+  'chart',
+  'lightbulb',
+  'scale',
+  'dumbbell',
+  'utensils',
+  'car',
+  'scissors',
+  'stethoscope',
+  'graduation',
+  'code',
+  'camera',
+  'globe',
+  'tooth',
+  'sliders',
+  'phone',
+  'mail',
+  'map-pin',
+  'message',
 ] as const;
 export type IconName = (typeof ICONS)[number];
 
@@ -172,9 +203,7 @@ export const LandingContentSchema = z.object({
     .nullable(),
   gallery: z.object({ title: z.string(), subtitle: z.string().nullable() }).nullable(),
   testimonials: z.object({ title: z.string() }).nullable(),
-  faq: z
-    .object({ title: z.string(), items: z.array(z.object({ question: z.string(), answer: z.string() })) })
-    .nullable(),
+  faq: z.object({ title: z.string(), items: z.array(z.object({ question: z.string(), answer: z.string() })) }).nullable(),
   contact: z.object({ title: z.string(), subtitle: z.string().nullable() }),
   final_cta: z.object({ title: z.string(), subtitle: z.string().nullable(), cta: z.string() }),
   section_order: z.array(z.enum(SECTION_KEYS)),
@@ -195,7 +224,13 @@ export const SectionBlockSchema = z.discriminatedUnion('type', [
     alt: z.string().max(300).default(''),
     caption: z.string().max(300).nullable().default(null),
   }),
-  z.object({ ...blockBase, type: z.literal('icon'), icon: z.string().max(40), title: z.string().max(200), text: z.string().max(2000).nullable().default(null) }),
+  z.object({
+    ...blockBase,
+    type: z.literal('icon'),
+    icon: z.string().max(40),
+    title: z.string().max(200),
+    text: z.string().max(2000).nullable().default(null),
+  }),
   // Link vazio = contato principal da página (WhatsApp, telefone ou e-mail)
   z.object({ ...blockBase, type: z.literal('button'), label: z.string().max(120), url: z.string().max(2048).default('') }),
   z.object({ ...blockBase, type: z.literal('divider') }),
@@ -233,7 +268,15 @@ export const LandingContentEditSchema = LandingContentSchema.extend({
   differentials: differentialsSchema(editIcon),
   labels: z.record(z.string(), z.string().max(400)).optional(),
   custom_sections: z.array(CustomSectionSchema).max(20).optional(),
-  overrides: z.record(z.string().regex(/^[a-z_]+(\.[a-z0-9_-]+){1,2}$/i).max(100), z.string().max(4000)).optional(),
+  overrides: z
+    .record(
+      z
+        .string()
+        .regex(/^[a-z_]+(\.[a-z0-9_-]+){1,2}$/i)
+        .max(100),
+      z.string().max(4000),
+    )
+    .optional(),
   section_order: z
     .array(z.string().regex(/^(about|services|differentials|products|gallery|testimonials|reviews|faq|contact|final_cta|custom:[a-z0-9-]{1,40})$/))
     .max(60),

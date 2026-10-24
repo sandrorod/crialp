@@ -7,7 +7,16 @@ import { AppError, notFound } from '../lib/errors.js';
 import { normalizeInputUrl } from '../lib/url.js';
 import { CompanyInputSchema, parseBody, safeUrl, uuidParam, type CompanyInput } from '../lib/validation.js';
 import { authUser } from '../middleware/auth.js';
-import { appendCompanyImages, createCompany, deleteCompany, findDuplicateCompany, getCompanyFull, listCompanies, removeCompanyImages, updateCompany } from '../repositories/companies.js';
+import {
+  appendCompanyImages,
+  createCompany,
+  deleteCompany,
+  findDuplicateCompany,
+  getCompanyFull,
+  listCompanies,
+  removeCompanyImages,
+  updateCompany,
+} from '../repositories/companies.js';
 import { saveVersion, type LandingPageRow } from '../repositories/landingPages.js';
 import { refreshSnapshot } from '../landing/publish.js';
 import { aiService } from '../services/ai/index.js';
@@ -82,10 +91,7 @@ companiesRouter.get('/:id', async (req, res) => {
 
 companiesRouter.post('/', async (req, res) => {
   const user = authUser(req);
-  const body = parseBody(
-    CompanyInputSchema.extend({ source_meta: z.record(z.string(), z.any()).optional(), analysis_job_id: uuidParam.optional() }),
-    req.body,
-  );
+  const body = parseBody(CompanyInputSchema.extend({ source_meta: z.record(z.string(), z.any()).optional(), analysis_job_id: uuidParam.optional() }), req.body);
   const { source_meta, analysis_job_id, ...input } = body;
   const dup = await findDuplicateCompany(user.organizationId, {
     url: input.reference_url,
@@ -131,7 +137,12 @@ companiesRouter.post('/:id/images', async (req, res) => {
         .array(
           z.object({
             url: safeUrl.refine((v) => !!v, 'URL da imagem inválida.').transform((v) => v as string),
-            alt_text: z.string().trim().max(300).nullish().transform((v) => v || null),
+            alt_text: z
+              .string()
+              .trim()
+              .max(300)
+              .nullish()
+              .transform((v) => v || null),
             source: z.enum(['upload', 'manual']).default('manual'),
           }),
         )

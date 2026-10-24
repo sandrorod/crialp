@@ -24,14 +24,39 @@ export function normalizeInputUrl(raw: string): URL {
 // 169.254.169.254 e fd00:ec2::254), CGNAT, multicast, reservadas e de documentação/testes.
 const BLOCKED = new net.BlockList();
 for (const [addr, prefix] of [
-  ['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8], ['169.254.0.0', 16], ['172.16.0.0', 12],
-  ['192.0.0.0', 24], ['192.0.2.0', 24], ['192.88.99.0', 24], ['192.168.0.0', 16], ['198.18.0.0', 15],
-  ['198.51.100.0', 24], ['203.0.113.0', 24], ['224.0.0.0', 4], ['240.0.0.0', 4],
-] as const) BLOCKED.addSubnet(addr, prefix, 'ipv4');
+  ['0.0.0.0', 8],
+  ['10.0.0.0', 8],
+  ['100.64.0.0', 10],
+  ['127.0.0.0', 8],
+  ['169.254.0.0', 16],
+  ['172.16.0.0', 12],
+  ['192.0.0.0', 24],
+  ['192.0.2.0', 24],
+  ['192.88.99.0', 24],
+  ['192.168.0.0', 16],
+  ['198.18.0.0', 15],
+  ['198.51.100.0', 24],
+  ['203.0.113.0', 24],
+  ['224.0.0.0', 4],
+  ['240.0.0.0', 4],
+] as const)
+  BLOCKED.addSubnet(addr, prefix, 'ipv4');
 for (const [addr, prefix] of [
-  ['::', 128], ['::1', 128], ['::', 96] /* IPv4-compatível (obsoleto) */, ['64:ff9b::', 96] /* NAT64 */, ['64:ff9b:1::', 48],
-  ['100::', 64], ['2001::', 23], ['2001:db8::', 32], ['2002::', 16] /* 6to4 */, ['fc00::', 7], ['fe80::', 10], ['fec0::', 10], ['ff00::', 8],
-] as const) BLOCKED.addSubnet(addr, prefix, 'ipv6');
+  ['::', 128],
+  ['::1', 128],
+  ['::', 96] /* IPv4-compatível (obsoleto) */,
+  ['64:ff9b::', 96] /* NAT64 */,
+  ['64:ff9b:1::', 48],
+  ['100::', 64],
+  ['2001::', 23],
+  ['2001:db8::', 32],
+  ['2002::', 16] /* 6to4 */,
+  ['fc00::', 7],
+  ['fe80::', 10],
+  ['fec0::', 10],
+  ['ff00::', 8],
+] as const)
+  BLOCKED.addSubnet(addr, prefix, 'ipv6');
 
 /** IPv4 embutido num IPv6 "mapeado" (::ffff:7f00:1 ou ::ffff:127.0.0.1), como a URL normaliza. */
 function mappedIPv4(ip: string): string | null {

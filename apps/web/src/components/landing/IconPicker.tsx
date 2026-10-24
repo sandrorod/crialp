@@ -56,7 +56,9 @@ export function IconPickerModal({
     return [
       {
         label: 'Resultados',
-        icons: cats.flatMap((c) => (c.label.toLowerCase().includes(q) ? c.icons : c.icons.filter((n) => n.replace(/-/g, ' ').includes(q)))).filter((n) => !seen.has(n) && seen.add(n)),
+        icons: cats
+          .flatMap((c) => (c.label.toLowerCase().includes(q) ? c.icons : c.icons.filter((n) => n.replace(/-/g, ' ').includes(q))))
+          .filter((n) => !seen.has(n) && seen.add(n)),
       },
     ];
   }, [data, query, category]);
@@ -72,7 +74,10 @@ export function IconPickerModal({
     <Modal open={open} title="Escolher ícone" description="Os ícones aparecem nas cores da página." onClose={close} size="lg">
       {error ? (
         <p className="text-sm text-red-600">
-          Não foi possível carregar os ícones. <button type="button" className="underline" onClick={() => void reload()}>Tentar de novo</button>
+          Não foi possível carregar os ícones.{' '}
+          <button type="button" className="underline" onClick={() => void reload()}>
+            Tentar de novo
+          </button>
         </p>
       ) : !data ? (
         <p className="text-sm text-zinc-500">Carregando ícones…</p>
@@ -88,7 +93,10 @@ export function IconPickerModal({
                 key={label ?? 'todos'}
                 type="button"
                 onClick={() => setCategory(label)}
-                className={cn('shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium', category === label ? 'bg-ink text-white' : 'bg-zinc-100 text-zinc-600 hover:text-ink')}
+                className={cn(
+                  'shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium',
+                  category === label ? 'bg-ink text-white' : 'bg-zinc-100 text-zinc-600 hover:text-ink',
+                )}
               >
                 {label ?? 'Todos'}
               </button>
@@ -109,9 +117,16 @@ export function IconPickerModal({
                           onPick(name);
                           close();
                         }}
-                        className={cn('grid aspect-square place-items-center rounded-lg p-1 transition hover:bg-zinc-100', name === value && 'ring-2 ring-brand-500')}
+                        className={cn(
+                          'grid aspect-square place-items-center rounded-lg p-1 transition hover:bg-zinc-100',
+                          name === value && 'ring-2 ring-brand-500',
+                        )}
                       >
-                        <IconSvg svg={data.svgs[name]} style={boxStyle} className={cn('size-11 [&_svg]:size-6', !boxStyle && 'rounded-lg bg-brand-50 text-brand-600')} />
+                        <IconSvg
+                          svg={data.svgs[name]}
+                          style={boxStyle}
+                          className={cn('size-11 [&_svg]:size-6', !boxStyle && 'rounded-lg bg-brand-50 text-brand-600')}
+                        />
                       </button>
                     ))}
                   </div>

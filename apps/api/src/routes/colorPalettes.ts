@@ -11,7 +11,12 @@ import { normalizeSectionColors } from '../landing/sectionColors.js';
 export const colorPalettesRouter = Router();
 
 const COLUMNS = 'id, name, preset, primary_color as primary, accent_color as accent, background_color as background, sections, created_at, updated_at';
-const hex = z.string().regex(/^#[0-9a-f]{6}$/i, 'Cor inválida.').transform((v) => v.toLowerCase()).nullish().transform((v) => v ?? null);
+const hex = z
+  .string()
+  .regex(/^#[0-9a-f]{6}$/i, 'Cor inválida.')
+  .transform((v) => v.toLowerCase())
+  .nullish()
+  .transform((v) => v ?? null);
 
 const PaletteSchema = z.object({
   name: z.string().trim().min(1, 'Informe o nome da combinação.').max(60),
@@ -20,9 +25,10 @@ const PaletteSchema = z.object({
   accent: hex,
   background: hex,
   // Seções criadas na própria página (custom:<id>) não existem nas outras: ficam de fora
-  sections: z.record(z.string(), z.unknown()).nullish().transform((v) =>
-    Object.fromEntries(Object.entries(normalizeSectionColors(v ?? {})).filter(([k]) => !k.startsWith('custom:'))),
-  ),
+  sections: z
+    .record(z.string(), z.unknown())
+    .nullish()
+    .transform((v) => Object.fromEntries(Object.entries(normalizeSectionColors(v ?? {})).filter(([k]) => !k.startsWith('custom:')))),
 });
 
 colorPalettesRouter.get('/', async (req, res) => {

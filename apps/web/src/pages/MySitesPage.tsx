@@ -34,7 +34,13 @@ export function MySitesPage() {
           <EmptyState
             icon={<PanelsTopLeft className="size-5" />}
             title={term ? 'Nada encontrado' : seller ? 'Nenhuma Landing Page atribuída' : 'Nenhum site'}
-            description={term ? 'Ajuste a busca.' : seller ? 'As Landing Pages atribuídas a você aparecem aqui.' : 'Esta conta não está ligada a nenhum site. Fale com o administrador.'}
+            description={
+              term
+                ? 'Ajuste a busca.'
+                : seller
+                  ? 'As Landing Pages atribuídas a você aparecem aqui.'
+                  : 'Esta conta não está ligada a nenhum site. Fale com o administrador.'
+            }
           />
         </Card>
       ) : (
@@ -45,7 +51,12 @@ export function MySitesPage() {
                 <h3 className="min-w-0 font-semibold leading-snug">{s.title}</h3>
                 <StatusBadge status={s.status} />
               </div>
-              <a href={s.public_url} target="_blank" rel="noreferrer" className="mt-1.5 inline-flex min-w-0 items-center gap-1 break-all text-xs text-brand-600 hover:underline">
+              <a
+                href={s.public_url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1.5 inline-flex min-w-0 items-center gap-1 break-all text-xs text-brand-600 hover:underline"
+              >
                 {s.public_url.replace(/^https?:\/\//, '')} <ExternalLink className="size-3 flex-none" />
               </a>
               <p className="mt-1 text-xs text-zinc-500">Atualizado {formatDate(s.updated_at, true)}</p>

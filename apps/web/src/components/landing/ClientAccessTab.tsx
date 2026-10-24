@@ -61,8 +61,9 @@ export function ClientAccessTab({ lpId }: { lpId: string }) {
       <div>
         <h4 className="mb-1 text-sm font-semibold">Acesso do cliente</h4>
         <p className="text-xs text-zinc-500">
-          Com este e-mail e senha o cliente entra em <strong>{window.location.origin}/admin</strong> e vê apenas este site: edita textos, fotos, cores e
-          seções, escolhe o endereço da página e salva. Usando o mesmo e-mail em outras páginas, o cliente vê a lista dos seus sites e escolhe qual editar. Publicar, desativar, excluir, domínio personalizado e regenerar continuam só com a sua equipe.
+          Com este e-mail e senha o cliente entra em <strong>{window.location.origin}/admin</strong> e vê apenas este site: edita textos, fotos, cores e seções,
+          escolhe o endereço da página e salva. Usando o mesmo e-mail em outras páginas, o cliente vê a lista dos seus sites e escolhe qual editar. Publicar,
+          desativar, excluir, domínio personalizado e regenerar continuam só com a sua equipe.
         </p>
       </div>
       {client ? (
@@ -72,8 +73,8 @@ export function ClientAccessTab({ lpId }: { lpId: string }) {
       ) : null}
       {client?.other_sites.length ? (
         <p className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-          Este e-mail também acessa: <strong>{client.other_sites.map((s) => s.title).join(', ')}</strong>. Ao entrar, o cliente escolhe qual site editar. A senha é a
-          mesma para todos.
+          Este e-mail também acessa: <strong>{client.other_sites.map((s) => s.title).join(', ')}</strong>. Ao entrar, o cliente escolhe qual site editar. A
+          senha é a mesma para todos.
         </p>
       ) : null}
       <form onSubmit={save} className="space-y-3">
@@ -85,19 +86,33 @@ export function ClientAccessTab({ lpId }: { lpId: string }) {
         </Field>
         <Field
           label={client ? 'Nova senha' : 'Senha'}
-          hint={client ? 'Deixe em branco para manter a senha atual.' : 'Mínimo de 8 caracteres. Se o e-mail já acessa outro site, deixe em branco para manter a senha dele.'}
+          hint={
+            client
+              ? 'Deixe em branco para manter a senha atual.'
+              : 'Mínimo de 8 caracteres. Se o e-mail já acessa outro site, deixe em branco para manter a senha dele.'
+          }
         >
           <Input type="text" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} autoComplete="new-password" />
         </Field>
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" loading={saving} icon={<KeyRound className="size-4" />}>{client ? 'Salvar acesso' : 'Criar acesso'}</Button>
-          {client ? <Button type="button" variant="ghost" onClick={() => setRemoveOpen(true)} icon={<Trash2 className="size-4" />}>Remover acesso</Button> : null}
+          <Button type="submit" loading={saving} icon={<KeyRound className="size-4" />}>
+            {client ? 'Salvar acesso' : 'Criar acesso'}
+          </Button>
+          {client ? (
+            <Button type="button" variant="ghost" onClick={() => setRemoveOpen(true)} icon={<Trash2 className="size-4" />}>
+              Remover acesso
+            </Button>
+          ) : null}
         </div>
       </form>
       <ConfirmDialog
         open={removeOpen}
         title="Remover acesso do cliente?"
-        description={client?.other_sites.length ? 'O cliente deixa de ver este site, mas continua entrando nos outros sites dele. O site não é alterado.' : 'O cliente não conseguirá mais entrar no painel. O site não é alterado.'}
+        description={
+          client?.other_sites.length
+            ? 'O cliente deixa de ver este site, mas continua entrando nos outros sites dele. O site não é alterado.'
+            : 'O cliente não conseguirá mais entrar no painel. O site não é alterado.'
+        }
         confirmLabel="Remover"
         danger
         loading={removing}
@@ -157,7 +172,9 @@ export function OwnAccessTab() {
         <Field label="Nome">
           <Input value={name} onChange={(e) => setName(e.target.value)} required maxLength={120} />
         </Field>
-        <Button type="submit" loading={savingName} disabled={!name.trim() || name.trim() === user.name}>Salvar nome</Button>
+        <Button type="submit" loading={savingName} disabled={!name.trim() || name.trim() === user.name}>
+          Salvar nome
+        </Button>
       </form>
       <form onSubmit={savePassword} className="space-y-3 border-t border-zinc-100 pt-5">
         <h4 className="text-sm font-semibold">Alterar senha</h4>
@@ -167,7 +184,9 @@ export function OwnAccessTab() {
         <Field label="Nova senha" hint="Mínimo de 8 caracteres.">
           <Input type="password" value={next} onChange={(e) => setNext(e.target.value)} required minLength={8} autoComplete="new-password" />
         </Field>
-        <Button type="submit" loading={savingPassword} icon={<KeyRound className="size-4" />}>Alterar senha</Button>
+        <Button type="submit" loading={savingPassword} icon={<KeyRound className="size-4" />}>
+          Alterar senha
+        </Button>
       </form>
     </div>
   );

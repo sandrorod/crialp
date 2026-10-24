@@ -403,9 +403,28 @@ export interface ElementColor {
 }
 
 export type TextEffect =
-  | 'fade' | 'up' | 'down' | 'left' | 'right' | 'zoom' | 'zoomout' | 'bounce' | 'blur' | 'flip' | 'rotate' | 'swing' | 'expand' | 'typing'
-  | 'shake' | 'rubber' | 'tada'
-  | 'pulse' | 'heartbeat' | 'float' | 'glow' | 'blink';
+  | 'fade'
+  | 'up'
+  | 'down'
+  | 'left'
+  | 'right'
+  | 'zoom'
+  | 'zoomout'
+  | 'bounce'
+  | 'blur'
+  | 'flip'
+  | 'rotate'
+  | 'swing'
+  | 'expand'
+  | 'typing'
+  | 'shake'
+  | 'rubber'
+  | 'tada'
+  | 'pulse'
+  | 'heartbeat'
+  | 'float'
+  | 'glow'
+  | 'blink';
 
 export interface ElementColors {
   desktop: Record<string, ElementColor>;
@@ -420,8 +439,23 @@ export interface ImageFocus {
 }
 
 export type TemplateKey =
-  | 'classico' | 'moderno' | 'minimalista' | 'elegante' | 'impacto' | 'revista' | 'blocos' | 'noturno' | 'capa' | 'organico'
-  | 'aurora' | 'linhas' | 'suave' | 'estudio' | 'degrade' | 'oficio' | 'banner';
+  | 'classico'
+  | 'moderno'
+  | 'minimalista'
+  | 'elegante'
+  | 'impacto'
+  | 'revista'
+  | 'blocos'
+  | 'noturno'
+  | 'capa'
+  | 'organico'
+  | 'aurora'
+  | 'linhas'
+  | 'suave'
+  | 'estudio'
+  | 'degrade'
+  | 'oficio'
+  | 'banner';
 
 export interface TemplateInfo {
   key: TemplateKey;
@@ -589,7 +623,13 @@ export interface FoundCompany {
   /** A leitura dos dados deste link para gerar a LP falhou (empresa ainda não cadastrada) */
   analysis_error?: { error: string; at: string } | null;
   /** Empresa já cadastrada (e a LP dela, se já foi gerada) */
-  existing: { id: string; name: string; reason: 'link' | 'site' | 'nome_telefone' | 'nome_cep'; landing_page: { id: string; slug: string; status: LpStatus } | null; lp_error?: string | null } | null;
+  existing: {
+    id: string;
+    name: string;
+    reason: 'link' | 'site' | 'nome_telefone' | 'nome_cep';
+    landing_page: { id: string; slug: string; status: LpStatus } | null;
+    lp_error?: string | null;
+  } | null;
 }
 
 /** Dados do Google Maps de um local escolhido na pesquisa, enviados à análise. */

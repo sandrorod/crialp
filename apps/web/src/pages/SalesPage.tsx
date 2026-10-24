@@ -33,7 +33,10 @@ export function SalesPage() {
 
   return (
     <>
-      <PageHeader title="Vendas" description={isSeller ? 'Seus clientes e o histórico de prospecção de cada um.' : 'Empresas cadastradas e o histórico de prospecção de cada uma.'} />
+      <PageHeader
+        title="Vendas"
+        description={isSeller ? 'Seus clientes e o histórico de prospecção de cada um.' : 'Empresas cadastradas e o histórico de prospecção de cada uma.'}
+      />
 
       <Card>
         <div className="grid gap-2 border-b border-zinc-100 p-4 sm:grid-cols-2 lg:grid-cols-[1fr_180px_180px]">
@@ -43,71 +46,117 @@ export function SalesPage() {
           </div>
           <Select value={segment} onChange={(e) => setSegment(e.target.value)} aria-label="Segmento">
             <option value="">Todos os segmentos</option>
-            {data?.facets.segments.map((s) => <option key={s}>{s}</option>)}
+            {data?.facets.segments.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
           </Select>
           <Select value={city} onChange={(e) => setCity(e.target.value)} aria-label="Cidade">
             <option value="">Todas as cidades</option>
-            {data?.facets.cities.map((c) => <option key={c}>{c}</option>)}
+            {data?.facets.cities.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
           </Select>
         </div>
 
         {error ? (
-          <div className="p-4"><ErrorBlock message={error} onRetry={reload} /></div>
+          <div className="p-4">
+            <ErrorBlock message={error} onRetry={reload} />
+          </div>
         ) : loading && !data ? (
           <LoadingBlock />
         ) : !data?.items.length ? (
           <EmptyState
             icon={<Building2 className="size-5" />}
             title={filtered ? 'Nenhuma empresa encontrada' : 'Nenhuma empresa cadastrada'}
-            description={filtered ? 'Ajuste a busca ou os filtros.' : isSeller ? 'Os clientes atribuídos a você aparecem aqui.' : 'As empresas cadastradas pelo administrador aparecem aqui.'}
+            description={
+              filtered
+                ? 'Ajuste a busca ou os filtros.'
+                : isSeller
+                  ? 'Os clientes atribuídos a você aparecem aqui.'
+                  : 'As empresas cadastradas pelo administrador aparecem aqui.'
+            }
           />
         ) : (
           <>
-          <div className="overflow-x-auto">
-            <table className="table-cards w-full min-w-[880px] text-sm">
-              <thead>
-                <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
-                  <th className="px-5 py-3">Empresa</th>
-                  <th className="px-3 py-3">Segmento</th>
-                  <th className="px-3 py-3">Cidade</th>
-                  <th className="px-3 py-3">Contato</th>
-                  <th className="px-3 py-3">Última prospecção</th>
-                  <th className="px-5 py-3 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {pager.items.map((c) => (
-                  <tr key={c.id} className="transition hover:bg-zinc-50/70">
-                    <td className="px-5 py-3.5 font-medium text-ink">{c.name}</td>
-                    <td data-label="Segmento" className="px-3 py-3.5 text-zinc-600">{c.segment ?? '—'}</td>
-                    <td data-label="Cidade" className="px-3 py-3.5 text-zinc-600">{c.city ? `${c.city}${c.state ? ` – ${c.state}` : ''}` : '—'}</td>
-                    <td data-label="Contato" className="px-3 py-3.5 text-zinc-600">{c.whatsapp || c.phone || c.email || '—'}</td>
-                    <td data-label="Última prospecção" className="px-3 py-3.5 text-zinc-500">
-                      {c.last_note_at ? `${formatDate(c.last_note_at)} · ${c.notes_count} ${c.notes_count === 1 ? 'lançamento' : 'lançamentos'}` : '—'}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center justify-end gap-1">
-                        {c.slug ? (
-                          <>
-                            <a href={`/lp/${c.slug}`} target="_blank" rel="noreferrer" title="Abrir Landing Page" aria-label="Abrir Landing Page" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
-                              <Eye className="size-4" />
-                            </a>
-                            <button type="button" onClick={() => void shareLink(c.slug!)} title="Copiar link da Landing Page" aria-label="Copiar link da Landing Page" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
-                              <Share2 className="size-4" />
-                            </button>
-                          </>
-                        ) : null}
-                        <button type="button" onClick={() => setProspecting(c)} title="Prospecção" aria-label="Prospecção" className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink">
-                          <MessageSquarePlus className="size-4" />
-                        </button>
-                      </div>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="table-cards w-full min-w-[880px] text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
+                    <th className="px-5 py-3">Empresa</th>
+                    <th className="px-3 py-3">Segmento</th>
+                    <th className="px-3 py-3">Cidade</th>
+                    <th className="px-3 py-3">Contato</th>
+                    <th className="px-3 py-3">Última prospecção</th>
+                    <th className="px-5 py-3 text-right">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Pagination page={pager.page} pages={pager.pages} total={pager.total} pageSize={pager.pageSize} onPage={(p) => { pager.setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {pager.items.map((c) => (
+                    <tr key={c.id} className="transition hover:bg-zinc-50/70">
+                      <td className="px-5 py-3.5 font-medium text-ink">{c.name}</td>
+                      <td data-label="Segmento" className="px-3 py-3.5 text-zinc-600">
+                        {c.segment ?? '—'}
+                      </td>
+                      <td data-label="Cidade" className="px-3 py-3.5 text-zinc-600">
+                        {c.city ? `${c.city}${c.state ? ` – ${c.state}` : ''}` : '—'}
+                      </td>
+                      <td data-label="Contato" className="px-3 py-3.5 text-zinc-600">
+                        {c.whatsapp || c.phone || c.email || '—'}
+                      </td>
+                      <td data-label="Última prospecção" className="px-3 py-3.5 text-zinc-500">
+                        {c.last_note_at ? `${formatDate(c.last_note_at)} · ${c.notes_count} ${c.notes_count === 1 ? 'lançamento' : 'lançamentos'}` : '—'}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center justify-end gap-1">
+                          {c.slug ? (
+                            <>
+                              <a
+                                href={`/lp/${c.slug}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Abrir Landing Page"
+                                aria-label="Abrir Landing Page"
+                                className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink"
+                              >
+                                <Eye className="size-4" />
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => void shareLink(c.slug!)}
+                                title="Copiar link da Landing Page"
+                                aria-label="Copiar link da Landing Page"
+                                className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink"
+                              >
+                                <Share2 className="size-4" />
+                              </button>
+                            </>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => setProspecting(c)}
+                            title="Prospecção"
+                            aria-label="Prospecção"
+                            className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-ink"
+                          >
+                            <MessageSquarePlus className="size-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination
+              page={pager.page}
+              pages={pager.pages}
+              total={pager.total}
+              pageSize={pager.pageSize}
+              onPage={(p) => {
+                pager.setPage(p);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           </>
         )}
       </Card>
@@ -189,7 +238,9 @@ function ProspectingModal({ company, onClose, onAdded }: { company: SalesCompany
           <p className="text-xs text-zinc-500">
             {canDelete ? 'Depois de adicionado, o lançamento não pode ser editado.' : 'Depois de adicionado, o lançamento não pode ser editado nem excluído.'}
           </p>
-          <Button type="submit" loading={saving} disabled={!text.trim()}>Adicionar</Button>
+          <Button type="submit" loading={saving} disabled={!text.trim()}>
+            Adicionar
+          </Button>
         </div>
       </form>
 
@@ -222,9 +273,7 @@ function ProspectingModal({ company, onClose, onAdded }: { company: SalesCompany
                         </span>
                       </div>
                       {/* Fechado: só a primeira linha; aberto: o texto completo */}
-                      <p className={cn('break-words text-sm text-ink', open ? 'whitespace-pre-wrap' : 'truncate')}>
-                        {open ? n.note : n.note.split('\n')[0]}
-                      </p>
+                      <p className={cn('break-words text-sm text-ink', open ? 'whitespace-pre-wrap' : 'truncate')}>{open ? n.note : n.note.split('\n')[0]}</p>
                     </button>
                     {canDelete ? (
                       <button

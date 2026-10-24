@@ -56,21 +56,37 @@ export async function createLandingPage(opts: {
       opts.sellerId === 'auto'
         ? await nextSellerInRotation(db, opts.orgId)
         : opts.sellerId
-          ? ((await db.query<{ id: string }>(`select id from users where id = $1 and organization_id = $2 and role = 'seller'`, [opts.sellerId, opts.orgId])).rows[0]?.id ?? null)
+          ? ((await db.query<{ id: string }>(`select id from users where id = $1 and organization_id = $2 and role = 'seller'`, [opts.sellerId, opts.orgId]))
+              .rows[0]?.id ?? null)
           : null;
     const clientLevelId = opts.clientLevelId
-      ? ((await db.query<{ id: string }>('select id from lp_client_levels where id = $1 and organization_id = $2', [opts.clientLevelId, opts.orgId])).rows[0]?.id ?? null)
+      ? ((await db.query<{ id: string }>('select id from lp_client_levels where id = $1 and organization_id = $2', [opts.clientLevelId, opts.orgId])).rows[0]
+          ?.id ?? null)
       : null;
     const { rows } = await db.query<{ id: string }>(
       `insert into landing_pages (organization_id, company_id, title, slug, status, content, theme, seo_title, seo_description, seo_keywords, og_image, current_version, seller_id, client_level_id)
        values ($1,$2,$3,$4,'inativa',$5,$6,$7,$8,$9,$10,1,$11,$12) returning id`,
-      [opts.orgId, opts.companyId, opts.title, slug, JSON.stringify(opts.content), JSON.stringify(opts.theme),
-        opts.seo.seo_title, opts.seo.seo_description, opts.seo.seo_keywords, opts.seo.og_image ?? null, sellerId, clientLevelId],
+      [
+        opts.orgId,
+        opts.companyId,
+        opts.title,
+        slug,
+        JSON.stringify(opts.content),
+        JSON.stringify(opts.theme),
+        opts.seo.seo_title,
+        opts.seo.seo_description,
+        opts.seo.seo_keywords,
+        opts.seo.og_image ?? null,
+        sellerId,
+        clientLevelId,
+      ],
     );
-    await db.query(
-      `insert into landing_page_versions (landing_page_id, version, content, note, created_by) values ($1, 1, $2, $3, $4)`,
-      [rows[0].id, JSON.stringify({ content: opts.content, theme: opts.theme, seo: opts.seo }), 'Geração inicial pela IA', opts.userId],
-    );
+    await db.query(`insert into landing_page_versions (landing_page_id, version, content, note, created_by) values ($1, 1, $2, $3, $4)`, [
+      rows[0].id,
+      JSON.stringify({ content: opts.content, theme: opts.theme, seo: opts.seo }),
+      'Geração inicial pela IA',
+      opts.userId,
+    ]);
     return rows[0].id;
   });
 }
@@ -141,19 +157,27 @@ export async function saveVersion(opts: {
               current_version = current_version + 1
         where id = $1 and organization_id = $2
         returning current_version`,
-      [opts.id, opts.orgId, JSON.stringify(opts.content), JSON.stringify(opts.theme), opts.seo.seo_title,
-        opts.seo.seo_description, opts.seo.seo_keywords, opts.seo.og_image ?? null],
+      [
+        opts.id,
+        opts.orgId,
+        JSON.stringify(opts.content),
+        JSON.stringify(opts.theme),
+        opts.seo.seo_title,
+        opts.seo.seo_description,
+        opts.seo.seo_keywords,
+        opts.seo.og_image ?? null,
+      ],
     );
     if (!rows[0]) return null;
-    await db.query(
-      `insert into landing_page_versions (landing_page_id, version, content, note, created_by) values ($1,$2,$3,$4,$5)`,
-      [opts.id, rows[0].current_version, JSON.stringify({ content: opts.content, theme: opts.theme, seo: opts.seo }), opts.note, opts.userId],
-    );
+    await db.query(`insert into landing_page_versions (landing_page_id, version, content, note, created_by) values ($1,$2,$3,$4,$5)`, [
+      opts.id,
+      rows[0].current_version,
+      JSON.stringify({ content: opts.content, theme: opts.theme, seo: opts.seo }),
+      opts.note,
+      opts.userId,
+    ]);
     // Mantém as 30 versões mais recentes
-    await db.query(
-      `delete from landing_page_versions where landing_page_id = $1 and version <= $2`,
-      [opts.id, rows[0].current_version - 30],
-    );
+    await db.query(`delete from landing_page_versions where landing_page_id = $1 and version <= $2`, [opts.id, rows[0].current_version - 30]);
     return rows[0].current_version;
   });
 }
@@ -173,10 +197,7 @@ export async function getLandingPageBySlug(slug: string) {
 
 export async function getLandingPageByDomain(domain: string) {
   return withoutNullText(
-    await one<LandingPageRow>(
-      `select * from landing_pages where lower(custom_domain) = lower($1) and domain_status in ('verified','active')`,
-      [domain],
-    ),
+    await one<LandingPageRow>(`select * from landing_pages where lower(custom_domain) = lower($1) and domain_status in ('verified','active')`, [domain]),
   );
 }
 
@@ -248,10 +269,12 @@ export async function updateSettings(orgId: string, id: string, s: { slug?: stri
 }
 
 export async function updateDomainStatus(orgId: string, id: string, domain_status: string, ssl_status: string) {
-  return one<LandingPageRow>(
-    `update landing_pages set domain_status = $3, ssl_status = $4 where id = $1 and organization_id = $2 returning *`,
-    [id, orgId, domain_status, ssl_status],
-  );
+  return one<LandingPageRow>(`update landing_pages set domain_status = $3, ssl_status = $4 where id = $1 and organization_id = $2 returning *`, [
+    id,
+    orgId,
+    domain_status,
+    ssl_status,
+  ]);
 }
 
 export async function saveSnapshot(id: string, html: string) {

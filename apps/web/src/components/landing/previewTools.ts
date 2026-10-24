@@ -46,7 +46,14 @@ export const TEXT_EFFECT_GROUPS: { title: string; items: { value: TextEffect; la
       { value: 'typing', label: 'Digitação' },
     ],
   },
-  { title: 'Chamar atenção', items: [{ value: 'shake', label: 'Tremer' }, { value: 'rubber', label: 'Elástico' }, { value: 'tada', label: 'Tadã' }] },
+  {
+    title: 'Chamar atenção',
+    items: [
+      { value: 'shake', label: 'Tremer' },
+      { value: 'rubber', label: 'Elástico' },
+      { value: 'tada', label: 'Tadã' },
+    ],
+  },
   {
     title: 'Destaque',
     items: [
@@ -179,9 +186,15 @@ const TITLE_SEL = '.hero h1,.section-head h2,.final h2,.custom-text h3,.blk-head
 const TEXT_SEL = '.hero .sub,.hero p,.section-head .lead,.about-text p,.custom-text p,.blk-text p,.final p';
 // Onde o modelo centraliza o texto, a faixa mais estreita continua no meio
 const CENTERED_SEL = [
-  '.hero-centered', '.section-head.center', '.final', '.custom-center', '.tpl-elegante .hero-split .container',
+  '.hero-centered',
+  '.section-head.center',
+  '.final',
+  '.custom-center',
+  '.tpl-elegante .hero-split .container',
   ...['aurora', 'elegante', 'moderno', 'organico'].map((t) => `.tpl-${t} .section>.container>.section-head`),
-].map((c) => `${c} :is(h1,h2,h3,p,.lead,.sub)`).join(',');
+]
+  .map((c) => `${c} :is(h1,h2,h3,p,.lead,.sub)`)
+  .join(',');
 function textWidthRules(title: number | undefined, text: number | undefined) {
   if (!title && !text) return '';
   return (
@@ -227,9 +240,13 @@ function cropDecl(b: ImageBox): string {
   const r = (n: number) => Math.round(n * 1000) / 1000;
   const bw = b.w ?? 100;
   return [
-    b.iw !== undefined ? `width:${r((b.iw / bw) * 100)}%!important;max-width:none!important;margin-left:-${r(((b.il ?? 0) / bw) * 100)}%!important;flex:none` : '',
+    b.iw !== undefined
+      ? `width:${r((b.iw / bw) * 100)}%!important;max-width:none!important;margin-left:-${r(((b.il ?? 0) / bw) * 100)}%!important;flex:none`
+      : '',
     b.ih !== undefined ? `height:${b.ih}px!important;max-height:none!important;margin-top:-${b.it ?? 0}px!important` : '',
-  ].filter(Boolean).join(';');
+  ]
+    .filter(Boolean)
+    .join(';');
 }
 function cropCss(frame: string, key: string, b: ImageBox): string {
   const decl = cropDecl(b);
@@ -246,7 +263,9 @@ export function imageSizesCss(s: ImageSizes | undefined): string {
         const decl = [
           b.w !== undefined ? `width:${b.w}%!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important` : '',
           b.h !== undefined ? `height:${b.h}px!important;aspect-ratio:auto!important;min-height:0!important;align-self:start` : '',
-        ].filter(Boolean).join(';');
+        ]
+          .filter(Boolean)
+          .join(';');
         const frame = frameSelector(url);
         return (decl ? `${frame}{${decl}}` : '') + cropCss(frame, url, b);
       })
@@ -266,7 +285,9 @@ export function setImageSizeCss(doc: Document, css: string) {
   style.textContent = css;
   // O tamanho aplicado durante o arrasto sai do estilo em linha: passa a valer o CSS do editor
   doc.querySelectorAll<HTMLElement>('[data-lp-resized]').forEach((el) => {
-    ['width', 'max-width', 'height', 'max-height', 'aspect-ratio', 'min-height', 'margin-left', 'margin-right', 'margin-top', 'flex'].forEach((p) => el.style.removeProperty(p));
+    ['width', 'max-width', 'height', 'max-height', 'aspect-ratio', 'min-height', 'margin-left', 'margin-right', 'margin-top', 'flex'].forEach((p) =>
+      el.style.removeProperty(p),
+    );
     delete el.dataset.lpResized;
   });
 }
@@ -333,7 +354,12 @@ const sameBox = (a: ImageBox | null, b: ImageBox | null) => JSON.stringify(a ?? 
  * (arrastar para fora mostra de novo o que foi cortado; além disso, a foto cresce para preencher).
  * Duplo clique numa alça volta aquela medida ao padrão do modelo. `onSize(url, null)` = tudo no padrão.
  */
-export function attachImageResize(doc: Document, getSize: (url: string) => ImageBox | undefined, onSizes: (changes: Record<string, ImageBox | null>) => void, uiScale = 1) {
+export function attachImageResize(
+  doc: Document,
+  getSize: (url: string) => ImageBox | undefined,
+  onSizes: (changes: Record<string, ImageBox | null>) => void,
+  uiScale = 1,
+) {
   const px = (n: number) => `${Math.round(n * uiScale)}px`;
   const sectionOf = (img: Element) => img.closest<HTMLElement>('[data-section]')?.dataset.section;
   doc.querySelectorAll<HTMLImageElement>('img[data-lp-img]').forEach((img) => {
@@ -363,7 +389,10 @@ export function attachImageResize(doc: Document, getSize: (url: string) => Image
 
     const label = doc.createElement('div');
     label.dataset.lpUi = 'resize';
-    label.setAttribute('style', `position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:7;display:none;padding:${px(6)} ${px(10)};border-radius:999px;background:rgba(17,17,17,.8);color:#fff;font:600 ${px(13)}/1 system-ui,sans-serif;pointer-events:none;white-space:nowrap`);
+    label.setAttribute(
+      'style',
+      `position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:7;display:none;padding:${px(6)} ${px(10)};border-radius:999px;background:rgba(17,17,17,.8);color:#fff;font:600 ${px(13)}/1 system-ui,sans-serif;pointer-events:none;white-space:nowrap`,
+    );
     frame.appendChild(label);
 
     const make = (edge: Edge) => {
@@ -373,15 +402,20 @@ export function attachImageResize(doc: Document, getSize: (url: string) => Image
       const long = px(54);
       const thick = px(12);
       const pos =
-        edge === 'left' ? `left:${px(4)};top:50%;margin-top:-${px(27)}` :
-        edge === 'right' ? `right:${px(4)};top:50%;margin-top:-${px(27)}` :
-        edge === 'top' ? `top:${px(4)};left:50%;margin-left:-${px(27)}` :
-        `bottom:${px(4)};left:50%;margin-left:-${px(27)}`;
+        edge === 'left'
+          ? `left:${px(4)};top:50%;margin-top:-${px(27)}`
+          : edge === 'right'
+            ? `right:${px(4)};top:50%;margin-top:-${px(27)}`
+            : edge === 'top'
+              ? `top:${px(4)};left:50%;margin-left:-${px(27)}`
+              : `bottom:${px(4)};left:50%;margin-left:-${px(27)}`;
       h.setAttribute(
         'style',
         `position:absolute;${pos};z-index:6;width:${horizontal ? thick : long};height:${horizontal ? long : thick};border-radius:999px;background:#2563eb;border:${px(2)} solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);cursor:${horizontal ? 'ew-resize' : 'ns-resize'};touch-action:none`,
       );
-      h.title = horizontal ? 'Arraste para cortar a foto pela lateral (duplo clique: sem corte)' : 'Arraste para cortar a foto em cima/embaixo (duplo clique: sem corte)';
+      h.title = horizontal
+        ? 'Arraste para cortar a foto pela lateral (duplo clique: sem corte)'
+        : 'Arraste para cortar a foto em cima/embaixo (duplo clique: sem corte)';
 
       h.addEventListener('dblclick', (e) => {
         e.preventDefault();
@@ -728,7 +762,10 @@ export function attachSectionDrag(doc: Document, onReorder: (keys: string[]) => 
 
   const indicator = doc.createElement('div');
   indicator.dataset.lpUi = 'section';
-  indicator.setAttribute('style', `position:fixed;left:0;right:0;height:${px(4)};background:#2563eb;box-shadow:0 0 0 ${px(3)} rgba(37,99,235,.25);z-index:9999;pointer-events:none;display:none`);
+  indicator.setAttribute(
+    'style',
+    `position:fixed;left:0;right:0;height:${px(4)};background:#2563eb;box-shadow:0 0 0 ${px(3)} rgba(37,99,235,.25);z-index:9999;pointer-events:none;display:none`,
+  );
   doc.body.appendChild(indicator);
 
   const btnStyle = `height:${px(32)};min-width:${px(32)};padding:0 ${px(10)};border:0;border-radius:${px(8)};background:transparent;color:#fff;font:600 ${px(13)}/1 system-ui,sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:${px(6)}`;
@@ -740,7 +777,10 @@ export function attachSectionDrag(doc: Document, onReorder: (keys: string[]) => 
 
     const bar = doc.createElement('div');
     bar.dataset.lpUi = 'section';
-    bar.setAttribute('style', `position:absolute;left:${px(12)};top:${px(12)};z-index:45;display:flex;gap:${px(2)};padding:${px(4)};border-radius:${px(12)};background:rgba(17,24,39,.88);box-shadow:0 8px 24px rgba(0,0,0,.3)`);
+    bar.setAttribute(
+      'style',
+      `position:absolute;left:${px(12)};top:${px(12)};z-index:45;display:flex;gap:${px(2)};padding:${px(4)};border-radius:${px(12)};background:rgba(17,24,39,.88);box-shadow:0 8px 24px rgba(0,0,0,.3)`,
+    );
     const mk = (label: string, title: string) => {
       const b = doc.createElement('button');
       b.type = 'button';
@@ -757,8 +797,14 @@ export function attachSectionDrag(doc: Document, onReorder: (keys: string[]) => 
     grip.style.touchAction = 'none';
     const up = mk('↑', 'Subir seção');
     const down = mk('↓', 'Descer seção');
-    up.addEventListener('click', (e) => { e.preventDefault(); move(w, -1); });
-    down.addEventListener('click', (e) => { e.preventDefault(); move(w, 1); });
+    up.addEventListener('click', (e) => {
+      e.preventDefault();
+      move(w, -1);
+    });
+    down.addEventListener('click', (e) => {
+      e.preventDefault();
+      move(w, 1);
+    });
     bar.append(grip, up, down);
     w.appendChild(bar);
 
@@ -879,7 +925,10 @@ export function selectorFor(el: HTMLElement, withIndex: boolean) {
   return parts.join('>');
 }
 
-const stableClasses = (e: Element) => Array.from(e.classList).filter((c) => !VOLATILE.has(c) && /^[A-Za-z0-9_-]{1,60}$/.test(c)).slice(0, 6);
+const stableClasses = (e: Element) =>
+  Array.from(e.classList)
+    .filter((c) => !VOLATILE.has(c) && /^[A-Za-z0-9_-]{1,60}$/.test(c))
+    .slice(0, 6);
 
 /** Quantos elementos da página (fora das barras do editor) o seletor alcança. */
 export function countMatches(doc: Document, selector: string) {
@@ -924,17 +973,30 @@ export function cssColorToHex(value: string): string | null {
   let nums: number[] | null = null;
   const rgb = /rgba?\(([^)]+)\)/.exec(value);
   if (rgb) {
-    nums = rgb[1].split(/[\s,/]+/).filter(Boolean).map(Number);
+    nums = rgb[1]
+      .split(/[\s,/]+/)
+      .filter(Boolean)
+      .map(Number);
   } else {
     const srgb = /color\(srgb ([^)]+)\)/.exec(value);
     if (srgb) {
-      const v = srgb[1].split(/[\s/]+/).filter(Boolean).map(Number);
+      const v = srgb[1]
+        .split(/[\s/]+/)
+        .filter(Boolean)
+        .map(Number);
       nums = [v[0] * 255, v[1] * 255, v[2] * 255, v[3] ?? 1];
     }
   }
   if (!nums || nums.length < 3 || nums.some((n) => Number.isNaN(n))) return null;
   if (nums.length > 3 && nums[3] === 0) return null;
-  return `#${nums.slice(0, 3).map((n) => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2, '0')).join('')}`;
+  return `#${nums
+    .slice(0, 3)
+    .map((n) =>
+      Math.round(Math.max(0, Math.min(255, n)))
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
 }
 
 const NAMES: Record<string, string> = {
@@ -978,7 +1040,10 @@ export function attachColorPick(doc: Document, onPick: (p: PickedElement) => voi
 
   const hover = doc.createElement('div');
   hover.dataset.lpUi = 'color';
-  hover.setAttribute('style', 'position:fixed;z-index:9998;pointer-events:none;border:2px solid #2563eb;background:rgba(37,99,235,.08);border-radius:3px;display:none');
+  hover.setAttribute(
+    'style',
+    'position:fixed;z-index:9998;pointer-events:none;border:2px solid #2563eb;background:rgba(37,99,235,.08);border-radius:3px;display:none',
+  );
   doc.body.appendChild(hover);
 
   const resolve = (target: EventTarget | null): HTMLElement | null => {
@@ -1217,7 +1282,12 @@ function paintOn(b: HTMLElement, active: boolean) {
 }
 
 /** Barra flutuante sobre o texto em edição: fonte, tamanho, negrito, itálico, sublinhado e cor (só na prévia). */
-function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extra: { onParent?: () => void; onRemoved?: () => void; onIcon?: () => void } = {}) {
+function textToolbar(
+  doc: Document,
+  el: HTMLElement,
+  opts: TextSizeOptions,
+  extra: { onParent?: () => void; onRemoved?: () => void; onIcon?: () => void } = {},
+) {
   const win = doc.defaultView!;
   const px = (n: number) => `${Math.round(n * (opts.uiScale ?? 1))}px`;
   const exact = selectorFor(el, true);
@@ -1233,7 +1303,11 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     opts.setStyle(sel(), patch);
     if (scope !== 'similar') return;
     const own = opts.getStyle(exact);
-    const clear = Object.fromEntries(Object.keys(patch).filter((k) => own?.[k as keyof ElementColor] !== undefined).map((k) => [k, null]));
+    const clear = Object.fromEntries(
+      Object.keys(patch)
+        .filter((k) => own?.[k as keyof ElementColor] !== undefined)
+        .map((k) => [k, null]),
+    );
     if (Object.keys(clear).length) opts.setStyle(exact, clear);
   };
   const saved = () => opts.getStyle(sel()) ?? {};
@@ -1327,7 +1401,10 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
 
   const bar = doc.createElement('div');
   bar.dataset.lpUi = 'size';
-  bar.setAttribute('style', `position:fixed;z-index:9999;display:flex;flex-direction:column;gap:${px(2)};width:${px(340)};padding:${px(8)};border-radius:${px(12)};background:#fff;color:#18181b;border:1px solid #e4e4e7;font:500 ${px(12)}/1 system-ui,sans-serif;box-shadow:0 12px 32px rgba(0,0,0,.18);white-space:nowrap;box-sizing:border-box;max-width:calc(100vw - ${px(8)})`);
+  bar.setAttribute(
+    'style',
+    `position:fixed;z-index:9999;display:flex;flex-direction:column;gap:${px(2)};width:${px(340)};padding:${px(8)};border-radius:${px(12)};background:#fff;color:#18181b;border:1px solid #e4e4e7;font:500 ${px(12)}/1 system-ui,sans-serif;box-shadow:0 12px 32px rgba(0,0,0,.18);white-space:nowrap;box-sizing:border-box;max-width:calc(100vw - ${px(8)})`,
+  );
   // Linhas quebram quando a prévia é estreita (celular): a barra nunca passa da largura da tela
   const row = () => {
     const r = doc.createElement('div');
@@ -1391,9 +1468,24 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   const isBold = () => saved().bold ?? Number(cs().fontWeight) >= 600;
   const isItalic = () => saved().italic ?? cs().fontStyle === 'italic';
   const isUnderline = () => saved().underline ?? cs().textDecorationLine.includes('underline');
-  const bold = mk('B', 'Negrito (com um trecho selecionado, só nele)', () => (partial() ? inlineCmd('bold') : (style({ bold: !isBold() }), render())), ';font-weight:800');
-  const italic = mk('I', 'Itálico (com um trecho selecionado, só nele)', () => (partial() ? inlineCmd('italic') : (style({ italic: !isItalic() }), render())), ';font-style:italic;font-family:Georgia,serif');
-  const underline = mk('U', 'Sublinhado (com um trecho selecionado, só nele)', () => (partial() ? inlineCmd('underline') : (style({ underline: !isUnderline() }), render())), ';text-decoration:underline');
+  const bold = mk(
+    'B',
+    'Negrito (com um trecho selecionado, só nele)',
+    () => (partial() ? inlineCmd('bold') : (style({ bold: !isBold() }), render())),
+    ';font-weight:800',
+  );
+  const italic = mk(
+    'I',
+    'Itálico (com um trecho selecionado, só nele)',
+    () => (partial() ? inlineCmd('italic') : (style({ italic: !isItalic() }), render())),
+    ';font-style:italic;font-family:Georgia,serif',
+  );
+  const underline = mk(
+    'U',
+    'Sublinhado (com um trecho selecionado, só nele)',
+    () => (partial() ? inlineCmd('underline') : (style({ underline: !isUnderline() }), render())),
+    ';text-decoration:underline',
+  );
 
   // Cor do texto
   const color = doc.createElement('input');
@@ -1437,14 +1529,21 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   });
   // Elemento de fora (ex.: do texto para o cartão inteiro)
   const iconBtn = extra.onIcon ? mk('◇ Trocar ícone', 'Escolher outro ícone', extra.onIcon, `;font-weight:500;font-size:${px(12)}`) : null;
-  const parent = extra.onParent ? mk('↑ Elemento de fora', 'Selecionar o elemento que contém este', extra.onParent, `;font-weight:500;font-size:${px(12)}`) : null;
+  const parent = extra.onParent
+    ? mk('↑ Elemento de fora', 'Selecionar o elemento que contém este', extra.onParent, `;font-weight:500;font-size:${px(12)}`)
+    : null;
 
   const setScope = (next: 'exact' | 'similar') => {
     scope = next;
     render();
   };
   const onlyThis = mk('Só este', 'As mudanças valem só para este elemento', () => setScope('exact'), `;font-weight:500;font-size:${px(12)}`);
-  const allSame = mk(`Todos iguais (${similarCount})`, `As mudanças valem para os ${similarCount} elementos iguais a este na página`, () => setScope('similar'), `;font-weight:500;font-size:${px(12)}`);
+  const allSame = mk(
+    `Todos iguais (${similarCount})`,
+    `As mudanças valem para os ${similarCount} elementos iguais a este na página`,
+    () => setScope('similar'),
+    `;font-weight:500;font-size:${px(12)}`,
+  );
   const scopeHint = doc.createElement('div');
   scopeHint.setAttribute('style', `padding:${px(2)} ${px(6)} ${px(4)};color:#71717a;font-size:${px(11)};white-space:normal;line-height:1.35`);
   // Contorno tracejado nos iguais enquanto "Todos iguais" estiver escolhido: mostra o que vai mudar
@@ -1457,20 +1556,33 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   });
   // Efeito de movimento quando o texto aparece na tela: menu desenhado dentro da barra (uma lista nativa
   // abriria fora da escala da prévia, com a fonte desproporcional)
-  const effect = mk('', 'Efeito quando o texto aparece na tela (celular e computador)', () => {
-    menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
-    place();
-  }, `;background:${SOFT};font-weight:500;font-size:${px(12)}`);
+  const effect = mk(
+    '',
+    'Efeito quando o texto aparece na tela (celular e computador)',
+    () => {
+      menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+      place();
+    },
+    `;background:${SOFT};font-weight:500;font-size:${px(12)}`,
+  );
   const menu = doc.createElement('div');
-  menu.setAttribute('style', `display:none;flex-direction:column;gap:${px(6)};padding:${px(6)} ${px(4)} ${px(2)};max-width:min(${px(330)}, 100%);box-sizing:border-box;white-space:normal`);
+  menu.setAttribute(
+    'style',
+    `display:none;flex-direction:column;gap:${px(6)};padding:${px(6)} ${px(4)} ${px(2)};max-width:min(${px(330)}, 100%);box-sizing:border-box;white-space:normal`,
+  );
   const chipCss = `height:${px(26)};padding:0 ${px(9)};border:0;border-radius:${px(13)};background:${SOFT};color:#18181b;font:500 ${px(12)}/1 system-ui,sans-serif;cursor:pointer`;
   const chips: [TextEffect | null, HTMLButtonElement][] = [];
   const chip = (value: TextEffect | null, label: string) => {
-    const c = mk(label, value ? `Efeito: ${label}` : 'Sem efeito', () => {
-      opts.setEffect?.(sel(), value);
-      playTextEffect(el, value);
-      render();
-    }, chipCss.replace(/^/, ';'));
+    const c = mk(
+      label,
+      value ? `Efeito: ${label}` : 'Sem efeito',
+      () => {
+        opts.setEffect?.(sel(), value);
+        playTextEffect(el, value);
+        render();
+      },
+      chipCss.replace(/^/, ';'),
+    );
     chips.push([value, c]);
     return c;
   };
@@ -1485,7 +1597,15 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     g.append(t, list);
     return g;
   };
-  menu.append(group('Sem movimento', [chip(null, 'Sem efeito')]), ...TEXT_EFFECT_GROUPS.map((g) => group(g.title, g.items.map((i) => chip(i.value, i.label)))));
+  menu.append(
+    group('Sem movimento', [chip(null, 'Sem efeito')]),
+    ...TEXT_EFFECT_GROUPS.map((g) =>
+      group(
+        g.title,
+        g.items.map((i) => chip(i.value, i.label)),
+      ),
+    ),
+  );
   // Velocidade do movimento: 0x a 2x (1x = normal); o efeito toca de novo ao soltar
   const speedRow = doc.createElement('div');
   speedRow.setAttribute('style', `display:flex;align-items:center;gap:${px(8)};padding:${px(4)} ${px(2)} 0`);
@@ -1518,7 +1638,10 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
 
   // Link externo no trecho selecionado (sem seleção, no texto inteiro): endereço, sublinhado e aba onde abre
   const linkPanel = doc.createElement('div');
-  linkPanel.setAttribute('style', `display:none;flex-direction:column;gap:${px(6)};padding:${px(6)} ${px(4)} ${px(2)};width:${px(300)};max-width:100%;box-sizing:border-box;white-space:normal`);
+  linkPanel.setAttribute(
+    'style',
+    `display:none;flex-direction:column;gap:${px(6)};padding:${px(6)} ${px(4)} ${px(2)};width:${px(300)};max-width:100%;box-sizing:border-box;white-space:normal`,
+  );
   const linkUrl = doc.createElement('input');
   linkUrl.type = 'text';
   linkUrl.placeholder = 'https://… , e-mail ou telefone';
@@ -1553,10 +1676,18 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   };
   const choice = (labels: [string, string], get: () => boolean, set: (v: boolean) => void) => {
     const [yes, no] = [true, false].map((v, i) => mk(labels[i], labels[i], () => (set(v), renderLink()), chipCss.replace(/^/, ';')));
-    return { el: [yes, no], paint: () => ([yes, no].forEach((b, i) => paintOn(b, get() === !i))) };
+    return { el: [yes, no], paint: () => [yes, no].forEach((b, i) => paintOn(b, get() === !i)) };
   };
-  const underlineChoice = choice(['Sublinhado', 'Sem sublinhado'], () => linkUnderline, (v) => (linkUnderline = v));
-  const tabChoice = choice(['Nova aba', 'Mesma aba'], () => linkNewTab, (v) => (linkNewTab = v));
+  const underlineChoice = choice(
+    ['Sublinhado', 'Sem sublinhado'],
+    () => linkUnderline,
+    (v) => (linkUnderline = v),
+  );
+  const tabChoice = choice(
+    ['Nova aba', 'Mesma aba'],
+    () => linkNewTab,
+    (v) => (linkNewTab = v),
+  );
   // Link já colocado: aparece assim que a barra abre (sem precisar abrir o painel)
   const linkNow = doc.createElement('span');
   linkNow.setAttribute('style', `min-width:0;max-width:${px(170)};overflow:hidden;text-overflow:ellipsis;color:#2563eb;font-size:${px(12)}`);
@@ -1617,16 +1748,21 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     el.focus({ preventScroll: true });
   };
   const applyBtn = mk('Aplicar link', 'Aplicar link', applyLink, `;background:#2563eb;color:#fff;font-weight:600;font-size:${px(12)}`);
-  const removeLink = mk('Remover link', 'Remover link', () => {
-    if (elementMode) {
-      opts.setLink?.(linkTarget(), null);
-    } else {
-      const a = currentLink();
-      if (a) unwrap(a);
-    }
-    closeLink();
-    if (el.isContentEditable) el.focus({ preventScroll: true });
-  }, `;background:#fee2e2;color:#b91c1c;font-weight:500;font-size:${px(12)}`);
+  const removeLink = mk(
+    'Remover link',
+    'Remover link',
+    () => {
+      if (elementMode) {
+        opts.setLink?.(linkTarget(), null);
+      } else {
+        const a = currentLink();
+        if (a) unwrap(a);
+      }
+      closeLink();
+      if (el.isContentEditable) el.focus({ preventScroll: true });
+    },
+    `;background:#fee2e2;color:#b91c1c;font-weight:500;font-size:${px(12)}`,
+  );
   linkUrl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -1648,28 +1784,28 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
         : 'Link externo: clicar neste elemento abre o endereço'
       : 'Link externo (com um trecho selecionado, só nele; sem seleção, no texto inteiro)',
     () => {
-    if (linkPanel.style.display !== 'none') return closeLink();
-    if (elementMode) {
-      const cur = elementLink();
-      linkUrl.value = cur?.href ?? '';
-      linkNewTab = cur ? cur.nt : true;
+      if (linkPanel.style.display !== 'none') return closeLink();
+      if (elementMode) {
+        const cur = elementLink();
+        linkUrl.value = cur?.href ?? '';
+        linkNewTab = cur ? cur.nt : true;
+        linkUrl.style.outline = '';
+        renderLink();
+        linkPanel.style.display = 'flex';
+        place();
+        linkUrl.focus();
+        return;
+      }
+      linkRange = partial() ? lastRange!.cloneRange() : null;
+      const a = currentLink();
+      linkUrl.value = a?.getAttribute('href') ?? '';
       linkUrl.style.outline = '';
+      linkUnderline = a ? !(a.style.textDecorationLine === 'none' || a.style.textDecoration.startsWith('none')) : true;
+      linkNewTab = a ? a.getAttribute('target') === '_blank' : true;
       renderLink();
       linkPanel.style.display = 'flex';
       place();
       linkUrl.focus();
-      return;
-    }
-    linkRange = partial() ? lastRange!.cloneRange() : null;
-    const a = currentLink();
-    linkUrl.value = a?.getAttribute('href') ?? '';
-    linkUrl.style.outline = '';
-    linkUnderline = a ? !(a.style.textDecorationLine === 'none' || a.style.textDecoration.startsWith('none')) : true;
-    linkNewTab = a ? a.getAttribute('target') === '_blank' : true;
-    renderLink();
-    linkPanel.style.display = 'flex';
-    place();
-    linkUrl.focus();
     },
     `;background:${SOFT};font-weight:500;font-size:${px(12)}`,
   );
@@ -1705,7 +1841,7 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     remove.textContent = s.hidden ? '↺ Restaurar elemento' : '🗑 Excluir da página';
     remove.style.background = s.hidden ? '#dcfce7' : '#fee2e2';
     remove.style.color = s.hidden ? '#15803d' : '#b91c1c';
-    effect.textContent = `✦ Efeito: ${s.fx ? EFFECT_LABEL.get(s.fx) ?? s.fx : 'nenhum'} ▾`;
+    effect.textContent = `✦ Efeito: ${s.fx ? (EFFECT_LABEL.get(s.fx) ?? s.fx) : 'nenhum'} ▾`;
     for (const [v, c] of chips) paintOn(c, (s.fx ?? null) === v);
   }
   // Valores que dependem do CSS recém-aplicado: lê depois do navegador redesenhar
@@ -1715,7 +1851,10 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   const handle = doc.createElement('span');
   handle.textContent = '⠿';
   handle.title = 'Arraste para mudar a barra de lugar (duplo clique: volta para junto do elemento)';
-  handle.setAttribute('style', `display:grid;place-items:center;width:${px(22)};height:${px(28)};border-radius:${px(6)};cursor:grab;opacity:.7;font-size:${px(16)};touch-action:none;user-select:none`);
+  handle.setAttribute(
+    'style',
+    `display:grid;place-items:center;width:${px(22)};height:${px(28)};border-radius:${px(6)};cursor:grab;opacity:.7;font-size:${px(16)};touch-action:none;user-select:none`,
+  );
   handle.addEventListener('mousedown', (e) => e.preventDefault());
   handle.addEventListener('pointerdown', (e) => {
     e.preventDefault();
@@ -1765,7 +1904,10 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
   const section = (title: string) => {
     const t = doc.createElement('div');
     t.textContent = title;
-    t.setAttribute('style', `margin-top:${px(4)};padding:${px(8)} ${px(6)} ${px(2)};border-top:1px solid #e4e4e7;color:#a1a1aa;font-size:${px(10)};font-weight:700;letter-spacing:.06em;text-transform:uppercase`);
+    t.setAttribute(
+      'style',
+      `margin-top:${px(4)};padding:${px(8)} ${px(6)} ${px(2)};border-top:1px solid #e4e4e7;color:#a1a1aa;font-size:${px(10)};font-weight:700;letter-spacing:.06em;text-transform:uppercase`,
+    );
     return t;
   };
   bgLabel.remove();
@@ -1785,7 +1927,12 @@ function textToolbar(doc: Document, el: HTMLElement, opts: TextSizeOptions, extr
     bar.append(
       section('Texto'),
       line('Fonte', font),
-      line('Tamanho', mk('A−', 'Diminuir fonte (com um trecho selecionado, só nele)', () => setSize(Math.max(8, current() - step()))), value, mk('A+', 'Aumentar fonte (com um trecho selecionado, só nele)', () => setSize(Math.min(160, current() + step())))),
+      line(
+        'Tamanho',
+        mk('A−', 'Diminuir fonte (com um trecho selecionado, só nele)', () => setSize(Math.max(8, current() - step()))),
+        value,
+        mk('A+', 'Aumentar fonte (com um trecho selecionado, só nele)', () => setSize(Math.min(160, current() + step()))),
+      ),
       line('Estilo', bold, italic, underline),
       line('Cor do texto', color),
     );
@@ -1883,7 +2030,10 @@ function attachWidthHandles(doc: Document, el: HTMLElement, opts: TextSizeOption
   };
   const label = doc.createElement('div');
   label.dataset.lpUi = 'width';
-  label.setAttribute('style', `position:fixed;z-index:9998;display:none;padding:${px(5)} ${px(9)};border-radius:999px;background:rgba(17,17,17,.85);color:#fff;font:600 ${px(12)}/1 system-ui,sans-serif;pointer-events:none;white-space:nowrap`);
+  label.setAttribute(
+    'style',
+    `position:fixed;z-index:9998;display:none;padding:${px(5)} ${px(9)};border-radius:999px;background:rgba(17,17,17,.85);color:#fff;font:600 ${px(12)}/1 system-ui,sans-serif;pointer-events:none;white-space:nowrap`,
+  );
   doc.body.appendChild(label);
   const sides: ('left' | 'right')[] = centered() ? ['left', 'right'] : ['right'];
   const handles = sides.map((side) => {
@@ -1917,9 +2067,7 @@ function attachWidthHandles(doc: Document, el: HTMLElement, opts: TextSizeOption
       const area = (el.closest('.container') ?? el.closest('[data-section]') ?? doc.body).getBoundingClientRect();
       const er = el.getBoundingClientRect();
       const pr = parent.getBoundingClientRect();
-      const roomPx = both
-        ? Math.min(pr.left + pr.width / 2 - area.left, area.right - (pr.left + pr.width / 2)) * 2
-        : area.right - er.left;
+      const roomPx = both ? Math.min(pr.left + pr.width / 2 - area.left, area.right - (pr.left + pr.width / 2)) * 2 : area.right - er.left;
       const maxPct = Math.min(TEXT_W_MAX, Math.max(100, (roomPx / available) * 100));
       const sx = e.clientX;
       let pct = Math.min(maxPct, (startW / available) * 100);
@@ -2050,14 +2198,29 @@ export function onSectionPick(doc: Document, fn: (p: SectionPick) => void) {
   sectionPickers.set(doc, fn);
 }
 const SECTION_NAMES: Record<string, string> = {
-  hero: 'Topo', header: 'Cabeçalho', footer: 'Rodapé', about: 'Sobre', services: 'Serviços', differentials: 'Diferenciais',
-  products: 'Produtos', gallery: 'Galeria', testimonials: 'Depoimentos', reviews: 'Avaliações do Google', faq: 'Perguntas frequentes', contact: 'Contato', final_cta: 'Chamada final',
+  hero: 'Topo',
+  header: 'Cabeçalho',
+  footer: 'Rodapé',
+  about: 'Sobre',
+  services: 'Serviços',
+  differentials: 'Diferenciais',
+  products: 'Produtos',
+  gallery: 'Galeria',
+  testimonials: 'Depoimentos',
+  reviews: 'Avaliações do Google',
+  faq: 'Perguntas frequentes',
+  contact: 'Contato',
+  final_cta: 'Chamada final',
 };
 /** Clique no fundo da seção: o próprio contêiner, a <section>/<header>/<footer> ou a área .container. */
 function sectionAreaKey(el: HTMLElement): string | null {
   if (!el.matches('[data-section],section,header,footer,.section,.container,.hero,.site-header,.site-footer')) return null;
-  const key = el.closest<HTMLElement>('[data-section]')?.dataset.section ?? (el.closest('.site-header') ? 'header' : el.closest('.site-footer') ? 'footer' : null);
-  return key && /^(hero|header|footer|about|services|differentials|products|gallery|testimonials|reviews|faq|contact|final_cta|custom:[a-z0-9-]{1,40})$/.test(key) ? key : null;
+  const key =
+    el.closest<HTMLElement>('[data-section]')?.dataset.section ?? (el.closest('.site-header') ? 'header' : el.closest('.site-footer') ? 'footer' : null);
+  return key &&
+    /^(hero|header|footer|about|services|differentials|products|gallery|testimonials|reviews|faq|contact|final_cta|custom:[a-z0-9-]{1,40})$/.test(key)
+    ? key
+    : null;
 }
 function sectionLabel(doc: Document, key: string) {
   if (SECTION_NAMES[key]) return SECTION_NAMES[key];
@@ -2207,12 +2370,13 @@ export function attachTextEdit(doc: Document, onText: (path: string, value: stri
     el.setAttribute('data-lp-selected', '');
     notifySelect(doc, el);
     const tb = textToolbar(doc, el, sizes, {
-      onIcon: iconPath && iconPickers.get(doc)
-        ? () => {
-            unpick();
-            iconPickers.get(doc)?.(iconPath);
-          }
-        : undefined,
+      onIcon:
+        iconPath && iconPickers.get(doc)
+          ? () => {
+              unpick();
+              iconPickers.get(doc)?.(iconPath);
+            }
+          : undefined,
       onParent: () => {
         const up = el.parentElement;
         if (up && up !== doc.body && up !== doc.documentElement) pick(up);

@@ -1,6 +1,31 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router';
-import { AlertTriangle, ArrowLeft, Ban, ChevronDown, CircleAlert, Building2, Check, CheckCheck, Clock, MessageCircle, MessageSquarePlus, FileText, Mic, Paperclip, Pencil, Plus, Search, Send, Smile, Tag, Trash2, User, UserPlus, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Ban,
+  ChevronDown,
+  CircleAlert,
+  Building2,
+  Check,
+  CheckCheck,
+  Clock,
+  MessageCircle,
+  MessageSquarePlus,
+  FileText,
+  Mic,
+  Paperclip,
+  Pencil,
+  Plus,
+  Search,
+  Send,
+  Smile,
+  Tag,
+  Trash2,
+  User,
+  UserPlus,
+  X,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card, Input, Modal, Spinner, Textarea } from '@/components/ui';
 import { ContactForm } from '@/components/crm/CrmForms';
@@ -105,7 +130,13 @@ export function CrmWhatsAppPage() {
           <div className="flex items-center gap-1.5">
             <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
-              <Input placeholder="Pesquisar…" title="Nome, número, empresa ou texto das mensagens" value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 pl-8 text-[13px]" />
+              <Input
+                placeholder="Pesquisar…"
+                title="Nome, número, empresa ou texto das mensagens"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-9 pl-8 text-[13px]"
+              />
             </div>
             <LabelFilter labels={labels ?? []} value={labelFilter} onChange={setLabelFilter} />
             <button type="button" onClick={() => setPicking(true)} className={TOOL_BTN} title="Nova conversa" aria-label="Nova conversa">
@@ -123,18 +154,29 @@ export function CrmWhatsAppPage() {
           ) : null}
         </div>
         <ul className="flex-1 overflow-y-auto">
-          {!conversations ? <li className="grid place-items-center p-6"><Spinner /></li> : null}
+          {!conversations ? (
+            <li className="grid place-items-center p-6">
+              <Spinner />
+            </li>
+          ) : null}
           {conversations && !list.length ? (
-            <li className="p-6 text-center text-sm text-zinc-500">{debounced || labelFilter ? 'Nada encontrado com essa busca ou etiqueta.' : 'Nenhuma conversa.'}</li>
+            <li className="p-6 text-center text-sm text-zinc-500">
+              {debounced || labelFilter ? 'Nada encontrado com essa busca ou etiqueta.' : 'Nenhuma conversa.'}
+            </li>
           ) : null}
           {list.map((c) => (
             <li key={c.id}>
-              <button type="button"
+              <button
+                type="button"
                 onClick={() => setParams({ id: c.id })}
                 className={cn(
                   'flex w-full flex-col gap-0.5 border-b border-l-4 border-b-zinc-50 px-4 py-3 pl-3 text-left',
                   // Mensagem não lida: cartão destacado na cor do WhatsApp
-                  c.id === selectedId ? 'border-l-transparent bg-zinc-100' : c.unread ? 'border-l-emerald-500 bg-emerald-50 hover:bg-emerald-100/70' : 'border-l-transparent hover:bg-zinc-50',
+                  c.id === selectedId
+                    ? 'border-l-transparent bg-zinc-100'
+                    : c.unread
+                      ? 'border-l-emerald-500 bg-emerald-50 hover:bg-emerald-100/70'
+                      : 'border-l-transparent hover:bg-zinc-50',
                 )}
               >
                 <div className="flex items-baseline justify-between gap-2">
@@ -157,7 +199,9 @@ export function CrmWhatsAppPage() {
                 </div>
                 {c.labels?.length ? (
                   <div className="mt-1 flex flex-wrap gap-1">
-                    {c.labels.map((l) => <LabelChip key={l.id} label={l} />)}
+                    {c.labels.map((l) => (
+                      <LabelChip key={l.id} label={l} />
+                    ))}
                   </div>
                 ) : null}
               </button>
@@ -276,7 +320,9 @@ function LabelFilter({ labels, value, onChange }: { labels: CrmLabel[]; value: s
         ) : labels.length ? (
           // Todas: as cores das etiquetas em miniatura
           <span className="grid size-4 grid-cols-2 gap-px overflow-hidden rounded">
-            {[0, 1, 2, 3].map((i) => <span key={i} style={{ background: labels[i % labels.length].color }} />)}
+            {[0, 1, 2, 3].map((i) => (
+              <span key={i} style={{ background: labels[i % labels.length].color }} />
+            ))}
           </span>
         ) : (
           <span className="size-4 rounded border border-zinc-300" />
@@ -302,7 +348,10 @@ const LABEL_COLORS = ['#2553e0', '#0ea5e9', '#16a34a', '#84cc16', '#f59e0b', '#f
 
 function LabelChip({ label }: { label: CrmLabel }) {
   return (
-    <span className="inline-flex max-w-full items-center gap-1 rounded-full px-2 py-px text-[11px] font-medium" style={{ background: `${label.color}1f`, color: label.color }}>
+    <span
+      className="inline-flex max-w-full items-center gap-1 rounded-full px-2 py-px text-[11px] font-medium"
+      style={{ background: `${label.color}1f`, color: label.color }}
+    >
       <span className="size-1.5 flex-none rounded-full" style={{ background: label.color }} />
       <span className="truncate">{label.name}</span>
     </span>
@@ -325,7 +374,17 @@ function Highlight({ text, term }: { text: string; term: string }) {
 }
 
 /** Etiquetas da conversa aberta: marcar/desmarcar e criar uma nova ali mesmo. */
-function LabelPicker({ conversation, labels, onManage, onChanged }: { conversation: CrmConversation; labels: CrmLabel[]; onManage: () => void; onChanged: () => void }) {
+function LabelPicker({
+  conversation,
+  labels,
+  onManage,
+  onChanged,
+}: {
+  conversation: CrmConversation;
+  labels: CrmLabel[];
+  onManage: () => void;
+  onChanged: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>(() => (conversation.labels ?? []).map((l) => l.id));
   const [newName, setNewName] = useState('');
@@ -398,7 +457,14 @@ function LabelPicker({ conversation, labels, onManage, onChanged }: { conversati
             />
             <Button size="sm" onClick={() => void create()} disabled={!newName.trim()} aria-label="Criar etiqueta" icon={<Plus className="size-4" />} />
           </div>
-          <button type="button" onClick={() => { setOpen(false); onManage(); }} className="mt-1 w-full rounded-md px-1 py-1.5 text-left text-xs text-zinc-500 hover:bg-zinc-50 hover:text-ink">
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              onManage();
+            }}
+            className="mt-1 w-full rounded-md px-1 py-1.5 text-left text-xs text-zinc-500 hover:bg-zinc-50 hover:text-ink"
+          >
             ⚙ Gerenciar etiquetas (cores, nomes, excluir)
           </button>
         </div>
@@ -408,7 +474,17 @@ function LabelPicker({ conversation, labels, onManage, onChanged }: { conversati
 }
 
 /** Criar, renomear, trocar a cor e excluir etiquetas (valem para a equipe toda). */
-function LabelsManager({ labels, onClose, onChanged, onRemoved }: { labels: CrmLabel[]; onClose: () => void; onChanged: () => void; onRemoved: (id: string) => void }) {
+function LabelsManager({
+  labels,
+  onClose,
+  onChanged,
+  onRemoved,
+}: {
+  labels: CrmLabel[];
+  onClose: () => void;
+  onChanged: () => void;
+  onRemoved: (id: string) => void;
+}) {
   const { data, reload } = useAsync(() => crmService.labels(), []);
   const list = data ?? labels;
   const [editing, setEditing] = useState<{ id: string | null; name: string; color: string } | null>(null);
@@ -474,10 +550,22 @@ function LabelsManager({ labels, onClose, onChanged, onRemoved }: { labels: CrmL
               <span className="size-3 flex-none rounded-full" style={{ background: l.color }} />
               <span className="min-w-0 flex-1 truncate text-sm">{l.name}</span>
               <span className="text-xs text-zinc-400">{l.conversations ?? 0}</span>
-              <button type="button" onClick={() => setEditing({ id: l.id, name: l.name, color: l.color })} className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink" aria-label={`Editar ${l.name}`} title="Editar">
+              <button
+                type="button"
+                onClick={() => setEditing({ id: l.id, name: l.name, color: l.color })}
+                className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-ink"
+                aria-label={`Editar ${l.name}`}
+                title="Editar"
+              >
                 <Pencil className="size-3.5" />
               </button>
-              <button type="button" onClick={() => void remove(l)} className="rounded-md p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600" aria-label={`Excluir ${l.name}`} title="Excluir">
+              <button
+                type="button"
+                onClick={() => void remove(l)}
+                className="rounded-md p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600"
+                aria-label={`Excluir ${l.name}`}
+                title="Excluir"
+              >
                 <Trash2 className="size-3.5" />
               </button>
             </li>
@@ -490,8 +578,18 @@ function LabelsManager({ labels, onClose, onChanged, onRemoved }: { labels: CrmL
 }
 
 function LabelEditRow({
-  value, onChange, onSave, onCancel, busy,
-}: { value: { id: string | null; name: string; color: string }; onChange: (v: { id: string | null; name: string; color: string }) => void; onSave: () => void; onCancel: () => void; busy: boolean }) {
+  value,
+  onChange,
+  onSave,
+  onCancel,
+  busy,
+}: {
+  value: { id: string | null; name: string; color: string };
+  onChange: (v: { id: string | null; name: string; color: string }) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  busy: boolean;
+}) {
   return (
     <li className="space-y-2 rounded-lg border border-zinc-200 p-2">
       <Input
@@ -509,13 +607,30 @@ function LabelEditRow({
       />
       <div className="flex flex-wrap items-center gap-1.5">
         {LABEL_COLORS.map((c) => (
-          <button key={c} type="button" onClick={() => onChange({ ...value, color: c })} className={cn('size-6 rounded-full ring-offset-2', value.color === c && 'ring-2 ring-ink')} style={{ background: c }} aria-label={`Cor ${c}`} />
+          <button
+            key={c}
+            type="button"
+            onClick={() => onChange({ ...value, color: c })}
+            className={cn('size-6 rounded-full ring-offset-2', value.color === c && 'ring-2 ring-ink')}
+            style={{ background: c }}
+            aria-label={`Cor ${c}`}
+          />
         ))}
-        <input type="color" value={value.color} onChange={(e) => onChange({ ...value, color: e.target.value })} className="h-6 w-8 cursor-pointer rounded border border-zinc-200 p-0" aria-label="Outra cor" />
+        <input
+          type="color"
+          value={value.color}
+          onChange={(e) => onChange({ ...value, color: e.target.value })}
+          className="h-6 w-8 cursor-pointer rounded border border-zinc-200 p-0"
+          aria-label="Outra cor"
+        />
       </div>
       <div className="flex justify-end gap-2">
-        <Button variant="ghost" size="sm" onClick={onCancel} disabled={busy}>Cancelar</Button>
-        <Button size="sm" onClick={onSave} loading={busy} disabled={!value.name.trim()}>Salvar</Button>
+        <Button variant="ghost" size="sm" onClick={onCancel} disabled={busy}>
+          Cancelar
+        </Button>
+        <Button size="sm" onClick={onSave} loading={busy} disabled={!value.name.trim()}>
+          Salvar
+        </Button>
       </div>
     </li>
   );
@@ -549,10 +664,22 @@ function NewChatPicker({ onClose, onPick }: { onClose: () => void; onPick: (p: {
   const items =
     tab === 'contatos'
       ? (data?.contacts ?? []).map((c) => (
-          <Item key={c.id} icon={<User className="size-4" />} title={c.name} sub={`${phone(c.whatsapp)} · ${c.company_name}`} onClick={() => onPick({ contato: c.id })} />
+          <Item
+            key={c.id}
+            icon={<User className="size-4" />}
+            title={c.name}
+            sub={`${phone(c.whatsapp)} · ${c.company_name}`}
+            onClick={() => onPick({ contato: c.id })}
+          />
         ))
       : (data?.companies ?? []).map((c) => (
-          <Item key={c.id} icon={<Building2 className="size-4" />} title={c.name} sub={[phone(c.whatsapp), c.city].filter(Boolean).join(' · ')} onClick={() => onPick({ empresa: c.id })} />
+          <Item
+            key={c.id}
+            icon={<Building2 className="size-4" />}
+            title={c.name}
+            sub={[phone(c.whatsapp), c.city].filter(Boolean).join(' · ')}
+            onClick={() => onPick({ empresa: c.id })}
+          />
         ));
   return (
     <Modal open title="Nova conversa" tight="more" onClose={onClose}>
@@ -577,7 +704,11 @@ function NewChatPicker({ onClose, onPick }: { onClose: () => void; onPick: (p: {
         ))}
       </div>
       <div className="mt-2 h-[min(50vh,360px)] overflow-y-auto">
-        {loading && !data ? <div className="grid place-items-center p-6"><Spinner /></div> : null}
+        {loading && !data ? (
+          <div className="grid place-items-center p-6">
+            <Spinner />
+          </div>
+        ) : null}
         {data && !items.length ? (
           <p className="p-6 text-center text-sm text-zinc-500">
             {tab === 'contatos' ? 'Nenhum contato com WhatsApp cadastrado.' : 'Nenhuma empresa com WhatsApp cadastrado.'}
@@ -591,10 +722,30 @@ function NewChatPicker({ onClose, onPick }: { onClose: () => void; onPick: (p: {
 }
 
 function Chat({
-  conversation, labels, onManageLabels, manager, onBack, onChanged,
-}: { conversation: CrmConversation; labels: CrmLabel[]; onManageLabels: () => void; manager: boolean; onBack: () => void; onChanged: () => void }) {
+  conversation,
+  labels,
+  onManageLabels,
+  manager,
+  onBack,
+  onChanged,
+}: {
+  conversation: CrmConversation;
+  labels: CrmLabel[];
+  onManageLabels: () => void;
+  manager: boolean;
+  onBack: () => void;
+  onChanged: () => void;
+}) {
   const { data: messages, setData } = useAsync(() => crmService.messages(conversation.id), [conversation.id]);
-  usePolling(() => void crmService.messages(conversation.id).then(setData).catch(() => {}), CHAT_POLL, [conversation.id]);
+  usePolling(
+    () =>
+      void crmService
+        .messages(conversation.id)
+        .then(setData)
+        .catch(() => {}),
+    CHAT_POLL,
+    [conversation.id],
+  );
   const [linking, setLinking] = useState(false);
   const end = useRef<HTMLDivElement>(null);
 
@@ -630,24 +781,40 @@ function Chat({
     end.current?.scrollIntoView({ block: 'end' });
   }, [messages?.length]);
   useEffect(() => {
-    if (conversation.unread) void crmService.markRead(conversation.id).then(onChanged).catch(() => {});
+    if (conversation.unread)
+      void crmService
+        .markRead(conversation.id)
+        .then(onChanged)
+        .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation.id, conversation.unread]);
 
   return (
     <>
       <header className="flex items-center gap-3 border-b border-zinc-100 bg-white px-4 py-3">
-        <button type="button" className="md:hidden" onClick={onBack} aria-label="Voltar"><ArrowLeft className="size-5" /></button>
+        <button type="button" className="md:hidden" onClick={onBack} aria-label="Voltar">
+          <ArrowLeft className="size-5" />
+        </button>
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium text-ink">{title(conversation)}</div>
           <div className="truncate text-xs text-zinc-500">
             {phone(conversation.phone)}
             {conversation.company_id ? (
-              <> · <Link to={`/crm/empresas/${conversation.company_id}`} className="hover:underline">{conversation.company_name}</Link></>
+              <>
+                {' '}
+                ·{' '}
+                <Link to={`/crm/empresas/${conversation.company_id}`} className="hover:underline">
+                  {conversation.company_name}
+                </Link>
+              </>
             ) : null}
           </div>
           {conversation.labels?.length ? (
-            <div className="mt-1 flex flex-wrap gap-1">{conversation.labels.map((l) => <LabelChip key={l.id} label={l} />)}</div>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {conversation.labels.map((l) => (
+                <LabelChip key={l.id} label={l} />
+              ))}
+            </div>
           ) : null}
         </div>
         <LabelPicker conversation={conversation} labels={labels} onManage={onManageLabels} onChanged={onChanged} />
@@ -659,7 +826,11 @@ function Chat({
       </header>
 
       <div className="flex-1 space-y-2 overflow-y-auto px-4 py-4">
-        {!messages ? <div className="grid place-items-center p-6"><Spinner /></div> : null}
+        {!messages ? (
+          <div className="grid place-items-center p-6">
+            <Spinner />
+          </div>
+        ) : null}
         {messages?.map((m, i) => {
           const day = new Date(m.created_at).toDateString();
           const newDay = i === 0 || new Date(messages[i - 1].created_at).toDateString() !== day;
@@ -693,7 +864,17 @@ function Chat({
   );
 }
 
-function NewConversation({ contactId, companyId, onBack, onSent }: { contactId: string | null; companyId: string | null; onBack: () => void; onSent: (conversationId: string) => void }) {
+function NewConversation({
+  contactId,
+  companyId,
+  onBack,
+  onSent,
+}: {
+  contactId: string | null;
+  companyId: string | null;
+  onBack: () => void;
+  onSent: (conversationId: string) => void;
+}) {
   const { data, error } = useAsync(async () => {
     if (contactId) {
       const c = await crmService.contact(contactId);
@@ -706,7 +887,9 @@ function NewConversation({ contactId, companyId, onBack, onSent }: { contactId: 
   return (
     <>
       <header className="flex items-center gap-3 border-b border-zinc-100 bg-white px-4 py-3">
-        <button type="button" className="md:hidden" onClick={onBack} aria-label="Voltar"><ArrowLeft className="size-5" /></button>
+        <button type="button" className="md:hidden" onClick={onBack} aria-label="Voltar">
+          <ArrowLeft className="size-5" />
+        </button>
         <div className="min-w-0">
           <div className="truncate font-medium text-ink">{data?.name ?? '…'}</div>
           <div className="truncate text-xs text-zinc-500">{data ? `${phone(data.number)} · ${data.sub}` : null}</div>
@@ -715,9 +898,7 @@ function NewConversation({ contactId, companyId, onBack, onSent }: { contactId: 
       <div className="grid flex-1 place-items-center p-6 text-center text-sm text-zinc-500">
         {error ?? (data && !data.number ? 'Sem WhatsApp cadastrado.' : 'Nenhuma mensagem ainda. Envie a primeira abaixo.')}
       </div>
-      {data?.number ? (
-        <Composer to={contactId ? { contact_id: contactId } : { company_id: companyId! }} onSent={onSent} />
-      ) : null}
+      {data?.number ? <Composer to={contactId ? { contact_id: contactId } : { company_id: companyId! }} onSent={onSent} /> : null}
     </>
   );
 }
@@ -801,9 +982,12 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
   }, [recording?.started]);
 
   // Libera a prévia e o microfone ao sair
-  useEffect(() => () => {
-    if (attachment?.preview) URL.revokeObjectURL(attachment.preview);
-  }, [attachment]);
+  useEffect(
+    () => () => {
+      if (attachment?.preview) URL.revokeObjectURL(attachment.preview);
+    },
+    [attachment],
+  );
   useEffect(() => () => recorder.current?.stream.getTracks().forEach((t) => t.stop()), []);
 
   /** Emoji entra onde está o cursor (ou no lugar do trecho selecionado), e o cursor fica depois dele. */
@@ -915,7 +1099,13 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
     <form ref={box} onSubmit={submit} className="relative border-t border-zinc-100 bg-white p-3">
       {emojiOpen ? (
         <div className="absolute bottom-full right-3 z-20 mb-2 max-w-[calc(100vw-24px)] overflow-hidden rounded-xl shadow-2xl">
-          <Suspense fallback={<div className="grid h-[380px] w-[340px] place-items-center bg-white"><Spinner /></div>}>
+          <Suspense
+            fallback={
+              <div className="grid h-[380px] w-[340px] place-items-center bg-white">
+                <Spinner />
+              </div>
+            }
+          >
             <EmojiPanel onPick={insertEmoji} />
           </Suspense>
         </div>
@@ -928,7 +1118,9 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
           ) : attachment.preview ? (
             <img src={attachment.preview} alt="" className="size-14 rounded object-cover" />
           ) : (
-            <span className="grid size-14 place-items-center rounded bg-white text-zinc-400">{attachment.kind === 'audio' ? <Mic className="size-5" /> : <FileText className="size-5" />}</span>
+            <span className="grid size-14 place-items-center rounded bg-white text-zinc-400">
+              {attachment.kind === 'audio' ? <Mic className="size-5" /> : <FileText className="size-5" />}
+            </span>
           )}
           <div className="min-w-0 flex-1 text-sm">
             <div className="truncate font-medium text-ink">{attachment.file_name}</div>
@@ -937,7 +1129,13 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
               {attachment.kind === 'audio' ? ' · vai como mensagem de voz' : ' · o texto abaixo vira a legenda'}
             </div>
           </div>
-          <button type="button" onClick={() => setAttachment(null)} className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-200 hover:text-ink" aria-label="Tirar anexo" title="Tirar anexo">
+          <button
+            type="button"
+            onClick={() => setAttachment(null)}
+            className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-200 hover:text-ink"
+            aria-label="Tirar anexo"
+            title="Tirar anexo"
+          >
             <X className="size-4" />
           </button>
         </div>
@@ -965,7 +1163,14 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
               e.target.value = '';
             }}
           />
-          <button type="button" onClick={() => fileInput.current?.click()} className={iconBtn} title="Anexar foto, GIF, vídeo, áudio ou documento" aria-label="Anexar" disabled={sending}>
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            className={iconBtn}
+            title="Anexar foto, GIF, vídeo, áudio ou documento"
+            aria-label="Anexar"
+            disabled={sending}
+          >
             <Paperclip className="size-5" />
           </button>
           <Textarea
@@ -1004,7 +1209,15 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
             {text.trim() || attachment ? (
               <Button type="submit" loading={sending} aria-label="Enviar" icon={<Send className="size-4" />} />
             ) : (
-              <Button type="button" variant="secondary" loading={sending} onClick={() => void startRecording()} aria-label="Gravar áudio" title="Gravar áudio" icon={<Mic className="size-4" />} />
+              <Button
+                type="button"
+                variant="secondary"
+                loading={sending}
+                onClick={() => void startRecording()}
+                aria-label="Gravar áudio"
+                title="Gravar áudio"
+                icon={<Mic className="size-4" />}
+              />
             )}
           </div>
         </div>
@@ -1025,7 +1238,13 @@ function MediaView({ m }: { m: CrmMessage }) {
   if (m.type === 'image' || m.type === 'sticker') {
     return (
       <a href={url} target="_blank" rel="noreferrer" className="block">
-        <img src={url} alt={MEDIA_LABEL[m.type]} loading="lazy" onError={() => setFailed(true)} className={cn('rounded-lg', m.type === 'sticker' ? 'size-32 object-contain' : 'max-h-72 w-auto max-w-full object-cover')} />
+        <img
+          src={url}
+          alt={MEDIA_LABEL[m.type]}
+          loading="lazy"
+          onError={() => setFailed(true)}
+          className={cn('rounded-lg', m.type === 'sticker' ? 'size-32 object-contain' : 'max-h-72 w-auto max-w-full object-cover')}
+        />
       </a>
     );
   }
@@ -1048,7 +1267,14 @@ function MediaView({ m }: { m: CrmMessage }) {
 }
 
 const TYPE_LABEL: Record<string, string> = {
-  image: 'imagem', video: 'vídeo', audio: 'áudio', document: 'documento', sticker: 'figurinha', location: 'localização', contact: 'contato', other: 'mídia',
+  image: 'imagem',
+  video: 'vídeo',
+  audio: 'áudio',
+  document: 'documento',
+  sticker: 'figurinha',
+  location: 'localização',
+  contact: 'contato',
+  other: 'mídia',
 };
 
 const URL_RE = /((?:https?:\/\/|www\.)[^\s<]+)/gi;
@@ -1080,7 +1306,15 @@ const MEDIA_TYPES = new Set(['image', 'gif', 'video', 'audio', 'sticker', 'docum
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
-function Bubble({ m, onReact, onDelete }: { m: CrmMessage; onReact: (m: CrmMessage, emoji: string) => void; onDelete: (m: CrmMessage, everyone: boolean) => void }) {
+function Bubble({
+  m,
+  onReact,
+  onDelete,
+}: {
+  m: CrmMessage;
+  onReact: (m: CrmMessage, emoji: string) => void;
+  onDelete: (m: CrmMessage, everyone: boolean) => void;
+}) {
   const out = m.direction === 'out';
   const [picker, setPicker] = useState<'quick' | 'full' | 'menu' | null>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -1113,8 +1347,18 @@ function Bubble({ m, onReact, onDelete }: { m: CrmMessage; onReact: (m: CrmMessa
           </div>
         ) : (
           <>
-            {MEDIA_TYPES.has(m.type) ? <div className="mb-1"><MediaView m={m} /></div> : m.type !== 'text' ? <div className="text-xs italic text-zinc-500">[{TYPE_LABEL[m.type] ?? m.type}]</div> : null}
-            {m.body ? <div className="whitespace-pre-wrap break-words"><Linkified text={m.body} /></div> : null}
+            {MEDIA_TYPES.has(m.type) ? (
+              <div className="mb-1">
+                <MediaView m={m} />
+              </div>
+            ) : m.type !== 'text' ? (
+              <div className="text-xs italic text-zinc-500">[{TYPE_LABEL[m.type] ?? m.type}]</div>
+            ) : null}
+            {m.body ? (
+              <div className="whitespace-pre-wrap break-words">
+                <Linkified text={m.body} />
+              </div>
+            ) : null}
           </>
         )}
         <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-zinc-400">
@@ -1127,70 +1371,120 @@ function Bubble({ m, onReact, onDelete }: { m: CrmMessage; onReact: (m: CrmMessa
             type="button"
             onClick={() => m.my_reaction && pick(m.my_reaction)}
             title={m.my_reaction ? 'Clique para tirar a sua reação' : 'Reação do cliente'}
-            className={cn('absolute -bottom-3 flex items-center gap-0.5 rounded-full border border-zinc-200 bg-white px-1.5 py-px text-sm leading-5 shadow-xs', out ? 'right-2' : 'left-2')}
+            className={cn(
+              'absolute -bottom-3 flex items-center gap-0.5 rounded-full border border-zinc-200 bg-white px-1.5 py-px text-sm leading-5 shadow-xs',
+              out ? 'right-2' : 'left-2',
+            )}
           >
-            {reactions.map((r, i) => <span key={i}>{r}</span>)}
+            {reactions.map((r, i) => (
+              <span key={i}>{r}</span>
+            ))}
           </button>
         ) : null}
       </div>
 
       <div ref={box} className={cn('relative flex items-center', out ? 'flex-row-reverse' : 'flex-row')}>
-          <button
-            type="button"
-            onClick={() => setPicker(picker === 'menu' ? null : 'menu')}
-            className={cn('grid size-7 place-items-center rounded-full text-zinc-400 hover:bg-white hover:text-ink', picker === 'menu' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-60')}
-            title="Mais opções"
-            aria-label="Mais opções da mensagem"
+        <button
+          type="button"
+          onClick={() => setPicker(picker === 'menu' ? null : 'menu')}
+          className={cn(
+            'grid size-7 place-items-center rounded-full text-zinc-400 hover:bg-white hover:text-ink',
+            picker === 'menu' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-60',
+          )}
+          title="Mais opções"
+          aria-label="Mais opções da mensagem"
+        >
+          <ChevronDown className="size-4" />
+        </button>
+        {picker === 'menu' ? (
+          <div
+            className={cn(
+              'absolute bottom-full z-20 mb-1 w-48 overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-lg',
+              out ? 'right-0' : 'left-0',
+            )}
           >
-            <ChevronDown className="size-4" />
-          </button>
-          {picker === 'menu' ? (
-            <div className={cn('absolute bottom-full z-20 mb-1 w-48 overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-lg', out ? 'right-0' : 'left-0')}>
-              <button type="button" onClick={() => { setPicker(null); onDelete(m, false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50">
-                <Trash2 className="size-4" /> Apagar para mim
+            <button
+              type="button"
+              onClick={() => {
+                setPicker(null);
+                onDelete(m, false);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50"
+            >
+              <Trash2 className="size-4" /> Apagar para mim
+            </button>
+            {m.can_revoke ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setPicker(null);
+                  onDelete(m, true);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+              >
+                <Ban className="size-4" /> Apagar para todos
               </button>
-              {m.can_revoke ? (
-                <button type="button" onClick={() => { setPicker(null); onDelete(m, true); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">
-                  <Ban className="size-4" /> Apagar para todos
-                </button>
-              ) : null}
-            </div>
-          ) : null}
+            ) : null}
+          </div>
+        ) : null}
         {m.can_react ? (
           <>
-          <button
-            type="button"
-            onClick={() => setPicker(picker === 'quick' || picker === 'full' ? null : 'quick')}
-            className={cn('grid size-7 place-items-center rounded-full text-zinc-400 hover:bg-white hover:text-ink', picker === 'quick' || picker === 'full' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-60')}
-            title="Reagir"
-            aria-label="Reagir"
-          >
-            <Smile className="size-4" />
-          </button>
-          {picker === 'quick' ? (
-            <div className={cn('absolute bottom-full z-20 mb-1 flex items-center gap-0.5 rounded-full border border-zinc-200 bg-white p-1 shadow-lg', out ? 'right-0' : 'left-0')}>
-              {QUICK_REACTIONS.map((e) => (
+            <button
+              type="button"
+              onClick={() => setPicker(picker === 'quick' || picker === 'full' ? null : 'quick')}
+              className={cn(
+                'grid size-7 place-items-center rounded-full text-zinc-400 hover:bg-white hover:text-ink',
+                picker === 'quick' || picker === 'full' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-60',
+              )}
+              title="Reagir"
+              aria-label="Reagir"
+            >
+              <Smile className="size-4" />
+            </button>
+            {picker === 'quick' ? (
+              <div
+                className={cn(
+                  'absolute bottom-full z-20 mb-1 flex items-center gap-0.5 rounded-full border border-zinc-200 bg-white p-1 shadow-lg',
+                  out ? 'right-0' : 'left-0',
+                )}
+              >
+                {QUICK_REACTIONS.map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => pick(e)}
+                    className={cn(
+                      'grid size-8 place-items-center rounded-full text-lg transition hover:scale-125 hover:bg-zinc-100',
+                      m.my_reaction === e && 'bg-zinc-200',
+                    )}
+                    aria-label={`Reagir com ${e}`}
+                  >
+                    {e}
+                  </button>
+                ))}
                 <button
-                  key={e}
                   type="button"
-                  onClick={() => pick(e)}
-                  className={cn('grid size-8 place-items-center rounded-full text-lg transition hover:scale-125 hover:bg-zinc-100', m.my_reaction === e && 'bg-zinc-200')}
-                  aria-label={`Reagir com ${e}`}
+                  onClick={() => setPicker('full')}
+                  className="grid size-8 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100"
+                  aria-label="Mais emojis"
+                  title="Mais emojis"
                 >
-                  {e}
+                  +
                 </button>
-              ))}
-              <button type="button" onClick={() => setPicker('full')} className="grid size-8 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100" aria-label="Mais emojis" title="Mais emojis">
-                +
-              </button>
-            </div>
-          ) : picker === 'full' ? (
-            <div className={cn('absolute bottom-full z-20 mb-1 overflow-hidden rounded-xl shadow-2xl', out ? 'right-0' : 'left-0')}>
-              <Suspense fallback={<div className="grid h-[380px] w-[340px] place-items-center bg-white"><Spinner /></div>}>
-                <EmojiPanel onPick={pick} />
-              </Suspense>
-            </div>
-          ) : null}
+              </div>
+            ) : picker === 'full' ? (
+              <div className={cn('absolute bottom-full z-20 mb-1 overflow-hidden rounded-xl shadow-2xl', out ? 'right-0' : 'left-0')}>
+                <Suspense
+                  fallback={
+                    <div className="grid h-[380px] w-[340px] place-items-center bg-white">
+                      <Spinner />
+                    </div>
+                  }
+                >
+                  <EmojiPanel onPick={pick} />
+                </Suspense>
+              </div>
+            ) : null}
           </>
         ) : null}
       </div>

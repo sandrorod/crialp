@@ -29,17 +29,37 @@ function SourceCard({ meta }: { meta: AnalysisMeta }) {
           <div className="mb-1.5 text-xs font-medium text-zinc-500">Páginas lidas</div>
           <ul className="space-y-1 text-xs">
             {meta.pages.map((p) => (
-              <li key={p} className="truncate"><a href={p} target="_blank" rel="noreferrer" title={p} className="text-brand-600 hover:underline">{shortUrl(p)}</a></li>
+              <li key={p} className="truncate">
+                <a href={p} target="_blank" rel="noreferrer" title={p} className="text-brand-600 hover:underline">
+                  {shortUrl(p)}
+                </a>
+              </li>
             ))}
           </ul>
         </div>
         <div>
           <div className="mb-1.5 text-xs font-medium text-amber-700">Não encontrado no site</div>
-          {meta.missing_info.length ? <ul className="list-disc space-y-0.5 pl-4 text-xs text-zinc-600">{meta.missing_info.map((m) => <li key={m}>{m}</li>)}</ul> : <p className="text-xs text-zinc-400">—</p>}
+          {meta.missing_info.length ? (
+            <ul className="list-disc space-y-0.5 pl-4 text-xs text-zinc-600">
+              {meta.missing_info.map((m) => (
+                <li key={m}>{m}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-zinc-400">—</p>
+          )}
         </div>
         <div>
           <div className="mb-1.5 text-xs font-medium text-red-700">Descartado (não confirmado na fonte)</div>
-          {meta.removed.length ? <ul className="list-disc space-y-0.5 pl-4 text-xs text-zinc-600">{meta.removed.map((m) => <li key={m}>{m}</li>)}</ul> : <p className="text-xs text-zinc-400">Nada descartado.</p>}
+          {meta.removed.length ? (
+            <ul className="list-disc space-y-0.5 pl-4 text-xs text-zinc-600">
+              {meta.removed.map((m) => (
+                <li key={m}>{m}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-zinc-400">Nada descartado.</p>
+          )}
         </div>
       </div>
     </details>
@@ -119,7 +139,12 @@ export function CompanyEditPage() {
   };
 
   if (error) return <ErrorBlock message={error} onRetry={reload} />;
-  if (loading || !company || !draft) return <Card><LoadingBlock rows={6} /></Card>;
+  if (loading || !company || !draft)
+    return (
+      <Card>
+        <LoadingBlock rows={6} />
+      </Card>
+    );
 
   const generating = !!jobId && job?.status !== 'done' && job?.status !== 'error' && !networkError;
 
@@ -140,7 +165,9 @@ export function CompanyEditPage() {
           <>
             {company.landing_page ? (
               <Link to={`/landing-pages/${company.landing_page.id}`}>
-                <Button variant="secondary" icon={<PanelsTopLeft className="size-4" />}>Landing Page</Button>
+                <Button variant="secondary" icon={<PanelsTopLeft className="size-4" />}>
+                  Landing Page
+                </Button>
               </Link>
             ) : null}
             <Button variant="brand" onClick={generate} loading={generating} icon={<Sparkles className="size-4" />}>
@@ -161,14 +188,31 @@ export function CompanyEditPage() {
       ) : null}
 
       {company.source_meta && 'final_url' in company.source_meta ? <SourceCard meta={company.source_meta as AnalysisMeta} /> : null}
-      <SourcesPanel companyId={id} draft={draft} onApply={(patch) => { setDraft({ ...draft, ...patch }); setDirty(true); toast.success('Aplicado ao cadastro. Clique em "Salvar empresa" para gravar.'); }} />
+      <SourcesPanel
+        companyId={id}
+        draft={draft}
+        onApply={(patch) => {
+          setDraft({ ...draft, ...patch });
+          setDirty(true);
+          toast.success('Aplicado ao cadastro. Clique em "Salvar empresa" para gravar.');
+        }}
+      />
 
-      <CompanyForm value={draft} companyId={id} onChange={(v) => { setDraft(v); setDirty(true); }} />
+      <CompanyForm
+        value={draft}
+        companyId={id}
+        onChange={(v) => {
+          setDraft(v);
+          setDirty(true);
+        }}
+      />
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/90 backdrop-blur lg:left-64">
         <div className="mx-auto flex max-w-[1280px] items-center justify-end gap-3 px-4 py-3 sm:px-6 lg:px-10">
           <span className="mr-auto text-sm text-zinc-500">{dirty ? 'Alterações não salvas' : 'Tudo salvo'}</span>
-          <Button onClick={save} loading={saving} disabled={!dirty} icon={<Save className="size-4" />}>Salvar empresa</Button>
+          <Button onClick={save} loading={saving} disabled={!dirty} icon={<Save className="size-4" />}>
+            Salvar empresa
+          </Button>
         </div>
       </div>
 

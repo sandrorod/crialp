@@ -103,7 +103,10 @@ const isKeyProblem = (status: number, message: string) =>
   status === 401 || status === 403 || status === 429 || /invalid api key|not subscribed|quota|exceeded|rate limit/i.test(message);
 
 class RapidStatusError extends Error {
-  constructor(readonly status: number, message: string) {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
     super(message);
   }
 }
@@ -134,21 +137,21 @@ async function call(
     cfg.format === 'template'
       ? JSON.parse((cfg.template ?? '"{{prompt}}"').split('"{{prompt}}"').join(JSON.stringify(fullPrompt)))
       : cfg.format === 'openai' && minimal
-      ? { messages: [{ role: 'user', content: fullPrompt }] }
-      : cfg.format === 'openai'
-      ? {
-          ...extra,
-          ...(cfg.model ? { model: cfg.model } : {}),
-          // Instrução junto da mensagem: muitas APIs do RapidAPI recusam o papel "system"
-          messages: [{ role: 'user', content: fullPrompt }],
-          ...(input.json ? { response_format: { type: 'json_object' } } : {}),
-        }
-      : {
-          contents: [{ role: 'user', parts: [{ text: input.prompt }] }],
-          ...(input.system ? { systemInstruction: { parts: [{ text: input.system }] } } : {}),
-          ...(input.json ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
-          ...(input.maps ? { tools: [{ googleMaps: {} }] } : {}),
-        };
+        ? { messages: [{ role: 'user', content: fullPrompt }] }
+        : cfg.format === 'openai'
+          ? {
+              ...extra,
+              ...(cfg.model ? { model: cfg.model } : {}),
+              // Instrução junto da mensagem: muitas APIs do RapidAPI recusam o papel "system"
+              messages: [{ role: 'user', content: fullPrompt }],
+              ...(input.json ? { response_format: { type: 'json_object' } } : {}),
+            }
+          : {
+              contents: [{ role: 'user', parts: [{ text: input.prompt }] }],
+              ...(input.system ? { systemInstruction: { parts: [{ text: input.system }] } } : {}),
+              ...(input.json ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
+              ...(input.maps ? { tools: [{ googleMaps: {} }] } : {}),
+            };
   const res = await fetch(`https://${cfg.host}${path}`, {
     method: 'POST',
     headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': cfg.host, 'Content-Type': 'application/json' },
@@ -225,7 +228,11 @@ function toUserError(err: unknown): AIProviderError {
   }
   // 403 sem ser da chave: o serviço do Gemini por trás do RapidAPI recusou o pedido — mostra o motivo real
   if (status === 403 || isInvalidProperty(status, msg)) {
-    return new AIProviderError(msg, true, `A API do Gemini no RapidAPI recusou o pedido (${msg}). A chave é aceita pelo RapidAPI; o problema é no serviço da API. Tente de novo em alguns minutos ou veja o Playground da API no RapidAPI.`);
+    return new AIProviderError(
+      msg,
+      true,
+      `A API do Gemini no RapidAPI recusou o pedido (${msg}). A chave é aceita pelo RapidAPI; o problema é no serviço da API. Tente de novo em alguns minutos ou veja o Playground da API no RapidAPI.`,
+    );
   }
   if (status === 429 || /quota|exceeded|rate limit/i.test(msg)) {
     return new AIProviderError(msg, true, 'Limite de uso do RapidAPI (Gemini) atingido em todas as chaves. Aguarde ou cadastre outra chave em Configurações.');
@@ -250,7 +257,11 @@ export const rapidGemini = {
   async run(input: { system?: string; prompt: string; json?: boolean; maps?: boolean }): Promise<RapidGeminiResponse> {
     const keys: AIKey[] = await aiKeyStore.rotation('rapidapi_gemini');
     if (!keys.length) {
-      throw new AIProviderError('Nenhuma chave configurada.', false, 'Nenhuma chave do Gemini ativa. Ative uma chave do Gemini ou cadastre uma em "Chaves do RapidAPI — Gemini" em Configurações.');
+      throw new AIProviderError(
+        'Nenhuma chave configurada.',
+        false,
+        'Nenhuma chave do Gemini ativa. Ative uma chave do Gemini ou cadastre uma em "Chaves do RapidAPI — Gemini" em Configurações.',
+      );
     }
     const cfg = await getRapidGeminiConfig();
     let lastError: unknown;

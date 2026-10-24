@@ -29,10 +29,13 @@ usersRouter.post('/', async (req, res) => {
   const user = authUser(req);
   const body = parseBody(CreateSchema, req.body);
   await ensureEmailFree(body.email);
-  const created = await one(
-    `insert into users (organization_id, name, email, password_hash, role) values ($1, $2, $3, $4, $5) returning ${COLUMNS}`,
-    [user.organizationId, body.name, body.email, await bcrypt.hash(body.password, 12), body.role],
-  );
+  const created = await one(`insert into users (organization_id, name, email, password_hash, role) values ($1, $2, $3, $4, $5) returning ${COLUMNS}`, [
+    user.organizationId,
+    body.name,
+    body.email,
+    await bcrypt.hash(body.password, 12),
+    body.role,
+  ]);
   res.status(201).json(created);
 });
 
@@ -79,7 +82,10 @@ usersRouter.delete('/:id', async (req, res) => {
 });
 
 async function findTarget(orgId: string, id: string) {
-  const target = await one<{ id: string; role: string; email: string }>("select id, role, email from users where id = $1 and organization_id = $2 and role <> 'client'", [id, orgId]);
+  const target = await one<{ id: string; role: string; email: string }>(
+    "select id, role, email from users where id = $1 and organization_id = $2 and role <> 'client'",
+    [id, orgId],
+  );
   if (!target) throw notFound('Usuário não encontrado.');
   return target;
 }

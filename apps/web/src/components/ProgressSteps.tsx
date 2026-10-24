@@ -61,7 +61,10 @@ export function ProgressSteps({ current, range = [1, 9], failed, done }: { curre
           <span>{pct}%</span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100">
-          <div className={cn('h-full rounded-full transition-all duration-700 ease-out', failed ? 'bg-red-500' : 'bg-brand-500')} style={{ width: `${Math.max(pct, 4)}%` }} />
+          <div
+            className={cn('h-full rounded-full transition-all duration-700 ease-out', failed ? 'bg-red-500' : 'bg-brand-500')}
+            style={{ width: `${Math.max(pct, 4)}%` }}
+          />
         </div>
       </div>
       <ol className="space-y-1">

@@ -1,4 +1,16 @@
-import { createContext, useContext, type ComponentProps, useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import {
+  createContext,
+  useContext,
+  type ComponentProps,
+  useEffect,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from 'react';
 import { ChevronLeft, ChevronRight, Loader2, Plus, X } from 'lucide-react';
 import { cn, confirmDelete } from '@/lib/utils';
 import type { LpStatus } from '@/types';
@@ -82,7 +94,10 @@ export function TextField({
   multiline,
   className,
   ...props
-}: { label: string; value: string | null | undefined; onChange: (v: string | null) => void; hint?: ReactNode; multiline?: boolean; className?: string } & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
+}: { label: string; value: string | null | undefined; onChange: (v: string | null) => void; hint?: ReactNode; multiline?: boolean; className?: string } & Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'onChange'
+>) {
   return (
     <Field label={label} hint={hint} className={className}>
       {multiline ? (
@@ -95,7 +110,19 @@ export function TextField({
 }
 
 // ─── Lista de textos editável ───────────────────────────────────────
-export function ListEditor({ label, values, onChange, placeholder, field }: { label: string; values: string[]; onChange: (v: string[]) => void; placeholder?: string; field?: string }) {
+export function ListEditor({
+  label,
+  values,
+  onChange,
+  placeholder,
+  field,
+}: {
+  label: string;
+  values: string[];
+  onChange: (v: string[]) => void;
+  placeholder?: string;
+  field?: string;
+}) {
   const [draft, setDraft] = useState('');
   const add = () => {
     const t = draft.trim();
@@ -108,9 +135,18 @@ export function ListEditor({ label, values, onChange, placeholder, field }: { la
       {values.length ? (
         <ul className="mb-2 flex flex-wrap gap-1.5">
           {values.map((v, i) => (
-            <li key={`${v}-${i}`} data-field={field ? `${field}.${i}` : undefined} className="inline-flex max-w-full items-center gap-1 rounded-md bg-zinc-100 py-1 pl-2.5 pr-1 text-[13px] text-zinc-700">
+            <li
+              key={`${v}-${i}`}
+              data-field={field ? `${field}.${i}` : undefined}
+              className="inline-flex max-w-full items-center gap-1 rounded-md bg-zinc-100 py-1 pl-2.5 pr-1 text-[13px] text-zinc-700"
+            >
               <span className="truncate">{v}</span>
-              <button type="button" onClick={() => confirmDelete(`"${v}"`) && onChange(values.filter((_, j) => j !== i))} className="rounded p-0.5 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700" aria-label={`Remover ${v}`}>
+              <button
+                type="button"
+                onClick={() => confirmDelete(`"${v}"`) && onChange(values.filter((_, j) => j !== i))}
+                className="rounded p-0.5 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"
+                aria-label={`Remover ${v}`}
+              >
                 <X className="size-3.5" />
               </button>
             </li>
@@ -256,7 +292,9 @@ export function StatusToggle({ status, onToggle, loading }: { status: LpStatus; 
       className="inline-flex rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:opacity-60"
     >
       <span className={cn('relative h-6 w-10 rounded-full transition', active ? 'bg-emerald-500' : 'bg-red-400')}>
-        <span className={cn('absolute top-0.5 grid size-5 place-items-center rounded-full bg-white shadow transition-all', active ? 'left-[18px]' : 'left-0.5')}>
+        <span
+          className={cn('absolute top-0.5 grid size-5 place-items-center rounded-full bg-white shadow transition-all', active ? 'left-[18px]' : 'left-0.5')}
+        >
           {loading ? <Loader2 className="size-3 animate-spin text-zinc-400" /> : null}
         </span>
       </span>
@@ -388,7 +426,19 @@ export function Modal({
 
 // ─── Paginação ──────────────────────────────────────────────────────
 /** Rodapé de lista: "1–10 de 37" e navegação entre páginas. Some quando cabe tudo em uma página. */
-export function Pagination({ page, pages, total, pageSize, onPage }: { page: number; pages: number; total: number; pageSize: number; onPage: (p: number) => void }) {
+export function Pagination({
+  page,
+  pages,
+  total,
+  pageSize,
+  onPage,
+}: {
+  page: number;
+  pages: number;
+  total: number;
+  pageSize: number;
+  onPage: (p: number) => void;
+}) {
   if (pages <= 1) return null;
   const from = (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
@@ -401,7 +451,13 @@ export function Pagination({ page, pages, total, pageSize, onPage }: { page: num
         {from}–{to} de {total}
       </span>
       <nav className="flex items-center gap-1" aria-label="Paginação">
-        <button type="button" className={cn(btn, 'hover:bg-zinc-100 hover:text-ink')} disabled={page === 1} onClick={() => onPage(page - 1)} aria-label="Página anterior">
+        <button
+          type="button"
+          className={cn(btn, 'hover:bg-zinc-100 hover:text-ink')}
+          disabled={page === 1}
+          onClick={() => onPage(page - 1)}
+          aria-label="Página anterior"
+        >
           <ChevronLeft className="size-4" />
         </button>
         {nums.map((n, i) => (
@@ -417,7 +473,13 @@ export function Pagination({ page, pages, total, pageSize, onPage }: { page: num
             </button>
           </span>
         ))}
-        <button type="button" className={cn(btn, 'hover:bg-zinc-100 hover:text-ink')} disabled={page === pages} onClick={() => onPage(page + 1)} aria-label="Próxima página">
+        <button
+          type="button"
+          className={cn(btn, 'hover:bg-zinc-100 hover:text-ink')}
+          disabled={page === pages}
+          onClick={() => onPage(page + 1)}
+          aria-label="Próxima página"
+        >
           <ChevronRight className="size-4" />
         </button>
       </nav>

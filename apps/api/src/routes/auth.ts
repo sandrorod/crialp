@@ -29,7 +29,11 @@ const loginAccountLimiter = rateLimit({
   skipSuccessfulRequests: true,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
-  keyGenerator: (req) => `login:${String(req.body?.email ?? '').trim().toLowerCase().slice(0, 200)}`,
+  keyGenerator: (req) =>
+    `login:${String(req.body?.email ?? '')
+      .trim()
+      .toLowerCase()
+      .slice(0, 200)}`,
   message: { error: 'Muitas tentativas de login. Aguarde alguns minutos.' },
 });
 

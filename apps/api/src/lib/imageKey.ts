@@ -41,23 +41,24 @@ export function imageKey(url: string) {
   } catch {
     /* URL com % inválido: compara como está */
   }
-  return u
-    .replace(/[\u200b-\u200d\ufeff]/g, '') // caracteres invisíveis no nome do arquivo
-    .toLowerCase()
-    .replace(/[?#].*$/, '')
-    .replace(/-\d{2,4}x\d{2,4}(?=\.\w+$)/, '')
-    .replace(/-\d{2,4}x(?=\.\w+$)/, '')
-    .replace(/^.*\/wp-content\//, 'wp/')
-    // Google (fotos do perfil): mesma foto com "=w1600-h1200-k-no", "=s1360-w1360-h1020"…
-    .replace(/^(https?:\/\/[^/]*googleusercontent\.com\/.+?)=[a-z0-9-]+$/, '$1')
-    // Wix: …/media/abc~mv2.jpg/v1/fill/w_800,h_600/abc~mv2.jpg → a foto é o que vem antes de /v1/
-    .replace(/^(.*wixstatic\.com\/media\/[^/]+)\/v1\/.*$/, '$1')
-    // Shopify: foto_800x.jpg, foto_large.jpg, foto_1024x1024@2x.jpg
-    .replace(/_(\d{2,4}x\d{0,4}|pico|icon|thumb|small|compact|medium|large|grande|original|master)(@\dx)?(?=\.\w+$)/, '')
-    // Cloudinary: /upload/w_800,c_fill/v123/foto.jpg → /upload/foto.jpg
-    .replace(/(\/upload\/)(?:[a-z]{1,2}_[^/]+\/)*(?:v\d+\/)?/, '$1')
-    .replace(/@\dx(?=\.\w+$)/, '')
-    .replace(/-scaled(?=\.\w+$)/, '')
-    .replace(/\.(jpe?g|png|webp|gif|avif)$/, '');
+  return (
+    u
+      .replace(/[\u200b-\u200d\ufeff]/g, '') // caracteres invisíveis no nome do arquivo
+      .toLowerCase()
+      .replace(/[?#].*$/, '')
+      .replace(/-\d{2,4}x\d{2,4}(?=\.\w+$)/, '')
+      .replace(/-\d{2,4}x(?=\.\w+$)/, '')
+      .replace(/^.*\/wp-content\//, 'wp/')
+      // Google (fotos do perfil): mesma foto com "=w1600-h1200-k-no", "=s1360-w1360-h1020"…
+      .replace(/^(https?:\/\/[^/]*googleusercontent\.com\/.+?)=[a-z0-9-]+$/, '$1')
+      // Wix: …/media/abc~mv2.jpg/v1/fill/w_800,h_600/abc~mv2.jpg → a foto é o que vem antes de /v1/
+      .replace(/^(.*wixstatic\.com\/media\/[^/]+)\/v1\/.*$/, '$1')
+      // Shopify: foto_800x.jpg, foto_large.jpg, foto_1024x1024@2x.jpg
+      .replace(/_(\d{2,4}x\d{0,4}|pico|icon|thumb|small|compact|medium|large|grande|original|master)(@\dx)?(?=\.\w+$)/, '')
+      // Cloudinary: /upload/w_800,c_fill/v123/foto.jpg → /upload/foto.jpg
+      .replace(/(\/upload\/)(?:[a-z]{1,2}_[^/]+\/)*(?:v\d+\/)?/, '$1')
+      .replace(/@\dx(?=\.\w+$)/, '')
+      .replace(/-scaled(?=\.\w+$)/, '')
+      .replace(/\.(jpe?g|png|webp|gif|avif)$/, '')
+  );
 }
-

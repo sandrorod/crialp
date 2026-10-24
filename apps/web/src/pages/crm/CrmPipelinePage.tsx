@@ -78,12 +78,24 @@ export function CrmPipelinePage() {
         {manager ? (
           <Select value={seller} onChange={(e) => setSeller(e.target.value)} className="w-auto" aria-label="Vendedor">
             <option value="">Todos os vendedores</option>
-            {users?.filter((u) => u.role === 'seller').map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            {users
+              ?.filter((u) => u.role === 'seller')
+              .map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
           </Select>
         ) : null}
         <div className="ml-auto flex gap-2">
-          {manager ? <Button variant="secondary" icon={<Plus className="size-4" />} onClick={() => setStageForm('new')}>Nova coluna</Button> : null}
-          <Button icon={<Plus className="size-4" />} onClick={() => setEditing({})}>Novo negócio</Button>
+          {manager ? (
+            <Button variant="secondary" icon={<Plus className="size-4" />} onClick={() => setStageForm('new')}>
+              Nova coluna
+            </Button>
+          ) : null}
+          <Button icon={<Plus className="size-4" />} onClick={() => setEditing({})}>
+            Novo negócio
+          </Button>
         </div>
       </div>
 
@@ -94,7 +106,10 @@ export function CrmPipelinePage() {
           return (
             <div
               key={stage.id}
-              onDragOver={(e) => { e.preventDefault(); setOver(stage.id); }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setOver(stage.id);
+              }}
               onDragLeave={() => setOver((o) => (o === stage.id ? null : o))}
               onDrop={() => {
                 if (dragging) void move(dragging, stage.id);
@@ -105,7 +120,9 @@ export function CrmPipelinePage() {
             >
               <div className="rounded-t-xl border-t-4 px-3 py-2.5" style={{ borderColor: stage.color }}>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-semibold text-ink" title={KIND_LABEL[stage.kind]}>{stage.name}</span>
+                  <span className="truncate text-sm font-semibold text-ink" title={KIND_LABEL[stage.kind]}>
+                    {stage.name}
+                  </span>
                   <div className="flex items-center gap-1">
                     <span className="text-xs text-zinc-500">{cards.length}</span>
                     {manager ? (
@@ -120,7 +137,10 @@ export function CrmPipelinePage() {
                     ) : null}
                   </div>
                 </div>
-                <div className="text-xs text-zinc-500">{money(total)}{stage.kind !== 'open' ? ` · ${KIND_LABEL[stage.kind]}` : ''}</div>
+                <div className="text-xs text-zinc-500">
+                  {money(total)}
+                  {stage.kind !== 'open' ? ` · ${KIND_LABEL[stage.kind]}` : ''}
+                </div>
               </div>
               <div className="flex-1 space-y-2 p-2">
                 {cards.map((d) => (
@@ -128,13 +148,22 @@ export function CrmPipelinePage() {
                     key={d.id}
                     draggable
                     onDragStart={() => setDragging(d.id)}
-                    onDragEnd={() => { setDragging(null); setOver(null); }}
+                    onDragEnd={() => {
+                      setDragging(null);
+                      setOver(null);
+                    }}
                     onClick={() => setEditing({ deal: d })}
-                    className={cn('group relative cursor-grab rounded-lg border border-zinc-200 bg-white p-3 text-sm shadow-xs hover:border-zinc-300', dragging === d.id && 'opacity-50')}
+                    className={cn(
+                      'group relative cursor-grab rounded-lg border border-zinc-200 bg-white p-3 text-sm shadow-xs hover:border-zinc-300',
+                      dragging === d.id && 'opacity-50',
+                    )}
                   >
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); void removeDeal(d); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void removeDeal(d);
+                      }}
                       className="absolute right-1.5 top-1.5 rounded-md p-1 text-zinc-400 opacity-0 hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
                       title="Excluir negócio"
                       aria-label="Excluir negócio"
@@ -142,7 +171,9 @@ export function CrmPipelinePage() {
                       <Trash2 className="size-3.5" />
                     </button>
                     <div className="pr-6 font-medium text-ink">{d.title}</div>
-                    <Link to={`/crm/empresas/${d.company_id}`} onClick={(e) => e.stopPropagation()} className="text-xs text-zinc-500 hover:underline">{d.company_name}</Link>
+                    <Link to={`/crm/empresas/${d.company_id}`} onClick={(e) => e.stopPropagation()} className="text-xs text-zinc-500 hover:underline">
+                      {d.company_name}
+                    </Link>
                     <div className="mt-2 flex justify-between text-xs">
                       <span className="font-medium text-zinc-700">{money(d.value)}</span>
                       {d.expected_close ? <span className="text-zinc-500">{formatDate(d.expected_close)}</span> : null}
@@ -154,11 +185,21 @@ export function CrmPipelinePage() {
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => void move(d.id, e.target.value)}
                     >
-                      {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      {stages.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 ))}
-                <button type="button" className="w-full rounded-md py-1.5 text-xs text-zinc-500 hover:bg-zinc-200" onClick={() => setEditing({ stageId: stage.id })}>+ adicionar</button>
+                <button
+                  type="button"
+                  className="w-full rounded-md py-1.5 text-xs text-zinc-500 hover:bg-zinc-200"
+                  onClick={() => setEditing({ stageId: stage.id })}
+                >
+                  + adicionar
+                </button>
               </div>
             </div>
           );
@@ -175,9 +216,7 @@ export function CrmPipelinePage() {
       </div>
 
       {editing ? <DealForm deal={editing.deal} stageId={editing.stageId} onClose={() => setEditing(null)} onSaved={reload} /> : null}
-      {stageForm ? (
-        <StageForm stage={stageForm === 'new' ? null : stageForm} onClose={() => setStageForm(null)} onSaved={() => void reloadStages()} />
-      ) : null}
+      {stageForm ? <StageForm stage={stageForm === 'new' ? null : stageForm} onClose={() => setStageForm(null)} onSaved={() => void reloadStages()} /> : null}
       {removingStage ? (
         <RemoveStage
           stage={removingStage}
@@ -196,7 +235,21 @@ export function CrmPipelinePage() {
 }
 
 /** Menu "⋯" da coluna: editar, mudar de lugar e excluir. */
-function StageMenu({ first, last, onEdit, onLeft, onRight, onDelete }: { first: boolean; last: boolean; onEdit: () => void; onLeft: () => void; onRight: () => void; onDelete: () => void }) {
+function StageMenu({
+  first,
+  last,
+  onEdit,
+  onLeft,
+  onRight,
+  onDelete,
+}: {
+  first: boolean;
+  last: boolean;
+  onEdit: () => void;
+  onLeft: () => void;
+  onRight: () => void;
+  onDelete: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -213,7 +266,10 @@ function StageMenu({ first, last, onEdit, onLeft, onRight, onDelete }: { first: 
         setOpen(false);
         onClick();
       }}
-      className={cn('flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-zinc-50 disabled:opacity-40', opts.danger ? 'text-red-600' : 'text-zinc-700')}
+      className={cn(
+        'flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-zinc-50 disabled:opacity-40',
+        opts.danger ? 'text-red-600' : 'text-zinc-700',
+      )}
     >
       {icon}
       {label}
@@ -221,7 +277,13 @@ function StageMenu({ first, last, onEdit, onLeft, onRight, onDelete }: { first: 
   );
   return (
     <div ref={box} className="relative">
-      <button type="button" onClick={() => setOpen((o) => !o)} className="rounded-md p-1 text-zinc-500 hover:bg-zinc-200 hover:text-ink" aria-label="Opções da coluna" title="Opções da coluna">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="rounded-md p-1 text-zinc-500 hover:bg-zinc-200 hover:text-ink"
+        aria-label="Opções da coluna"
+        title="Opções da coluna"
+      >
         <MoreHorizontal className="size-4" />
       </button>
       {open ? (
@@ -262,13 +324,19 @@ function StageForm({ stage, onClose, onSaved }: { stage: CrmStage | null; onClos
       busy={saving}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button type="submit" form="crm-stage" loading={saving}>Salvar</Button>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="crm-stage" loading={saving}>
+            Salvar
+          </Button>
         </>
       }
     >
       <form id="crm-stage" onSubmit={save} className="space-y-4">
-        <Field label="Nome *"><Input required autoFocus maxLength={60} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Ex.: Reunião agendada" /></Field>
+        <Field label="Nome *">
+          <Input required autoFocus maxLength={60} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Ex.: Reunião agendada" />
+        </Field>
         <div>
           <span className="mb-1.5 block text-[13px] font-medium text-zinc-700">Cor</span>
           <div className="flex flex-wrap items-center gap-2">
@@ -282,12 +350,23 @@ function StageForm({ stage, onClose, onSaved }: { stage: CrmStage | null; onClos
                 aria-label={`Cor ${c}`}
               />
             ))}
-            <input type="color" value={f.color} onChange={(e) => setF({ ...f, color: e.target.value })} className="h-7 w-10 cursor-pointer rounded border border-zinc-200 bg-white p-0.5" aria-label="Outra cor" title="Outra cor" />
+            <input
+              type="color"
+              value={f.color}
+              onChange={(e) => setF({ ...f, color: e.target.value })}
+              className="h-7 w-10 cursor-pointer rounded border border-zinc-200 bg-white p-0.5"
+              aria-label="Outra cor"
+              title="Outra cor"
+            />
           </div>
         </div>
         <Field label="Tipo" hint="Ganho e Perdido não entram no valor “em negociação” das empresas.">
           <Select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as StageInput['kind'] })}>
-            {(Object.keys(KIND_LABEL) as CrmStage['kind'][]).map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
+            {(Object.keys(KIND_LABEL) as CrmStage['kind'][]).map((k) => (
+              <option key={k} value={k}>
+                {KIND_LABEL[k]}
+              </option>
+            ))}
           </Select>
         </Field>
       </form>
@@ -296,7 +375,21 @@ function StageForm({ stage, onClose, onSaved }: { stage: CrmStage | null; onClos
 }
 
 /** Excluir coluna: se tiver negócios, escolhe para onde eles vão. */
-function RemoveStage({ stage, stages, dealCount, filtered, onClose, onDone }: { stage: CrmStage; stages: CrmStage[]; dealCount: number; filtered: boolean; onClose: () => void; onDone: () => void }) {
+function RemoveStage({
+  stage,
+  stages,
+  dealCount,
+  filtered,
+  onClose,
+  onDone,
+}: {
+  stage: CrmStage;
+  stages: CrmStage[];
+  dealCount: number;
+  filtered: boolean;
+  onClose: () => void;
+  onDone: () => void;
+}) {
   const others = stages.filter((s) => s.id !== stage.id);
   const [moveTo, setMoveTo] = useState(others[0]?.id ?? '');
   const [busy, setBusy] = useState(false);
@@ -321,8 +414,12 @@ function RemoveStage({ stage, stages, dealCount, filtered, onClose, onDone }: { 
       busy={busy}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={busy}>Cancelar</Button>
-          <Button variant="danger" onClick={() => void remove()} loading={busy} disabled={!others.length}>Excluir coluna</Button>
+          <Button variant="secondary" onClick={onClose} disabled={busy}>
+            Cancelar
+          </Button>
+          <Button variant="danger" onClick={() => void remove()} loading={busy} disabled={!others.length}>
+            Excluir coluna
+          </Button>
         </>
       }
     >
@@ -336,7 +433,11 @@ function RemoveStage({ stage, stages, dealCount, filtered, onClose, onDone }: { 
               : 'A coluna está vazia. Se algum negócio for criado nela até lá, ele vai para:'}
           </p>
           <Select value={moveTo} onChange={(e) => setMoveTo(e.target.value)}>
-            {others.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            {others.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
           </Select>
         </div>
       )}

@@ -19,10 +19,23 @@ export function CustomSectionView({ ctx, section, alt }: { ctx: RenderContext; s
   return (
     <section id={`sec-${section.id}`} className={`section${alt ? ' section-alt' : ''}${center ? ' custom-center' : ''}`}>
       <div className="container">
-        {section.title ? <SectionHead center={center} eyebrow={section.eyebrow} title={section.title} paths={{ eyebrow: edOptional(ctx, `${base}.eyebrow`, 'Sobretítulo (opcional)'), title: ed(ctx, `${base}.title`) }} /> : null}
+        {section.title ? (
+          <SectionHead
+            center={center}
+            eyebrow={section.eyebrow}
+            title={section.title}
+            paths={{ eyebrow: edOptional(ctx, `${base}.eyebrow`, 'Sobretítulo (opcional)'), title: ed(ctx, `${base}.title`) }}
+          />
+        ) : null}
         {section.paragraphs.some(Boolean) ? (
           <div className="custom-text reveal">
-            {section.paragraphs.map((p, i) => (p ? <p key={i} {...ed(ctx, `${base}.paragraphs.${i}`)}>{p}</p> : null))}
+            {section.paragraphs.map((p, i) =>
+              p ? (
+                <p key={i} {...ed(ctx, `${base}.paragraphs.${i}`)}>
+                  {p}
+                </p>
+              ) : null,
+            )}
           </div>
         ) : null}
         {section.items.some(Boolean) ? (
@@ -46,8 +59,18 @@ export function CustomSectionView({ ctx, section, alt }: { ctx: RenderContext; s
                 return (
                   <div key={b.id} className={`blk blk-image w-${b.width ?? 'full'} reveal`}>
                     <figure>
-                      <img referrerPolicy="no-referrer" src={photo.url} alt={b.alt || photo.alt} loading="lazy" decoding="async" data-lp-img={photo.url} style={photo.style} />
-                      {b.caption || ctx.editable ? <figcaption {...edOptional(ctx, `${base}.blocks.${i}.caption`, 'Legenda (opcional)')}>{b.caption}</figcaption> : null}
+                      <img
+                        referrerPolicy="no-referrer"
+                        src={photo.url}
+                        alt={b.alt || photo.alt}
+                        loading="lazy"
+                        decoding="async"
+                        data-lp-img={photo.url}
+                        style={photo.style}
+                      />
+                      {b.caption || ctx.editable ? (
+                        <figcaption {...edOptional(ctx, `${base}.blocks.${i}.caption`, 'Legenda (opcional)')}>{b.caption}</figcaption>
+                      ) : null}
                     </figure>
                   </div>
                 );
@@ -94,7 +117,9 @@ function BlockView({ ctx, block: b, path }: { ctx: RenderContext; block: Section
     case 'icon':
       return (
         <div className="card">
-          <div className="icon-box"><Icon name={b.icon} size={24} attrs={edIcon(ctx, `${path}.icon`)} /></div>
+          <div className="icon-box">
+            <Icon name={b.icon} size={24} attrs={edIcon(ctx, `${path}.icon`)} />
+          </div>
           <h3 {...ed(ctx, `${path}.title`)}>{b.title}</h3>
           {b.text || ctx.editable ? <p {...edOptional(ctx, `${path}.text`, 'Descrição (opcional)')}>{b.text}</p> : null}
         </div>
