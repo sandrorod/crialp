@@ -10,15 +10,25 @@ import { errorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { crmService, dateTime } from '@/services/crm';
 import type { CrmTask } from '@/types/crm';
+import { Avatar, CrmBar, Pill, TONES, type CrmTone } from '@/components/crm/CrmTheme';
 import { isCrmManager } from './CrmLayout';
 
 type Filter = 'pending' | 'today' | 'late' | 'done';
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: 'pending', label: 'Pendentes' },
-  { id: 'today', label: 'Hoje' },
-  { id: 'late', label: 'Atrasadas' },
-  { id: 'done', label: 'Concluídas' },
+const FILTERS: { id: Filter; label: string; tone: CrmTone }[] = [
+  { id: 'pending', label: 'Pendentes', tone: 'blue' },
+  { id: 'today', label: 'Hoje', tone: 'amber' },
+  { id: 'late', label: 'Atrasadas', tone: 'rose' },
+  { id: 'done', label: 'Concluídas', tone: 'emerald' },
 ];
+
+/** Cor do prazo: atrasada (rosa), vence hoje (âmbar), concluída (verde), no futuro ou sem prazo (neutro). */
+function dueTone(t: CrmTask, now: number): CrmTone {
+  if (t.done) return 'emerald';
+  if (!t.due_at) return 'zinc';
+  const due = new Date(t.due_at);
+  if (due.getTime() < now) return 'rose';
+  return due.toDateString() === new Date(now).toDateString() ? 'amber' : 'blue';
+}
 
 function range(filter: Filter) {
   const now = new Date();
@@ -55,36 +65,38 @@ export function CrmTasksPage() {
   const now = Date.now();
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        {FILTERS.map((f) => (
-          <button
-            type="button"
-            key={f.id}
-            onClick={() => setFilter(f.id)}
-            className={cn(
-              'rounded-full px-3 py-1 text-sm',
-              filter === f.id ? 'bg-ink text-white' : 'border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50',
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-        {manager ? (
-          <Select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-auto" aria-label="Responsável">
-            <option value="">Todos os responsáveis</option>
-            {users?.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
+      <Card className="overflow-hidden">
+        <CrmBar tone="amber" icon={<CheckSquare className="size-4" />} title="Tarefas" subtitle="Follow-ups e retornos aos clientes">
+          <div className="flex flex-wrap items-center gap-1.5 sm:ml-4">
+            {FILTERS.map((f) => (
+              <button
+                type="button"
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                className={cn(
+                  'rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset transition-colors',
+                  filter === f.id ? TONES[f.tone].pill : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50',
+                )}
+              >
+                {f.label}
+              </button>
             ))}
-          </Select>
-        ) : null}
-        <Button className="ml-auto" icon={<Plus className="size-4" />} onClick={() => setEditing(null)}>
-          Nova tarefa
-        </Button>
-      </div>
+          </div>
+          {manager ? (
+            <Select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-auto! min-w-48" aria-label="Responsável">
+              <option value="">Todos os responsáveis</option>
+              {users?.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </Select>
+          ) : null}
+          <Button className="ml-auto" icon={<Plus className="size-4" />} onClick={() => setEditing(null)}>
+            Nova tarefa
+          </Button>
+        </CrmBar>
 
-      <Card>
         {error ? (
           <div className="p-4">
             <ErrorBlock message={error} onRetry={reload} />
@@ -100,25 +112,28 @@ export function CrmTasksPage() {
         ) : (
           <ul className="divide-y divide-zinc-100">
             {data.map((t) => {
-              const late = !t.done && t.due_at && new Date(t.due_at).getTime() < now;
+              const tone = dueTone(t, now);
               return (
-                <li key={t.id} className="flex items-center gap-3 px-5 py-3 text-sm">
-                  <input type="checkbox" className="size-4 accent-brand-600" checked={t.done} onChange={() => void toggle(t)} aria-label="Concluída" />
+                <li key={t.id} className="flex items-center gap-3 px-5 py-3 text-sm transition-colors hover:bg-amber-50/30">
+                  <input type="checkbox" className="size-4 accent-emerald-600" checked={t.done} onChange={() => void toggle(t)} aria-label="Concluída" />
                   <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setEditing(t)}>
-                    <div className={cn('text-ink', t.done && 'text-zinc-400 line-through')}>{t.title}</div>
-                    <div className="text-xs text-zinc-500">
-                      {t.company_name ?? 'sem empresa'}
-                      {manager && t.assignee_id !== user?.id ? ` · ${t.assignee_name}` : ''}
-                    </div>
+                    <div className={cn('font-medium text-ink', t.done && 'font-normal text-zinc-400 line-through')}>{t.title}</div>
+                    <div className="text-xs text-zinc-500">{t.company_name ?? 'sem empresa'}</div>
                   </button>
+                  {manager && t.assignee_name ? (
+                    <span className="hidden items-center gap-1.5 text-xs text-zinc-600 md:flex" title="Responsável">
+                      <Avatar name={t.assignee_name} size="sm" />
+                      {t.assignee_id === user?.id ? 'Você' : t.assignee_name}
+                    </span>
+                  ) : null}
                   {t.company_id ? (
-                    <Link to={`/crm/empresas/${t.company_id}`} className="hidden text-xs text-brand-600 hover:underline sm:inline">
+                    <Link to={`/crm/empresas/${t.company_id}`} className="hidden text-xs font-medium text-blue-700 hover:underline sm:inline">
                       abrir empresa
                     </Link>
                   ) : null}
-                  <span className={cn('shrink-0 text-xs', late ? 'font-medium text-red-600' : 'text-zinc-500')}>
+                  <Pill tone={tone} className="shrink-0" title={t.done ? 'Concluída' : tone === 'rose' ? 'Atrasada' : undefined}>
                     {t.due_at ? dateTime(t.due_at) : 'sem prazo'}
-                  </span>
+                  </Pill>
                 </li>
               );
             })}

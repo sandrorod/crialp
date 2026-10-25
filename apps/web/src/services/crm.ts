@@ -41,6 +41,8 @@ export const TASK_CREATED_EVENT = 'crm:task-created';
 
 export const crmService = {
   users: () => api.get<CrmUser[]>('/crm/users'),
+  /** Cadastro rápido de empresa (o mesmo cadastro do sistema; só o nome é obrigatório). */
+  createCompany: (c: { name: string; whatsapp: string | null; city: string | null }) => api.post<{ id: string }>('/companies', c),
   permissions: () => api.get<{ free_number: boolean }>('/crm/permissions'),
   freeNumberUsers: () => api.get<CrmFreeNumberUser[]>('/crm/free-number-users'),
   setFreeNumberUser: (id: string, allowed: boolean) => api.put(`/crm/free-number-users/${id}`, { allowed }),

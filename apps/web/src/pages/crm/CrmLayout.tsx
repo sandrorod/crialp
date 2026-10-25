@@ -8,6 +8,7 @@ import { errorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { crmService, dateTime, TASK_CREATED_EVENT } from '@/services/crm';
 import type { CrmTaskAlert } from '@/types/crm';
+import { TONES, type CrmTone } from '@/components/crm/CrmTheme';
 import { useEffect, useState } from 'react';
 
 export const isCrmManager = (role?: string) => role === 'owner' || role === 'admin';
@@ -44,37 +45,50 @@ export function CrmLayout() {
   }, []);
 
   const tabs = [
-    { to: '/crm', label: 'Empresas', icon: Building2, end: true },
-    { to: '/crm/whatsapp', label: 'WhatsApp', icon: MessageCircle, badge: unread.data?.total ?? 0 },
-    { to: '/crm/funil', label: 'Funil', icon: KanbanSquare },
-    { to: '/crm/tarefas', label: 'Tarefas', icon: CheckSquare },
-    ...(manager ? [{ to: '/crm/conexao', label: 'Conexão', icon: Smartphone }] : []),
+    { to: '/crm', label: 'Empresas', icon: Building2, end: true, tone: 'blue' as CrmTone },
+    { to: '/crm/whatsapp', label: 'WhatsApp', icon: MessageCircle, badge: unread.data?.total ?? 0, tone: 'emerald' as CrmTone },
+    { to: '/crm/funil', label: 'Funil', icon: KanbanSquare, tone: 'violet' as CrmTone },
+    { to: '/crm/tarefas', label: 'Tarefas', icon: CheckSquare, tone: 'amber' as CrmTone },
+    ...(manager ? [{ to: '/crm/conexao', label: 'Conexão', icon: Smartphone, tone: 'sky' as CrmTone }] : []),
   ];
 
   // Abas em coluna à esquerda (md+); o AdminLayout alarga o container na mesma medida
   return (
     <div className="md:flex md:items-start md:gap-4">
-      <nav className="mb-5 flex gap-1 overflow-x-auto border-b border-zinc-200 md:sticky md:top-[58px] md:mb-0 md:w-[88px] md:flex-none md:flex-col md:overflow-visible md:border-b-0 md:border-r md:pr-2">
-        {tabs.map(({ to, label, icon: Icon, end, badge }) => (
+      {/* Fundo claro com manchas suaves de cor, atrás de todo o CRM */}
+      <div aria-hidden className="crm-backdrop pointer-events-none fixed inset-0 -z-10" />
+      <nav className="mb-3 flex gap-1 overflow-x-auto rounded-xl border border-zinc-200/70 bg-white/85 p-1 shadow-xs backdrop-blur md:sticky md:top-[58px] md:mb-0 md:w-[88px] md:flex-none md:flex-col md:overflow-visible md:rounded-2xl md:p-1.5">
+        {tabs.map(({ to, label, icon: Icon, end, badge, tone }) => (
           <NavLink
             key={to}
             to={to}
             end={end}
             className={({ isActive }) =>
               cn(
-                '-mb-px flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium',
-                'md:relative md:mb-0 md:flex-col md:gap-1 md:rounded-lg md:border-b-0 md:px-1 md:py-2 md:text-[11px]',
-                isActive ? 'border-ink text-ink md:bg-zinc-100' : 'border-transparent text-zinc-500 hover:text-ink md:hover:bg-zinc-50',
+                'group relative flex items-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors',
+                'md:flex-col md:gap-1 md:rounded-xl md:px-1 md:py-2 md:text-[11px]',
+                isActive ? TONES[tone].active : 'text-zinc-500 hover:bg-zinc-50 hover:text-ink',
               )
             }
           >
-            <Icon className="size-4 md:size-5" />
-            {label}
-            {badge ? (
-              <span className="rounded-full bg-brand-600 px-1.5 text-[11px] font-semibold text-white md:absolute md:right-1 md:top-1 md:text-[10px]">
-                {badge}
-              </span>
-            ) : null}
+            {({ isActive }) => (
+              <>
+                <span
+                  className={cn(
+                    'grid size-7 place-items-center rounded-lg transition-colors md:size-9 md:rounded-xl',
+                    isActive ? cn(TONES[tone].solid, 'shadow-sm') : TONES[tone].tile,
+                  )}
+                >
+                  <Icon className="size-4 md:size-[18px]" />
+                </span>
+                {label}
+                {badge ? (
+                  <span className="rounded-full bg-emerald-600 px-1.5 text-[11px] font-semibold text-white md:absolute md:right-1 md:top-1 md:text-[10px]">
+                    {badge}
+                  </span>
+                ) : null}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
@@ -119,7 +133,7 @@ function TaskAlerts({ alerts, onDismissed }: { alerts: CrmTaskAlert[]; onDismiss
     >
       <ul className="space-y-3">
         {alerts.map((a) => (
-          <li key={a.id} className="rounded-lg border border-zinc-200 p-3">
+          <li key={a.id} className="rounded-xl border border-amber-100 bg-amber-50/60 p-3">
             <div className="font-medium text-ink">{a.title}</div>
             {a.description ? <p className="mt-1 whitespace-pre-line text-sm text-zinc-600">{a.description}</p> : null}
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-zinc-500">

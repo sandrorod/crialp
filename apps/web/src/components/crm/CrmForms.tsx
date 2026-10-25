@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Building2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Field, Input, Modal, Select, Textarea } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
@@ -11,8 +12,9 @@ const MANAGERS = ['owner', 'admin'];
 const orNull = (v: string) => (v.trim() ? v.trim() : null);
 
 /** Seletor de empresa (lista as que o usuário pode ver). */
-function CompanySelect({ value, onChange, required }: { value: string; onChange: (v: string) => void; required?: boolean }) {
-  const { data } = useAsync(() => crmService.companies({}), []);
+function CompanySelect({ value, onChange, required, version = 0 }: { value: string; onChange: (v: string) => void; required?: boolean; version?: number }) {
+  // version: muda depois de cadastrar uma empresa nova, para ela aparecer na lista
+  const { data } = useAsync(() => crmService.companies({}), [version]);
   return (
     <Select value={value} onChange={(e) => onChange(e.target.value)} required={required}>
       <option value="">{required ? 'Selecione…' : '—'}</option>
@@ -68,9 +70,36 @@ export function ContactForm({
   });
   const [saving, setSaving] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
+  // Empresa que ainda não existe: cadastro rápido aqui mesmo (nome, WhatsApp e cidade)
+  const [newCompany, setNewCompany] = useState<{ name: string; whatsapp: string; city: string } | null>(null);
+  const [creatingCompany, setCreatingCompany] = useState(false);
+  const [companiesVersion, setCompaniesVersion] = useState(0);
+
+  const createCompany = async () => {
+    if (!newCompany?.name.trim()) {
+      toast.error('Informe o nome da empresa.');
+      return;
+    }
+    setCreatingCompany(true);
+    try {
+      const { id } = await crmService.createCompany({ name: newCompany.name.trim(), whatsapp: orNull(newCompany.whatsapp), city: orNull(newCompany.city) });
+      setCompaniesVersion((v) => v + 1);
+      setF((cur) => ({ ...cur, company_id: id }));
+      setNewCompany(null);
+      toast.success('Empresa cadastrada. Agora salve o contato.');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setCreatingCompany(false);
+    }
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (newCompany) {
+      toast.error('Termine o cadastro da empresa nova (ou cancele) antes de salvar.');
+      return;
+    }
     setSaving(true);
     try {
       const body = {
@@ -104,9 +133,64 @@ export function ContactForm({
     >
       <form id="crm-contact" onSubmit={submit} className="space-y-3">
         {!companyId ? (
-          <Field label="Empresa *">
-            <CompanySelect value={f.company_id} onChange={(v) => setF({ ...f, company_id: v })} required />
-          </Field>
+          newCompany ? (
+            <fieldset className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+              <legend className="flex items-center gap-1.5 px-1 text-[13px] font-semibold text-blue-800">
+                <Building2 className="size-4" /> Nova empresa
+              </legend>
+              <Field label="Nome da empresa *">
+                <Input
+                  autoFocus
+                  value={newCompany.name}
+                  onChange={(e) => setNewCompany({ ...newCompany, name: e.target.value })}
+                  onKeyDown={(e) => {
+                    // Enter cadastra a empresa (não envia o formulário do contato)
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void createCompany();
+                    }
+                  }}
+                />
+              </Field>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="WhatsApp da empresa">
+                  <Input
+                    placeholder="(11) 98888-7777"
+                    value={newCompany.whatsapp}
+                    onChange={(e) => setNewCompany({ ...newCompany, whatsapp: e.target.value })}
+                  />
+                </Field>
+                <Field label="Cidade">
+                  <Input value={newCompany.city} onChange={(e) => setNewCompany({ ...newCompany, city: e.target.value })} />
+                </Field>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="secondary" size="sm" onClick={() => setNewCompany(null)} disabled={creatingCompany}>
+                  Cancelar
+                </Button>
+                <Button type="button" variant="brand" size="sm" loading={creatingCompany} onClick={() => void createCompany()}>
+                  Cadastrar empresa
+                </Button>
+              </div>
+            </fieldset>
+          ) : (
+            <Field label="Empresa *">
+              <div className="flex gap-2">
+                <div className="min-w-0 flex-1">
+                  <CompanySelect value={f.company_id} onChange={(v) => setF({ ...f, company_id: v })} required version={companiesVersion} />
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  icon={<Plus className="size-4" />}
+                  onClick={() => setNewCompany({ name: '', whatsapp: '', city: '' })}
+                  title="Cadastrar uma empresa que ainda não está no sistema"
+                >
+                  Nova empresa
+                </Button>
+              </div>
+            </Field>
+          )
         ) : null}
         <Field label="Nome *">
           <Input required value={f.name} onChange={set('name')} />

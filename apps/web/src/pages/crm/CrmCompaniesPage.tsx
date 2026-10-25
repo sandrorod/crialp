@@ -6,6 +6,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
 import { usePagination } from '@/hooks/usePagination';
 import { WhatsAppIcon } from '@/components/crm/WhatsAppIcon';
+import { Avatar, CrmBar, Pill } from '@/components/crm/CrmTheme';
 import { crmService, money, phone } from '@/services/crm';
 import { isCrmManager } from './CrmLayout';
 
@@ -23,14 +24,19 @@ export function CrmCompaniesPage() {
   const pager = usePagination(data ?? undefined, 15, `${deferred}|${seller}`);
 
   return (
-    <Card>
-      <div className="grid gap-2 border-b border-zinc-100 p-4 sm:grid-cols-[1fr_220px]">
-        <div className="relative">
+    <Card className="overflow-hidden">
+      <CrmBar
+        tone="blue"
+        icon={<Building2 className="size-4" />}
+        title="Empresas"
+        subtitle={data ? `${data.length} ${data.length === 1 ? 'empresa' : 'empresas'}` : undefined}
+      >
+        <div className="relative min-w-[220px] flex-1 sm:ml-4">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
           <Input placeholder="Buscar por nome, cidade ou segmento…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         {manager ? (
-          <Select value={seller} onChange={(e) => setSeller(e.target.value)} aria-label="Vendedor">
+          <Select value={seller} onChange={(e) => setSeller(e.target.value)} aria-label="Vendedor" className="sm:w-[220px]">
             <option value="">Todos os vendedores</option>
             <option value="none">Sem vendedor</option>
             {users
@@ -42,7 +48,7 @@ export function CrmCompaniesPage() {
               ))}
           </Select>
         ) : null}
-      </div>
+      </CrmBar>
 
       {error ? (
         <div className="p-4">
@@ -61,7 +67,7 @@ export function CrmCompaniesPage() {
           <div className="overflow-x-auto">
             <table className="table-cards w-full min-w-[820px] text-sm">
               <thead>
-                <tr className="border-b border-zinc-100 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
+                <tr className="border-b border-zinc-100 bg-zinc-50/70 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
                   <th className="px-5 py-3">Empresa</th>
                   <th className="px-3 py-3">WhatsApp</th>
                   <th className="px-3 py-3">Contatos</th>
@@ -72,13 +78,22 @@ export function CrmCompaniesPage() {
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {pager.items.map((c) => (
-                  <tr key={c.id} className="transition hover:bg-zinc-50/70">
-                    <td className="px-5 py-3.5">
-                      <Link to={`/crm/empresas/${c.id}`} className="font-medium text-ink hover:underline">
-                        {c.name}
-                      </Link>
-                      {c.unread ? <span className="ml-2 rounded-full bg-brand-600 px-1.5 text-[11px] font-semibold text-white">{c.unread}</span> : null}
-                      <div className="text-xs text-zinc-500">{[c.segment, [c.city, c.state].filter(Boolean).join(' – ')].filter(Boolean).join(' · ')}</div>
+                  <tr key={c.id} className="transition hover:bg-blue-50/40">
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={c.name} />
+                        <div className="min-w-0">
+                          <Link to={`/crm/empresas/${c.id}`} className="font-medium text-ink hover:text-blue-700 hover:underline">
+                            {c.name}
+                          </Link>
+                          {c.unread ? (
+                            <span className="ml-2 rounded-full bg-emerald-600 px-1.5 text-[11px] font-semibold text-white" title="Mensagens não lidas">
+                              {c.unread}
+                            </span>
+                          ) : null}
+                          <div className="text-xs text-zinc-500">{[c.segment, [c.city, c.state].filter(Boolean).join(' – ')].filter(Boolean).join(' · ')}</div>
+                        </div>
+                      </div>
                     </td>
                     <td data-label="WhatsApp" className="px-3 py-3.5 text-zinc-600">
                       {c.whatsapp || c.mobile ? (
@@ -96,17 +111,23 @@ export function CrmCompaniesPage() {
                       )}
                     </td>
                     <td data-label="Contatos" className="px-3 py-3.5 text-zinc-600">
-                      {c.contacts}
+                      {c.contacts ? <Pill tone="sky">{c.contacts}</Pill> : <span className="text-zinc-400">—</span>}
                     </td>
                     <td data-label="Em negociação" className="px-3 py-3.5 text-zinc-600">
-                      {c.open_deals ? `${money(c.open_value)} (${c.open_deals})` : '—'}
+                      {c.open_deals ? (
+                        <Pill tone="violet" title={`${c.open_deals} ${c.open_deals === 1 ? 'negócio aberto' : 'negócios abertos'}`}>
+                          {money(c.open_value)} · {c.open_deals}
+                        </Pill>
+                      ) : (
+                        <span className="text-zinc-400">—</span>
+                      )}
                     </td>
                     <td data-label="Tarefas" className="px-3 py-3.5 text-zinc-600">
-                      {c.pending_tasks || '—'}
+                      {c.pending_tasks ? <Pill tone="amber">{c.pending_tasks}</Pill> : <span className="text-zinc-400">—</span>}
                     </td>
                     {manager ? (
                       <td data-label="Vendedor" className="px-5 py-3.5 text-zinc-600">
-                        {c.seller_names ?? <span className="text-amber-600">sem vendedor</span>}
+                        {c.seller_names ?? <Pill tone="amber">sem vendedor</Pill>}
                       </td>
                     ) : null}
                   </tr>

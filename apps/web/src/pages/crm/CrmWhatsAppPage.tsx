@@ -31,6 +31,7 @@ import {
 import { toast } from 'sonner';
 import { Button, Card, Input, Modal, Spinner, Textarea } from '@/components/ui';
 import { CompanyInfoPanel } from '@/components/crm/CompanyInfoPanel';
+import { Avatar, TONES } from '@/components/crm/CrmTheme';
 import { ContactForm } from '@/components/crm/CrmForms';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
@@ -134,11 +135,11 @@ export function CrmWhatsAppPage() {
   const starting = !selectedId && (contactParam || companyParam || numberParam);
   const open = !!selectedId || !!starting;
 
-  // Altura da tela menos o cabeçalho (56px) e ~10px de folga; no celular, menos também as abas em cima
+  // Altura da tela menos o cabeçalho (56px), a margem de cima (2px) e 5% embaixo; no celular, menos também as abas em cima
   return (
-    <Card className="flex h-[calc(100dvh-128px)] min-h-[480px] overflow-hidden md:h-[calc(100dvh-66px)]">
+    <Card className="flex h-[calc(95dvh-120px)] min-h-[480px] overflow-hidden md:h-[calc(95dvh-58px)]">
       <aside className={cn('w-full flex-col border-r border-zinc-100 md:flex md:w-80', open ? 'hidden' : 'flex')}>
-        <div className="space-y-2 border-b border-zinc-100 p-3">
+        <div className={cn('space-y-2 border-b p-3', TONES.emerald.bar)}>
           {/* Uma linha: pesquisa, filtro de etiqueta (só as cores), nova conversa e editar etiquetas */}
           <div className="flex items-center gap-1.5">
             <div className="relative min-w-0 flex-1">
@@ -194,47 +195,52 @@ export function CrmWhatsAppPage() {
                 type="button"
                 onClick={() => setParams({ id: c.id })}
                 className={cn(
-                  'flex w-full flex-col gap-0.5 border-b border-l-4 border-b-zinc-50 px-4 py-3 pl-3 text-left',
-                  // Mensagem não lida: cartão destacado na cor do WhatsApp
+                  'flex w-full items-start gap-3 border-b border-l-4 border-b-zinc-50 px-4 py-3 pl-3 text-left transition-colors',
+                  // Aberta: azul claro; mensagem não lida: cartão destacado na cor do WhatsApp
                   c.id === selectedId
-                    ? 'border-l-transparent bg-zinc-100'
+                    ? 'border-l-sky-500 bg-sky-50'
                     : c.unread
                       ? 'border-l-emerald-500 bg-emerald-50 hover:bg-emerald-100/70'
                       : 'border-l-transparent hover:bg-zinc-50',
                 )}
               >
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className={cn('flex min-w-0 items-center gap-1.5 text-sm text-ink', c.unread ? 'font-semibold' : 'font-medium')}>
-                    <span className="truncate">{title(c)}</span>
-                    {!c.company_id ? (
-                      <span title="Sem empresa no sistema" aria-label="Sem empresa no sistema" className="flex-none text-amber-500">
-                        <CircleAlert className="size-3.5" />
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className={cn('shrink-0 text-[11px]', c.unread ? 'font-medium text-emerald-700' : 'text-zinc-400')}>{dateTime(c.last_message_at)}</span>
-                </div>
-                {c.company_name ? <span className="truncate text-xs text-zinc-500">{c.company_name}</span> : null}
-                <div className="flex items-center gap-2">
-                  <span className={cn('flex-1 truncate text-xs', c.unread ? 'font-medium text-zinc-700' : 'text-zinc-500')}>
-                    {c.matched ? <Highlight text={c.matched.body} term={debounced} /> : c.last_message}
-                  </span>
-                  {c.unread ? <span className="rounded-full bg-emerald-600 px-1.5 text-[11px] font-semibold text-white">{c.unread}</span> : null}
-                </div>
-                {c.labels?.length ? (
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {c.labels.map((l) => (
-                      <LabelChip key={l.id} label={l} />
-                    ))}
+                <Avatar name={title(c)} className="mt-0.5" />
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className={cn('flex min-w-0 items-center gap-1.5 text-sm text-ink', c.unread ? 'font-semibold' : 'font-medium')}>
+                      <span className="truncate">{title(c)}</span>
+                      {!c.company_id ? (
+                        <span title="Sem empresa no sistema" aria-label="Sem empresa no sistema" className="flex-none text-amber-500">
+                          <CircleAlert className="size-3.5" />
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className={cn('shrink-0 text-[11px]', c.unread ? 'font-medium text-emerald-700' : 'text-zinc-400')}>
+                      {dateTime(c.last_message_at)}
+                    </span>
                   </div>
-                ) : null}
+                  {c.company_name ? <span className="truncate text-xs text-zinc-500">{c.company_name}</span> : null}
+                  <div className="flex items-center gap-2">
+                    <span className={cn('flex-1 truncate text-xs', c.unread ? 'font-medium text-zinc-700' : 'text-zinc-500')}>
+                      {c.matched ? <Highlight text={c.matched.body} term={debounced} /> : c.last_message}
+                    </span>
+                    {c.unread ? <span className="rounded-full bg-emerald-600 px-1.5 text-[11px] font-semibold text-white">{c.unread}</span> : null}
+                  </div>
+                  {c.labels?.length ? (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {c.labels.map((l) => (
+                        <LabelChip key={l.id} label={l} />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               </button>
             </li>
           ))}
         </ul>
       </aside>
 
-      <section className={cn('relative min-w-0 flex-1 flex-col bg-zinc-50', open ? 'flex' : 'hidden md:flex')}>
+      <section className={cn('crm-chat-bg relative min-w-0 flex-1 flex-col', open ? 'flex' : 'hidden md:flex')}>
         {selected ? (
           <Chat
             key={selected.id}
@@ -262,9 +268,12 @@ export function CrmWhatsAppPage() {
           />
         ) : (
           <div className="grid flex-1 place-items-center text-sm text-zinc-500">
-            <div className="text-center">
-              <MessageCircle className="mx-auto mb-2 size-8 text-zinc-300" />
-              Selecione uma conversa
+            <div className="rounded-2xl bg-white/85 px-8 py-6 text-center shadow-xs ring-1 ring-emerald-100">
+              <span className={cn('mx-auto mb-3 grid size-12 place-items-center rounded-2xl', TONES.emerald.tile)}>
+                <MessageCircle className="size-6" />
+              </span>
+              <div className="font-medium text-ink">Selecione uma conversa</div>
+              <div className="mt-0.5 text-xs">ou comece uma nova pelo botão ao lado da pesquisa</div>
             </div>
           </div>
         )}
@@ -903,6 +912,7 @@ function Chat({
         <button type="button" className="md:hidden" onClick={onBack} aria-label="Voltar">
           <ArrowLeft className="size-5" />
         </button>
+        <Avatar name={title(conversation)} />
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium text-ink">{title(conversation)}</div>
           <div className="truncate text-xs text-zinc-500">
@@ -947,7 +957,13 @@ function Chat({
           const newDay = i === 0 || new Date(messages[i - 1].created_at).toDateString() !== day;
           return (
             <div key={m.id}>
-              {newDay ? <p className="my-3 text-center text-[11px] text-zinc-400">{new Date(m.created_at).toLocaleDateString('pt-BR')}</p> : null}
+              {newDay ? (
+                <p className="my-3 text-center">
+                  <span className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-zinc-500 shadow-xs ring-1 ring-zinc-200/60">
+                    {new Date(m.created_at).toLocaleDateString('pt-BR')}
+                  </span>
+                </p>
+              ) : null}
               <Bubble m={m} onReact={react} onDelete={removeMessage} onEdit={editMessage} />
             </div>
           );
@@ -1004,6 +1020,7 @@ function NewConversation({
         <button type="button" className="md:hidden" onClick={onBack} aria-label="Voltar">
           <ArrowLeft className="size-5" />
         </button>
+        <Avatar name={data?.name} />
         <div className="min-w-0">
           <div className="truncate font-medium text-ink">{data?.name ?? '…'}</div>
           <div className="truncate text-xs text-zinc-500">{data ? `${phone(data.number)} · ${data.sub}` : null}</div>
@@ -1838,7 +1855,7 @@ function Bubble({
 
   return (
     <div className={cn('group flex items-center gap-1', out ? 'flex-row-reverse' : 'flex-row', reactions.length > 0 && 'mb-3')}>
-      <div className={cn('relative max-w-[80%] rounded-xl px-3 py-2 text-sm shadow-xs', out ? 'bg-brand-50 text-ink' : 'bg-white text-ink')}>
+      <div className={cn('relative max-w-[80%] rounded-xl px-3 py-2 text-sm shadow-xs', out ? 'bg-[#dcf8d4] text-ink' : 'bg-white text-ink')}>
         {m.revoked ? (
           <div className="flex items-center gap-1.5 italic text-zinc-500">
             <Ban className="size-3.5" /> {out ? 'Você apagou esta mensagem' : 'Esta mensagem foi apagada'}

@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
-import { ArrowLeft, MessageCircle, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, CheckSquare, History, KanbanSquare, MessageCircle, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card, ConfirmDialog, ErrorBlock, LoadingBlock } from '@/components/ui';
 import { ContactForm, DealForm, TaskForm } from '@/components/crm/CrmForms';
+import { Avatar, CrmBar, Pill, TONES, type CrmTone } from '@/components/crm/CrmTheme';
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
@@ -59,49 +60,57 @@ export function CrmCompanyPage() {
         <Link to="/crm" className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-ink">
           <ArrowLeft className="size-4" /> Empresas
         </Link>
-        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold text-ink">{company.name}</h2>
-            <p className="text-sm text-zinc-500">{[company.segment, address].filter(Boolean).join(' · ')}</p>
-            <p className="mt-1 text-sm text-zinc-600">
-              Vendedor: <strong>{company.seller_names ?? 'sem vendedor'}</strong>
-            </p>
+        <Card className="mt-2 overflow-hidden">
+          <div className={cn('flex flex-wrap items-start justify-between gap-3 p-5', TONES.blue.bar)}>
+            <div className="flex min-w-0 items-start gap-4">
+              <Avatar name={company.name} size="lg" />
+              <div className="min-w-0">
+                <h2 className="text-xl font-semibold text-ink">{company.name}</h2>
+                <p className="text-sm text-zinc-500">{[company.segment, address].filter(Boolean).join(' · ')}</p>
+                <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-zinc-600">
+                  Vendedor: {company.seller_names ? <strong className="text-ink">{company.seller_names}</strong> : <Pill tone="amber">sem vendedor</Pill>}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {company.lp_slug ? (
+                <a href={`/lp/${company.lp_slug}`} target="_blank" rel="noreferrer">
+                  <Button variant="secondary" size="sm">
+                    Ver Landing Page
+                  </Button>
+                </a>
+              ) : null}
+              {companyWa ? (
+                <Link to={`/crm/whatsapp?empresa=${company.id}`}>
+                  <Button size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700" icon={<MessageCircle className="size-4" />}>
+                    WhatsApp {phone(companyWa)}
+                  </Button>
+                </Link>
+              ) : null}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {company.lp_slug ? (
-              <a href={`/lp/${company.lp_slug}`} target="_blank" rel="noreferrer">
-                <Button variant="secondary" size="sm">
-                  Ver Landing Page
-                </Button>
-              </a>
-            ) : null}
-            {companyWa ? (
-              <Link to={`/crm/whatsapp?empresa=${company.id}`}>
-                <Button variant="brand" size="sm" icon={<MessageCircle className="size-4" />}>
-                  WhatsApp {phone(companyWa)}
-                </Button>
-              </Link>
-            ) : null}
-          </div>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-zinc-600">
-          {company.phone ? <span>Tel: {phone(company.phone)}</span> : null}
-          {company.email ? <span>{company.email}</span> : null}
-          {company.website ? (
-            <a href={company.website} target="_blank" rel="noreferrer" className="hover:underline">
-              {company.website}
-            </a>
+          {company.phone || company.email || company.website ? (
+            <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-blue-100/70 px-5 py-2.5 text-sm text-zinc-600">
+              {company.phone ? <span>Tel: {phone(company.phone)}</span> : null}
+              {company.email ? <span>{company.email}</span> : null}
+              {company.website ? (
+                <a href={company.website} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
+                  {company.website}
+                </a>
+              ) : null}
+            </div>
           ) : null}
-        </div>
+        </Card>
       </div>
 
-      <Section title="Contatos" onAdd={() => setEditing({ kind: 'contact' })}>
+      <Section tone="sky" icon={<Users className="size-4" />} title="Contatos" onAdd={() => setEditing({ kind: 'contact' })}>
         {!contacts.length ? (
           <Empty>Nenhum contato cadastrado.</Empty>
         ) : (
           <ul className="divide-y divide-zinc-100">
             {contacts.map((c) => (
               <li key={c.id} className="flex flex-wrap items-center gap-2 px-5 py-3 text-sm">
+                <Avatar name={c.name} size="sm" />
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-ink">
                     {c.name}
@@ -111,7 +120,7 @@ export function CrmCompanyPage() {
                 </div>
                 {c.whatsapp ? (
                   <Link to={`/crm/whatsapp?contato=${c.id}`}>
-                    <Button variant="secondary" size="sm" icon={<MessageCircle className="size-4" />}>
+                    <Button variant="secondary" size="sm" className="text-emerald-700 hover:bg-emerald-50" icon={<MessageCircle className="size-4" />}>
                       {phone(c.whatsapp)}
                     </Button>
                   </Link>
@@ -129,7 +138,7 @@ export function CrmCompanyPage() {
       </Section>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <Section title="Negócios" onAdd={() => setEditing({ kind: 'deal' })}>
+        <Section tone="violet" icon={<KanbanSquare className="size-4" />} title="Negócios" onAdd={() => setEditing({ kind: 'deal' })}>
           {!deals.length ? (
             <Empty>Nenhum negócio.</Empty>
           ) : (
@@ -158,7 +167,7 @@ export function CrmCompanyPage() {
           )}
         </Section>
 
-        <Section title="Tarefas e follow-ups" onAdd={() => setEditing({ kind: 'task' })}>
+        <Section tone="amber" icon={<CheckSquare className="size-4" />} title="Tarefas e follow-ups" onAdd={() => setEditing({ kind: 'task' })}>
           {!tasks.length ? (
             <Empty>Nenhuma tarefa.</Empty>
           ) : (
@@ -167,13 +176,14 @@ export function CrmCompanyPage() {
                 const late = !t.done && t.due_at && new Date(t.due_at) < new Date();
                 return (
                   <li key={t.id} className="flex items-center gap-3 px-5 py-3 text-sm">
-                    <input type="checkbox" className="size-4 accent-brand-600" checked={t.done} onChange={() => void toggleTask(t)} aria-label="Concluída" />
+                    <input type="checkbox" className="size-4 accent-emerald-600" checked={t.done} onChange={() => void toggleTask(t)} aria-label="Concluída" />
                     <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setEditing({ kind: 'task', item: t })}>
-                      <div className={cn(t.done && 'text-zinc-400 line-through')}>{t.title}</div>
-                      <div className={cn('text-xs', late ? 'text-red-600' : 'text-zinc-500')}>
-                        {t.due_at ? dateTime(t.due_at) : 'sem prazo'} · {t.assignee_name}
-                      </div>
+                      <div className={cn('font-medium text-ink', t.done && 'font-normal text-zinc-400 line-through')}>{t.title}</div>
+                      <div className="text-xs text-zinc-500">{t.assignee_name}</div>
                     </button>
+                    <Pill tone={t.done ? 'emerald' : late ? 'rose' : 'zinc'} className="shrink-0" title={late ? 'Atrasada' : undefined}>
+                      {t.due_at ? dateTime(t.due_at) : 'sem prazo'}
+                    </Pill>
                   </li>
                 );
               })}
@@ -183,19 +193,20 @@ export function CrmCompanyPage() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <Section title="Conversas no WhatsApp">
+        <Section tone="emerald" icon={<MessageCircle className="size-4" />} title="Conversas no WhatsApp">
           {!conversations.length ? (
             <Empty>Nenhuma conversa ainda.</Empty>
           ) : (
             <ul className="divide-y divide-zinc-100">
               {conversations.map((cv) => (
                 <li key={cv.id}>
-                  <Link to={`/crm/whatsapp?id=${cv.id}`} className="flex items-center gap-2 px-5 py-3 text-sm hover:bg-zinc-50">
+                  <Link to={`/crm/whatsapp?id=${cv.id}`} className="flex items-center gap-3 px-5 py-3 text-sm hover:bg-emerald-50/40">
+                    <Avatar name={cv.contact_name ?? cv.push_name ?? cv.phone} size="sm" />
                     <div className="min-w-0 flex-1">
                       <div className="font-medium text-ink">{cv.contact_name ?? cv.push_name ?? phone(cv.phone)}</div>
                       <div className="truncate text-xs text-zinc-500">{cv.last_message}</div>
                     </div>
-                    {cv.unread ? <span className="rounded-full bg-brand-600 px-1.5 text-[11px] font-semibold text-white">{cv.unread}</span> : null}
+                    {cv.unread ? <span className="rounded-full bg-emerald-600 px-1.5 text-[11px] font-semibold text-white">{cv.unread}</span> : null}
                     <span className="text-xs text-zinc-400">{dateTime(cv.last_message_at)}</span>
                   </Link>
                 </li>
@@ -205,9 +216,11 @@ export function CrmCompanyPage() {
         </Section>
 
         <Section
+          tone="rose"
+          icon={<History className="size-4" />}
           title="Histórico de prospecção"
           action={
-            <Link to="/vendas" className="text-sm text-brand-600 hover:underline">
+            <Link to="/vendas" className="text-sm font-medium text-rose-700 hover:underline">
               Lançar em Vendas
             </Link>
           }
@@ -250,18 +263,33 @@ export function CrmCompanyPage() {
   );
 }
 
-function Section({ title, onAdd, action, children }: { title: string; onAdd?: () => void; action?: ReactNode; children: ReactNode }) {
+function Section({
+  tone,
+  icon,
+  title,
+  onAdd,
+  action,
+  children,
+}: {
+  tone: CrmTone;
+  icon: ReactNode;
+  title: string;
+  onAdd?: () => void;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <Card>
-      <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-3">
-        <h3 className="font-semibold text-ink">{title}</h3>
-        {action ??
-          (onAdd ? (
-            <Button variant="secondary" size="sm" icon={<Plus className="size-4" />} onClick={onAdd}>
-              Adicionar
-            </Button>
-          ) : null)}
-      </div>
+    <Card className="overflow-hidden">
+      <CrmBar tone={tone} icon={icon} title={title} className="py-2.5">
+        <div className="ml-auto">
+          {action ??
+            (onAdd ? (
+              <Button variant="secondary" size="sm" icon={<Plus className="size-4" />} onClick={onAdd}>
+                Adicionar
+              </Button>
+            ) : null)}
+        </div>
+      </CrmBar>
       {children}
     </Card>
   );

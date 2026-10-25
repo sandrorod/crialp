@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, KanbanSquare, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, ErrorBlock, Field, Input, LoadingBlock, Modal, Select } from '@/components/ui';
+import { Button, Card, ErrorBlock, Field, Input, LoadingBlock, Modal, Select } from '@/components/ui';
+import { Avatar, CrmBar, Pill } from '@/components/crm/CrmTheme';
 import { DealForm } from '@/components/crm/CrmForms';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
@@ -74,30 +75,38 @@ export function CrmPipelinePage() {
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        {manager ? (
-          <Select value={seller} onChange={(e) => setSeller(e.target.value)} className="w-auto" aria-label="Vendedor">
-            <option value="">Todos os vendedores</option>
-            {users
-              ?.filter((u) => u.role === 'seller')
-              .map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-          </Select>
-        ) : null}
-        <div className="ml-auto flex gap-2">
+      <Card className="mb-3 overflow-hidden">
+        <CrmBar
+          tone="violet"
+          icon={<KanbanSquare className="size-4" />}
+          title="Funil de vendas"
+          subtitle={`${(deals ?? []).length} ${(deals ?? []).length === 1 ? 'negócio' : 'negócios'} · ${money((deals ?? []).reduce((sum, d) => sum + Number(d.value), 0))}`}
+          className="border-b-0"
+        >
           {manager ? (
-            <Button variant="secondary" icon={<Plus className="size-4" />} onClick={() => setStageForm('new')}>
-              Nova coluna
-            </Button>
+            <Select value={seller} onChange={(e) => setSeller(e.target.value)} className="w-auto! min-w-48 sm:ml-4" aria-label="Vendedor">
+              <option value="">Todos os vendedores</option>
+              {users
+                ?.filter((u) => u.role === 'seller')
+                .map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+            </Select>
           ) : null}
-          <Button icon={<Plus className="size-4" />} onClick={() => setEditing({})}>
-            Novo negócio
-          </Button>
-        </div>
-      </div>
+          <div className="ml-auto flex gap-2">
+            {manager ? (
+              <Button variant="secondary" icon={<Plus className="size-4" />} onClick={() => setStageForm('new')}>
+                Nova coluna
+              </Button>
+            ) : null}
+            <Button icon={<Plus className="size-4" />} onClick={() => setEditing({})}>
+              Novo negócio
+            </Button>
+          </div>
+        </CrmBar>
+      </Card>
 
       <div className="flex gap-3 overflow-x-auto pb-4">
         {stages.map((stage, index) => {
@@ -116,15 +125,18 @@ export function CrmPipelinePage() {
                 setDragging(null);
                 setOver(null);
               }}
-              className={cn('flex w-72 shrink-0 flex-col rounded-xl bg-zinc-100/80', over === stage.id && 'ring-2 ring-brand-500')}
+              // Coluna tingida bem de leve com a cor da etapa
+              style={{ background: `color-mix(in srgb, ${stage.color} 7%, white)`, borderColor: `color-mix(in srgb, ${stage.color} 22%, white)` }}
+              className={cn('flex w-72 shrink-0 flex-col rounded-2xl border shadow-xs', over === stage.id && 'ring-2 ring-violet-400')}
             >
-              <div className="rounded-t-xl border-t-4 px-3 py-2.5" style={{ borderColor: stage.color }}>
+              <div className="rounded-t-2xl border-t-4 px-3 py-2.5" style={{ borderColor: stage.color }}>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-semibold text-ink" title={KIND_LABEL[stage.kind]}>
-                    {stage.name}
+                  <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink" title={KIND_LABEL[stage.kind]}>
+                    <span className="size-2.5 flex-none rounded-full" style={{ background: stage.color }} />
+                    <span className="truncate">{stage.name}</span>
                   </span>
                   <div className="flex items-center gap-1">
-                    <span className="text-xs text-zinc-500">{cards.length}</span>
+                    <span className="rounded-full bg-white/80 px-1.5 text-xs font-medium text-zinc-600 ring-1 ring-zinc-200/70">{cards.length}</span>
                     {manager ? (
                       <StageMenu
                         first={index === 0}
@@ -137,7 +149,7 @@ export function CrmPipelinePage() {
                     ) : null}
                   </div>
                 </div>
-                <div className="text-xs text-zinc-500">
+                <div className="mt-0.5 text-xs font-medium text-zinc-600">
                   {money(total)}
                   {stage.kind !== 'open' ? ` · ${KIND_LABEL[stage.kind]}` : ''}
                 </div>
@@ -154,7 +166,7 @@ export function CrmPipelinePage() {
                     }}
                     onClick={() => setEditing({ deal: d })}
                     className={cn(
-                      'group relative cursor-grab rounded-lg border border-zinc-200 bg-white p-3 text-sm shadow-xs hover:border-zinc-300',
+                      'group relative cursor-grab rounded-xl border border-white bg-white p-3 text-sm shadow-sm transition hover:-translate-y-px hover:shadow-md',
                       dragging === d.id && 'opacity-50',
                     )}
                   >
@@ -171,12 +183,17 @@ export function CrmPipelinePage() {
                       <Trash2 className="size-3.5" />
                     </button>
                     <div className="pr-6 font-medium text-ink">{d.title}</div>
-                    <Link to={`/crm/empresas/${d.company_id}`} onClick={(e) => e.stopPropagation()} className="text-xs text-zinc-500 hover:underline">
-                      {d.company_name}
+                    <Link
+                      to={`/crm/empresas/${d.company_id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500 hover:text-blue-700 hover:underline"
+                    >
+                      <Avatar name={d.company_name} size="sm" className="size-5 text-[9px]" />
+                      <span className="truncate">{d.company_name}</span>
                     </Link>
-                    <div className="mt-2 flex justify-between text-xs">
-                      <span className="font-medium text-zinc-700">{money(d.value)}</span>
-                      {d.expected_close ? <span className="text-zinc-500">{formatDate(d.expected_close)}</span> : null}
+                    <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+                      <span className="font-semibold text-ink">{money(d.value)}</span>
+                      {d.expected_close ? <Pill tone="zinc">{formatDate(d.expected_close)}</Pill> : null}
                     </div>
                     {/* No celular não há arrastar: troca de etapa pela lista */}
                     <select
@@ -195,7 +212,7 @@ export function CrmPipelinePage() {
                 ))}
                 <button
                   type="button"
-                  className="w-full rounded-md py-1.5 text-xs text-zinc-500 hover:bg-zinc-200"
+                  className="w-full rounded-lg py-1.5 text-xs font-medium text-zinc-500 hover:bg-white/80 hover:text-ink"
                   onClick={() => setEditing({ stageId: stage.id })}
                 >
                   + adicionar
@@ -208,7 +225,7 @@ export function CrmPipelinePage() {
           <button
             type="button"
             onClick={() => setStageForm('new')}
-            className="flex h-24 w-56 shrink-0 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-200 text-sm text-zinc-500 hover:border-zinc-300 hover:text-ink"
+            className="flex h-24 w-56 shrink-0 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-violet-200 bg-white/50 text-sm font-medium text-violet-600 hover:border-violet-300 hover:bg-white"
           >
             <Plus className="size-4" /> Nova coluna
           </button>

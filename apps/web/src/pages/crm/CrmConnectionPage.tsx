@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Phone, RefreshCw, Smartphone } from 'lucide-react';
+import { Phone, RefreshCw, Server, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card, ConfirmDialog, Field, Input, LoadingBlock } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
@@ -7,6 +7,7 @@ import { errorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { crmService } from '@/services/crm';
 import type { CrmFreeNumberUser } from '@/types/crm';
+import { Avatar, CrmBar, Pill } from '@/components/crm/CrmTheme';
 
 const STATES: Record<string, { label: string; cls: string }> = {
   open: { label: 'Conectado', cls: 'bg-emerald-50 text-emerald-700' },
@@ -117,10 +118,14 @@ export function CrmConnectionPage() {
 
   return (
     <div className="grid gap-5 lg:grid-cols-2">
-      <Card className="p-5">
-        <h3 className="font-semibold text-ink">Servidor do WhatsApp (Evolution API)</h3>
-        <p className="mt-1 text-sm text-zinc-500">Todos os vendedores usam este número central. Cada conversa aparece para o vendedor da empresa.</p>
-        <form onSubmit={save} className="mt-4 space-y-3">
+      <Card className="overflow-hidden">
+        <CrmBar
+          tone="sky"
+          icon={<Server className="size-4" />}
+          title="Servidor do WhatsApp (Evolution API)"
+          subtitle="Todos os vendedores usam este número central. Cada conversa aparece para o vendedor da empresa."
+        />
+        <form onSubmit={save} className="space-y-3 p-5">
           <Field
             label="URL da Evolution API"
             hint={
@@ -154,61 +159,59 @@ export function CrmConnectionPage() {
         </form>
       </Card>
 
-      <Card className="p-5">
-        <div className="flex items-center gap-3">
-          <Smartphone className="size-5 text-zinc-400" />
-          <div className="flex-1">
-            <h3 className="font-semibold text-ink">Número conectado</h3>
-            <span className={cn('mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium', st.cls)}>{st.label}</span>
-            {status.error ? <p className="mt-1 text-xs text-red-600">{status.error}</p> : null}
-          </div>
+      <Card className="overflow-hidden">
+        <CrmBar tone="emerald" icon={<Smartphone className="size-4" />} title="Número conectado">
+          <span className={cn('inline-block rounded-full px-2 py-0.5 text-xs font-medium', st.cls)}>{st.label}</span>
           <button
             type="button"
             onClick={() => void reload()}
-            className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100"
+            className="ml-auto rounded-md p-2 text-zinc-500 hover:bg-white hover:text-ink"
             aria-label="Atualizar"
             title="Atualizar"
           >
             <RefreshCw className="size-4" />
           </button>
-        </div>
+        </CrmBar>
+        <div className="p-5 pt-1">
+          {status.error ? <p className="mt-3 text-xs text-red-600">{status.error}</p> : null}
 
-        {status.configured ? (
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button variant={status.state === 'open' ? 'secondary' : 'brand'} loading={busy} onClick={() => void connect()}>
-              {status.state === 'open' ? 'Reconfigurar webhook' : qr ? 'Gerar novo QR Code' : 'Conectar WhatsApp'}
-            </Button>
-            {status.state === 'open' ? (
-              <Button variant="secondary" onClick={() => setConfirmLogout(true)}>
-                Desconectar
+          {status.configured ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button variant={status.state === 'open' ? 'secondary' : 'brand'} loading={busy} onClick={() => void connect()}>
+                {status.state === 'open' ? 'Reconfigurar webhook' : qr ? 'Gerar novo QR Code' : 'Conectar WhatsApp'}
               </Button>
-            ) : null}
-          </div>
-        ) : null}
-        {status.configured && status.state === 'open' ? (
-          <div className="mt-4 border-t border-zinc-100 pt-4">
-            <Button variant="secondary" loading={!!importing} onClick={() => void importHistory()}>
-              {importing ? `Importando… ${importing.done}/${importing.total || '?'} conversas` : 'Importar conversas'}
-            </Button>
-            <p className="mt-1 text-xs text-zinc-500">
-              Traz para o CRM as conversas que o servidor do WhatsApp já guardou (até 50 mensagens recentes de cada). As novas chegam sozinhas.
-            </p>
-            <p className="mt-1 text-xs text-zinc-500">
-              Faltando conversas antigas? Clique em Desconectar e conecte de novo: ao ler o QR Code o celular envia o histórico. Espere alguns minutos e importe
-              outra vez.
-            </p>
-          </div>
-        ) : null}
-        {!status.configured ? <p className="mt-4 text-sm text-zinc-500">Preencha e salve a configuração ao lado para conectar.</p> : null}
+              {status.state === 'open' ? (
+                <Button variant="secondary" onClick={() => setConfirmLogout(true)}>
+                  Desconectar
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+          {status.configured && status.state === 'open' ? (
+            <div className="mt-4 border-t border-zinc-100 pt-4">
+              <Button variant="secondary" loading={!!importing} onClick={() => void importHistory()}>
+                {importing ? `Importando… ${importing.done}/${importing.total || '?'} conversas` : 'Importar conversas'}
+              </Button>
+              <p className="mt-1 text-xs text-zinc-500">
+                Traz para o CRM as conversas que o servidor do WhatsApp já guardou (até 50 mensagens recentes de cada). As novas chegam sozinhas.
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Faltando conversas antigas? Clique em Desconectar e conecte de novo: ao ler o QR Code o celular envia o histórico. Espere alguns minutos e
+                importe outra vez.
+              </p>
+            </div>
+          ) : null}
+          {!status.configured ? <p className="mt-4 text-sm text-zinc-500">Preencha e salve a configuração ao lado para conectar.</p> : null}
 
-        {qr && status.state !== 'open' ? (
-          <div className="mt-4 text-center">
-            <img src={qr} alt="QR Code do WhatsApp" className="mx-auto size-64" />
-            <p className="mt-2 text-sm text-zinc-500">
-              No celular do número central: WhatsApp → Aparelhos conectados → Conectar aparelho. O código expira em cerca de 1 minuto.
-            </p>
-          </div>
-        ) : null}
+          {qr && status.state !== 'open' ? (
+            <div className="mt-4 text-center">
+              <img src={qr} alt="QR Code do WhatsApp" className="mx-auto size-64" />
+              <p className="mt-2 text-sm text-zinc-500">
+                No celular do número central: WhatsApp → Aparelhos conectados → Conectar aparelho. O código expira em cerca de 1 minuto.
+              </p>
+            </div>
+          ) : null}
+        </div>
       </Card>
 
       <FreeNumberCard />
@@ -245,20 +248,17 @@ function FreeNumberCard() {
     }
   };
   return (
-    <Card className="p-5">
-      <h3 className="flex items-center gap-2 font-semibold text-ink">
-        <Phone className="size-4 text-zinc-400" />
-        Conversa com número fora do cadastro
-      </h3>
-      <p className="mt-1 text-sm text-zinc-500">
-        Quem estiver marcado pode iniciar conversa no WhatsApp com um número que não é de nenhuma empresa ou contato. A conversa fica com quem a iniciou.
-      </p>
+    <Card className="overflow-hidden">
+      <CrmBar
+        tone="violet"
+        icon={<Phone className="size-4" />}
+        title="Conversa com número fora do cadastro"
+        subtitle="Quem estiver marcado pode iniciar conversa no WhatsApp com um número que não é de nenhuma empresa ou contato. A conversa fica com quem a iniciou."
+      />
       {!users ? (
-        <div className="mt-4">
-          <LoadingBlock rows={3} />
-        </div>
+        <LoadingBlock rows={3} />
       ) : (
-        <ul className="mt-4 divide-y divide-zinc-100">
+        <ul className="divide-y divide-zinc-100 px-5 py-2">
           {users.map((u) => (
             <li key={u.id}>
               <label className={cn('flex items-center gap-3 py-2.5', u.role === 'owner' ? 'cursor-default' : 'cursor-pointer')}>
@@ -269,8 +269,9 @@ function FreeNumberCard() {
                   disabled={u.role === 'owner' || saving === u.id}
                   onChange={() => void toggle(u)}
                 />
+                <Avatar name={u.name} size="sm" />
                 <span className="min-w-0 flex-1 truncate text-sm text-ink">{u.name}</span>
-                <span className="text-xs text-zinc-500">{u.role === 'owner' ? 'Dono · sempre pode' : (ROLE_LABELS[u.role] ?? u.role)}</span>
+                <Pill tone={u.role === 'seller' ? 'zinc' : 'violet'}>{u.role === 'owner' ? 'Dono · sempre pode' : (ROLE_LABELS[u.role] ?? u.role)}</Pill>
               </label>
             </li>
           ))}
