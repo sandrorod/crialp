@@ -184,6 +184,8 @@ export interface CompanyListItem {
   landing_page_id: string | null;
   slug: string | null;
   status: LpStatus | null;
+  /** Andamento da edição da LP: "editar" (padrão) ou "pronta" */
+  edit_status?: LpEditStatus | null;
   seller_id: string | null;
   seller_name: string | null;
   /** Última geração da LP falhou (empresa ainda sem LP) */
@@ -470,11 +472,16 @@ export interface TemplateInfo {
 /** "section:<seção>": a foto aparece no fim dessa seção do modelo (serviços, contato…) */
 export type ImagePlacement = 'hero' | 'about' | 'gallery' | 'hidden' | 'logo' | `custom:${string}` | `section:${string}`;
 
+/** Andamento da edição da Landing Page (independente de ativa/inativa). */
+export type LpEditStatus = 'editar' | 'pronta';
+
 export interface LandingPage {
   id: string;
   company_id: string;
   /** O servidor tem e-mail configurado (SMTP/Resend) para enviar o formulário de contato */
   mail_configured?: boolean;
+  /** Andamento da edição: "editar" (padrão) ou "pronta" */
+  edit_status: LpEditStatus;
   title: string;
   slug: string;
   status: LpStatus;

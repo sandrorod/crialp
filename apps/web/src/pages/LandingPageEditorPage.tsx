@@ -31,7 +31,7 @@ import { DesignTab, PhotosTab, TemplateTab, PublishTab, SeoTab, VersionsTab, typ
 import { ProgressSteps } from '@/components/ProgressSteps';
 import { SellerCell, useSellers, type Seller } from '@/components/SellerCell';
 import { StopJobButton } from '@/components/StopJobButton';
-import { Button, Card, ConfirmDialog, ErrorBlock, LoadingBlock, StatusToggle } from '@/components/ui';
+import { Button, Card, ConfirmDialog, ErrorBlock, EditStatusToggle, LoadingBlock, StatusToggle } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
 import { useJob } from '@/hooks/useJob';
@@ -39,7 +39,7 @@ import { useLandingPageActions } from '@/hooks/useLandingPageActions';
 import { errorMessage } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
 import { analysisService, companyService, landingPageService } from '@/services';
-import type { LandingContent, LandingScreenshot, SectionOrderKey, ThemeSettings } from '@/types';
+import type { LandingContent, LandingScreenshot, LpEditStatus, SectionOrderKey, ThemeSettings } from '@/types';
 
 type Tab = 'modelo' | 'textos' | 'fotos' | 'visual' | 'seo' | 'publicacao' | 'cliente' | 'versoes';
 const TABS: { key: Tab; label: string }[] = [
@@ -259,6 +259,27 @@ export function LandingPageEditorPage() {
     setFrameKey((k) => k + 1);
   };
   const actions = useLandingPageActions(refresh);
+
+  // Andamento da edição (Editar / Pronta): grava na hora, sem recarregar a prévia nem mexer no que não foi salvo
+  const [editStatus, setEditStatus] = useState<LpEditStatus>('editar');
+  const [savingEditStatus, setSavingEditStatus] = useState(false);
+  useEffect(() => {
+    if (lp) setEditStatus(lp.edit_status ?? 'editar');
+  }, [lp]);
+  const toggleEditStatus = async () => {
+    if (!lp) return;
+    const next: LpEditStatus = editStatus === 'pronta' ? 'editar' : 'pronta';
+    setSavingEditStatus(true);
+    try {
+      await landingPageService.setEditStatus(lp.id, next);
+      setEditStatus(next);
+      toast.success(next === 'pronta' ? 'Landing Page marcada como Pronta.' : 'Landing Page voltou para Editar.');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSavingEditStatus(false);
+    }
+  };
 
   useEffect(() => {
     if (!lp) return;
@@ -600,7 +621,10 @@ export function LandingPageEditorPage() {
               <div className="flex min-w-0 items-center gap-3">
                 <h1 className="truncate text-lg font-semibold tracking-tight">{headerName}</h1>
                 {restricted ? null : (
-                  <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />
+                  <>
+                    <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />
+                    <EditStatusToggle value={editStatus} loading={savingEditStatus} onToggle={() => void toggleEditStatus()} />
+                  </>
                 )}
               </div>
               {/* No celular os modos quebram em mais de uma linha (sem rolagem lateral) */}

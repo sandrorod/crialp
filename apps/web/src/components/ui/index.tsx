@@ -303,6 +303,31 @@ export function StatusToggle({ status, onToggle, loading }: { status: LpStatus; 
   );
 }
 
+/** Igual ao ativar/desativar, para o andamento da edição: "Editar" (padrão, âmbar) ou "Pronta" (azul). */
+export function EditStatusToggle({ value, onToggle, loading }: { value: 'editar' | 'pronta'; onToggle: () => void; loading?: boolean }) {
+  const ready = value === 'pronta';
+  const hint = ready ? 'Pronta — clique para voltar a Editar' : 'Em edição — clique para marcar como Pronta';
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={loading}
+      role="switch"
+      aria-checked={ready}
+      aria-label={hint}
+      title={hint}
+      className="inline-flex items-center gap-2 rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:opacity-60"
+    >
+      <span className={cn('relative h-6 w-10 rounded-full transition', ready ? 'bg-brand-600' : 'bg-amber-400')}>
+        <span className={cn('absolute top-0.5 grid size-5 place-items-center rounded-full bg-white shadow transition-all', ready ? 'left-[18px]' : 'left-0.5')}>
+          {loading ? <Loader2 className="size-3 animate-spin text-zinc-400" /> : null}
+        </span>
+      </span>
+      <span className={cn('text-xs font-semibold', ready ? 'text-brand-700' : 'text-amber-700')}>{ready ? 'Pronta' : 'Editar'}</span>
+    </button>
+  );
+}
+
 // ─── Diálogo de confirmação ─────────────────────────────────────────
 export function ConfirmDialog({
   open,

@@ -385,6 +385,14 @@ landingPagesRouter.patch('/:id/status', async (req, res) => {
   res.json({ ...serialize(updated), screenshot });
 });
 
+/** Andamento da edição: "editar" (padrão) ou "pronta" (a equipe, como o ativar/desativar). */
+landingPagesRouter.patch('/:id/edit-status', async (req, res) => {
+  const user = authUser(req);
+  const lp = await loadOr404(user.organizationId, req.params.id);
+  const { edit_status } = parseBody(z.object({ edit_status: z.enum(['editar', 'pronta']) }), req.body);
+  res.json(serialize((await repo.setEditStatus(user.organizationId, lp.id, edit_status))!));
+});
+
 /** Troca manual do vendedor responsável (só administradores). */
 landingPagesRouter.patch('/:id/seller', requireRole(...MANAGER_ROLES), async (req, res) => {
   const user = authUser(req);

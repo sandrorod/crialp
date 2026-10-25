@@ -255,7 +255,8 @@ export interface CompanyFilters {
   search?: string;
   segment?: string;
   city?: string;
-  status?: 'ativa' | 'inativa' | 'sem_lp' | 'erro';
+  /** "pronta": Landing Page marcada como pronta no editor */
+  status?: 'ativa' | 'inativa' | 'sem_lp' | 'erro' | 'pronta';
   /** Só as empresas cuja Landing Page está com este vendedor e que estão em prospecção */
   sellerId?: string;
 }
@@ -281,6 +282,7 @@ export async function listCompanies(orgId: string, f: CompanyFilters) {
   }
   if (f.status === 'sem_lp') where.push('lp.id is null');
   else if (f.status === 'erro') where.push('lp.id is null and c.lp_error is not null');
+  else if (f.status === 'pronta') where.push(`lp.edit_status = 'pronta'`);
   else if (f.status) {
     params.push(f.status);
     where.push(`lp.status = $${params.length}`);
@@ -288,10 +290,10 @@ export async function listCompanies(orgId: string, f: CompanyFilters) {
   const { rows } = await query(
     `select c.id, c.name, c.segment, c.city, c.state, c.phone, c.whatsapp, c.email, c.created_at,
             case when lp.id is null then c.lp_error end as lp_error, case when lp.id is null then c.lp_error_at end as lp_error_at,
-            lp.id as landing_page_id, lp.slug, lp.status, lp.seller_id, s.name as seller_name
+            lp.id as landing_page_id, lp.slug, lp.status, lp.edit_status, lp.seller_id, s.name as seller_name
        from companies c
        left join lateral (
-         select id, slug, status, seller_id from landing_pages where company_id = c.id order by created_at limit 1
+         select id, slug, status, edit_status, seller_id from landing_pages where company_id = c.id order by created_at limit 1
        ) lp on true
        left join users s on s.id = lp.seller_id
       where ${where.join(' and ')}

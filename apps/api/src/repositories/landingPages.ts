@@ -12,6 +12,8 @@ export interface LandingPageRow {
   title: string;
   slug: string;
   status: 'ativa' | 'inativa';
+  /** Andamento da edição: "editar" (padrão) ou "pronta" */
+  edit_status: 'editar' | 'pronta';
   content: LandingContent;
   theme: ThemeSettings;
   html_content: string | null;
@@ -246,6 +248,10 @@ export async function landingPageSegments(orgId: string): Promise<string[]> {
     [orgId],
   );
   return rows.map((r) => r.segment);
+}
+
+export async function setEditStatus(orgId: string, id: string, editStatus: 'editar' | 'pronta') {
+  return one<LandingPageRow>('update landing_pages set edit_status = $3 where id = $1 and organization_id = $2 returning *', [id, orgId, editStatus]);
 }
 
 export async function setStatus(orgId: string, id: string, status: 'ativa' | 'inativa') {

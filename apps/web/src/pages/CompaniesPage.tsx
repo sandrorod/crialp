@@ -97,6 +97,7 @@ export function CompaniesPage() {
             <option value="">Todos os status</option>
             <option value="ativa">Ativa</option>
             <option value="inativa">Inativa</option>
+            <option value="pronta">Pronta</option>
             <option value="sem_lp">Sem Landing Page</option>
             <option value="erro">Erro ao gerar</option>
           </Select>
@@ -155,11 +156,17 @@ export function CompaniesPage() {
                       </td>
                       <td data-label="Status" className="px-3 py-3.5">
                         {c.landing_page_id && c.status ? (
-                          <StatusToggle
-                            status={c.status}
-                            loading={actions.busyId === c.landing_page_id}
-                            onToggle={() => actions.toggleStatus(c.landing_page_id!, c.status!)}
-                          />
+                          <span className="inline-flex items-center gap-2">
+                            <StatusToggle
+                              status={c.status}
+                              loading={actions.busyId === c.landing_page_id}
+                              onToggle={() => actions.toggleStatus(c.landing_page_id!, c.status!)}
+                            />
+                            {/* Andamento da edição (marcado no editor da LP) */}
+                            {c.edit_status === 'pronta' ? (
+                              <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700 ring-1 ring-brand-100">Pronta</span>
+                            ) : null}
+                          </span>
                         ) : c.lp_error ? (
                           // A geração da LP falhou: marca em vermelho com o motivo (passar o mouse)
                           <span

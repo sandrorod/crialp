@@ -24,6 +24,7 @@ import type {
   LandingPageDetail,
   LandingPageListItem,
   LandingScreenshot,
+  LpEditStatus,
   LpStatus,
   Preset,
   ProspectingNote,
@@ -138,6 +139,7 @@ export const landingPageService = {
   checkSlug: (id: string, slug: string) =>
     api.get<{ available: boolean; error: string | null }>(`/landing-pages/${id}/slug-check?slug=${encodeURIComponent(slug)}`),
   setStatus: (id: string, status: LpStatus) => api.patch<LandingPage & { screenshot: LandingScreenshot | null }>(`/landing-pages/${id}/status`, { status }),
+  setEditStatus: (id: string, edit_status: LpEditStatus) => api.patch<LandingPage>(`/landing-pages/${id}/edit-status`, { edit_status }),
   publish: (id: string) => api.post<LandingPage>(`/landing-pages/${id}/publish`),
   updateSettings: (id: string, body: { slug?: string; custom_domain?: string | null }) => api.patch<LandingPage>(`/landing-pages/${id}/settings`, body),
   verifyDomain: (id: string) =>
