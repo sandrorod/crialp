@@ -161,6 +161,8 @@ export interface GoogleReviews {
 
 export interface Company extends CompanyDraft {
   id: string;
+  /** "sim" / "nao" (vazio = não): só com "sim" o vendedor da Landing Page acessa a empresa */
+  prospeccao?: string | null;
   google_reviews?: GoogleReviews | null;
   logo_url: string | null;
   source_meta: AnalysisMeta | Record<string, never>;

@@ -4,6 +4,7 @@ import { one, query } from '../db/pool.js';
 import { AppError, badRequest, notFound } from '../lib/errors.js';
 import { longText, parseBody, text, uuidParam } from '../lib/validation.js';
 import { authUser, MANAGER_ROLES, requireRole, type AuthUser } from '../middleware/auth.js';
+import { inProspecting } from '../repositories/companies.js';
 import { env } from '../config/env.js';
 import { assertPublicHost } from '../lib/url.js';
 import {
@@ -36,9 +37,10 @@ export const crmRouter = Router();
 const isManager = (u: AuthUser) => MANAGER_ROLES.includes(u.role);
 /** Id do vendedor para filtrar, ou null para a gerência (sem filtro). */
 const sellerScope = (u: AuthUser) => (isManager(u) ? null : u.id);
-/** Empresa `alias` visível ao vendedor do parâmetro `p` (null = todas). */
+/** Empresa `alias` visível ao vendedor do parâmetro `p` (null = todas): Landing Page atribuída a ele e empresa em prospecção. */
 const visible = (alias: string, p: string) =>
-  `(${p}::uuid is null or exists (select 1 from landing_pages lpv where lpv.company_id = ${alias} and lpv.seller_id = ${p}))`;
+  `(${p}::uuid is null or exists (select 1 from landing_pages lpv join companies cpv on cpv.id = lpv.company_id
+     where lpv.company_id = ${alias} and lpv.seller_id = ${p} and ${inProspecting('cpv')}))`;
 
 /** Conversa `alias` visível ao vendedor `p`: da carteira dele, ou sem empresa e iniciada por ele (número fora do cadastro). */
 const convVisible = (alias: string, p: string) =>
@@ -160,6 +162,7 @@ crmRouter.get('/companies', async (req, res) => {
   }
   const { rows } = await query(
     `select c.id, coalesce(c.trade_name, c.name) as name, c.segment, c.city, c.state, c.whatsapp, c.mobile, c.phone, c.email,
+            ${inProspecting('c')} as prospecting,
             (select string_agg(distinct s.name, ', ') from landing_pages l join users s on s.id = l.seller_id where l.company_id = c.id) as seller_names,
             (select count(*)::int from lp_crm_contacts ct where ct.company_id = c.id) as contacts,
             (select count(*)::int from lp_crm_deals d join lp_crm_stages st on st.id = d.stage_id where d.company_id = c.id and st.kind = 'open') as open_deals,
@@ -535,7 +538,9 @@ crmRouter.post('/tasks', async (req, res) => {
     `insert into lp_crm_task_alerts (task_id, user_id)
      select $1, u.id from users u
       where u.organization_id = $2
-        and (u.id = $3 or u.id = $4 or exists (select 1 from landing_pages lpv where lpv.company_id = $5 and lpv.seller_id = u.id))
+        and (u.id = $3 or u.id = $4
+             or exists (select 1 from landing_pages lpv join companies cpv on cpv.id = lpv.company_id
+                         where lpv.company_id = $5 and lpv.seller_id = u.id and ${inProspecting('cpv')}))
      on conflict do nothing`,
     [created.id, user.organizationId, user.id, created.assignee_id, b.company_id ?? null],
   );

@@ -3,6 +3,18 @@ import { one, query, transaction } from '../db/pool.js';
 import type { CompanyInput } from '../lib/validation.js';
 import { dropNullText } from '../lib/nullText.js';
 
+/**
+ * Empresa em prospecção (campo "prospeccao" = sim): só essas ficam com o vendedor, além de a Landing Page
+ * estar atribuída a ele. Vazio conta como não. `alias`: tabela companies na consulta.
+ */
+export const inProspecting = (alias: string) => `lower(trim(coalesce(${alias}.prospeccao, ''))) in ('sim', 'true')`;
+
+/** Marca/desmarca a prospecção da empresa (fica fora do formulário geral, para nenhum outro cadastro apagar o valor). */
+export async function setProspecting(orgId: string, id: string, value: boolean) {
+  const res = await query('update companies set prospeccao = $3 where id = $1 and organization_id = $2', [id, orgId, value ? 'sim' : 'nao']);
+  return (res.rowCount ?? 0) > 0;
+}
+
 export const COMPANY_COLUMNS = [
   'name',
   'trade_name',
@@ -244,7 +256,7 @@ export interface CompanyFilters {
   segment?: string;
   city?: string;
   status?: 'ativa' | 'inativa' | 'sem_lp' | 'erro';
-  /** Só as empresas cuja Landing Page está com este vendedor */
+  /** Só as empresas cuja Landing Page está com este vendedor e que estão em prospecção */
   sellerId?: string;
 }
 
@@ -265,7 +277,7 @@ export async function listCompanies(orgId: string, f: CompanyFilters) {
   }
   if (f.sellerId) {
     params.push(f.sellerId);
-    where.push(`lp.seller_id = $${params.length}`);
+    where.push(`lp.seller_id = $${params.length} and ${inProspecting('c')}`);
   }
   if (f.status === 'sem_lp') where.push('lp.id is null');
   else if (f.status === 'erro') where.push('lp.id is null and c.lp_error is not null');

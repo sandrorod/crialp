@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, PanelsTopLeft, Save, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, PanelsTopLeft, Save, Sparkles, Target, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CompanyForm, toDraft } from '@/components/company/CompanyForm';
 import { SourcesPanel } from '@/components/company/SourcesPanel';
@@ -8,6 +8,7 @@ import { ProgressSteps } from '@/components/ProgressSteps';
 import { StopJobButton } from '@/components/StopJobButton';
 import { Button, Card, ConfirmDialog, ErrorBlock, LoadingBlock, PageHeader, StatusBadge } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
+import { useAuth } from '@/hooks/useAuth';
 import { useJob } from '@/hooks/useJob';
 import { errorMessage } from '@/lib/api';
 import { analysisService, companyService } from '@/services';
@@ -66,7 +67,60 @@ function SourceCard({ meta }: { meta: AnalysisMeta }) {
   );
 }
 
+const isProspecting = (v: string | null | undefined) => ['sim', 'true'].includes((v ?? '').trim().toLowerCase());
+
+/** Prospecção sim/não: grava na hora (fica fora do "Salvar empresa"). Só com "sim" o vendedor acessa a empresa. */
+function ProspectingCard({ companyId, initial }: { companyId: string; initial: boolean }) {
+  const [value, setValue] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const choose = async (next: boolean) => {
+    if (next === value) return;
+    setSaving(true);
+    try {
+      await companyService.setProspecting(companyId, next);
+      setValue(next);
+      toast.success(next ? 'Empresa em prospecção: o vendedor da Landing Page passa a ter acesso.' : 'Prospecção desmarcada: o vendedor deixa de ter acesso.');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <Card className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 p-4">
+      <Target className="size-5 flex-none text-zinc-400" />
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold text-ink">Prospecção</div>
+        <p className="text-xs text-zinc-500">Só com “Sim” o vendedor da Landing Page vê esta empresa (CRM, Vendas e o site). Vazio conta como “Não”.</p>
+      </div>
+      <div className="flex rounded-lg bg-zinc-100 p-0.5" role="radiogroup" aria-label="Prospecção">
+        {[
+          { v: true, label: 'Sim' },
+          { v: false, label: 'Não' },
+        ].map((o) => (
+          <button
+            key={o.label}
+            type="button"
+            role="radio"
+            aria-checked={value === o.v}
+            disabled={saving}
+            onClick={() => void choose(o.v)}
+            className={
+              value === o.v
+                ? `rounded-md px-4 py-1.5 text-sm font-semibold shadow-sm ${o.v ? 'bg-emerald-600 text-white' : 'bg-white text-ink'}`
+                : 'rounded-md px-4 py-1.5 text-sm font-medium text-zinc-500 hover:text-ink'
+            }
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 export function CompanyEditPage() {
+  const { user } = useAuth();
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const { data: company, error, loading, reload } = useAsync(() => companyService.get(id), [id]);
@@ -177,6 +231,8 @@ export function CompanyEditPage() {
           </>
         }
       />
+
+      {user?.role === 'owner' || user?.role === 'admin' ? <ProspectingCard companyId={id} initial={isProspecting(company.prospeccao)} /> : null}
 
       {generating ? (
         <Card className="mb-4 p-5">

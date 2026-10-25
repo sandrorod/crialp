@@ -4,7 +4,7 @@ import { one, query } from '../db/pool.js';
 import { notFound } from '../lib/errors.js';
 import { parseBody, uuidParam } from '../lib/validation.js';
 import { authUser, MANAGER_ROLES, requireRole, type AuthUser } from '../middleware/auth.js';
-import { listCompanies } from '../repositories/companies.js';
+import { inProspecting, listCompanies } from '../repositories/companies.js';
 
 /** Área de Vendas: lista de empresas (somente leitura) e histórico de prospecção. */
 export const salesRouter = Router();
@@ -56,12 +56,12 @@ salesRouter.get('/companies', async (req, res) => {
   });
 });
 
-/** Empresa da organização; para vendedor, só se a Landing Page dela estiver atribuída a ele. */
+/** Empresa da organização; para vendedor, só se a Landing Page dela estiver atribuída a ele e a empresa estiver em prospecção. */
 async function ensureCompany(user: AuthUser, id: string) {
   const company = await one<{ id: string; name: string }>(
     `select c.id, c.name from companies c
       where c.id = $1 and c.organization_id = $2
-        and ($3::uuid is null or exists (select 1 from landing_pages lp where lp.company_id = c.id and lp.seller_id = $3))`,
+        and ($3::uuid is null or (${inProspecting('c')} and exists (select 1 from landing_pages lp where lp.company_id = c.id and lp.seller_id = $3)))`,
     [id, user.organizationId, user.role === 'seller' ? user.id : null],
   );
   if (!company) throw notFound('Empresa não encontrada.');

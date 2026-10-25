@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { one, query } from '../db/pool.js';
+import { inProspecting } from '../repositories/companies.js';
 import { AppError, Messages } from '../lib/errors.js';
 
 export const SESSION_COOKIE = 'lp_session';
@@ -151,7 +152,7 @@ export async function sellerSites(userId: string) {
     `select lp.id, lp.company_id, coalesce(c.trade_name, c.name) as company_name, lp.title, lp.slug, lp.status,
             lp.custom_domain, lp.domain_status, lp.updated_at
        from landing_pages lp left join companies c on c.id = lp.company_id
-      where lp.seller_id = $1
+      where lp.seller_id = $1 and ${inProspecting('c')}
       order by lp.updated_at desc`,
     [userId],
   );
@@ -160,7 +161,11 @@ export async function sellerSites(userId: string) {
 
 /** Landing Pages atribuídas ao vendedor (ele edita o conteúdo delas, como o cliente edita o próprio site). */
 export async function sellerPages(userId: string) {
-  const { rows } = await query<{ id: string; company_id: string }>('select id, company_id from landing_pages where seller_id = $1', [userId]);
+  // Só as páginas de empresas em prospecção (sem ela, o vendedor não acessa a empresa nem a página)
+  const { rows } = await query<{ id: string; company_id: string }>(
+    `select lp.id, lp.company_id from landing_pages lp join companies c on c.id = lp.company_id where lp.seller_id = $1 and ${inProspecting('c')}`,
+    [userId],
+  );
   return rows;
 }
 

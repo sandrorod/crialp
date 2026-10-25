@@ -12,8 +12,9 @@ let s: Awaited<ReturnType<typeof seed>>;
 before(async () => {
   await resetDb();
   s = await seed();
-  // Vendedor A é o responsável pela Padaria A (Landing Page atribuída a ele)
+  // Vendedor A é o responsável pela Padaria A (Landing Page atribuída a ele e empresa em prospecção)
   await query('update landing_pages set seller_id = $1 where id = $2', [s.sellerA, s.a1.lpId]);
+  await query(`update companies set prospeccao = 'sim' where id = $1`, [s.a1.companyId]);
   let base: string;
   ({ base, close } = await startServer());
   adminA = client(base);

@@ -1,4 +1,7 @@
 import { useDeferredValue, useState } from 'react';
+import { toast } from 'sonner';
+import { errorMessage } from '@/lib/api';
+import { companyService } from '@/services';
 import { Link } from 'react-router';
 import { Building2, Search } from 'lucide-react';
 import { Card, EmptyState, ErrorBlock, Input, LoadingBlock, Pagination, Select } from '@/components/ui';
@@ -16,12 +19,25 @@ export function CrmCompaniesPage() {
   const [search, setSearch] = useState('');
   const [seller, setSeller] = useState('');
   const deferred = useDeferredValue(search);
-  const { data, error, loading, reload } = useAsync(
+  const { data, setData, error, loading, reload } = useAsync(
     () => crmService.companies({ search: deferred || undefined, seller: seller || undefined }),
     [deferred, seller],
   );
   const { data: users } = useAsync(() => (manager ? crmService.users() : Promise.resolve([])), [manager]);
   const pager = usePagination(data ?? undefined, 15, `${deferred}|${seller}`);
+  // Prospecção sim/não direto na lista (só a gerência): com "sim" o vendedor da LP passa a ver a empresa
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const toggleProspecting = async (id: string, next: boolean) => {
+    setSavingId(id);
+    try {
+      await companyService.setProspecting(id, next);
+      setData((list) => list?.map((c) => (c.id === id ? { ...c, prospecting: next } : c)) ?? list);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSavingId(null);
+    }
+  };
 
   return (
     <Card className="overflow-hidden">
@@ -60,12 +76,16 @@ export function CrmCompaniesPage() {
         <EmptyState
           icon={<Building2 className="size-5" />}
           title={search || seller ? 'Nenhuma empresa encontrada' : 'Nenhuma empresa ainda'}
-          description={manager ? 'As empresas cadastradas no sistema aparecem aqui.' : 'As empresas cuja Landing Page está atribuída a você aparecem aqui.'}
+          description={
+            manager
+              ? 'As empresas cadastradas no sistema aparecem aqui.'
+              : 'As empresas cuja Landing Page está atribuída a você e que estão em prospecção aparecem aqui.'
+          }
         />
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="table-cards w-full min-w-[820px] text-sm">
+            <table className="table-cards w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50/70 text-left text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
                   <th className="px-5 py-3">Empresa</th>
@@ -73,7 +93,12 @@ export function CrmCompaniesPage() {
                   <th className="px-3 py-3">Contatos</th>
                   <th className="px-3 py-3">Em negociação</th>
                   <th className="px-3 py-3">Tarefas</th>
-                  {manager ? <th className="px-5 py-3">Vendedor</th> : null}
+                  {manager ? <th className="px-3 py-3">Vendedor</th> : null}
+                  {manager ? (
+                    <th className="px-5 py-3" title="Só com Sim o vendedor da Landing Page vê a empresa">
+                      Prospecção
+                    </th>
+                  ) : null}
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -126,8 +151,23 @@ export function CrmCompaniesPage() {
                       {c.pending_tasks ? <Pill tone="amber">{c.pending_tasks}</Pill> : <span className="text-zinc-400">—</span>}
                     </td>
                     {manager ? (
-                      <td data-label="Vendedor" className="px-5 py-3.5 text-zinc-600">
+                      <td data-label="Vendedor" className="px-3 py-3.5 text-zinc-600">
                         {c.seller_names ?? <Pill tone="amber">sem vendedor</Pill>}
+                      </td>
+                    ) : null}
+                    {manager ? (
+                      <td data-label="Prospecção" className="px-5 py-3.5">
+                        <button
+                          type="button"
+                          disabled={savingId === c.id}
+                          onClick={() => void toggleProspecting(c.id, !c.prospecting)}
+                          title={
+                            c.prospecting ? 'Em prospecção: clique para tirar o acesso do vendedor' : 'Fora de prospecção: clique para liberar ao vendedor'
+                          }
+                          className="rounded-full disabled:opacity-50"
+                        >
+                          <Pill tone={c.prospecting ? 'emerald' : 'zinc'}>{c.prospecting ? 'Sim' : 'Não'}</Pill>
+                        </button>
                       </td>
                     ) : null}
                   </tr>

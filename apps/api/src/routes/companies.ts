@@ -6,7 +6,7 @@ import { query } from '../db/pool.js';
 import { AppError, notFound } from '../lib/errors.js';
 import { normalizeInputUrl } from '../lib/url.js';
 import { CompanyInputSchema, parseBody, safeUrl, uuidParam, type CompanyInput } from '../lib/validation.js';
-import { authUser } from '../middleware/auth.js';
+import { authUser, MANAGER_ROLES, requireRole } from '../middleware/auth.js';
 import {
   appendCompanyImages,
   createCompany,
@@ -15,6 +15,7 @@ import {
   getCompanyFull,
   listCompanies,
   removeCompanyImages,
+  setProspecting,
   updateCompany,
 } from '../repositories/companies.js';
 import { saveVersion, type LandingPageRow } from '../repositories/landingPages.js';
@@ -111,6 +112,14 @@ companiesRouter.post('/', async (req, res) => {
     if (job?.type === 'analyze_url' && raw) await saveSources(id, raw);
   }
   res.status(201).json({ id });
+});
+
+// Prospecção (sim/não): só empresas com "sim" ficam com o vendedor da Landing Page (gerência marca)
+companiesRouter.patch('/:id/prospeccao', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const user = authUser(req);
+  const { prospecting } = parseBody(z.object({ prospecting: z.boolean() }), req.body);
+  if (!(await setProspecting(user.organizationId, uuidParam.parse(req.params.id), prospecting))) throw notFound('Empresa não encontrada.');
+  res.json({ ok: true, prospecting });
 });
 
 companiesRouter.put('/:id', async (req, res) => {

@@ -20,7 +20,9 @@ export function MySitesPage() {
     <div>
       <PageHeader
         title={seller ? 'Minhas Landing Pages' : 'Meus sites'}
-        description={seller ? 'As Landing Pages atribuídas a você. Escolha qual quer editar.' : 'Escolha qual site você quer editar.'}
+        description={
+          seller ? 'As Landing Pages atribuídas a você (de empresas em prospecção). Escolha qual quer editar.' : 'Escolha qual site você quer editar.'
+        }
       />
       {seller && (data?.items.length ?? 0) > 6 ? (
         <Input className="mb-4 max-w-sm" placeholder="Buscar pelo nome da empresa…" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -38,7 +40,7 @@ export function MySitesPage() {
               term
                 ? 'Ajuste a busca.'
                 : seller
-                  ? 'As Landing Pages atribuídas a você aparecem aqui.'
+                  ? 'As Landing Pages atribuídas a você, de empresas em prospecção, aparecem aqui.'
                   : 'Esta conta não está ligada a nenhum site. Fale com o administrador.'
             }
           />
