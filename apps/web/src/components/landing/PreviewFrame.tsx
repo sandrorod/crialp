@@ -71,6 +71,8 @@ function attachFocusDrag(
   onStyle?: (img: HTMLImageElement, at: { x: number; y: number }) => void,
   /** Foto cortada pelas bordas: arrastar desloca a foto dentro da moldura (o que foi cortado) */
   crop?: { get: (img: HTMLImageElement) => { key: string; box: ImageBox } | null; save: (key: string, box: ImageBox) => void },
+  /** Girar 90° e espelhar direto na barra da foto (o mesmo ajuste do quadro "Girar e espelhar") */
+  onTransform?: (url: string, action: 'rotate' | 'flipH' | 'flipV') => void,
 ) {
   // A prévia desktop é reduzida para caber no painel: os controles crescem na mesma proporção
   const px = (n: number) => `${Math.round(n * uiScale)}px`;
@@ -152,12 +154,21 @@ function attachFocusDrag(
         const z = current().z ?? 1;
         setZoom(z + zoomStep(z));
       }),
-      mkButton('⟲', 'Restaurar enquadramento', () => {
+      // ⊙ (e não ⟲) para não confundir com o girar ↻ ao lado
+      mkButton('⊙', 'Restaurar enquadramento', () => {
         const reset = { x: 50, y: 50 };
         applyFocus(img, reset);
         onFocus(url, reset);
       }),
     );
+    if (onTransform) {
+      // Girar (90° a cada clique) e espelhar, ao lado do zoom
+      bar.append(
+        mkButton('↻', 'Girar 90° para a direita', () => onTransform(url, 'rotate')),
+        mkButton('⇆', 'Espelhar na horizontal', () => onTransform(url, 'flipH')),
+        mkButton('⇅', 'Espelhar na vertical', () => onTransform(url, 'flipV')),
+      );
+    }
     if (onStyle) {
       // Borda, cantos, sombra e filtro da foto
       bar.append(
@@ -433,6 +444,16 @@ export function PreviewFrame({
         {
           get: (img) => cropOf(img, sizeOf),
           save: (key, box) => onImageSizeRef.current?.({ [key]: box }),
+        },
+        (url, action) => {
+          const cur: ImageLook = { ...(imageStyleRef.current?.[url] ?? {}) };
+          if (action === 'rotate') {
+            const r = ((cur.rot ?? 0) + 90) % 360;
+            cur.rot = r ? (r as 90 | 180 | 270) : undefined;
+          } else if (action === 'flipH') cur.fh = cur.fh ? undefined : true;
+          else cur.fv = cur.fv ? undefined : true;
+          const clean = Object.fromEntries(Object.entries(cur).filter(([, v]) => v !== undefined)) as ImageLook;
+          onImageStyleRef.current?.(url, Object.keys(clean).length ? clean : null);
         },
       );
       onImagePick(d, setImagePick);
