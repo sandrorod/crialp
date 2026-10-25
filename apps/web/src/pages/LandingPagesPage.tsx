@@ -17,13 +17,22 @@ export function LandingPagesPage() {
   const [status, setStatus] = useState('');
   const [segment, setSegment] = useState('');
   const [wp, setWp] = useState('');
+  // Andamento da edição (botão Editar/Pronta do editor)
+  const [edicao, setEdicao] = useState('');
   const deferred = useDeferredValue(search);
   const { data, error, loading, reload } = useAsync(
-    () => landingPageService.list({ search: deferred || undefined, status: status || undefined, segment: segment || undefined, wp: wp || undefined }),
-    [deferred, status, segment, wp],
+    () =>
+      landingPageService.list({
+        search: deferred || undefined,
+        status: status || undefined,
+        segment: segment || undefined,
+        wp: wp || undefined,
+        edicao: edicao || undefined,
+      }),
+    [deferred, status, segment, wp, edicao],
   );
   // 10 por página; volta para a primeira ao mudar os filtros
-  const pager = usePagination(data?.items, 10, [deferred, status, segment, wp].join('|'));
+  const pager = usePagination(data?.items, 10, [deferred, status, segment, wp, edicao].join('|'));
   const actions = useLandingPageActions(reload);
   const { sellers, canAssign } = useSellers();
   const clientLevels = useClientLevels();
@@ -41,7 +50,7 @@ export function LandingPagesPage() {
         }
       />
       <Card>
-        <div className="grid gap-2 border-b border-zinc-100 p-4 sm:grid-cols-[1fr_200px_180px_200px]">
+        <div className="grid gap-2 border-b border-zinc-100 p-4 sm:grid-cols-2 lg:grid-cols-[1fr_205px_170px_160px_215px]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
             <Input placeholder="Buscar por empresa ou endereço…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
@@ -60,6 +69,11 @@ export function LandingPagesPage() {
             <option value="ativa">Ativas</option>
             <option value="inativa">Inativas</option>
           </Select>
+          <Select value={edicao} onChange={(e) => setEdicao(e.target.value)} aria-label="Edição">
+            <option value="">Edição: todas</option>
+            <option value="pronta">Prontas</option>
+            <option value="editar">Em edição</option>
+          </Select>
           <Select value={wp} onChange={(e) => setWp(e.target.value)} aria-label="WP verificado">
             <option value="">WP verificado: todos</option>
             <option value="com">Com WP verificado</option>
@@ -77,9 +91,9 @@ export function LandingPagesPage() {
           <EmptyState
             icon={<PanelsTopLeft className="size-5" />}
             title="Nenhuma Landing Page encontrada"
-            description={search || status || segment || wp ? 'Ajuste a busca ou o filtro.' : 'Gere a primeira Landing Page a partir de uma URL.'}
+            description={search || status || segment || wp || edicao ? 'Ajuste a busca ou o filtro.' : 'Gere a primeira Landing Page a partir de uma URL.'}
             action={
-              !search && !status && !segment && !wp ? (
+              !search && !status && !segment && !wp && !edicao ? (
                 <Link to="/nova">
                   <Button icon={<Plus className="size-4" />}>Criar Landing Page</Button>
                 </Link>
@@ -133,7 +147,13 @@ export function LandingPagesPage() {
                         />
                       </td>
                       <td data-label="Status" className="px-3 py-3.5">
-                        <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />
+                        <span className="inline-flex items-center gap-2">
+                          <StatusToggle status={lp.status} loading={actions.busyId === lp.id} onToggle={() => actions.toggleStatus(lp.id, lp.status)} />
+                          {/* Andamento da edição (botão Editar/Pronta do editor) */}
+                          {lp.edit_status === 'pronta' ? (
+                            <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700 ring-1 ring-brand-100">Pronta</span>
+                          ) : null}
+                        </span>
                       </td>
                       <td data-label="Criação" className="px-3 py-3.5 text-zinc-500">
                         {formatDate(lp.created_at)}

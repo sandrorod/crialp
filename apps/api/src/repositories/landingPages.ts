@@ -208,7 +208,7 @@ export async function getLandingPageByDomain(domain: string) {
   );
 }
 
-export async function listLandingPages(orgId: string, f: { search?: string; status?: string; segment?: string; wp?: string }) {
+export async function listLandingPages(orgId: string, f: { search?: string; status?: string; segment?: string; wp?: string; edicao?: string }) {
   const where = ['lp.organization_id = $1'];
   const params: unknown[] = [orgId];
   if (f.search) {
@@ -226,8 +226,13 @@ export async function listLandingPages(orgId: string, f: { search?: string; stat
   // WhatsApp verificado da empresa (companies.wp_verificado): preenchido ou vazio/nulo
   if (f.wp === 'com') where.push(`coalesce(trim(c.wp_verificado), '') <> ''`);
   if (f.wp === 'sem') where.push(`coalesce(trim(c.wp_verificado), '') = ''`);
+  // Andamento da edição: só as prontas ou só as em edição
+  if (f.edicao === 'pronta' || f.edicao === 'editar') {
+    params.push(f.edicao);
+    where.push(`lp.edit_status = $${params.length}`);
+  }
   const { rows } = await query(
-    `select lp.id, lp.title, lp.slug, lp.status, lp.custom_domain, lp.domain_status, lp.current_version,
+    `select lp.id, lp.title, lp.slug, lp.status, lp.edit_status, lp.custom_domain, lp.domain_status, lp.current_version,
             lp.created_at, lp.updated_at, lp.published_at, c.id as company_id, c.name as company_name, c.segment,
             lp.seller_id, s.name as seller_name, lp.client_level_id, cl.name as client_level_name
        from landing_pages lp join companies c on c.id = lp.company_id

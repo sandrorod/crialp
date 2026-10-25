@@ -63,6 +63,7 @@ landingPagesRouter.get('/', async (req, res) => {
       status: z.string().max(20).optional(),
       segment: z.string().max(200).optional(),
       wp: z.enum(['com', 'sem']).optional().catch(undefined),
+      edicao: z.enum(['editar', 'pronta']).optional().catch(undefined),
     })
     .parse(req.query);
   const [items, segments] = await Promise.all([repo.listLandingPages(user.organizationId, q), repo.landingPageSegments(user.organizationId)]);

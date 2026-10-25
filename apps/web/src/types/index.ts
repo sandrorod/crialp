@@ -528,6 +528,8 @@ export interface LandingPageListItem {
   title: string;
   slug: string;
   status: LpStatus;
+  /** Andamento da edição: "editar" (padrão) ou "pronta" */
+  edit_status?: LpEditStatus;
   custom_domain: string | null;
   domain_status: string;
   current_version: number;

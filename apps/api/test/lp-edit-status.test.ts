@@ -46,6 +46,21 @@ describe('Editar / Pronta nas Landing Pages', () => {
     assert.equal((await listIds()).length, 2);
   });
 
+  it('a lista de Landing Pages filtra as prontas e as em edição', async () => {
+    const lps = async (edicao: string) =>
+      ((await (await dono.call('GET', `/api/landing-pages?edicao=${edicao}`)).json()) as { items: { id: string; edit_status: string }[] }).items;
+    const ready = await lps('pronta');
+    assert.deepEqual(
+      ready.map((l) => l.id),
+      [s.a1.lpId],
+    );
+    assert.equal(ready[0].edit_status, 'pronta');
+    assert.deepEqual(
+      (await lps('editar')).map((l) => l.id),
+      [s.a2.lpId],
+    );
+  });
+
   it('volta para "editar" e recusa outro valor', async () => {
     assert.equal((await dono.call('PATCH', `/api/landing-pages/${s.a1.lpId}/edit-status`, { edit_status: 'editar' })).status, 200);
     assert.deepEqual(await listIds('pronta'), []);
