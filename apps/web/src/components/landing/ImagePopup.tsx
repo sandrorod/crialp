@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { FlipHorizontal2, FlipVertical2, RotateCcw, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { normalizeLinkUrl } from '@/lib/richText';
 import { cn } from '@/lib/utils';
@@ -219,28 +220,39 @@ export function ImagePopup({
           <p className="text-[11px] text-zinc-400">Para enquadrar ou cortar, use o modo Fotos: arraste a foto ou as alças azuis das bordas.</p>
         </Section>
         <Section title="Girar e espelhar">
-          <div className="flex flex-wrap gap-1">
+          {/* Cada clique gira 90°; espelhar liga/desliga (fica destacado quando ativo) */}
+          <div className="grid grid-cols-2 gap-1.5">
             {[
-              { label: '⟲ Girar 90°', title: 'Girar 90° para a esquerda', onClick: () => rotate(-90), active: false },
-              { label: '⟳ Girar 90°', title: 'Girar 90° para a direita', onClick: () => rotate(90), active: false },
+              { icon: RotateCcw, label: 'Girar à esquerda', title: 'Girar 90° para a esquerda', onClick: () => rotate(-90), active: false },
+              { icon: RotateCw, label: 'Girar à direita', title: 'Girar 90° para a direita', onClick: () => rotate(90), active: false },
               {
-                label: '⇆ Espelhar na horizontal',
+                // Nesta versão do lucide o desenho do FlipVertical2 é o espelho lado a lado (e vice-versa)
+                icon: FlipVertical2,
+                label: 'Espelhar horizontal',
                 title: 'Espelhar na horizontal',
                 onClick: () => set({ fh: draft.fh ? undefined : true }),
                 active: !!draft.fh,
               },
-              { label: '⇅ Espelhar na vertical', title: 'Espelhar na vertical', onClick: () => set({ fv: draft.fv ? undefined : true }), active: !!draft.fv },
+              {
+                icon: FlipHorizontal2,
+                label: 'Espelhar vertical',
+                title: 'Espelhar na vertical',
+                onClick: () => set({ fv: draft.fv ? undefined : true }),
+                active: !!draft.fv,
+              },
             ].map((b) => (
               <button
                 key={b.title}
                 type="button"
                 title={b.title}
+                aria-pressed={b.active || undefined}
                 onClick={b.onClick}
                 className={cn(
-                  'whitespace-nowrap rounded-md border px-2 py-1 text-xs',
-                  b.active ? 'border-ink bg-ink text-white' : 'border-zinc-200 text-zinc-600 hover:border-zinc-400',
+                  'flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2 py-2 text-xs font-medium transition-colors',
+                  b.active ? 'border-ink bg-ink text-white' : 'border-zinc-200 text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50',
                 )}
               >
+                <b.icon className="size-4 flex-none" />
                 {b.label}
               </button>
             ))}
@@ -253,7 +265,7 @@ export function ImagePopup({
                   .join(' · ')}
               </span>
               <button type="button" onClick={() => set({ rot: undefined, fh: undefined, fv: undefined })} className="text-zinc-500 hover:text-ink">
-                ⟲ Desfazer
+                Desfazer
               </button>
             </p>
           ) : null}
