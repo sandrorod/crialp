@@ -73,6 +73,8 @@ function attachFocusDrag(
   crop?: { get: (img: HTMLImageElement) => { key: string; box: ImageBox } | null; save: (key: string, box: ImageBox) => void },
   /** Girar 90° e espelhar direto na barra da foto (o mesmo ajuste do quadro "Girar e espelhar") */
   onTransform?: (url: string, action: 'rotate' | 'flipH' | 'flipV') => void,
+  /** Giro e espelhamento atuais da foto: o arraste segue a posição em que ela aparece */
+  getOrient?: (url: string) => Pick<ImageLook, 'rot' | 'fh' | 'fv'> | undefined,
 ) {
   // A prévia desktop é reduzida para caber no painel: os controles crescem na mesma proporção
   const px = (n: number) => `${Math.round(n * uiScale)}px`;
@@ -215,9 +217,22 @@ function attachFocusDrag(
       const it0 = box0?.it ?? 0;
       let box = box0;
 
+      // Foto girada/espelhada: o enquadramento é guardado na orientação original da foto, então o movimento
+      // do ponteiro na tela é convertido para ela (desfaz o giro e depois o espelho; de lado, desconta a
+      // ampliação --lp-rk). Assim a foto acompanha o ponteiro na posição em que aparece.
+      const o = getOrient?.(url);
+      const rot = o?.rot ?? 0;
+      const side = rot === 90 || rot === 270;
+      const rk = side ? Number.parseFloat(doc.defaultView?.getComputedStyle(img).getPropertyValue('--lp-rk') ?? '') || 1 : 1;
+      const toImage = (x: number, y: number) => {
+        const [rx, ry] = rot === 90 ? [y, -x] : rot === 180 ? [-x, -y] : rot === 270 ? [-y, x] : [x, y];
+        return { x: ((o?.fh ? -1 : 1) * rx) / rk, y: ((o?.fv ? -1 : 1) * ry) / rk };
+      };
+
       const move = (ev: PointerEvent) => {
         const dx = ev.clientX - sx;
         const dy = ev.clientY - sy;
+        const local = toImage(dx, dy);
         if (box0 && (rangeX > 0.05 || rangeY >= 1)) {
           // Arrastar para a direita/baixo revela o lado esquerdo/de cima (o deslocamento diminui)
           box = {
@@ -233,8 +248,8 @@ function attachFocusDrag(
         const axis = (o: number, p: number, d: number) => (o > 1 ? clamp(p - (d / o) * 100) : o < -1 ? clamp(p + (d / -o) * 100) : p);
         moved = {
           ...start,
-          x: rangeX > 0.05 ? start.x : axis(over.x, start.x, dx),
-          y: rangeY >= 1 ? start.y : axis(over.y, start.y, dy),
+          x: rangeX > 0.05 ? start.x : axis(over.x, start.x, local.x),
+          y: rangeY >= 1 ? start.y : axis(over.y, start.y, local.y),
         };
         applyFocus(img, moved);
       };
@@ -455,6 +470,7 @@ export function PreviewFrame({
           const clean = Object.fromEntries(Object.entries(cur).filter(([, v]) => v !== undefined)) as ImageLook;
           onImageStyleRef.current?.(url, Object.keys(clean).length ? clean : null);
         },
+        (url) => imageStyleRef.current?.[url],
       );
       onImagePick(d, setImagePick);
     }
