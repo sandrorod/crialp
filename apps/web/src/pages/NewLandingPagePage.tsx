@@ -291,6 +291,12 @@ export function NewLandingPagePage() {
         </strong>
         <span className="text-zinc-600"> · {batch.items[batch.index].name}</span>
         {failedHere && countdown !== null ? <span className="block text-xs text-red-700">Pulando para a próxima em {countdown}s…</span> : null}
+        {rest !== null ? (
+          <span className="block text-xs font-medium text-emerald-700">
+            Próxima empresa em {`${Math.floor(rest / 60)}:${String(rest % 60).padStart(2, '0')}`}
+            {restPaused ? ' (pausado)' : ''}
+          </span>
+        ) : null}
       </span>
       {rest === null ? (
         <Button
@@ -519,6 +525,8 @@ export function NewLandingPagePage() {
         {batchBar}
         <h1 className="text-2xl font-semibold tracking-tight">{rest !== null ? 'Landing Page gerada' : 'Gerando Landing Page'}</h1>
         <p className="mt-1 text-sm text-zinc-500">{draft.trade_name || draft.name}</p>
+        {/* Contagem para a próxima empresa logo abaixo do título (embaixo das 9 etapas ficava fora da tela) */}
+        {restBox}
         <Card className="mt-6 p-5 sm:p-6">
           <ProgressSteps current={Math.max(j?.step ?? 7, 7)} range={[1, 9]} failed={failed} done={j?.status === 'done'} />
           {!failed && j?.status !== 'done' ? (
@@ -526,7 +534,6 @@ export function NewLandingPagePage() {
               <StopJobButton jobId={generateJobId} />
             </div>
           ) : null}
-          {restBox}
           {failed ? (
             <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4">
               <p className="text-sm font-medium text-red-700">{j?.error ?? generate.networkError}</p>
