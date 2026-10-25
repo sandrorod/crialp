@@ -191,6 +191,11 @@ export async function getLandingPage(orgId: string, id: string) {
   return withoutNullText(await one<LandingPageRow>('select * from landing_pages where id = $1 and organization_id = $2', [id, orgId]));
 }
 
+/** Sem filtro de organização: só para rotas públicas (formulário de contato da página). */
+export async function getLandingPageById(id: string) {
+  return withoutNullText(await one<LandingPageRow>('select * from landing_pages where id = $1', [id]));
+}
+
 export async function getLandingPageBySlug(slug: string) {
   return withoutNullText(await one<LandingPageRow>('select * from landing_pages where slug = $1', [slug]));
 }

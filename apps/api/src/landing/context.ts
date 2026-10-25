@@ -46,6 +46,18 @@ export interface RenderContext {
   seo: { title: string; description: string; keywords: string[]; ogImage: string | null };
   /** Prévia do editor: marca os textos editáveis com data-lp-text (nunca na página pública). */
   editable?: boolean;
+  /**
+   * Formulário de contato: endereço do envio, se a empresa tem e-mail válido para receber
+   * (sem ele o formulário só aparece no editor, sinalizado) e o resultado do último envio (?contato=…).
+   */
+  contactForm: ContactFormInfo | null;
+}
+
+export type ContactFormStatus = 'enviado' | 'erro' | 'invalido' | 'limite';
+export interface ContactFormInfo {
+  action: string;
+  recipientOk: boolean;
+  status: ContactFormStatus | null;
 }
 
 /**
@@ -119,6 +131,7 @@ export function buildContext(opts: {
   seo: { title?: string | null; description?: string | null; keywords?: string[] | null; ogImage?: string | null };
   pageUrl: string;
   editable?: boolean;
+  contactForm?: ContactFormInfo | null;
 }): RenderContext {
   const { theme, pageUrl } = opts;
   // Opção "Remover emojis": todos os textos da página (conteúdo, cadastro e SEO) saem sem emoji
@@ -245,6 +258,7 @@ export function buildContext(opts: {
 
   return {
     editable: !!opts.editable,
+    contactForm: opts.contactForm ?? null,
     company,
     content,
     theme: logoTheme,

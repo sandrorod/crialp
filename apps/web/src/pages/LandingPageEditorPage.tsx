@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import {
+  AlertTriangle,
   ArrowLeft,
   Building2,
   Loader2,
@@ -637,6 +638,30 @@ export function LandingPageEditorPage() {
                 ) : null}
               </div>
             </div>
+            {/* Formulário de contato: sem e-mail válido na empresa, as mensagens não têm para onde ir */}
+            {company && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(company.email?.trim() ?? '') ? (
+              <div role="alert" className="mb-3 flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <AlertTriangle className="mt-0.5 size-4 flex-none text-amber-600" />
+                <p>
+                  <strong>Formulário de contato sem e-mail.</strong> Para funcionar, cadastre um e-mail válido nas informações da empresa: as mensagens do
+                  formulário são enviadas para ele. Enquanto isso, a seção “Fale conosco” fica sinalizada aqui e não aparece na página publicada.{' '}
+                  {restricted ? null : (
+                    <Link to={`/empresas/${company.id}`} className="font-medium underline hover:text-amber-950">
+                      Cadastrar e-mail da empresa
+                    </Link>
+                  )}
+                </p>
+              </div>
+            ) : company && lp.mail_configured === false && !restricted ? (
+              <div role="alert" className="mb-3 flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <AlertTriangle className="mt-0.5 size-4 flex-none text-amber-600" />
+                <p>
+                  <strong>O servidor ainda não envia e-mails.</strong> As mensagens do formulário de contato ficam guardadas, mas não chegam a{' '}
+                  <strong>{company.email}</strong>. Configure o envio no servidor: <code>SMTP_HOST</code>, <code>SMTP_PORT</code>, <code>SMTP_USER</code> e{' '}
+                  <code>SMTP_PASS</code> (ex.: Gmail com senha de app) ou <code>RESEND_API_KEY</code>, e <code>MAIL_FROM</code>.
+                </p>
+              </div>
+            ) : null}
             <div ref={previewBoxRef} className="relative">
               {previewLoading ? (
                 <div className="absolute inset-0 z-10 grid place-items-center rounded-lg bg-white/60 backdrop-blur-[2px]" role="status" aria-live="polite">

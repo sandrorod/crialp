@@ -33,6 +33,7 @@ import { renderUnavailablePage } from '../landing/render.js';
 import { IMAGE_FILTERS, IMAGE_SHADOWS } from '../landing/imageStyle.js';
 import { landingPageHeaders } from './public.js';
 import { generateScreenshot, getScreenshotImage, getScreenshotInfo } from '../services/screenshot/ScreenshotService.js';
+import { mailConfigured } from '../services/mail/mailer.js';
 
 export const landingPagesRouter = Router();
 
@@ -44,7 +45,14 @@ async function loadOr404(orgId: string, rawId: string) {
 
 function serialize(lp: repo.LandingPageRow) {
   const { html_content: _html, ...rest } = lp;
-  return { ...rest, theme: normalizeThemeSettings(lp.theme), public_url: publicUrl(lp), path_url: `${env.appUrl}/lp/${lp.slug}` };
+  return {
+    ...rest,
+    theme: normalizeThemeSettings(lp.theme),
+    public_url: publicUrl(lp),
+    path_url: `${env.appUrl}/lp/${lp.slug}`,
+    // Formulário de contato: o servidor tem SMTP/Resend para enviar as mensagens?
+    mail_configured: mailConfigured(),
+  };
 }
 
 landingPagesRouter.get('/', async (req, res) => {

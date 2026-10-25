@@ -220,6 +220,25 @@ p{margin:0;text-wrap:pretty}
 .contact-list a,.contact-list div{display:flex;gap:16px;align-items:flex-start;padding:20px 22px;border-radius:var(--radius-sm);border:1px solid var(--border);text-decoration:none;background:var(--bg);transition:border-color .2s}
 .contact-list a:hover{border-color:var(--primary-ink)}
 .contact-list .ico{color:var(--primary-ink);margin-top:2px;flex:none}
+
+/* Formulário de contato ("Fale conosco") */
+.lead-section+.section{padding-top:0}
+.lead-wrap{max-width:760px}
+.lead-form{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;background:var(--bg);border:1px solid var(--border);border-radius:clamp(14px,var(--radius),18px);padding:clamp(22px,3.4vw,40px)}
+@media(min-width:640px){.lead-form{grid-template-columns:repeat(2,minmax(0,1fr))}.lead-name,.lead-message,.lead-actions{grid-column:1/-1}}
+.lead-field{display:grid;gap:6px;font:500 14px/1.3 var(--font-body);color:var(--text)}
+.lead-field input,.lead-field textarea{width:100%;box-sizing:border-box;font:400 16px/1.4 var(--font-body);color:var(--text);background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;transition:border-color .2s,box-shadow .2s}
+.lead-field textarea{resize:vertical;min-height:120px}
+.lead-field input:focus,.lead-field textarea:focus{outline:none;border-color:var(--primary-ink);box-shadow:0 0 0 3px var(--primary-soft)}
+.lead-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap}
+.lead-preview-note{font:400 13px/1.3 var(--font-body);color:var(--muted)}
+@media(max-width:639px){.lead-actions .btn{width:100%}}
+.lead-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.lead-status{margin:0 0 16px;padding:14px 16px;border-radius:var(--radius-sm);font:500 15px/1.4 var(--font-body)}
+.lead-status.is-ok{background:#ecfdf3;color:#05603a;border:1px solid #abefc6}
+.lead-status.is-error{background:#fef3f2;color:#912018;border:1px solid #fecdca}
+.lead-warning{margin:0 0 16px;padding:14px 16px;border-radius:var(--radius-sm);background:#fffaeb;color:#7a2e0e;border:1.5px dashed #f79009;font:400 14px/1.45 var(--font-body)}
+.lead-missing .lead-form{outline:2px dashed #f79009;outline-offset:6px;opacity:.75}
 .contact-list span{min-width:0}
 .contact-list small{display:block;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
 .contact-list strong{font-weight:600;word-break:break-word;white-space:pre-line}

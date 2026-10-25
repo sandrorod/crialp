@@ -471,6 +471,8 @@ export type ImagePlacement = 'hero' | 'about' | 'gallery' | 'hidden' | 'logo' | 
 export interface LandingPage {
   id: string;
   company_id: string;
+  /** O servidor tem e-mail configurado (SMTP/Resend) para enviar o formulário de contato */
+  mail_configured?: boolean;
   title: string;
   slug: string;
   status: LpStatus;

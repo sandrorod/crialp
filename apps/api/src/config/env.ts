@@ -130,6 +130,22 @@ export const env = {
     /** Pasta do Drive para as imagens (id ou link); a escolhida em Configurações tem prioridade */
     folder: process.env.GOOGLE_DRIVE_FOLDER_ID || undefined,
   },
+  /**
+   * Envio de e-mail (formulário de contato das LPs): SMTP (ex.: Gmail com senha de app) ou Resend.
+   * `from`: remetente; a resposta vai para quem preencheu o formulário (Reply-To).
+   */
+  mail: {
+    from: process.env.MAIL_FROM || process.env.SMTP_USER || undefined,
+    smtp: process.env.SMTP_HOST
+      ? {
+          host: process.env.SMTP_HOST,
+          port: Number(process.env.SMTP_PORT ?? 465),
+          user: process.env.SMTP_USER || undefined,
+          pass: process.env.SMTP_PASS || undefined,
+        }
+      : null,
+    resendApiKey: process.env.RESEND_API_KEY || undefined,
+  },
   /** Chave do RapidAPI usada na pesquisa de empresas (área "Buscar empresas") */
   rapidApiKey: process.env.RAPIDAPI_KEY || undefined,
   webDistDir: path.resolve(process.env.WEB_DIST_DIR ?? '../../dist/admin'),

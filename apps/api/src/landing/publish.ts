@@ -4,6 +4,8 @@ import { saveSnapshot, type LandingPageRow } from '../repositories/landingPages.
 import { buildContext } from './context.js';
 import { renderLandingPage } from './render.js';
 import { normalizeThemeSettings, resolveTheme } from './theme.js';
+import type { ContactFormStatus } from './context.js';
+import { isValidEmail } from '../services/mail/mailer.js';
 
 /** URL pública canônica: domínio personalizado ativo ou /lp/:slug no domínio do sistema. */
 export function publicUrl(lp: Pick<LandingPageRow, 'slug' | 'custom_domain' | 'domain_status'>) {
@@ -13,7 +15,8 @@ export function publicUrl(lp: Pick<LandingPageRow, 'slug' | 'custom_domain' | 'd
 
 /** Renderiza a LP a partir dos dados estruturados atuais (empresa + conteúdo + tema). */
 /** `editable`: prévia do editor, com os textos marcados para edição direto na página. */
-export async function renderFromData(lp: LandingPageRow, opts: { editable?: boolean } = {}): Promise<string | null> {
+/** `contactStatus`: resultado do envio do formulário de contato, mostrado na volta (?contato=…). */
+export async function renderFromData(lp: LandingPageRow, opts: { editable?: boolean; contactStatus?: ContactFormStatus | null } = {}): Promise<string | null> {
   const company = await getCompanyFullById(lp.company_id);
   if (!company) return null;
   const theme = resolveTheme(normalizeThemeSettings(lp.theme));
@@ -24,6 +27,8 @@ export async function renderFromData(lp: LandingPageRow, opts: { editable?: bool
     theme,
     seo: { title: lp.seo_title, description: lp.seo_description, keywords: lp.seo_keywords, ogImage: lp.og_image },
     pageUrl: publicUrl(lp),
+    // O envio vai sempre ao endereço do sistema (domínio próprio só atende GET da página)
+    contactForm: { action: `${env.appUrl}/lp/contato/${lp.id}`, recipientOk: isValidEmail(company.email), status: opts.contactStatus ?? null },
   });
   return renderLandingPage(ctx);
 }

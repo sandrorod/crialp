@@ -37,6 +37,7 @@ import {
   ReviewsSection,
 } from './sections/ContentSections.js';
 import { ContactSection, FinalCTA, Footer, WhatsAppFloat } from './sections/ContactSection.js';
+import { ContactFormSection } from './sections/ContactFormSection.js';
 
 /**
  * Texto de um bloco <style>: o HTML não escapa nada dentro dele, então um "<" vindo de dados
@@ -198,7 +199,13 @@ export function renderLandingPage(ctx: RenderContext): string {
       case 'faq':
         return <FaqSection key={key} ctx={ctx} alt={alt} />;
       case 'contact':
-        return <ContactSection key={key} ctx={ctx} alt={alt} />;
+        // Formulário de contato em todas as LPs (antigas e novas), logo antes dos dados de contato
+        return (
+          <>
+            <ContactFormSection ctx={ctx} alt={alt} />
+            <ContactSection ctx={ctx} alt={alt} />
+          </>
+        );
       default:
         return null;
     }
