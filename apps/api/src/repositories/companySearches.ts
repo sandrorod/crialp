@@ -4,7 +4,8 @@ import { one, query } from '../db/pool.js';
 export interface SavedSearch {
   id: string;
   query: string;
-  center: { latitude: number; longitude: number } | null;
+  /** `step`: próximo ponto da varredura ao redor da cidade em "Buscar mais" */
+  center: { latitude: number; longitude: number; step?: number } | null;
   page: number;
   has_more: boolean;
   results: unknown[];

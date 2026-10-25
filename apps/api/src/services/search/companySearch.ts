@@ -155,8 +155,10 @@ function formatPhone(raw: string | null | undefined): string | null {
 }
 
 /** "Local Business Data" (fichas do Google Maps com telefone e endereço), se a chave assinar essa API. */
-async function searchMaps(query: string, limit = PAGE_SIZE): Promise<FoundCompany[] | null> {
-  const r = await rapid('local-business-data.p.rapidapi.com', `/search?query=${encodeURIComponent(query)}&limit=${limit}&region=br&language=pt`);
+async function searchMaps(query: string, limit = PAGE_SIZE, at?: LatLng): Promise<FoundCompany[] | null> {
+  // `at`: centro do mapa da consulta (varredura ao redor da cidade); zoom 14 ≈ alguns quilômetros em volta
+  const near = at ? `&lat=${at.latitude}&lng=${at.longitude}&zoom=14` : '';
+  const r = await rapid('local-business-data.p.rapidapi.com', `/search?query=${encodeURIComponent(query)}&limit=${limit}&region=br&language=pt${near}`);
   if (notSubscribed(r)) return null;
   if (r.status !== 200 || !Array.isArray(r.body?.data)) throw new AppError(502, 'A pesquisa de empresas falhou. Tente novamente.');
   return r.body.data.map(
@@ -384,6 +386,15 @@ export async function searchCompanySites(query: string): Promise<FoundCompany[]>
 }
 
 type LatLng = { latitude: number; longitude: number };
+/**
+ * Centro salvo da pesquisa. `step`: próximo ponto da varredura ao redor da cidade, que começa quando a
+ * consulta principal do Maps acaba (sem ele, "Buscar mais" parava de trazer empresas e o botão sumia).
+ */
+export type SearchCenter = LatLng & { step?: number };
+
+/** Identidade de uma empresa encontrada, para não repetir entre as páginas de "Buscar mais". */
+export const foundKey = (c: Pick<FoundCompany, 'place_id' | 'google_url' | 'url' | 'name' | 'address'>) =>
+  c.place_id ?? c.google_url ?? c.url ?? `${c.name}|${c.address}`;
 
 /** Coordenadas de um endereço (OpenStreetMap), para centrar a busca quando o navegador não enviou a localização. */
 export async function geocode(address: string): Promise<LatLng | null> {
@@ -529,6 +540,71 @@ export function mentionsPlace(query: string) {
   return BRAZIL_CITIES.some(([city]) => ` ${q.replace(/[^a-z0-9]+/g, ' ')} `.includes(` ${norm(city.split(' - ')[0]).replace(/[^a-z0-9]+/g, ' ')} `));
 }
 
+/** Pontos da varredura ao redor da cidade: o centro e anéis de 3, 6, 9 e 12 km (43 pontos). */
+const sweepPoints = (center: LatLng) => [0, 1, 2, 3].flatMap((ring) => searchPoints(center, ring));
+/** Pesquisa com cidade que ainda pode varrer os arredores (pesquisas antigas que pararam também continuam). */
+export const sweepHasMore = (query: string, center: SearchCenter | null) =>
+  mentionsPlace(query) && !(center?.step != null && center.step >= sweepPoints(center).length);
+/** Empresas novas que um clique em "Buscar mais" procura juntar na varredura, e o máximo de consultas por clique. */
+const SWEEP_TARGET = 40;
+const SWEEP_CALLS = 8;
+
+/** A pesquisa sem o lugar ("dentista em Campinas" → "dentista"): na varredura, o lugar vem do ponto do mapa. */
+function withoutPlace(query: string) {
+  let q = query.trim().replace(/\s+em\s+.+$/i, '');
+  for (const [city] of BRAZIL_CITIES) {
+    const name = city.split(' - ')[0];
+    q = q.replace(new RegExp(`(^|\\s)${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|,|$)`, 'i'), ' ');
+  }
+  q = q
+    .replace(new RegExp(`[\\s,-]+(${UFS})$`, 'i'), '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return q.length >= 2 ? q : query;
+}
+
+/** Centro da cidade da pesquisa: endereço de um local já encontrado; senão, o lugar citado; senão, a lista de cidades. */
+async function cityCenter(query: string, firstAddress?: string | null): Promise<LatLng | null> {
+  const fromAddress = firstAddress ? await geocode(firstAddress).catch(() => null) : null;
+  const center = fromAddress ?? (await geocode(placeInQuery(query)).catch(() => null));
+  if (center) return center;
+  const known = BRAZIL_CITIES.find(([city]) => ` ${norm(query)} `.includes(` ${norm(city.split(' - ')[0])} `));
+  return known ? { latitude: known[1], longitude: known[2] } : null;
+}
+
+/**
+ * Varre os arredores da cidade pela Local Business Data, a partir do ponto `from`, até juntar SWEEP_TARGET
+ * empresas novas que passam no filtro (ou acabar os pontos / as consultas deste clique).
+ */
+async function sweepAround(query: string, center: LatLng, from: number, known: Set<string>, accept: (c: FoundCompany) => boolean) {
+  const points = sweepPoints(center);
+  const base = withoutPlace(query);
+  const items: FoundCompany[] = [];
+  let step = from;
+  let failed = 0;
+  while (step < points.length && step - from < SWEEP_CALLS && items.filter(accept).length < SWEEP_TARGET) {
+    const batch = points.slice(step, step + 2);
+    step += batch.length;
+    const results = await pool(batch, 2, (at) => searchMaps(base, 100, at));
+    for (const r of results) {
+      if (r.status === 'rejected') failed++;
+      else
+        for (const c of r.value ?? []) {
+          const key = foundKey(c);
+          if (!c.name || known.has(key)) continue;
+          known.add(key);
+          items.push(c);
+        }
+    }
+  }
+  return {
+    items,
+    center: { ...center, step } as SearchCenter,
+    hasMore: step < points.length,
+    warning: failed ? `${failed} consulta(s) ao Google Maps falharam nesta busca; use "Buscar mais" para continuar.` : null,
+  };
+}
+
 /**
  * Locais do Google Maps: "Local Business Data" do RapidAPI se a chave assinar essa API; senão, consultas ao
  * Google Maps pelo Gemini em vários pontos ao redor do centro (só locais confirmados pelo Maps), sem repetir.
@@ -538,8 +614,10 @@ export async function searchCompanyPlaces(
   query: string,
   _latLng?: LatLng,
   page = 0,
-  savedCenter?: LatLng | null,
-): Promise<{ items: FoundCompany[]; center: LatLng | null; hasMore: boolean; warning: string | null }> {
+  savedCenter?: SearchCenter | null,
+  // Já mostradas nas páginas anteriores, e o filtro da tela (para a varredura saber quantas novas valem)
+  opts: { known?: Set<string>; accept?: (c: FoundCompany) => boolean } = {},
+): Promise<{ items: FoundCompany[]; center: SearchCenter | null; hasMore: boolean; warning: string | null }> {
   const found: FoundCompany[] = [];
   const seen = new Set<string>();
   const add = (list: Awaited<ReturnType<typeof aiService.searchGooglePlaces>>) => {
@@ -555,9 +633,23 @@ export async function searchCompanyPlaces(
   // Lista completa do RapidAPI, se a chave assinar a "Local Business Data" (região: Brasil): 50 por página
   const limit = PAGE_SIZE * (page + 1);
   const hasRapid = await aiKeyStore.hasAny('rapidapi', env.rapidApiKey);
-  if (hasRapid && located && limit <= 500) {
-    const maps = await searchMaps(query, limit).catch(() => null);
-    if (maps) return { items: maps.slice(page * PAGE_SIZE).filter((c) => c.name), center: null, hasMore: maps.length >= limit && limit < 500, warning: null };
+  if (hasRapid && located) {
+    const known = opts.known ?? new Set<string>();
+    const accept = opts.accept ?? (() => true);
+    // Varredura já começou em um clique anterior: continua do próximo ponto
+    if (savedCenter?.step != null) return sweepAround(query, savedCenter, savedCenter.step, known, accept);
+    const maps = limit <= 500 ? await searchMaps(query, limit).catch(() => null) : [];
+    if (maps) {
+      const fresh = maps.slice(page * PAGE_SIZE).filter((c) => c.name && !known.has(foundKey(c)));
+      if (maps.length >= limit && limit < 500) return { items: fresh, center: null, hasMore: true, warning: null };
+      // A consulta principal acabou: os próximos cliques varrem os arredores da cidade
+      const center = await cityCenter(query, maps.find((c) => c.address)?.address);
+      if (!center) return { items: fresh, center: null, hasMore: false, warning: null };
+      if (fresh.filter(accept).length >= SWEEP_TARGET / 2) return { items: fresh, center: { ...center, step: 0 }, hasMore: true, warning: null };
+      for (const c of fresh) known.add(foundKey(c));
+      const sweep = await sweepAround(query, center, 0, known, accept);
+      return { ...sweep, items: [...fresh, ...sweep.items] };
+    }
   }
   // Sem cidade na pesquisa a Local Business Data procura só perto de um ponto fixo (vinham 3 ou 4 locais de
   // uma cidade só): percorre as maiores cidades do país, 7 por página, como na consulta pelo Gemini
@@ -685,18 +777,28 @@ export async function searchCompanies(
   query: string,
   filter: SiteFilter,
   page = 0,
-  savedCenter?: LatLng | null,
-): Promise<{ items: FoundCompany[]; center: LatLng | null; hasMore: boolean; warning: string | null }> {
+  savedCenter?: SearchCenter | null,
+  /** Empresas já mostradas nas páginas anteriores desta pesquisa (não voltam) */
+  known: Set<string> = new Set(),
+): Promise<{ items: FoundCompany[]; center: SearchCenter | null; hasMore: boolean; warning: string | null }> {
+  const accept = (c: FoundCompany) => (filter === 'todos' ? true : filter === 'com_site' ? hasOwnSite(c) : !hasOwnSite(c));
   const variant = WEB_VARIANTS[page];
   const wantWeb = filter !== 'sem_site' && variant !== undefined && (await aiKeyStore.hasAny('rapidapi', env.rapidApiKey));
   // Páginas além das que o Maps cobre (4 anéis na cidade / passadas pelas cidades do país) só trazem sites.
   // Sem a Local Business Data, a pesquisa sem cidade (pelo Gemini) para na última cidade da lista
   const hasRapid = await aiKeyStore.hasAny('rapidapi', env.rapidApiKey);
-  const mapsDone = mentionsPlace(query) ? page > 3 : hasRapid ? !nationalPageExists(page) : page > MAX_SEARCH_PAGE;
+  // Com cidade e Local Business Data: o Maps continua enquanto houver pontos da varredura ao redor da cidade
+  const mapsDone = mentionsPlace(query)
+    ? hasRapid
+      ? savedCenter?.step != null && savedCenter.step >= sweepPoints(savedCenter).length
+      : page > 3
+    : hasRapid
+      ? !nationalPageExists(page)
+      : page > MAX_SEARCH_PAGE;
   const [places, web] = await Promise.all([
     mapsDone
       ? Promise.resolve({ items: [] as FoundCompany[], center: savedCenter ?? null, hasMore: false, warning: null })
-      : searchCompanyPlaces(query, undefined, page, savedCenter).catch((err: unknown) => err),
+      : searchCompanyPlaces(query, undefined, page, savedCenter, { known, accept }).catch((err: unknown) => err),
     wantWeb ? searchWeb(variant ? `${query} ${variant}` : query, 100).catch(() => [] as FoundCompany[]) : Promise.resolve([] as FoundCompany[]),
   ]);
   const placesFailed = !(places && typeof places === 'object' && 'items' in places);
@@ -720,7 +822,7 @@ export async function searchCompanies(
   // Locais do Maps primeiro; da busca web, só os sites que ainda não apareceram como local
   const mapsHosts = new Set((p?.items ?? []).map((c) => hostKey(c.website)).filter(Boolean));
   const merged = [...(p?.items ?? []), ...web.filter((c) => !mapsHosts.has(hostKey(c.website)))];
-  const items = merged.filter((c) => (filter === 'todos' ? true : filter === 'com_site' ? hasOwnSite(c) : !hasOwnSite(c)));
+  const items = merged.filter((c) => accept(c) && !(c.source === 'web' && known.has(foundKey(c))));
 
   const failure = placesFailed
     ? `Os locais do Google Maps não foram consultados (${places instanceof AppError ? places.message : 'erro na consulta'}); a lista tem só sites da busca do Google.`

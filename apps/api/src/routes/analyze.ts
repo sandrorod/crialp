@@ -11,7 +11,15 @@ import { jobService } from '../services/jobs/JobService.js';
 import { analyzeUrl } from '../services/pipeline/analyzeUrl.js';
 import { generateLanding } from '../services/pipeline/generateLanding.js';
 import { findDuplicateCompany, getCompanyFull, matchRegisteredCompanies } from '../repositories/companies.js';
-import { MAX_NATIONAL_PAGE, nationalHasMore, searchCompanies, searchCompanySites, type FoundCompany } from '../services/search/companySearch.js';
+import {
+  foundKey,
+  MAX_NATIONAL_PAGE,
+  nationalHasMore,
+  sweepHasMore,
+  searchCompanies,
+  searchCompanySites,
+  type FoundCompany,
+} from '../services/search/companySearch.js';
 import { aiKeyStore } from '../services/ai/keyStore.js';
 import { env } from '../config/env.js';
 import { appendSearch, createSearch, deleteSearch, getSearch, listSearches } from '../repositories/companySearches.js';
@@ -139,7 +147,9 @@ analyzeRouter.get('/company-search', searchLimiter, async (req, res) => {
   const latLng = lat != null && lng != null ? { latitude: lat, longitude: lng } : undefined;
   // "Buscar mais locais" de pesquisa com cidade continua ao redor do mesmo centro
   const saved = search_id && page > 0 ? await getSearch(user.organizationId, search_id) : null;
-  const places = type === 'locais' ? await searchCompanies(q, filter, page, saved?.center ?? latLng ?? null) : null;
+  // Já mostradas nesta pesquisa: "Buscar mais" só traz empresas novas
+  const known = new Set((saved?.results as FoundCompany[] | undefined)?.map(foundKey) ?? []);
+  const places = type === 'locais' ? await searchCompanies(q, filter, page, saved?.center ?? latLng ?? null, known) : null;
   // Empresas ignoradas pelo usuário não aparecem (nem entram no histórico)
   const items = await withoutIgnored(user.organizationId, places ? places.items : await searchCompanySites(q));
   const source = type === 'locais' ? 'maps' : 'web';
@@ -213,7 +223,9 @@ analyzeRouter.get('/company-searches/:id', async (req, res) => {
     ),
   ]);
   // Pesquisas sem cidade que pararam na última cidade da lista (antes do "Buscar mais" continuar): seguem
-  const has_more = search.has_more || ((await aiKeyStore.hasAny('rapidapi', env.rapidApiKey)) && nationalHasMore(search.query, search.page));
+  // Pesquisas com cidade que pararam quando a consulta principal do Maps acabou: seguem varrendo os arredores
+  const rapid = await aiKeyStore.hasAny('rapidapi', env.rapidApiKey);
+  const has_more = search.has_more || (rapid && (nationalHasMore(search.query, search.page) || sweepHasMore(search.query, search.center)));
   res.json({ ...search, has_more, results: items.map((c, i) => ({ ...c, existing: registered[i], analysis_error: registered[i] ? null : failures[i] })) });
 });
 
