@@ -131,7 +131,15 @@ async function rapid(host: string, path: string): Promise<{ status: number; body
   }
   if (last && notSubscribed(last)) return last;
   if (!last && timedOut) throw new AppError(504, 'A pesquisa demorou demais para responder. Tente novamente.');
-  throw new AppError(503, `Todas as chaves do RapidAPI falharam (${last?.body?.message ?? last?.status}). Verifique as chaves em Configurações.`);
+  const why = String(last?.body?.message ?? last?.status ?? '');
+  // Cota do plano esgotada: diz qual (mensal/diária) em vez da mensagem em inglês
+  const quota = /monthly/i.test(why) ? 'a cota mensal' : /daily|per day/i.test(why) ? 'a cota diária' : /quota|exceeded/i.test(why) ? 'a cota' : null;
+  throw new AppError(
+    503,
+    quota
+      ? `${quota[0].toUpperCase()}${quota.slice(1)} do RapidAPI (${host.replace(/\.p\.rapidapi\.com$/, '')}) acabou em todas as chaves. Cadastre outra chave em Configurações ou aumente o plano no RapidAPI.`
+      : `Todas as chaves do RapidAPI falharam (${why}). Verifique as chaves em Configurações.`,
+  );
 }
 
 /** Valida uma chave do RapidAPI antes de cadastrá-la (aceita chave válida mesmo sem assinatura numa API específica). */
@@ -795,11 +803,18 @@ export async function searchCompanies(
     : hasRapid
       ? !nationalPageExists(page)
       : page > MAX_SEARCH_PAGE;
+  // Falhas da busca de sites (ex.: cota mensal do RapidAPI esgotada) viram aviso na tela, em vez de sumirem em silêncio
+  const webErrors: string[] = [];
+  const webOrEmpty = (q: string) =>
+    searchWeb(q, 100).catch((err: unknown) => {
+      webErrors.push(err instanceof AppError ? err.message : 'erro na consulta');
+      return [] as FoundCompany[];
+    });
   const [places, web] = await Promise.all([
     mapsDone
       ? Promise.resolve({ items: [] as FoundCompany[], center: savedCenter ?? null, hasMore: false, warning: null })
       : searchCompanyPlaces(query, undefined, page, savedCenter, { known, accept }).catch((err: unknown) => err),
-    wantWeb ? searchWeb(variant ? `${query} ${variant}` : query, 100).catch(() => [] as FoundCompany[]) : Promise.resolve([] as FoundCompany[]),
+    wantWeb ? webOrEmpty(variant ? `${query} ${variant}` : query) : Promise.resolve([] as FoundCompany[]),
   ]);
   const placesFailed = !(places && typeof places === 'object' && 'items' in places);
   // Sem locais do Maps nesta página: completa com mais consultas de sites até ~50 empresas
@@ -807,7 +822,7 @@ export async function searchCompanies(
     const hosts = new Set(web.map((c) => hostKey(c.website)));
     for (const extra of FILL_VARIANTS.slice(page * FILL_PER_PAGE, (page + 1) * FILL_PER_PAGE)) {
       if (web.filter((c) => (filter === 'todos' ? true : hasOwnSite(c))).length >= PAGE_SIZE) break;
-      const more = await searchWeb(`${query} ${extra}`, 100).catch(() => [] as FoundCompany[]);
+      const more = await webOrEmpty(`${query} ${extra}`);
       for (const c of more) {
         const h = hostKey(c.website);
         if (h && hosts.has(h)) continue;
@@ -816,7 +831,13 @@ export async function searchCompanies(
       }
     }
   }
-  if (placesFailed && !web.length) throw places;
+  if (placesFailed && !web.length) {
+    // Nem locais nem sites: o erro dos locais, com o motivo dos sites junto (as duas fontes falharam)
+    if (places instanceof AppError && webErrors.length) {
+      throw new AppError(places.status, `${places.message} A busca de sites também falhou: ${webErrors[0]}`, places.code);
+    }
+    throw places;
+  }
   const p = placesFailed ? null : (places as Awaited<ReturnType<typeof searchCompanyPlaces>>);
 
   // Locais do Maps primeiro; da busca web, só os sites que ainda não apareceram como local
@@ -827,10 +848,11 @@ export async function searchCompanies(
   const failure = placesFailed
     ? `Os locais do Google Maps não foram consultados (${places instanceof AppError ? places.message : 'erro na consulta'}); a lista tem só sites da busca do Google.`
     : null;
+  const webFailure = webErrors.length ? `A busca de sites do Google não respondeu (${webErrors[0]}).` : null;
   return {
     items,
     center: p?.center ?? savedCenter ?? null,
     hasMore: !!p?.hasMore || (wantWeb && page + 1 < WEB_VARIANTS.length),
-    warning: [p?.warning, failure].filter(Boolean).join(' ') || null,
+    warning: [p?.warning, failure, webFailure].filter(Boolean).join(' ') || null,
   };
 }

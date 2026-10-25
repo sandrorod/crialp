@@ -336,7 +336,13 @@ export function SearchCompaniesPage() {
       setCenter(nextCenter);
       setPage(p);
       setHasMore(r.has_more);
-      setWarning(r.warning);
+      // "Buscar mais" sem nada novo: diz isso (e o motivo, se houver) em vez de só sumir o botão
+      const added = merged.length - prev.length;
+      setWarning(
+        p > 0 && !added
+          ? [`Nenhuma empresa nova encontrada${r.has_more ? ' nesta rodada; tente "Buscar mais" de novo' : ''}.`, r.warning].filter(Boolean).join(' ')
+          : r.warning,
+      );
       setSearchId(r.search_id);
       store({ q: term, items: merged, center: nextCenter, page: p, hasMore: r.has_more, searchId: r.search_id, filter, phone: phoneOnly, noLp, noErr });
       void history.reload();
