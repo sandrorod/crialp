@@ -208,7 +208,10 @@ export async function getLandingPageByDomain(domain: string) {
   );
 }
 
-export async function listLandingPages(orgId: string, f: { search?: string; status?: string; segment?: string; wp?: string; edicao?: string }) {
+export async function listLandingPages(
+  orgId: string,
+  f: { search?: string; status?: string; segment?: string; wp?: string; edicao?: string; seller?: string },
+) {
   const where = ['lp.organization_id = $1'];
   const params: unknown[] = [orgId];
   if (f.search) {
@@ -226,6 +229,12 @@ export async function listLandingPages(orgId: string, f: { search?: string; stat
   // WhatsApp verificado da empresa (companies.wp_verificado): preenchido ou vazio/nulo
   if (f.wp === 'com') where.push(`coalesce(trim(c.wp_verificado), '') <> ''`);
   if (f.wp === 'sem') where.push(`coalesce(trim(c.wp_verificado), '') = ''`);
+  // Subusuário (vendedor) da página: um específico ou "sem vendedor"
+  if (f.seller === 'none') where.push('lp.seller_id is null');
+  else if (f.seller && /^[0-9a-f-]{36}$/i.test(f.seller)) {
+    params.push(f.seller);
+    where.push(`lp.seller_id = $${params.length}`);
+  }
   // Andamento da edição: só as prontas ou só as em edição
   if (f.edicao === 'pronta' || f.edicao === 'editar') {
     params.push(f.edicao);

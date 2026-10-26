@@ -7,7 +7,7 @@ import { Button, Card, ConfirmDialog, EmptyState, ErrorBlock, Input, LoadingBloc
 import { useAsync } from '@/hooks/useAsync';
 import { usePagination } from '@/hooks/usePagination';
 import { useLandingPageActions } from '@/hooks/useLandingPageActions';
-import { formatDate } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import { landingPageService } from '@/services';
 import type { LandingPageListItem } from '@/types';
 
@@ -19,6 +19,8 @@ export function LandingPagesPage() {
   const [wp, setWp] = useState('');
   // Andamento da edição (botão Editar/Pronta do editor)
   const [edicao, setEdicao] = useState('');
+  // Subusuário (vendedor) da página: só a gerência filtra
+  const [seller, setSeller] = useState('');
   const deferred = useDeferredValue(search);
   const { data, error, loading, reload } = useAsync(
     () =>
@@ -28,11 +30,12 @@ export function LandingPagesPage() {
         segment: segment || undefined,
         wp: wp || undefined,
         edicao: edicao || undefined,
+        seller: seller || undefined,
       }),
-    [deferred, status, segment, wp, edicao],
+    [deferred, status, segment, wp, edicao, seller],
   );
   // 10 por página; volta para a primeira ao mudar os filtros
-  const pager = usePagination(data?.items, 10, [deferred, status, segment, wp, edicao].join('|'));
+  const pager = usePagination(data?.items, 10, [deferred, status, segment, wp, edicao, seller].join('|'));
   const actions = useLandingPageActions(reload);
   const { sellers, canAssign } = useSellers();
   const clientLevels = useClientLevels();
@@ -50,7 +53,12 @@ export function LandingPagesPage() {
         }
       />
       <Card>
-        <div className="grid gap-2 border-b border-zinc-100 p-4 sm:grid-cols-2 lg:grid-cols-[1fr_205px_170px_160px_215px]">
+        <div
+          className={cn(
+            'grid gap-2 border-b border-zinc-100 p-4 sm:grid-cols-2',
+            canAssign ? 'lg:grid-cols-5 [&>*:first-child]:lg:col-span-5' : 'lg:grid-cols-[1fr_205px_170px_160px_215px]',
+          )}
+        >
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
             <Input placeholder="Buscar por empresa ou endereço…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
@@ -79,6 +87,17 @@ export function LandingPagesPage() {
             <option value="com">Com WP verificado</option>
             <option value="sem">Sem WP verificado</option>
           </Select>
+          {canAssign ? (
+            <Select value={seller} onChange={(e) => setSeller(e.target.value)} aria-label="Subusuário">
+              <option value="">Subusuário: todos</option>
+              <option value="none">Sem subusuário</option>
+              {sellers.map((s) => (
+                <option key={s.id} value={s.id ?? ''}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+          ) : null}
         </div>
 
         {error ? (
@@ -91,9 +110,11 @@ export function LandingPagesPage() {
           <EmptyState
             icon={<PanelsTopLeft className="size-5" />}
             title="Nenhuma Landing Page encontrada"
-            description={search || status || segment || wp || edicao ? 'Ajuste a busca ou o filtro.' : 'Gere a primeira Landing Page a partir de uma URL.'}
+            description={
+              search || status || segment || wp || edicao || seller ? 'Ajuste a busca ou o filtro.' : 'Gere a primeira Landing Page a partir de uma URL.'
+            }
             action={
-              !search && !status && !segment && !wp && !edicao ? (
+              !search && !status && !segment && !wp && !edicao && !seller ? (
                 <Link to="/nova">
                   <Button icon={<Plus className="size-4" />}>Criar Landing Page</Button>
                 </Link>

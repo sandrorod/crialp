@@ -61,6 +61,15 @@ describe('Editar / Pronta nas Landing Pages', () => {
     );
   });
 
+  it('a lista de Landing Pages filtra por subusuário (vendedor) e "sem subusuário"', async () => {
+    const ids = async (seller: string) =>
+      ((await (await dono.call('GET', `/api/landing-pages?seller=${seller}`)).json()) as { items: { id: string }[] }).items.map((l) => l.id).sort();
+    await query('update landing_pages set seller_id = $1 where id = $2', [s.sellerA, s.a1.lpId]);
+    assert.deepEqual(await ids(s.sellerA), [s.a1.lpId]);
+    assert.deepEqual(await ids('none'), [s.a2.lpId]);
+    await query('update landing_pages set seller_id = null where id = $1', [s.a1.lpId]);
+  });
+
   it('volta para "editar" e recusa outro valor', async () => {
     assert.equal((await dono.call('PATCH', `/api/landing-pages/${s.a1.lpId}/edit-status`, { edit_status: 'editar' })).status, 200);
     assert.deepEqual(await listIds('pronta'), []);
