@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Phone, RefreshCw, Server, Smartphone } from 'lucide-react';
+import { Clapperboard, Phone, RefreshCw, Server, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card, ConfirmDialog, Field, Input, LoadingBlock } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
@@ -220,6 +220,7 @@ export function CrmConnectionPage() {
       </Card>
 
       <FreeNumberCard />
+      {status.configured ? <GifPlaybackCard enabled={!!status.gif_playback} onChanged={() => void reload()} /> : null}
 
       <ConfirmDialog
         open={confirmLogout}
@@ -282,6 +283,43 @@ function FreeNumberCard() {
           ))}
         </ul>
       )}
+    </Card>
+  );
+}
+
+/**
+ * GIF de verdade: só com a Evolution ajustada (deploy/evolution-gif no repositório), que aceita gifPlayback.
+ * Ligado, os GIFs vão como no celular (vídeo que toca sozinho, formato original); desligado, como figurinha.
+ */
+function GifPlaybackCard({ enabled, onChanged }: { enabled: boolean; onChanged: () => void }) {
+  const [saving, setSaving] = useState(false);
+  const toggle = async () => {
+    setSaving(true);
+    try {
+      await crmService.setGifPlayback(!enabled);
+      toast.success(!enabled ? 'GIFs passam a ir como GIF de verdade.' : 'GIFs voltam a ir como figurinha.');
+      onChanged();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <Card className="overflow-hidden">
+      <CrmBar
+        tone="amber"
+        icon={<Clapperboard className="size-4" />}
+        title="GIF de verdade (formato original)"
+        subtitle="Ligue só depois de publicar a Evolution ajustada (deploy/evolution-gif no repositório). Desligado, os GIFs vão como figurinha animada."
+      />
+      <label className="flex cursor-pointer items-center gap-3 px-5 py-4">
+        <input type="checkbox" className="size-4 accent-emerald-600" checked={enabled} disabled={saving} onChange={() => void toggle()} />
+        <span className="text-sm text-ink">A Evolution envia GIF de verdade</span>
+        <Pill tone={enabled ? 'emerald' : 'zinc'} className="ml-auto">
+          {enabled ? 'GIF' : 'Figurinha'}
+        </Pill>
+      </label>
     </Card>
   );
 }

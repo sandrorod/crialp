@@ -30,7 +30,8 @@ await build({
   platform: 'node',
   target: 'node22',
   format: 'esm',
-  external: ['pg-native'],
+  // sharp (figurinhas animadas do CRM) tem binários nativos: fica fora do pacote e é copiada abaixo
+  external: ['pg-native', 'sharp'],
   // __dirname/__filename como globais (não const): pacotes ESM embutidos, como o yargs do puppeteer, declaram os seus
   banner: {
     js: "import { createRequire as __cr } from 'node:module'; import { fileURLToPath as __fu } from 'node:url'; import __p from 'node:path'; const require = __cr(import.meta.url); globalThis.__filename = __fu(import.meta.url); globalThis.__dirname = __p.dirname(globalThis.__filename);",
@@ -38,6 +39,20 @@ await build({
   logLevel: 'warning',
 });
 fs.cpSync(path.join(repoRoot, 'database', 'migrations'), path.join(fnDir, 'migrations'), { recursive: true });
+// sharp e as dependências dela (inclusive os binários do Linux instalados no build) em node_modules da função.
+// Se faltar algo, só a conversão das figurinhas deixa de funcionar (o CRM volta ao envio sem conversão).
+const copied = new Set();
+const copyPackage = (name) => {
+  if (copied.has(name)) return;
+  const dir = path.join(repoRoot, 'node_modules', name);
+  if (!fs.existsSync(path.join(dir, 'package.json'))) return;
+  copied.add(name);
+  fs.cpSync(dir, path.join(fnDir, 'node_modules', name), { recursive: true, dereference: true });
+  const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+  for (const dep of Object.keys({ ...pkg.dependencies, ...pkg.optionalDependencies })) copyPackage(dep);
+};
+copyPackage('sharp');
+console.log(`[vercel-build] sharp copiada com ${copied.size} pacotes: ${[...copied].join(', ')}`);
 // Binários do Chromium (imagem das LPs): o pacote procura a pasta bin ao lado do próprio código, que some no bundle
 fs.cpSync(path.join(repoRoot, 'node_modules', '@sparticuz', 'chromium', 'bin'), path.join(fnDir, 'chromium'), { recursive: true });
 fs.writeFileSync(

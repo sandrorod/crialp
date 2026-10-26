@@ -190,4 +190,6 @@ export interface CrmWhatsAppStatus {
   instance: string | null;
   state: string;
   error: string | null;
+  /** A Evolution foi ajustada para GIF de verdade (gifPlayback) */
+  gif_playback?: boolean;
 }

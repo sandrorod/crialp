@@ -24,7 +24,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { cn, copyToClipboard, formatDate } from '@/lib/utils';
 import { brandTones, type ToneRow } from '@/lib/colorTones';
-import { colorPaletteService, landingPageService, miscService } from '@/services';
+import { colorPaletteService, landingPageService, miscService, type DomainVerification } from '@/services';
 import type {
   ColorPalette,
   CompanyImage,
@@ -1751,9 +1751,7 @@ export function PublishTab({ lp, onUpdated, slugOnly = false }: { lp: LandingPag
   const [slug, setSlug] = useState(lp.slug);
   const [domain, setDomain] = useState(lp.custom_domain ?? '');
   const [busy, setBusy] = useState<string | null>(null);
-  const [verification, setVerification] = useState<{ ok: boolean; expected: { cname: string; a: string[] }; found: { cname: string[]; a: string[] } } | null>(
-    null,
-  );
+  const [verification, setVerification] = useState<DomainVerification | null>(null);
   const base = lp.path_url.replace(/\/lp\/[^/]+$/, '');
   const st = DOMAIN_STATUS[lp.domain_status] ?? DOMAIN_STATUS.none;
   // Endereço livre? Confere enquanto digita (espera uma pausa na digitação)
@@ -1843,7 +1841,9 @@ export function PublishTab({ lp, onUpdated, slugOnly = false }: { lp: LandingPag
       {slugOnly ? null : (
         <div className="border-t border-zinc-100 pt-6">
           <h4 className="mb-1 text-sm font-semibold">Domínio personalizado</h4>
-          <p className="mb-3 text-xs text-zinc-500">Ex.: www.empresa.com.br passa a exibir esta Landing Page diretamente.</p>
+          <p className="mb-3 text-xs text-zinc-500">
+            Ex.: <strong>empresa.com.br</strong> (raiz) ou <strong>www.empresa.com.br</strong> passa a exibir esta Landing Page diretamente.
+          </p>
           <div className="flex gap-2">
             <Input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="www.empresa.com.br" />
             <Button
@@ -1853,8 +1853,12 @@ export function PublishTab({ lp, onUpdated, slugOnly = false }: { lp: LandingPag
               onClick={() =>
                 run(
                   'domain',
-                  () => landingPageService.updateSettings(lp.id, { custom_domain: domain.trim() || null }),
-                  domain.trim() ? 'Domínio salvo.' : 'Domínio removido.',
+                  async () => {
+                    const r = await landingPageService.updateSettings(lp.id, { custom_domain: domain.trim() || null });
+                    setVerification(null);
+                    if (r.vercel_error) toast.warning(r.vercel_error);
+                  },
+                  domain.trim() ? 'Domínio salvo. Agora crie o registro no DNS abaixo.' : 'Domínio removido.',
                 )
               }
             >
@@ -1888,21 +1892,73 @@ export function PublishTab({ lp, onUpdated, slugOnly = false }: { lp: LandingPag
                   Verificar DNS
                 </Button>
               </div>
-              <div className="mt-3 space-y-1 text-xs text-zinc-600">
-                <p>No provedor do domínio, crie um registro:</p>
-                <p className="rounded bg-zinc-50 px-2 py-1.5 font-mono">
-                  CNAME {lp.custom_domain} → {new URL(base).hostname}
-                </p>
-                <p>Para domínio raiz (sem www), use um registro A com o IP do servidor.</p>
-                <p className="flex items-center gap-1.5 pt-1">
-                  <ShieldAlert className="size-3.5" /> HTTPS: emitido automaticamente pelo proxy (ver README → Domínios personalizados). SSL: {lp.ssl_status}.
-                </p>
-              </div>
+              {/* Registro de DNS deste domínio (raiz: A com o IP da Vercel; www/subdomínio: CNAME) */}
+              {(() => {
+                const rec = verification?.expected ?? lp.domain_record;
+                if (!rec) return null;
+                return (
+                  <div className="mt-3 space-y-2 text-xs text-zinc-600">
+                    <p>
+                      No provedor do domínio (Registro.br, GoDaddy, Hostinger, Cloudflare…), crie este registro
+                      {rec.kind === 'apex' ? ' para o domínio raiz (sem www)' : ''}:
+                    </p>
+                    <table className="w-full overflow-hidden rounded-md border border-zinc-200 text-left font-mono text-[12px]">
+                      <thead className="bg-zinc-50 font-sans text-[11px] uppercase tracking-wide text-zinc-500">
+                        <tr>
+                          <th className="px-2.5 py-1.5">Tipo</th>
+                          <th className="px-2.5 py-1.5">Nome</th>
+                          <th className="px-2.5 py-1.5">Valor / destino</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-t border-zinc-100 text-ink">
+                          <td className="px-2.5 py-1.5 font-semibold">{rec.type}</td>
+                          <td className="px-2.5 py-1.5">{rec.name}</td>
+                          <td className="px-2.5 py-1.5">
+                            <button
+                              type="button"
+                              title="Copiar"
+                              onClick={() => void navigator.clipboard?.writeText(rec.value).then(() => toast.success('Copiado.'))}
+                              className="hover:underline"
+                            >
+                              {rec.value}
+                            </button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    {rec.kind === 'apex' ? (
+                      <p>
+                        Nome <strong>@</strong> = o próprio domínio (em alguns provedores, deixe o nome em branco). Apague outros registros A ou AAAA do domínio
+                        raiz, se houver.
+                      </p>
+                    ) : (
+                      <p>Se já existir um registro “{rec.name}” (A ou CNAME), troque-o por este.</p>
+                    )}
+                    {!lp.vercel_domains ? (
+                      <p className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-amber-900">
+                        <strong>Também é preciso adicionar o domínio na Vercel:</strong> projeto crialp → Settings → Domains → Add →{' '}
+                        <span className="font-mono">{lp.custom_domain}</span>. (Com o token da Vercel configurado no servidor, o sistema faz isso sozinho.)
+                      </p>
+                    ) : null}
+                    <p className="flex items-center gap-1.5 pt-1">
+                      <ShieldAlert className="size-3.5" /> HTTPS: a Vercel emite sozinha quando o DNS estiver certo (de alguns minutos a algumas horas). Depois
+                      clique em “Verificar DNS”.
+                    </p>
+                  </div>
+                );
+              })()}
               {verification && !verification.ok ? (
                 <p className="mt-3 text-xs text-red-600">
-                  Encontrado: {verification.found.cname.join(', ') || verification.found.a.join(', ') || 'nenhum registro'}. Esperado: CNAME{' '}
-                  {verification.expected.cname}
-                  {verification.expected.a.length ? ` ou A ${verification.expected.a.join(', ')}` : ''}.
+                  {verification.vercel_error ? `${verification.vercel_error} ` : ''}
+                  Encontrado no DNS:{' '}
+                  {verification.found.cname.length
+                    ? `CNAME ${verification.found.cname.join(', ')}`
+                    : verification.found.a.length
+                      ? `A ${verification.found.a.join(', ')}`
+                      : 'nenhum registro'}
+                  . Esperado: {verification.expected.type} {verification.expected.value}. Se acabou de criar, a mudança pode levar até algumas horas para
+                  aparecer.
                 </p>
               ) : null}
             </div>

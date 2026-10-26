@@ -472,6 +472,9 @@ export interface TemplateInfo {
 /** "section:<seção>": a foto aparece no fim dessa seção do modelo (serviços, contato…) */
 export type ImagePlacement = 'hero' | 'about' | 'gallery' | 'hidden' | 'logo' | `custom:${string}` | `section:${string}`;
 
+/** Registro de DNS que o cliente cria para o domínio próprio. */
+export type DomainRecord = { kind: 'apex' | 'sub'; type: 'A' | 'CNAME'; name: string; value: string };
+
 /** Andamento da edição da Landing Page (independente de ativa/inativa). */
 export type LpEditStatus = 'editar' | 'pronta';
 
@@ -482,6 +485,10 @@ export interface LandingPage {
   mail_configured?: boolean;
   /** Andamento da edição: "editar" (padrão) ou "pronta" */
   edit_status: LpEditStatus;
+  /** Domínio próprio: registro de DNS a criar (A com o IP da Vercel na raiz; CNAME no www/subdomínio) */
+  domain_record?: DomainRecord | null;
+  /** O sistema adiciona o domínio ao projeto da Vercel sozinho (VERCEL_API_TOKEN configurado) */
+  vercel_domains?: boolean;
   title: string;
   slug: string;
   status: LpStatus;

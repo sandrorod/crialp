@@ -24,6 +24,7 @@ import type {
   LandingPageDetail,
   LandingPageListItem,
   LandingScreenshot,
+  DomainRecord,
   LpEditStatus,
   LpStatus,
   Preset,
@@ -116,6 +117,14 @@ export const companyService = {
     api.post<{ images: CompanyImage[]; found: number; classified: boolean }>(`/companies/${id}/fetch-images`, { allowImages }),
 };
 
+/** Resultado de "Verificar DNS" do domínio próprio. */
+export type DomainVerification = {
+  ok: boolean;
+  expected: DomainRecord;
+  found: { cname: string[]; a: string[] };
+  vercel_error?: string | null;
+};
+
 export const landingPageService = {
   list: (f: { search?: string; status?: string; segment?: string; wp?: string; edicao?: string }) =>
     api.get<{ items: LandingPageListItem[]; facets: { segments: string[] } }>(`/landing-pages${qs(f)}`),
@@ -141,11 +150,9 @@ export const landingPageService = {
   setStatus: (id: string, status: LpStatus) => api.patch<LandingPage & { screenshot: LandingScreenshot | null }>(`/landing-pages/${id}/status`, { status }),
   setEditStatus: (id: string, edit_status: LpEditStatus) => api.patch<LandingPage>(`/landing-pages/${id}/edit-status`, { edit_status }),
   publish: (id: string) => api.post<LandingPage>(`/landing-pages/${id}/publish`),
-  updateSettings: (id: string, body: { slug?: string; custom_domain?: string | null }) => api.patch<LandingPage>(`/landing-pages/${id}/settings`, body),
-  verifyDomain: (id: string) =>
-    api.post<LandingPage & { verification: { ok: boolean; expected: { cname: string; a: string[] }; found: { cname: string[]; a: string[] } } }>(
-      `/landing-pages/${id}/domain/verify`,
-    ),
+  updateSettings: (id: string, body: { slug?: string; custom_domain?: string | null }) =>
+    api.patch<LandingPage & { vercel_error?: string | null }>(`/landing-pages/${id}/settings`, body),
+  verifyDomain: (id: string) => api.post<LandingPage & { verification: DomainVerification }>(`/landing-pages/${id}/domain/verify`),
   restore: (id: string, version: number) => api.post<LandingPage>(`/landing-pages/${id}/versions/${version}/restore`),
   remove: (id: string) => api.del(`/landing-pages/${id}`),
   previewUrl: (id: string) => `/api/landing-pages/${id}/preview`,

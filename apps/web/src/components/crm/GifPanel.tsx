@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { Spinner } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { crmService, type CrmGif } from '@/services/crm';
+import { crmService, type CrmGif, type CrmSavedGif } from '@/services/crm';
 
 const RECENT_KEY = 'crm:gifs-recentes';
 const RECENT_MAX = 24;
@@ -29,8 +29,25 @@ function saveRecent(g: CrmGif) {
  * Galeria de GIFs como a do teclado do celular: "Recentes" (deste navegador), "Em alta" e busca.
  * Clicar envia na hora. Os GIFs vêm do GIPHY pelo servidor (a chave fica lá).
  */
-export function GifPanel({ onPick, sending }: { onPick: (gif: CrmGif) => void; sending: boolean }) {
-  const [tab, setTab] = useState<'alta' | 'recentes'>(() => (loadRecent().length ? 'recentes' : 'alta'));
+export function GifPanel({ onPick, onPickSaved, sending }: { onPick: (gif: CrmGif) => void; onPickSaved: (saved: CrmSavedGif) => void; sending: boolean }) {
+  const [tab, setTab] = useState<'alta' | 'recentes' | 'salvos'>(() => (loadRecent().length ? 'recentes' : 'alta'));
+  // GIFs salvos do próprio usuário (de mensagens recebidas ou enviadas: menu da mensagem → "Salvar GIF")
+  const [saved, setSaved] = useState<CrmSavedGif[] | null>(null);
+  useEffect(() => {
+    if (tab !== 'salvos' || saved) return;
+    crmService
+      .savedGifs()
+      .then(setSaved)
+      .catch((err) => setError(errorMessage(err)));
+  }, [tab, saved]);
+  const removeSaved = async (g: CrmSavedGif) => {
+    try {
+      await crmService.removeSavedGif(g.id);
+      setSaved((list) => list?.filter((x) => x.id !== g.id) ?? list);
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  };
   const [q, setQ] = useState('');
   const [term, setTerm] = useState('');
   const [items, setItems] = useState<CrmGif[]>([]);
@@ -50,7 +67,7 @@ export function GifPanel({ onPick, sending }: { onPick: (gif: CrmGif) => void; s
 
   // Busca (ou em alta) do zero quando o termo muda
   useEffect(() => {
-    if (tab === 'recentes' && !term) return;
+    if ((tab === 'recentes' || tab === 'salvos') && !term) return;
     let alive = true;
     setLoading(true);
     setError(null);
@@ -109,6 +126,7 @@ export function GifPanel({ onPick, sending }: { onPick: (gif: CrmGif) => void; s
             {(
               [
                 ['recentes', 'Recentes'],
+                ['salvos', 'Salvos'],
                 ['alta', 'Em alta'],
               ] as const
             ).map(([k, label]) => (
@@ -134,11 +152,48 @@ export function GifPanel({ onPick, sending }: { onPick: (gif: CrmGif) => void; s
         className="min-h-0 flex-1 overflow-y-auto p-1.5"
         onScroll={(e) => {
           const el = e.currentTarget;
-          if (tab !== 'recentes' || term) if (el.scrollTop + el.clientHeight > el.scrollHeight - 120) void more();
+          if ((tab !== 'recentes' && tab !== 'salvos') || term) if (el.scrollTop + el.clientHeight > el.scrollHeight - 120) void more();
         }}
       >
         {error ? (
           <p className="p-4 text-center text-sm text-red-600">{error}</p>
+        ) : tab === 'salvos' && !term ? (
+          !saved ? (
+            <div className="grid place-items-center p-6">
+              <Spinner />
+            </div>
+          ) : !saved.length ? (
+            <p className="p-6 text-center text-sm text-zinc-500">Nenhum GIF salvo. Na conversa, abra o menu de um GIF (⌄) e escolha “Salvar GIF”.</p>
+          ) : (
+            <div className="columns-2 gap-1.5">
+              {saved.map((g) => (
+                <div key={g.id} className="group relative mb-1.5">
+                  <button
+                    type="button"
+                    disabled={sending}
+                    onClick={() => onPickSaved(g)}
+                    title="Enviar GIF salvo"
+                    className="block w-full overflow-hidden rounded-md bg-zinc-100 transition hover:opacity-85 focus-visible:outline-2 focus-visible:outline-emerald-500 disabled:opacity-50"
+                  >
+                    {g.mime === 'video/mp4' ? (
+                      <video src={crmService.savedGifUrl(g.id)} autoPlay loop muted playsInline className="block w-full" />
+                    ) : (
+                      <img src={crmService.savedGifUrl(g.id)} alt="GIF salvo" loading="lazy" className="block w-full" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void removeSaved(g)}
+                    title="Tirar dos salvos"
+                    aria-label="Tirar dos salvos"
+                    className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-black/55 text-white opacity-0 transition group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
         ) : !showing.length && !loading ? (
           <p className="p-6 text-center text-sm text-zinc-500">
             {tab === 'recentes' && !term ? 'Os GIFs que você enviar aparecem aqui.' : 'Nenhum GIF encontrado.'}
@@ -161,7 +216,8 @@ export function GifPanel({ onPick, sending }: { onPick: (gif: CrmGif) => void; s
             ))}
           </div>
         )}
-        {loading ? (
+        {/* Carregando da busca/"Em alta" (não da lista de salvos, que tem o próprio indicador) */}
+        {loading && !(tab === 'salvos' && !term) ? (
           <div className="grid place-items-center p-3">
             <Spinner />
           </div>

@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Ban,
+  Bookmark,
   ChevronDown,
   CircleAlert,
   Building2,
@@ -38,7 +39,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/lib/api';
 import { applyQuickReply, matchQuickReplies, shortcutAt } from '@/lib/quickReplies';
 import { cn } from '@/lib/utils';
-import { crmService, dateTime, phone, waKey, type CrmGif, type OutgoingMedia, type SendTo } from '@/services/crm';
+import { crmService, dateTime, phone, waKey, type CrmGif, type CrmSavedGif, type OutgoingMedia, type SendTo } from '@/services/crm';
 import { GifPanel } from '@/components/crm/GifPanel';
 import type { CrmConversation, CrmLabel, CrmMessage, CrmQuickReply } from '@/types/crm';
 import { isCrmManager } from './CrmLayout';
@@ -1195,6 +1196,19 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
     }
   };
 
+  const sendSavedGif = async (gif: CrmSavedGif) => {
+    setSending(true);
+    try {
+      const r = await crmService.sendSavedGif(to, gif.id);
+      setGifOpen(false);
+      await onSent(r.conversation_id);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSending(false);
+    }
+  };
+
   const pickFile = async (file: File | undefined) => {
     if (!file) return;
     try {
@@ -1333,7 +1347,7 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
         ) : null}
         {gifOpen ? (
           <div className="absolute bottom-full right-3 z-20 mb-2 overflow-hidden rounded-xl shadow-2xl ring-1 ring-black/5">
-            <GifPanel onPick={(g) => void sendGif(g)} sending={sending} />
+            <GifPanel onPick={(g) => void sendGif(g)} onPickSaved={(g) => void sendSavedGif(g)} sending={sending} />
           </div>
         ) : null}
         {emojiOpen ? (
@@ -1989,6 +2003,22 @@ function Bubble({
               out ? 'right-0' : 'left-0',
             )}
           >
+            {/* GIF (vídeo em loop), figurinha ou imagem GIF: guarda na lista do próprio usuário para reenviar */}
+            {!m.revoked && (m.type === 'gif' || m.type === 'sticker' || (m.type === 'image' && m.media_mime === 'image/gif')) ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setPicker(null);
+                  crmService
+                    .saveGif(m.id)
+                    .then(() => toast.success('GIF salvo. Ele aparece em GIF → Salvos.'))
+                    .catch((err) => toast.error(errorMessage(err)));
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50"
+              >
+                <Bookmark className="size-4" /> Salvar GIF
+              </button>
+            ) : null}
             {m.can_edit ? (
               <button
                 type="button"

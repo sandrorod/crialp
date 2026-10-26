@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { one, query } from '../db/pool.js';
@@ -7,6 +8,7 @@ import { authUser, MANAGER_ROLES, requireRole, type AuthUser } from '../middlewa
 import { inProspecting } from '../repositories/companies.js';
 import { env } from '../config/env.js';
 import { aiKeyStore } from '../services/ai/keyStore.js';
+import { gifToSticker } from '../services/crm/gifSticker.js';
 import { assertPublicHost } from '../lib/url.js';
 import {
   evolution,
@@ -1141,7 +1143,7 @@ const MediaSchema = z.object({
 async function sendMediaMessage(
   user: AuthUser,
   target: SendTarget,
-  b: { kind: 'image' | 'gif' | 'video' | 'audio' | 'document'; mime: string; data: string; file_name?: string; caption?: string },
+  b: { kind: 'image' | 'gif' | 'video' | 'audio' | 'document'; mime: string; data: string; file_name?: string; caption?: string; gifPlayback?: boolean },
 ) {
   const bytes = Buffer.from(b.data, 'base64');
   if (!bytes.length) throw badRequest('Arquivo vazio.');
@@ -1158,6 +1160,8 @@ async function sendMediaMessage(
           media: b.data,
           caption,
           fileName: b.file_name || undefined,
+          // GIF de verdade (MP4 que toca sozinho em loop): só a Evolution ajustada respeita (deploy/evolution-gif)
+          ...(b.gifPlayback ? { gifPlayback: true } : {}),
         });
   const r = await recordSent(user, number, companyTarget, startedBy, sent, {
     type: b.kind,
@@ -1216,39 +1220,167 @@ crmRouter.get('/gifs', async (req, res) => {
   res.json({ items, next_offset: next });
 });
 
+/** A Evolution desta organização aceita gifPlayback (versão ajustada): GIF vai como GIF de verdade. */
+async function gifPlaybackOn(orgId: string) {
+  return !!(await one<{ gif_playback: boolean }>('select gif_playback from lp_crm_whatsapp where organization_id = $1', [orgId]))?.gif_playback;
+}
+
+const downloadGif = async (u: string) => {
+  const file = await fetch(u, { redirect: 'error', signal: AbortSignal.timeout(15_000) }).catch(() => null);
+  const data = file?.ok ? Buffer.from(await file.arrayBuffer()) : null;
+  return data?.length && data.length <= GIF_MAX_BYTES ? data : null;
+};
+
 /**
- * Envia o GIF escolhido como figurinha animada (toca sozinha em loop, como GIF). A Evolution 2.3 não deixa
- * marcar vídeo como GIF (gifPlayback fixo em false) e o WhatsApp descarta GIF mandado como imagem; já a
- * figurinha recebida por link ".gif" ela converte em WebP animado e marca como animada. Por isso vai o link
- * do GIPHY (versão com menos quadros, para caber no limite das figurinhas); o CRM guarda o GIF para mostrar.
+ * Imagem animada (GIF ou figurinha WebP) como figurinha: o GIF vira WebP 512×512 inteiro, sem corte, sobre
+ * fundo transparente, e vai por um link temporário ".gif" deste sistema (é assim que a Evolution reconhece
+ * figurinha animada). Rodando no computador (a Evolution não alcança o link), vai `fallbackUrl` ou o arquivo.
+ */
+async function sendAsSticker(user: AuthUser, target: SendTarget, image: Buffer, mime: string, fallbackUrl?: string) {
+  const { number, companyTarget, startedBy } = await resolveTarget(user, target);
+  const cfg = await loadConfig(user.organizationId);
+  const reachable = !!cfg && canSetWebhook(cfg);
+  const sticker = !reachable ? null : mime === 'image/webp' && image.length <= 500 * 1024 ? image : await gifToSticker(image).catch(() => null);
+  let stickerRef = fallbackUrl ?? image.toString('base64');
+  if (sticker) {
+    void query(`delete from lp_crm_sticker_files where created_at < now() - interval '1 day'`).catch(() => {});
+    const row = await one<{ id: string }>('insert into lp_crm_sticker_files (data) values ($1) returning id', [sticker]);
+    stickerRef = `${env.appUrl}/api/crm-webhook/sticker/${row!.id}.gif`;
+  }
+  const sent = await sendViaEvolution(user.organizationId, '/message/sendSticker', { number, sticker: stickerRef });
+  const shown = sticker ? { mime: 'image/webp', data: sticker } : { mime, data: image };
+  const r = await recordSent(user, number, companyTarget, startedBy, sent, { type: 'sticker', body: null, mediaMime: shown.mime, fileName: null });
+  if (r.messageId) {
+    await query('insert into lp_crm_media (message_id, mime, data) values ($1, $2, $3) on conflict (message_id) do nothing', [
+      r.messageId,
+      shown.mime,
+      shown.data,
+    ]);
+  }
+  return r.conversationId;
+}
+
+/** GIF em MP4: com a Evolution ajustada vai como GIF de verdade (formato original); sem ela, como vídeo curto. */
+async function sendGifVideo(user: AuthUser, target: SendTarget, mp4: Buffer) {
+  return sendMediaMessage(user, target, {
+    kind: 'gif',
+    mime: 'video/mp4',
+    data: mp4.toString('base64'),
+    file_name: 'gif.mp4',
+    gifPlayback: await gifPlaybackOn(user.organizationId),
+  });
+}
+
+const TargetSchema = {
+  conversation_id: uuidParam.optional(),
+  contact_id: uuidParam.optional(),
+  company_id: uuidParam.optional(),
+  phone: z.string().trim().max(30).optional(),
+};
+
+/**
+ * Envia o GIF escolhido na galeria. Com a Evolution ajustada (gifPlayback): o MP4 do GIPHY, como GIF de verdade,
+ * no formato original. Sem ela: figurinha animada (a Evolution 2.3 não marca vídeo como GIF e o WhatsApp
+ * descarta GIF mandado como imagem).
  */
 crmRouter.post('/messages/gif', async (req, res) => {
   const user = authUser(req);
-  const b = parseBody(
-    z.object({
-      conversation_id: uuidParam.optional(),
-      contact_id: uuidParam.optional(),
-      company_id: uuidParam.optional(),
-      phone: z.string().trim().max(30).optional(),
-      gif_id: z.string().regex(/^[A-Za-z0-9]{4,40}$/, 'GIF inválido.'),
-    }),
-    req.body,
-  );
+  const b = parseBody(z.object({ ...TargetSchema, gif_id: z.string().regex(/^[A-Za-z0-9]{4,40}$/, 'GIF inválido.') }), req.body);
   const g = (await giphy(`/${b.gif_id}`, {})).data;
-  const url = [g?.images?.fixed_width_downsampled, g?.images?.fixed_width, g?.images?.fixed_height_downsampled, g?.images?.fixed_height]
-    .filter((x) => x?.url && GIPHY_MEDIA.test(x.url) && /\.gif(\?|$)/i.test(x.url) && (!x.size || Number(x.size) <= GIF_MAX_BYTES))
-    .map((x) => String(x.url))[0];
-  if (!url) throw badRequest('Este GIF é grande demais para enviar. Escolha outro.');
-  const file = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(15_000) }).catch(() => null);
-  const bytes = file?.ok ? Buffer.from(await file.arrayBuffer()) : null;
-  if (!bytes?.length || bytes.length > GIF_MAX_BYTES) throw new AppError(502, 'Não foi possível baixar este GIF. Escolha outro.', 'GIF_ERROR');
-  const { number, companyTarget, startedBy } = await resolveTarget(user, b);
-  const sent = await sendViaEvolution(user.organizationId, '/message/sendSticker', { number, sticker: url });
-  const r = await recordSent(user, number, companyTarget, startedBy, sent, { type: 'sticker', body: null, mediaMime: 'image/gif', fileName: 'gif.gif' });
-  if (r.messageId) {
-    await query('insert into lp_crm_media (message_id, mime, data) values ($1, $2, $3) on conflict (message_id) do nothing', [r.messageId, 'image/gif', bytes]);
+  if (await gifPlaybackOn(user.organizationId)) {
+    const mp4s = [g?.images?.original, g?.images?.downsized_small, g?.images?.fixed_height, g?.images?.fixed_width]
+      .filter((x) => x?.mp4 && GIPHY_MEDIA.test(x.mp4) && (!x.mp4_size || Number(x.mp4_size) <= GIF_MAX_BYTES))
+      .map((x) => String(x.mp4));
+    for (const u of mp4s.slice(0, 2)) {
+      const mp4 = await downloadGif(u);
+      if (mp4) return res.status(201).json({ conversation_id: await sendGifVideo(user, b, mp4) });
+    }
+    throw new AppError(502, 'Não foi possível baixar este GIF. Escolha outro.', 'GIF_ERROR');
   }
-  res.status(201).json({ conversation_id: r.conversationId });
+  // Figurinha: 200px de largura com todos os quadros; se não couber em 500 KB, a versão com menos quadros
+  const urls = [g?.images?.fixed_width, g?.images?.fixed_width_downsampled, g?.images?.fixed_height, g?.images?.fixed_height_downsampled]
+    .filter((x) => x?.url && GIPHY_MEDIA.test(x.url) && /\.gif(\?|$)/i.test(x.url) && (!x.size || Number(x.size) <= GIF_MAX_BYTES))
+    .map((x) => String(x.url));
+  if (!urls.length) throw badRequest('Este GIF é grande demais para enviar. Escolha outro.');
+  for (const [i, u] of urls.slice(0, 2).entries()) {
+    const gif = await downloadGif(u);
+    if (!gif) continue;
+    // A 1ª versão grande demais para figurinha: tenta a com menos quadros antes de desistir da conversão
+    if (i === 0 && urls[1] && gif.length > 900 * 1024) continue;
+    return res.status(201).json({ conversation_id: await sendAsSticker(user, b, gif, 'image/gif', u) });
+  }
+  throw new AppError(502, 'Não foi possível baixar este GIF. Escolha outro.', 'GIF_ERROR');
+});
+
+// ─── GIFs salvos (cada usuário tem a sua lista) ─────────────────────
+
+const SAVED_GIF_MIMES = /^(video\/mp4|image\/gif|image\/webp)$/i;
+
+// Salva o GIF de uma mensagem (recebida ou enviada) na lista do próprio usuário
+crmRouter.post('/saved-gifs', async (req, res) => {
+  const user = authUser(req);
+  const { message_id } = parseBody(z.object({ message_id: uuidParam }), req.body);
+  const msg = await one<{
+    id: string;
+    conversation_id: string;
+    type: string;
+    wa_message_id: string | null;
+    media_mime: string | null;
+    file_name: string | null;
+  }>('select id, conversation_id, type, wa_message_id, media_mime, file_name from lp_crm_messages where id = $1', [message_id]);
+  if (!msg || !['gif', 'sticker', 'image'].includes(msg.type)) throw notFound('GIF não encontrado.');
+  await ensureConversation(user, msg.conversation_id);
+  const media = await loadMedia(user.organizationId, msg);
+  if (!media || 'tooBig' in media) throw badRequest('Não foi possível obter este GIF (ele pode não estar mais disponível no WhatsApp).');
+  const mime = media.mime.split(';')[0].trim().toLowerCase();
+  if (!SAVED_GIF_MIMES.test(mime) || (msg.type === 'image' && mime !== 'image/gif')) throw badRequest('Esta mensagem não é um GIF.');
+  if (media.data.length > GIF_MAX_BYTES) throw badRequest('GIF grande demais para salvar (até 3 MB).');
+  const hash = createHash('sha256').update(media.data).digest('hex');
+  const row = await one<{ id: string }>(
+    `insert into lp_crm_saved_gifs (organization_id, user_id, mime, data, data_hash) values ($1, $2, $3, $4, $5)
+     on conflict (user_id, data_hash) do update set created_at = now() returning id`,
+    [user.organizationId, user.id, mime, media.data, hash],
+  );
+  res.status(201).json({ id: row!.id, mime });
+});
+
+crmRouter.get('/saved-gifs', async (req, res) => {
+  const user = authUser(req);
+  const { rows } = await query('select id, mime, created_at from lp_crm_saved_gifs where user_id = $1 order by created_at desc limit 200', [user.id]);
+  res.json(rows);
+});
+
+crmRouter.get('/saved-gifs/:id/file', async (req, res) => {
+  const user = authUser(req);
+  const row = await one<{ mime: string; data: Buffer }>('select mime, data from lp_crm_saved_gifs where id = $1 and user_id = $2', [
+    uuidParam.parse(req.params.id),
+    user.id,
+  ]);
+  if (!row) throw notFound('GIF não encontrado.');
+  res.set({
+    'Content-Type': row.mime,
+    'Cache-Control': 'private, max-age=86400',
+    'X-Content-Type-Options': 'nosniff',
+    'Content-Security-Policy': "default-src 'none'; sandbox",
+  });
+  res.send(row.data);
+});
+
+crmRouter.delete('/saved-gifs/:id', async (req, res) => {
+  const user = authUser(req);
+  const r = await query('delete from lp_crm_saved_gifs where id = $1 and user_id = $2', [uuidParam.parse(req.params.id), user.id]);
+  if (!r.rowCount) throw notFound('GIF não encontrado.');
+  res.json({ ok: true });
+});
+
+// Envia um GIF salvo: MP4 como GIF (de verdade com a Evolution ajustada); GIF/WebP como figurinha
+crmRouter.post('/messages/saved-gif', async (req, res) => {
+  const user = authUser(req);
+  const b = parseBody(z.object({ ...TargetSchema, saved_id: uuidParam }), req.body);
+  const row = await one<{ mime: string; data: Buffer }>('select mime, data from lp_crm_saved_gifs where id = $1 and user_id = $2', [b.saved_id, user.id]);
+  if (!row) throw notFound('GIF não encontrado.');
+  const conversationId = row.mime === 'video/mp4' ? await sendGifVideo(user, b, row.data) : await sendAsSticker(user, b, row.data, row.mime);
+  res.status(201).json({ conversation_id: conversationId });
 });
 
 /** Tipos que podem abrir direto no navegador (não executam script). */
@@ -1305,7 +1437,23 @@ async function connectionState(orgId: string) {
 wa.get('/', async (req, res) => {
   const user = authUser(req);
   const { cfg, state, error } = await connectionState(user.organizationId);
-  res.json({ configured: !!cfg, api_url: cfg?.apiUrl ?? null, instance: cfg?.instance ?? null, state, error: error ?? null });
+  res.json({
+    configured: !!cfg,
+    api_url: cfg?.apiUrl ?? null,
+    instance: cfg?.instance ?? null,
+    state,
+    error: error ?? null,
+    gif_playback: await gifPlaybackOn(user.organizationId),
+  });
+});
+
+// A Evolution foi ajustada para GIF de verdade (deploy/evolution-gif)? Ligado: GIFs vão como GIF, formato original
+wa.put('/gif-playback', async (req, res) => {
+  const user = authUser(req);
+  const { enabled } = parseBody(z.object({ enabled: z.boolean() }), req.body);
+  const r = await query('update lp_crm_whatsapp set gif_playback = $2 where organization_id = $1', [user.organizationId, enabled]);
+  if (!r.rowCount) throw badRequest('Configure o servidor do WhatsApp primeiro.');
+  res.json({ ok: true, gif_playback: enabled });
 });
 
 wa.put('/', async (req, res) => {

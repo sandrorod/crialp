@@ -34,6 +34,7 @@ import { IMAGE_FILTERS, IMAGE_SHADOWS } from '../landing/imageStyle.js';
 import { landingPageHeaders } from './public.js';
 import { generateScreenshot, getScreenshotImage, getScreenshotInfo } from '../services/screenshot/ScreenshotService.js';
 import { mailConfigured } from '../services/mail/mailer.js';
+import { addProjectDomain, domainConfig, expectedRecords, removeProjectDomain, VERCEL_A, vercelConfigured } from '../services/vercelDomains.js';
 
 export const landingPagesRouter = Router();
 
@@ -52,6 +53,9 @@ function serialize(lp: repo.LandingPageRow) {
     path_url: `${env.appUrl}/lp/${lp.slug}`,
     // Formulário de contato: o servidor tem SMTP/Resend para enviar as mensagens?
     mail_configured: mailConfigured(),
+    // Domínio próprio: registro de DNS a criar (A com o IP da Vercel na raiz; CNAME no www/subdomínio)
+    domain_record: lp.custom_domain ? expectedRecords(lp.custom_domain) : null,
+    vercel_domains: vercelConfigured(),
   };
 }
 
@@ -465,33 +469,42 @@ landingPagesRouter.patch('/:id/settings', async (req, res) => {
   }
   const updated = await repo.updateSettings(user.organizationId, lp.id, { slug: body.slug, custom_domain: domain });
   await refreshSnapshot(updated!);
-  res.json(serialize(updated!));
+  // Na Vercel o domínio precisa estar no projeto: tira o antigo e adiciona o novo
+  let vercel_error: string | null = null;
+  if (domain !== undefined && domain !== lp.custom_domain) {
+    if (lp.custom_domain) await removeProjectDomain(lp.custom_domain).catch(() => {});
+    if (domain) vercel_error = await addProjectDomain(domain).catch(() => 'A Vercel não respondeu ao adicionar o domínio.');
+  }
+  res.json({ ...serialize(updated!), vercel_error });
 });
 
 /**
- * Verifica se o DNS do domínio personalizado aponta para este servidor.
- * O certificado HTTPS é emitido pelo proxy reverso (ex.: Caddy on-demand TLS),
- * que consulta GET /api/domains/check antes de emitir.
+ * Verifica o domínio próprio. Na Vercel: garante o domínio no projeto e pergunta a ela se o DNS está certo
+ * (o HTTPS sai sozinho). Sem o token, confere o DNS: raiz com A para o IP da Vercel; www com CNAME para ela.
  */
 landingPagesRouter.post('/:id/domain/verify', async (req, res) => {
   const user = authUser(req);
   const lp = await loadOr404(user.organizationId, req.params.id);
   if (!lp.custom_domain) throw new AppError(400, 'Nenhum domínio configurado.');
   const appHost = new URL(env.appUrl).hostname;
+  const vercelError = await addProjectDomain(lp.custom_domain).catch(() => 'A Vercel não respondeu ao adicionar o domínio.');
+  const vercel = vercelError ? null : await domainConfig(lp.custom_domain).catch(() => null);
   const [domainIps, appIps, cname] = await Promise.all([
     dns.resolve4(lp.custom_domain).catch(() => [] as string[]),
     dns.resolve4(appHost).catch(() => [] as string[]),
     dns.resolveCname(lp.custom_domain).catch(() => [] as string[]),
   ]);
-  const ok = cname.some((c) => c.replace(/\.$/, '') === appHost) || (domainIps.length > 0 && domainIps.some((ip) => appIps.includes(ip)));
+  const expected = expectedRecords(lp.custom_domain, vercel ?? undefined);
+  const cnameOk = cname.some((c) => {
+    const host = c.replace(/\.$/, '');
+    return host === appHost || host === expected.value || host.endsWith('.vercel-dns.com');
+  });
+  const aOk = domainIps.some((ip) => ip === expected.value || ip === VERCEL_A || appIps.includes(ip));
+  const ok = vercel ? vercel.ok : cnameOk || aOk;
   const updated = await repo.updateDomainStatus(user.organizationId, lp.id, ok ? 'verified' : 'error', ok ? 'pending' : 'none');
   res.json({
     ...serialize(updated!),
-    verification: {
-      ok,
-      expected: { cname: appHost, a: appIps },
-      found: { cname, a: domainIps },
-    },
+    verification: { ok, expected, found: { cname, a: domainIps }, vercel_error: vercelError },
   });
 });
 

@@ -146,6 +146,15 @@ export const env = {
       : null,
     resendApiKey: process.env.RESEND_API_KEY || undefined,
   },
+  /**
+   * Domínios dos clientes na Vercel: com o token, o domínio salvo na LP é adicionado ao projeto pela API
+   * (sem ele a Vercel recusa o domínio, mesmo com o DNS certo). Projeto e equipe: ids ou nome do projeto.
+   */
+  vercel: {
+    token: process.env.VERCEL_API_TOKEN || undefined,
+    projectId: process.env.VERCEL_PROJECT_ID || 'crialp',
+    teamId: process.env.VERCEL_TEAM_ID || undefined,
+  },
   /** Galeria de GIFs do WhatsApp do CRM (chave gratuita em developers.giphy.com) */
   giphyApiKey: process.env.GIPHY_API_KEY || undefined,
   /** Chave do RapidAPI usada na pesquisa de empresas (área "Buscar empresas") */

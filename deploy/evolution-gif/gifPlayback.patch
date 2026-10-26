@@ -1,0 +1,38 @@
+--- a/src/api/dto/sendMessage.dto.ts
++++ b/src/api/dto/sendMessage.dto.ts
+@@ export class MediaMessage {
+   mediatype: MediaType;
+   mimetype?: string;
+   caption?: string;
+   // for document
+   fileName?: string;
+   // url or base64
+   media: string;
++  // vídeo MP4 enviado como GIF (toca sozinho em loop, como no celular)
++  gifPlayback?: boolean;
+ }
+@@ export class SendMediaDto extends Metadata {
+   mediatype: MediaType;
+   mimetype?: string;
+   caption?: string;
+   // for document
+   fileName?: string;
+   // url or base64
+   media: string;
++  // vídeo MP4 enviado como GIF (toca sozinho em loop, como no celular)
++  gifPlayback?: boolean;
+ }
+--- a/src/validate/message.schema.ts
++++ b/src/validate/message.schema.ts
+@@ export const mediaMessageSchema: JSONSchema7 = {
+     fileName: { type: 'string' },
+     caption: { type: 'string' },
++    gifPlayback: { type: 'boolean' },
+     delay: {
+--- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
++++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+@@ private async prepareMediaMessage(mediaMessage: MediaMessage) {
+       if (mediaMessage.mediatype === 'video') {
+-        prepareMedia[mediaType].gifPlayback = false;
++        prepareMedia[mediaType].gifPlayback = mediaMessage.gifPlayback === true;
+       }

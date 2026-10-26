@@ -34,6 +34,8 @@ export type DealInput = {
 };
 /** GIF da galeria (miniatura para a grade; o servidor baixa a versão de envio pelo id). */
 export type CrmGif = { id: string; title: string; preview: string; width: number; height: number };
+/** GIF salvo pelo usuário (MP4 recebido do WhatsApp, GIF ou figurinha WebP). */
+export type CrmSavedGif = { id: string; mime: string; created_at: string };
 export type SendTo = { conversation_id?: string; contact_id?: string; company_id?: string; phone?: string };
 export type OutgoingMedia = { kind: 'image' | 'gif' | 'video' | 'audio' | 'document'; mime: string; file_name?: string; data: string; caption?: string };
 export type StageInput = { name: string; color: string; kind: 'open' | 'won' | 'lost' };
@@ -111,6 +113,13 @@ export const crmService = {
   gifs: (q: string, offset = 0) =>
     api.get<{ items: CrmGif[]; next_offset: number | null }>(`/crm/gifs${qs({ q: q || undefined, offset: offset ? String(offset) : undefined })}`),
   sendGif: (to: SendTo, gifId: string) => api.post<{ conversation_id: string }>('/crm/messages/gif', { ...to, gif_id: gifId }),
+  /** GIFs salvos do próprio usuário (cada um tem a sua lista) */
+  savedGifs: () => api.get<CrmSavedGif[]>('/crm/saved-gifs'),
+  saveGif: (messageId: string) => api.post<{ id: string; mime: string }>('/crm/saved-gifs', { message_id: messageId }),
+  removeSavedGif: (id: string) => api.del(`/crm/saved-gifs/${id}`),
+  savedGifUrl: (id: string) => `/api/crm/saved-gifs/${id}/file`,
+  sendSavedGif: (to: SendTo, savedId: string) => api.post<{ conversation_id: string }>('/crm/messages/saved-gif', { ...to, saved_id: savedId }),
+  setGifPlayback: (enabled: boolean) => api.put<{ ok: true; gif_playback: boolean }>('/crm/whatsapp/gif-playback', { enabled }),
   /** Endereço do arquivo de uma mensagem com mídia (exige login; o servidor confere o acesso à conversa). */
   mediaUrl: (messageId: string) => `/api/crm/media/${messageId}`,
 
