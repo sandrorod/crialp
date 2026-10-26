@@ -38,7 +38,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { errorMessage } from '@/lib/api';
 import { applyQuickReply, matchQuickReplies, shortcutAt } from '@/lib/quickReplies';
 import { cn } from '@/lib/utils';
-import { crmService, dateTime, phone, waKey, type OutgoingMedia, type SendTo } from '@/services/crm';
+import { crmService, dateTime, phone, waKey, type CrmGif, type OutgoingMedia, type SendTo } from '@/services/crm';
+import { GifPanel } from '@/components/crm/GifPanel';
 import type { CrmConversation, CrmLabel, CrmMessage, CrmQuickReply } from '@/types/crm';
 import { isCrmManager } from './CrmLayout';
 
@@ -1085,6 +1086,8 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  // Galeria de GIFs (clicar envia na hora)
+  const [gifOpen, setGifOpen] = useState(false);
   const [attachment, setAttachment] = useState<Attachment | null>(null);
   const [recording, setRecording] = useState<{ started: number; seconds: number } | null>(null);
   const recorder = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream; cancel: boolean } | null>(null);
@@ -1099,18 +1102,22 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
   const usable = (quickReplies ?? []).filter((r) => r.can_use);
   const suggestions = slash ? matchQuickReplies(usable, slash.query) : [];
 
-  // Fecha o seletor ao clicar fora ou apertar Esc
+  // Fecha o seletor de emojis/GIFs ao clicar fora ou apertar Esc
   useEffect(() => {
-    if (!emojiOpen) return;
-    const onDown = (e: PointerEvent) => !box.current?.contains(e.target as Node) && setEmojiOpen(false);
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setEmojiOpen(false);
+    if (!emojiOpen && !gifOpen) return;
+    const close = () => {
+      setEmojiOpen(false);
+      setGifOpen(false);
+    };
+    const onDown = (e: PointerEvent) => !box.current?.contains(e.target as Node) && close();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
     document.addEventListener('pointerdown', onDown);
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('pointerdown', onDown);
       document.removeEventListener('keydown', onKey);
     };
-  }, [emojiOpen]);
+  }, [emojiOpen, gifOpen]);
 
   // Cronômetro da gravação
   useEffect(() => {
@@ -1170,6 +1177,19 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
     } catch (err) {
       toast.error(errorMessage(err));
       return false;
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const sendGif = async (gif: CrmGif) => {
+    setSending(true);
+    try {
+      const r = await crmService.sendGif(to, gif.id);
+      setGifOpen(false);
+      await onSent(r.conversation_id);
+    } catch (err) {
+      toast.error(errorMessage(err));
     } finally {
       setSending(false);
     }
@@ -1311,6 +1331,11 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
             </div>
           </div>
         ) : null}
+        {gifOpen ? (
+          <div className="absolute bottom-full right-3 z-20 mb-2 overflow-hidden rounded-xl shadow-2xl ring-1 ring-black/5">
+            <GifPanel onPick={(g) => void sendGif(g)} sending={sending} />
+          </div>
+        ) : null}
         {emojiOpen ? (
           <div className="absolute bottom-full right-3 z-20 mb-2 max-w-[calc(100vw-24px)] overflow-hidden rounded-xl shadow-2xl">
             <Suspense
@@ -1447,16 +1472,34 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
               }}
             />
             <div className="flex flex-col gap-1">
-              <button
-                type="button"
-                onClick={() => setEmojiOpen((o) => !o)}
-                className={cn(iconBtn, emojiOpen && 'bg-zinc-100 text-ink')}
-                title="Emojis"
-                aria-label="Emojis"
-                aria-expanded={emojiOpen}
-              >
-                <Smile className="size-5" />
-              </button>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGifOpen(false);
+                    setEmojiOpen((o) => !o);
+                  }}
+                  className={cn(iconBtn, emojiOpen && 'bg-zinc-100 text-ink')}
+                  title="Emojis"
+                  aria-label="Emojis"
+                  aria-expanded={emojiOpen}
+                >
+                  <Smile className="size-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmojiOpen(false);
+                    setGifOpen((o) => !o);
+                  }}
+                  className={cn(iconBtn, 'text-[11px] font-bold tracking-tight', gifOpen && 'bg-zinc-100 text-ink')}
+                  title="GIFs"
+                  aria-label="GIFs"
+                  aria-expanded={gifOpen}
+                >
+                  GIF
+                </button>
+              </div>
               {text.trim() || attachment ? (
                 <Button type="submit" loading={sending} aria-label="Enviar" icon={<Send className="size-4" />} />
               ) : (

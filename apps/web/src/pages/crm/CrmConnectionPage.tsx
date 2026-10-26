@@ -103,8 +103,13 @@ export function CrmConnectionPage() {
   const logout = async () => {
     setBusy(true);
     try {
-      await crmService.logoutWhatsapp();
+      const r = await crmService.logoutWhatsapp();
       setConfirmLogout(false);
+      toast.success(
+        r.method === 'delete'
+          ? 'WhatsApp desconectado. O servidor estava travado e a instância foi recriada: para conectar de novo, use "Conectar WhatsApp" e leia o QR Code.'
+          : 'WhatsApp desconectado.',
+      );
       void reload();
     } catch (err) {
       toast.error(errorMessage(err));

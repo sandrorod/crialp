@@ -154,7 +154,7 @@ const hashKey = (key: string) => crypto.createHash('sha256').update(key.trim()).
 const envKeyRemoved = (provider: string) => `${provider}_env_key_removed`;
 
 /** Provedores com chaves cadastradas pelo painel. */
-export const KEY_PROVIDERS = ['gemini', 'rapidapi', 'rapidapi_gemini'] as const;
+export const KEY_PROVIDERS = ['gemini', 'rapidapi', 'rapidapi_gemini', 'giphy'] as const;
 export type KeyProvider = (typeof KEY_PROVIDERS)[number];
 
 export const aiKeyStore = {

@@ -31,6 +31,15 @@ const PROVIDERS: Record<KeyProvider, { name: string; title: string; description:
     hint: 'Em rapidapi.com → seu app → "Authorization" (X-RapidAPI-Key). A chave é testada antes de salvar.',
     placeholder: '1a2b3c…msh…',
   },
+  giphy: {
+    name: 'Chave do GIPHY',
+    title: 'Chave do GIPHY (GIFs do CRM)',
+    description: 'Usada na galeria de GIFs do WhatsApp do CRM (botão "GIF" no campo de mensagem): pesquisa, GIFs em alta e envio.',
+    envVar: 'GIPHY_API_KEY',
+    label: 'Nova chave do GIPHY',
+    hint: 'Em developers.giphy.com → Create an App → API. A chave é testada antes de salvar.',
+    placeholder: 'sZWT…',
+  },
   rapidapi_gemini: {
     name: 'Chave do RapidAPI (Gemini)',
     title: 'Chaves do RapidAPI — Gemini',

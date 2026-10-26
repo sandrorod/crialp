@@ -20,7 +20,7 @@ export interface CrmCompanyItem {
   phone: string | null;
   email: string | null;
   seller_names: string | null;
-  /** Prospecção = sim: só então a empresa fica com o vendedor da Landing Page */
+  /** Prospecção preenchida: os vendedores veem a empresa */
   prospecting: boolean;
   contacts: number;
   open_deals: number;

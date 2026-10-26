@@ -72,7 +72,7 @@ export function SalesPage() {
               filtered
                 ? 'Ajuste a busca ou os filtros.'
                 : isSeller
-                  ? 'Os clientes atribuídos a você e em prospecção aparecem aqui.'
+                  ? 'As empresas em prospecção aparecem aqui.'
                   : 'As empresas cadastradas pelo administrador aparecem aqui.'
             }
           />

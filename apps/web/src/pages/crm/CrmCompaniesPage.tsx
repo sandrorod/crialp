@@ -76,11 +76,7 @@ export function CrmCompaniesPage() {
         <EmptyState
           icon={<Building2 className="size-5" />}
           title={search || seller ? 'Nenhuma empresa encontrada' : 'Nenhuma empresa ainda'}
-          description={
-            manager
-              ? 'As empresas cadastradas no sistema aparecem aqui.'
-              : 'As empresas cuja Landing Page está atribuída a você e que estão em prospecção aparecem aqui.'
-          }
+          description={manager ? 'As empresas cadastradas no sistema aparecem aqui.' : 'As empresas em prospecção aparecem aqui.'}
         />
       ) : (
         <>
@@ -95,7 +91,7 @@ export function CrmCompaniesPage() {
                   <th className="px-3 py-3">Tarefas</th>
                   {manager ? <th className="px-3 py-3">Vendedor</th> : null}
                   {manager ? (
-                    <th className="px-5 py-3" title="Só com Sim o vendedor da Landing Page vê a empresa">
+                    <th className="px-5 py-3" title="Com Sim os vendedores veem a empresa">
                       Prospecção
                     </th>
                   ) : null}
@@ -162,7 +158,7 @@ export function CrmCompaniesPage() {
                           disabled={savingId === c.id}
                           onClick={() => void toggleProspecting(c.id, !c.prospecting)}
                           title={
-                            c.prospecting ? 'Em prospecção: clique para tirar o acesso do vendedor' : 'Fora de prospecção: clique para liberar ao vendedor'
+                            c.prospecting ? 'Em prospecção: clique para esconder dos vendedores' : 'Fora de prospecção: clique para mostrar aos vendedores'
                           }
                           className="rounded-full disabled:opacity-50"
                         >

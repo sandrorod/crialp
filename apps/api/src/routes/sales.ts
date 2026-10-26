@@ -18,8 +18,8 @@ salesRouter.get('/companies', async (req, res) => {
       city: z.string().max(120).optional(),
     })
     .parse(req.query);
-  // Vendedor só vê os clientes atribuídos a ele
-  const result = await listCompanies(user.organizationId, { ...q, sellerId: user.role === 'seller' ? user.id : undefined });
+  // Vendedor só vê as empresas em prospecção (campo preenchido)
+  const result = await listCompanies(user.organizationId, { ...q, sellerView: user.role === 'seller' });
   const { rows } = await query<{ company_id: string; count: number; last_at: string }>(
     `select company_id, count(*)::int as count, max(created_at) as last_at
        from prospecting_notes where organization_id = $1 group by company_id`,
@@ -32,7 +32,7 @@ salesRouter.get('/companies', async (req, res) => {
   );
   // Filtros do vendedor: só segmentos e cidades dos clientes dele
   const uniq = (arr: (string | null)[]) => [...new Set(arr.filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  const mine = user.role === 'seller' ? (await listCompanies(user.organizationId, { sellerId: user.id })).items : null;
+  const mine = user.role === 'seller' ? (await listCompanies(user.organizationId, { sellerView: true })).items : null;
   const facets = mine ? { segments: uniq(mine.map((c) => c.segment)), cities: uniq(mine.map((c) => c.city)) } : result.facets;
   res.json({
     facets,
@@ -56,12 +56,12 @@ salesRouter.get('/companies', async (req, res) => {
   });
 });
 
-/** Empresa da organização; para vendedor, só se a Landing Page dela estiver atribuída a ele e a empresa estiver em prospecção. */
+/** Empresa da organização; para vendedor, só se estiver em prospecção (campo preenchido). */
 async function ensureCompany(user: AuthUser, id: string) {
   const company = await one<{ id: string; name: string }>(
     `select c.id, c.name from companies c
       where c.id = $1 and c.organization_id = $2
-        and ($3::uuid is null or (${inProspecting('c')} and exists (select 1 from landing_pages lp where lp.company_id = c.id and lp.seller_id = $3)))`,
+        and ($3::uuid is null or ${inProspecting('c')})`,
     [id, user.organizationId, user.role === 'seller' ? user.id : null],
   );
   if (!company) throw notFound('Empresa não encontrada.');

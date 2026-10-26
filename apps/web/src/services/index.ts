@@ -166,7 +166,7 @@ export const landingPageService = {
   removeClientAccess: (id: string) => api.del(`/landing-pages/${id}/client-access`),
 };
 
-export type KeyProvider = 'gemini' | 'rapidapi' | 'rapidapi_gemini';
+export type KeyProvider = 'gemini' | 'rapidapi' | 'rapidapi_gemini' | 'giphy';
 export interface RapidGeminiConfig {
   host: string;
   path: string;

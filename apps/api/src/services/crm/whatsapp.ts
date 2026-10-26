@@ -54,6 +54,21 @@ export function webhookUrl(orgId: string) {
   return `${env.appUrl}/api/crm-webhook/${orgId}?token=${webhookToken(orgId)}`;
 }
 
+const isLocalHost = (host: string) => /^(localhost|127\.|0\.0\.0\.0|\[?::1\]?$|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(host);
+
+/**
+ * O endereço de aviso (webhook) deste sistema pode ser gravado na Evolution? Não quando o sistema roda no
+ * computador (localhost) e a Evolution está na internet: ela não alcança o computador, e gravar esse endereço
+ * tiraria o aviso do sistema publicado, que usa o mesmo número/instância.
+ */
+export function canSetWebhook(cfg: { apiUrl: string }) {
+  try {
+    return !isLocalHost(new URL(env.appUrl).hostname) || isLocalHost(new URL(cfg.apiUrl).hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function validWebhookToken(orgId: string, token: string) {
   const got = Buffer.from(token);
   // Durante a troca do segredo, o endereço antigo cadastrado na Evolution continua valendo
@@ -515,6 +530,7 @@ async function ensureWebhookEvents(orgId: string, cfg: NonNullable<Awaited<Retur
     const current = await evolution<any>(cfg, 'GET', `/webhook/find/${cfg.instance}`);
     const events: string[] = (current?.events ?? current?.webhook?.events ?? []).map((e: string) => String(e).toUpperCase());
     if (!current?.enabled && !current?.webhook?.enabled) return; // sem webhook ativo: quem liga é o "Conectar"
+    if (!canSetWebhook(cfg)) return; // rodando no computador: não troca o endereço do sistema publicado
     if (CRM_WEBHOOK_EVENTS.every((e) => events.includes(e))) return;
     await evolution(cfg, 'POST', `/webhook/set/${cfg.instance}`, {
       webhook: { enabled: true, url: webhookUrl(orgId), byEvents: false, base64: false, events: CRM_WEBHOOK_EVENTS },

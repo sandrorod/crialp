@@ -6,6 +6,7 @@ import { longText, parseBody, text, uuidParam } from '../lib/validation.js';
 import { authUser, MANAGER_ROLES, requireRole, type AuthUser } from '../middleware/auth.js';
 import { inProspecting } from '../repositories/companies.js';
 import { env } from '../config/env.js';
+import { aiKeyStore } from '../services/ai/keyStore.js';
 import { assertPublicHost } from '../lib/url.js';
 import {
   evolution,
@@ -26,6 +27,7 @@ import {
   saveConfig,
   syncRecent,
   webhookUrl,
+  canSetWebhook,
 } from '../services/crm/whatsapp.js';
 
 /**
@@ -37,10 +39,15 @@ export const crmRouter = Router();
 const isManager = (u: AuthUser) => MANAGER_ROLES.includes(u.role);
 /** Id do vendedor para filtrar, ou null para a gerência (sem filtro). */
 const sellerScope = (u: AuthUser) => (isManager(u) ? null : u.id);
-/** Empresa `alias` visível ao vendedor do parâmetro `p` (null = todas): Landing Page atribuída a ele e empresa em prospecção. */
+/**
+ * Empresa `alias` visível ao vendedor do parâmetro `p` (null = gerência, todas): qualquer vendedor vê as
+ * empresas com o campo Prospecção preenchido (não depende de a Landing Page estar atribuída a ele).
+ */
 const visible = (alias: string, p: string) =>
-  `(${p}::uuid is null or exists (select 1 from landing_pages lpv join companies cpv on cpv.id = lpv.company_id
-     where lpv.company_id = ${alias} and lpv.seller_id = ${p} and ${inProspecting('cpv')}))`;
+  `(${p}::uuid is null or exists (select 1 from companies cpv where cpv.id = ${alias} and ${inProspecting('cpv')}))`;
+/** Filtro da gerência por vendedor (Funil): empresas cuja Landing Page está atribuída a ele (null = sem filtro). */
+const assignedTo = (alias: string, p: string) =>
+  `(${p}::uuid is null or exists (select 1 from landing_pages lpa where lpa.company_id = ${alias} and lpa.seller_id = ${p}))`;
 
 /** Conversa `alias` visível ao vendedor `p`: da carteira dele, ou sem empresa e iniciada por ele (número fora do cadastro). */
 const convVisible = (alias: string, p: string) =>
@@ -375,7 +382,7 @@ crmRouter.get('/deals', async (req, res) => {
        from lp_crm_deals d
        join companies c on c.id = d.company_id
        left join lp_crm_contacts ct on ct.id = d.contact_id
-      where d.organization_id = $1 and ${visible('c.id', '$2')} and ${visible('c.id', '$3')}
+      where d.organization_id = $1 and ${visible('c.id', '$2')} and ${assignedTo('c.id', '$3')}
       order by d.position, d.created_at`,
     [user.organizationId, sellerScope(user), filterSeller],
   );
@@ -1130,20 +1137,23 @@ const MediaSchema = z.object({
   caption: z.string().trim().max(1000).optional(),
 });
 
-crmRouter.post('/messages/media', async (req, res) => {
-  const user = authUser(req);
-  const b = parseBody(MediaSchema, req.body);
+/** Envia uma mídia (base64) para o destino, grava a mensagem e guarda o arquivo para mostrar no CRM. */
+async function sendMediaMessage(
+  user: AuthUser,
+  target: SendTarget,
+  b: { kind: 'image' | 'gif' | 'video' | 'audio' | 'document'; mime: string; data: string; file_name?: string; caption?: string },
+) {
   const bytes = Buffer.from(b.data, 'base64');
   if (!bytes.length) throw badRequest('Arquivo vazio.');
-  const { number, companyTarget, startedBy } = await resolveTarget(user, b);
+  const { number, companyTarget, startedBy } = await resolveTarget(user, target);
   const caption = b.caption || undefined;
   const sent =
     b.kind === 'audio'
       ? await sendViaEvolution(user.organizationId, '/message/sendWhatsAppAudio', { number, audio: b.data })
       : await sendViaEvolution(user.organizationId, '/message/sendMedia', {
           number,
-          // GIF vai como imagem animada (image/gif); vídeo e documento com o tipo próprio
-          mediatype: b.kind === 'gif' ? 'image' : b.kind,
+          // GIF em MP4 (como os do WhatsApp) vai como vídeo; GIF em image/gif, como imagem. Vídeo e documento com o tipo próprio
+          mediatype: b.kind === 'gif' ? (b.mime.startsWith('video/') ? 'video' : 'image') : b.kind,
           mimetype: b.mime,
           media: b.data,
           caption,
@@ -1162,6 +1172,81 @@ crmRouter.post('/messages/media', async (req, res) => {
       b.kind === 'audio' ? b.mime.split(';')[0] : b.mime,
       bytes,
     ]);
+  }
+  return r.conversationId;
+}
+
+crmRouter.post('/messages/media', async (req, res) => {
+  const b = parseBody(MediaSchema, req.body);
+  res.status(201).json({ conversation_id: await sendMediaMessage(authUser(req), b, b) });
+});
+
+// ─── GIFs (GIPHY): galeria como a do teclado do celular ─────────────
+
+const GIPHY = 'https://api.giphy.com/v1/gifs';
+const GIF_MAX_BYTES = 3 * 1024 * 1024;
+/** Só arquivos do próprio GIPHY são baixados para enviar (nada de endereço qualquer vindo do navegador). */
+const GIPHY_MEDIA = /^https:\/\/media\d*\.giphy\.com\//i;
+
+async function giphy(path: string, params: Record<string, string>) {
+  // Chave cadastrada em Configurações (criptografada) ou a variável GIPHY_API_KEY do servidor
+  const [key] = await aiKeyStore.rotation('giphy', env.giphyApiKey);
+  if (!key) throw new AppError(503, 'Galeria de GIFs não configurada: cadastre a chave do GIPHY em Configurações.', 'GIF_NOT_CONFIGURED');
+  const qs = new URLSearchParams({ api_key: key.key, ...params });
+  const res = await fetch(`${GIPHY}${path}?${qs}`, { signal: AbortSignal.timeout(10_000) }).catch(() => null);
+  if (!res?.ok) throw new AppError(502, `A galeria de GIFs não respondeu${res ? ` (${res.status})` : ''}. Tente de novo.`, 'GIF_ERROR');
+  return (await res.json()) as { data: any; pagination?: { offset: number; count: number; total_count: number } };
+}
+
+// Busca (ou os GIFs em alta, sem termo); 24 por página
+crmRouter.get('/gifs', async (req, res) => {
+  const f = z.object({ q: z.string().trim().max(80).optional(), offset: z.coerce.number().int().min(0).max(4999).default(0) }).parse(req.query);
+  const params = { limit: '24', offset: String(f.offset), rating: 'pg', lang: 'pt', bundle: 'messaging_non_clips' };
+  const r = f.q ? await giphy('/search', { ...params, q: f.q }) : await giphy('/trending', params);
+  const items = (Array.isArray(r.data) ? r.data : [])
+    .map((g: any) => {
+      const p = g.images?.fixed_width_small ?? g.images?.fixed_width ?? g.images?.preview_gif;
+      return p?.url
+        ? { id: String(g.id), title: String(g.title ?? ''), preview: String(p.url), width: Number(p.width) || 1, height: Number(p.height) || 1 }
+        : null;
+    })
+    .filter(Boolean);
+  const pg = r.pagination;
+  const next = pg && pg.offset + pg.count < Math.min(pg.total_count, 5000) ? pg.offset + pg.count : null;
+  res.json({ items, next_offset: next });
+});
+
+/**
+ * Envia o GIF escolhido como figurinha animada (toca sozinha em loop, como GIF). A Evolution 2.3 não deixa
+ * marcar vídeo como GIF (gifPlayback fixo em false) e o WhatsApp descarta GIF mandado como imagem; já a
+ * figurinha recebida por link ".gif" ela converte em WebP animado e marca como animada. Por isso vai o link
+ * do GIPHY (versão com menos quadros, para caber no limite das figurinhas); o CRM guarda o GIF para mostrar.
+ */
+crmRouter.post('/messages/gif', async (req, res) => {
+  const user = authUser(req);
+  const b = parseBody(
+    z.object({
+      conversation_id: uuidParam.optional(),
+      contact_id: uuidParam.optional(),
+      company_id: uuidParam.optional(),
+      phone: z.string().trim().max(30).optional(),
+      gif_id: z.string().regex(/^[A-Za-z0-9]{4,40}$/, 'GIF inválido.'),
+    }),
+    req.body,
+  );
+  const g = (await giphy(`/${b.gif_id}`, {})).data;
+  const url = [g?.images?.fixed_width_downsampled, g?.images?.fixed_width, g?.images?.fixed_height_downsampled, g?.images?.fixed_height]
+    .filter((x) => x?.url && GIPHY_MEDIA.test(x.url) && /\.gif(\?|$)/i.test(x.url) && (!x.size || Number(x.size) <= GIF_MAX_BYTES))
+    .map((x) => String(x.url))[0];
+  if (!url) throw badRequest('Este GIF é grande demais para enviar. Escolha outro.');
+  const file = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(15_000) }).catch(() => null);
+  const bytes = file?.ok ? Buffer.from(await file.arrayBuffer()) : null;
+  if (!bytes?.length || bytes.length > GIF_MAX_BYTES) throw new AppError(502, 'Não foi possível baixar este GIF. Escolha outro.', 'GIF_ERROR');
+  const { number, companyTarget, startedBy } = await resolveTarget(user, b);
+  const sent = await sendViaEvolution(user.organizationId, '/message/sendSticker', { number, sticker: url });
+  const r = await recordSent(user, number, companyTarget, startedBy, sent, { type: 'sticker', body: null, mediaMime: 'image/gif', fileName: 'gif.gif' });
+  if (r.messageId) {
+    await query('insert into lp_crm_media (message_id, mime, data) values ($1, $2, $3) on conflict (message_id) do nothing', [r.messageId, 'image/gif', bytes]);
   }
   res.status(201).json({ conversation_id: r.conversationId });
 });
@@ -1258,9 +1343,15 @@ wa.post('/connect', async (req, res) => {
       syncFullHistory: true,
     });
   }
-  await evolution(cfg, 'POST', `/webhook/set/${cfg!.instance}`, {
-    webhook: { enabled: true, url: webhookUrl(user.organizationId), byEvents: false, base64: false, events: WEBHOOK_EVENTS },
-  });
+  // Rodando no computador com a Evolution na internet: não grava o endereço local (ela não o alcança e o
+  // sistema publicado, que usa a mesma instância, deixaria de receber os avisos)
+  if (canSetWebhook(cfg!)) {
+    await evolution(cfg, 'POST', `/webhook/set/${cfg!.instance}`, {
+      webhook: { enabled: true, url: webhookUrl(user.organizationId), byEvents: false, base64: false, events: WEBHOOK_EVENTS },
+    });
+  } else {
+    console.warn('[crm] webhook não gravado: o sistema está em endereço local e a Evolution, na internet');
+  }
   if (state === 'open') return res.json({ state, qrcode: null });
   // Ao ler o QR o celular manda o histórico das conversas (depois trazido por "Importar conversas")
   const settings = await evolution<Record<string, unknown>>(cfg, 'GET', `/settings/find/${cfg!.instance}`).catch(() => null);
@@ -1280,9 +1371,33 @@ wa.post('/import', async (req, res) => {
   res.json(await importHistory(user.organizationId, offset));
 });
 
+/**
+ * Desconectar. A Evolution às vezes responde 500 "Connection Closed" ao logout com o estado ainda "open"
+ * (a ligação interna caiu, mas o estado não foi atualizado): aí reinicia a instância e tenta de novo; se
+ * continuar conectada, apaga a instância (a sessão do WhatsApp acaba; "Conectar" cria outra e gera o QR).
+ */
 wa.post('/logout', async (req, res) => {
   const user = authUser(req);
   const cfg = await loadConfig(user.organizationId);
-  await evolution(cfg, 'DELETE', `/instance/logout/${cfg?.instance}`);
-  res.json({ ok: true });
+  if (!cfg) throw badRequest('O WhatsApp não está configurado.');
+  const path = (action: string) => `/instance/${action}/${cfg.instance}`;
+  const logout = () =>
+    evolution(cfg, 'DELETE', path('logout')).then(
+      () => true,
+      (err) => (console.error('[crm] logout', err), false),
+    );
+  if (await logout()) return res.json({ ok: true, method: 'logout' });
+  // Reinicia (PUT nas versões novas da Evolution, POST nas antigas) e tenta sair de novo
+  await evolution(cfg, 'PUT', path('restart')).catch(() => evolution(cfg, 'POST', path('restart')).catch(() => null));
+  if (await logout()) return res.json({ ok: true, method: 'restart' });
+  const { state } = await connectionState(user.organizationId);
+  if (state !== 'open') return res.json({ ok: true, method: 'closed', state });
+  // Último recurso: apaga a instância, o que encerra a sessão no celular também
+  try {
+    await evolution(cfg, 'DELETE', path('delete'));
+  } catch (err) {
+    const why = (err as { evolutionMessage?: string }).evolutionMessage;
+    throw new AppError(502, `O servidor do WhatsApp não desconectou${why ? ` (${why.slice(0, 160)})` : ''}. Tente de novo em alguns segundos.`, 'CRM_WA_ERROR');
+  }
+  res.json({ ok: true, method: 'delete' });
 });

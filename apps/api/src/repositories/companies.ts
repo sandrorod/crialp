@@ -4,14 +4,17 @@ import type { CompanyInput } from '../lib/validation.js';
 import { dropNullText } from '../lib/nullText.js';
 
 /**
- * Empresa em prospecção (campo "prospeccao" = sim): só essas ficam com o vendedor, além de a Landing Page
- * estar atribuída a ele. Vazio conta como não. `alias`: tabela companies na consulta.
+ * Empresa em prospecção: campo "prospeccao" preenchido (qualquer valor; vazio ou null = não).
+ * Só essas aparecem para os vendedores. `alias`: tabela companies na consulta.
  */
-export const inProspecting = (alias: string) => `lower(trim(coalesce(${alias}.prospeccao, ''))) in ('sim', 'true')`;
+export const inProspecting = (alias: string) => `trim(coalesce(${alias}.prospeccao, '')) <> ''`;
 
-/** Marca/desmarca a prospecção da empresa (fica fora do formulário geral, para nenhum outro cadastro apagar o valor). */
+/**
+ * Marca/desmarca a prospecção da empresa (fica fora do formulário geral, para nenhum outro cadastro apagar o valor).
+ * Desmarcar deixa o campo vazio (qualquer valor preenchido conta como "em prospecção").
+ */
 export async function setProspecting(orgId: string, id: string, value: boolean) {
-  const res = await query('update companies set prospeccao = $3 where id = $1 and organization_id = $2', [id, orgId, value ? 'sim' : 'nao']);
+  const res = await query('update companies set prospeccao = $3 where id = $1 and organization_id = $2', [id, orgId, value ? 'sim' : null]);
   return (res.rowCount ?? 0) > 0;
 }
 
@@ -257,8 +260,8 @@ export interface CompanyFilters {
   city?: string;
   /** "pronta": Landing Page marcada como pronta no editor */
   status?: 'ativa' | 'inativa' | 'sem_lp' | 'erro' | 'pronta';
-  /** Só as empresas cuja Landing Page está com este vendedor e que estão em prospecção */
-  sellerId?: string;
+  /** Visão do vendedor: só as empresas em prospecção (campo preenchido) */
+  sellerView?: boolean;
 }
 
 export async function listCompanies(orgId: string, f: CompanyFilters) {
@@ -276,10 +279,7 @@ export async function listCompanies(orgId: string, f: CompanyFilters) {
     params.push(f.city.toLowerCase());
     where.push(`lower(c.city) = $${params.length}`);
   }
-  if (f.sellerId) {
-    params.push(f.sellerId);
-    where.push(`lp.seller_id = $${params.length} and ${inProspecting('c')}`);
-  }
+  if (f.sellerView) where.push(inProspecting('c'));
   if (f.status === 'sem_lp') where.push('lp.id is null');
   else if (f.status === 'erro') where.push('lp.id is null and c.lp_error is not null');
   else if (f.status === 'pronta') where.push(`lp.edit_status = 'pronta'`);

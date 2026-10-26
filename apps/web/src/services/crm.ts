@@ -32,6 +32,8 @@ export type DealInput = {
   expected_close: string | null;
   notes: string | null;
 };
+/** GIF da galeria (miniatura para a grade; o servidor baixa a versão de envio pelo id). */
+export type CrmGif = { id: string; title: string; preview: string; width: number; height: number };
 export type SendTo = { conversation_id?: string; contact_id?: string; company_id?: string; phone?: string };
 export type OutgoingMedia = { kind: 'image' | 'gif' | 'video' | 'audio' | 'document'; mime: string; file_name?: string; data: string; caption?: string };
 export type StageInput = { name: string; color: string; kind: 'open' | 'won' | 'lost' };
@@ -105,6 +107,10 @@ export const crmService = {
   markRead: (conversationId: string) => api.post(`/crm/conversations/${conversationId}/read`),
   send: (to: SendTo, text: string) => api.post<{ conversation_id: string }>('/crm/messages', { ...to, text }),
   sendMedia: (to: SendTo, media: OutgoingMedia) => api.post<{ conversation_id: string }>('/crm/messages/media', { ...to, ...media }),
+  /** Galeria de GIFs (GIPHY): busca, ou os em alta sem termo */
+  gifs: (q: string, offset = 0) =>
+    api.get<{ items: CrmGif[]; next_offset: number | null }>(`/crm/gifs${qs({ q: q || undefined, offset: offset ? String(offset) : undefined })}`),
+  sendGif: (to: SendTo, gifId: string) => api.post<{ conversation_id: string }>('/crm/messages/gif', { ...to, gif_id: gifId }),
   /** Endereço do arquivo de uma mensagem com mídia (exige login; o servidor confere o acesso à conversa). */
   mediaUrl: (messageId: string) => `/api/crm/media/${messageId}`,
 
@@ -112,7 +118,8 @@ export const crmService = {
   saveWhatsapp: (c: { api_url: string; api_key?: string; instance: string }) => api.put('/crm/whatsapp', c),
   connectWhatsapp: () => api.post<{ state: string; qrcode: string | null }>('/crm/whatsapp/connect'),
   importWhatsapp: (offset: number) => api.post<{ total: number; next: number | null; messages: number }>('/crm/whatsapp/import', { offset }),
-  logoutWhatsapp: () => api.post('/crm/whatsapp/logout'),
+  /** `method`: como desconectou (logout normal, após reiniciar, já estava fechada ou apagando a instância) */
+  logoutWhatsapp: () => api.post<{ ok: true; method: 'logout' | 'restart' | 'closed' | 'delete' }>('/crm/whatsapp/logout'),
 };
 
 // ─── Formatação ─────────────────────────────────────────────────────

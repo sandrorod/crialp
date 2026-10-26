@@ -67,9 +67,10 @@ function SourceCard({ meta }: { meta: AnalysisMeta }) {
   );
 }
 
-const isProspecting = (v: string | null | undefined) => ['sim', 'true'].includes((v ?? '').trim().toLowerCase());
+// Qualquer valor preenchido conta como "em prospecção" (vazio ou null = não)
+const isProspecting = (v: string | null | undefined) => !!(v ?? '').trim();
 
-/** Prospecção sim/não: grava na hora (fica fora do "Salvar empresa"). Só com "sim" o vendedor acessa a empresa. */
+/** Prospecção sim/não: grava na hora (fica fora do "Salvar empresa"). Com "Sim" os vendedores veem a empresa. */
 function ProspectingCard({ companyId, initial }: { companyId: string; initial: boolean }) {
   const [value, setValue] = useState(initial);
   const [saving, setSaving] = useState(false);
@@ -79,7 +80,9 @@ function ProspectingCard({ companyId, initial }: { companyId: string; initial: b
     try {
       await companyService.setProspecting(companyId, next);
       setValue(next);
-      toast.success(next ? 'Empresa em prospecção: o vendedor da Landing Page passa a ter acesso.' : 'Prospecção desmarcada: o vendedor deixa de ter acesso.');
+      toast.success(
+        next ? 'Empresa em prospecção: os vendedores passam a ver esta empresa.' : 'Prospecção desmarcada: os vendedores deixam de ver esta empresa.',
+      );
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -91,7 +94,7 @@ function ProspectingCard({ companyId, initial }: { companyId: string; initial: b
       <Target className="size-5 flex-none text-zinc-400" />
       <div className="min-w-0 flex-1">
         <div className="text-sm font-semibold text-ink">Prospecção</div>
-        <p className="text-xs text-zinc-500">Só com “Sim” o vendedor da Landing Page vê esta empresa (CRM, Vendas e o site). Vazio conta como “Não”.</p>
+        <p className="text-xs text-zinc-500">Com “Sim” todos os vendedores veem esta empresa no CRM e em Vendas. “Não” deixa o campo vazio.</p>
       </div>
       <div className="flex rounded-lg bg-zinc-100 p-0.5" role="radiogroup" aria-label="Prospecção">
         {[

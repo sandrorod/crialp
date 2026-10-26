@@ -106,7 +106,18 @@ miscRouter.delete('/settings/atendimento/:id', requireRole(...MANAGER_ROLES), as
 
 // ─── Chaves de API com rodízio (Gemini e RapidAPI) ──────────────────
 const ProviderParam = z.enum(KEY_PROVIDERS, { message: 'Provedor inválido.' });
-const envKeyOf = (provider: KeyProvider) => (provider === 'gemini' ? env.ai.geminiApiKey : provider === 'rapidapi' ? env.rapidApiKey : undefined);
+const envKeyOf = (provider: KeyProvider) =>
+  provider === 'gemini' ? env.ai.geminiApiKey : provider === 'rapidapi' ? env.rapidApiKey : provider === 'giphy' ? env.giphyApiKey : undefined;
+
+/** Chave do GIPHY (galeria de GIFs do CRM): vale se a busca de GIFs em alta responder. */
+async function testGiphyKey(key: string) {
+  const res = await fetch(`https://api.giphy.com/v1/gifs/trending?${new URLSearchParams({ api_key: key, limit: '1' })}`, {
+    signal: AbortSignal.timeout(10_000),
+  }).catch(() => null);
+  if (!res) throw new AppError(502, 'O GIPHY não respondeu. Tente de novo.');
+  if (res.status === 401 || res.status === 403) throw new AppError(400, 'Chave recusada pelo GIPHY: confira se copiou a chave inteira.');
+  if (!res.ok) throw new AppError(400, `O GIPHY respondeu ${res.status} com esta chave.`);
+}
 const isRapid = (p: string) => p === 'rapidapi' || p === 'rapidapi_gemini';
 
 const KeySchema = z.object({
@@ -122,7 +133,7 @@ miscRouter.get('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async 
     // A chave da variável de ambiente também entra no rodízio (não é editável pelo painel)
     env_key: envKey ? { last4: envKey.slice(-4) } : null,
     // Gemini e RapidAPI — Gemini só valem com AI_PROVIDER=gemini
-    provider_active: provider === 'rapidapi' || aiService.providerName === 'gemini',
+    provider_active: provider === 'rapidapi' || provider === 'giphy' || aiService.providerName === 'gemini',
   });
 });
 
@@ -131,7 +142,12 @@ miscRouter.post('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async
   const provider = ProviderParam.parse(req.params.provider);
   const body = parseBody(KeySchema, req.body);
   // Mensagem diz onde a chave já está (a chave do servidor aparece na lista como "Chave do servidor")
-  const names: Record<string, string> = { gemini: 'Chaves do Gemini', rapidapi: 'Chaves do RapidAPI — Maps', rapidapi_gemini: 'Chaves do RapidAPI — Gemini' };
+  const names: Record<string, string> = {
+    gemini: 'Chaves do Gemini',
+    rapidapi: 'Chaves do RapidAPI — Maps',
+    rapidapi_gemini: 'Chaves do RapidAPI — Gemini',
+    giphy: 'Chave do GIPHY',
+  };
   const registered = await aiKeyStore.findByKey(body.key, provider);
   if (registered && registered.provider === provider) {
     const which = `"${registered.label || 'Chave'} (•••• ${registered.last4})"`;
@@ -155,6 +171,8 @@ miscRouter.post('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async
       const msg = err instanceof AIProviderError ? (err.userMessage ?? err.message) : 'Não foi possível validar a chave.';
       throw new AppError(400, `Chave recusada: ${msg}`);
     }
+  } else if (provider === 'giphy') {
+    await testGiphyKey(body.key);
   } else {
     await testRapidApiKey(body.key);
   }
@@ -231,6 +249,7 @@ miscRouter.post('/settings/keys/:provider/:id/test', requireRole(...MANAGER_ROLE
   try {
     if (provider === 'gemini') await aiService.testGeminiKey(key.key);
     else if (provider === 'rapidapi_gemini') await rapidGemini.testKey(key.key);
+    else if (provider === 'giphy') await testGiphyKey(key.key);
     else await testRapidApiKey(key.key);
   } catch (err) {
     const msg = err instanceof AIProviderError ? (err.userMessage ?? err.message) : err instanceof Error ? err.message : 'Não foi possível validar a chave.';
