@@ -226,6 +226,8 @@ p{margin:0;text-wrap:pretty}
    cores dela (destaque e principal). Mistura das variáveis, então acompanha o modelo, o modo escuro e as cores
    escolhidas para a seção; "body .section" vence o fundo que alguns modelos dão a toda seção (ex.: Blocos) */
 body .section.lead-section{--lead-bg:color-mix(in srgb,var(--primary) 10%,color-mix(in srgb,var(--accent) 13%,var(--bg)));background:var(--lead-bg);border-top:1px solid color-mix(in srgb,var(--primary) 18%,var(--lead-bg));border-bottom:1px solid color-mix(in srgb,var(--primary) 18%,var(--lead-bg))}
+/* Texto de apoio colado ao formulário: 90% menos que a margem normal do título de seção (40–64px) */
+.lead-section .section-head{margin-bottom:clamp(4px,.6vw,6.4px)}
 .lead-section .lead-form{box-shadow:0 18px 40px -28px color-mix(in srgb,var(--primary) 55%,transparent)}
 .lead-wrap{max-width:760px}
 .lead-form{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;background:var(--bg);border:1px solid var(--border);border-radius:clamp(14px,var(--radius),18px);padding:clamp(22px,3.4vw,40px)}
