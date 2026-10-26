@@ -202,7 +202,7 @@ export function renderLandingPage(ctx: RenderContext): string {
         // Formulário de contato em todas as LPs (antigas e novas), logo antes dos dados de contato
         return (
           <>
-            <ContactFormSection ctx={ctx} alt={alt} />
+            <ContactFormSection ctx={ctx} />
             <ContactSection ctx={ctx} alt={alt} />
           </>
         );

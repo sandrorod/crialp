@@ -222,7 +222,11 @@ p{margin:0;text-wrap:pretty}
 .contact-list .ico{color:var(--primary-ink);margin-top:2px;flex:none}
 
 /* Formulário de contato ("Fale conosco") */
-.lead-section+.section{padding-top:0}
+/* Seção própria, com fundo diferente mas da mesma família da página: o fundo da LP com um toque das duas
+   cores dela (destaque e principal). Mistura das variáveis, então acompanha o modelo, o modo escuro e as cores
+   escolhidas para a seção; "body .section" vence o fundo que alguns modelos dão a toda seção (ex.: Blocos) */
+body .section.lead-section{--lead-bg:color-mix(in srgb,var(--primary) 10%,color-mix(in srgb,var(--accent) 13%,var(--bg)));background:var(--lead-bg);border-top:1px solid color-mix(in srgb,var(--primary) 18%,var(--lead-bg));border-bottom:1px solid color-mix(in srgb,var(--primary) 18%,var(--lead-bg))}
+.lead-section .lead-form{box-shadow:0 18px 40px -28px color-mix(in srgb,var(--primary) 55%,transparent)}
 .lead-wrap{max-width:760px}
 .lead-form{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;background:var(--bg);border:1px solid var(--border);border-radius:clamp(14px,var(--radius),18px);padding:clamp(22px,3.4vw,40px)}
 @media(min-width:640px){.lead-form{grid-template-columns:repeat(2,minmax(0,1fr))}.lead-name,.lead-message,.lead-actions{grid-column:1/-1}}

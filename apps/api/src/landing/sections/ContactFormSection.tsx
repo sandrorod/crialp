@@ -7,7 +7,7 @@ import { SectionHead } from './SectionHead.js';
  * (POST comum para o sistema, que volta para a página com ?contato=…). Sem e-mail válido na empresa,
  * o formulário só aparece na prévia do editor, com o aviso de que é preciso cadastrar um.
  */
-export function ContactFormSection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {
+export function ContactFormSection({ ctx }: { ctx: RenderContext }) {
   const form = ctx.contactForm;
   if (!form || (!ctx.editable && !form.recipientOk)) return null;
   const l = ctx.labels;
@@ -23,7 +23,8 @@ export function ContactFormSection({ ctx, alt }: { ctx: RenderContext; alt: bool
     </label>
   );
   return (
-    <section id="fale-conosco" className={`section lead-section${alt ? ' section-alt' : ''}${preview && !form.recipientOk ? ' lead-missing' : ''}`}>
+    // Seção própria (fundo da LP com um toque da cor principal), separada dos dados de contato
+    <section id="fale-conosco" className={`section lead-section${preview && !form.recipientOk ? ' lead-missing' : ''}`}>
       <div className="container lead-wrap">
         <SectionHead
           eyebrow={l.form_eyebrow}
