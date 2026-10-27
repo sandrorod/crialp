@@ -18,15 +18,17 @@ test('login leva ao Dashboard e "Sair" encerra a sessão', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   await openMenuIfCollapsed(page);
   await page.getByRole('button', { name: 'Sair' }).click();
-  await expect(page).toHaveURL(/\/lps/);
-  // Sessão encerrada: voltar para o painel pede login de novo
+  await expect(page).toHaveURL(/\/$/);
+  // Sessão encerrada: voltar para o painel leva à página inicial
   await page.goto('/admin/landing-pages');
-  await expect(page).toHaveURL(/\/lps/);
+  await expect(page).toHaveURL(/\/$/);
 });
 
-test('painel sem login redireciona para o login', async ({ page }) => {
+test('painel sem login leva à página inicial (o login em /lps é só por link)', async ({ page }) => {
+  await page.goto('/admin');
+  await expect(page).toHaveURL(/:\d+\/$/);
   await page.goto('/admin/empresas');
-  await expect(page).toHaveURL(/\/lps/);
+  await expect(page).toHaveURL(/:\d+\/$/);
 });
 
 test('página inicial fica no endereço, sem link para o login; o login abre em /lps', async ({ page }) => {
@@ -38,11 +40,10 @@ test('página inicial fica no endereço, sem link para o login; o login abre em 
   await expect(page.getByRole('heading', { name: 'Entrar no painel' })).toBeVisible();
 });
 
-test('login vindo de uma página do painel volta para ela', async ({ page }) => {
-  await page.goto('/admin/empresas');
-  await expect(page).toHaveURL(/\/lps\?from=%2Fempresas/);
+test('login em /lps leva ao painel em /admin', async ({ page }) => {
+  await page.goto('/lps');
   await page.getByLabel('E-mail').fill('dono-a@teste.dev');
   await page.getByLabel('Senha').fill(PASSWORD);
   await page.getByRole('button', { name: 'Entrar' }).click();
-  await expect(page).toHaveURL(/\/admin\/empresas/);
+  await expect(page).toHaveURL(/\/admin\/?$/);
 });

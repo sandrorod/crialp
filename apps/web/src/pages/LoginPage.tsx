@@ -1,5 +1,4 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useLocation } from 'react-router';
 import { ArrowRight } from 'lucide-react';
 import { Button, Field, Input } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
@@ -15,12 +14,11 @@ function returnPath() {
 /** O login fica em /lps (fora de /admin): entrando, segue para o painel em /admin. */
 const toPanel = (path: string) => window.location.replace(`/admin${path}`);
 
-/** Rota /admin/login antiga e acesso ao painel sem sessão: vão para o login em /lps, lembrando a página. */
+/** Rota /admin/login antiga, acesso ao painel sem sessão e "Sair": vão para a página inicial (o login em /lps é só por link). */
 export function LoginRedirect() {
-  const from = (useLocation().state as { from?: string } | null)?.from;
   useEffect(() => {
-    window.location.replace(from && from !== '/' ? `/lps?from=${encodeURIComponent(from)}` : '/lps');
-  }, [from]);
+    window.location.replace('/');
+  }, []);
   return null;
 }
 
