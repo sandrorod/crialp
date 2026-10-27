@@ -17,7 +17,6 @@ import type {
   AtendimentoItem,
   FoundCompany,
   PlaceListing,
-  LpBatchView,
   SavedSearchItem,
   Job,
   LandingContent,
@@ -65,16 +64,6 @@ export const analysisService = {
   cancelJob: (id: string) => api.post(`/jobs/${id}/cancel`),
 };
 export type { AnalysisResult };
-
-export type LpBatchAction = 'pause' | 'resume' | 'now' | 'skip' | 'cancel' | 'gap';
-/** Lote de LPs tocado pelo servidor: a tela só acompanha (a aba pode ficar em segundo plano ou fechada). */
-export const lpBatchService = {
-  create: (items: { url: string; name: string; place?: PlaceListing | null }[], fotos: boolean, gap: number) =>
-    api.post<{ id: string }>('/lp-batches', { items, fotos, gap }),
-  active: () => api.get<{ batch: LpBatchView | null }>('/lp-batches/active'),
-  get: (id: string) => api.get<LpBatchView>(`/lp-batches/${id}`),
-  action: (id: string, action: LpBatchAction, gap?: number) => api.post<LpBatchView>(`/lp-batches/${id}/action`, { action, gap }),
-};
 
 export const searchService = {
   /** Locais do Google Maps; `page` > 0 busca em anéis mais largos ao redor do mesmo centro */

@@ -19,7 +19,6 @@ import { usersRouter } from './routes/users.js';
 import { clientLevelsRouter } from './routes/clientLevels.js';
 import { colorPalettesRouter } from './routes/colorPalettes.js';
 import { customDomainMiddleware, publicRouter } from './routes/public.js';
-import { lpBatchesRouter, lpBatchTickRouter } from './routes/lpBatches.js';
 import { readDbUpload } from './services/storage/StorageService.js';
 import { monitoringRouter } from './routes/monitoring.js';
 
@@ -75,8 +74,6 @@ export function createApp() {
   api.use(cookieParser());
   // Relatórios de erro do painel (text/plain, formato do Sentry): conferem a origem na própria rota
   api.use('/monitoring', monitoringRouter);
-  // Continuação do lote de LPs: chamada do próprio servidor, autenticada por token do lote
-  api.use(lpBatchTickRouter);
   api.use(requireSameOriginWrite);
   // Versão publicada (commit) para conferir se um deploy já está no ar
   api.get('/health', (_req, res) => res.json({ ok: true, version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null }));
@@ -92,7 +89,6 @@ export function createApp() {
   api.use('/color-palettes', colorPalettesRouter);
   api.use('/google-drive', requireRole(...MANAGER_ROLES), googleDriveRouter);
   api.use(analyzeRouter);
-  api.use(lpBatchesRouter);
   api.use('/companies', companiesRouter);
   api.use('/landing-pages', landingPagesRouter);
   api.use(miscRouter);

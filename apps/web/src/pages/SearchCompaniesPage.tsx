@@ -24,8 +24,8 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
-import { loadGap } from '@/lib/lpBatch';
-import { lpBatchService, searchService } from '@/services';
+import { saveBatch } from '@/lib/lpBatch';
+import { searchService } from '@/services';
 import type { FoundCompany, SavedSearchItem, SiteFilter } from '@/types';
 
 // A última pesquisa continua na tela ao voltar de outra página
@@ -276,9 +276,6 @@ export function SearchCompaniesPage() {
     return () => clearTimeout(t);
   }, [historyQ]);
   const history = useAsync(() => searchService.history(historyTerm), [historyTerm]);
-  // Lote em andamento no servidor: atalho para acompanhar
-  const activeBatch = useAsync(() => lpBatchService.active(), []);
-  const [startingBatch, setStartingBatch] = useState(false);
   const [opening, setOpening] = useState<string | null>(null);
   // No celular o histórico começa recolhido (no computador fica sempre aberto)
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -445,35 +442,12 @@ export function SearchCompaniesPage() {
   const selectable = shown.filter(canBatch);
   const allSelected = selectable.length > 0 && selectable.every((c) => selected.has(c.url!));
 
-  /** Gera as selecionadas uma de cada vez, no servidor (continua com a aba em segundo plano ou fechada). */
-  const generateBatch = async () => {
+  /** Gera as selecionadas uma de cada vez: a tela "Nova Landing Page" passa para a próxima ao terminar cada uma. */
+  const generateBatch = () => {
     if (!chosen.length) return;
-    setStartingBatch(true);
-    try {
-      const items = chosen.map((c) => ({
-        url: c.url!,
-        name: c.name,
-        // A análise usa os dados já trazidos pela pesquisa (sem consultar o Maps de novo)
-        place: {
-          name: c.name,
-          phone: c.phone,
-          address: c.address,
-          website: c.website,
-          rating: c.rating,
-          reviews: c.reviews,
-          photos: c.photos ?? null,
-          place_id: c.place_id ?? null,
-          google_url: c.google_url,
-        },
-      }));
-      const { id } = await lpBatchService.create(items, allowImages, loadGap());
-      navigate(`/lote/${id}`);
-    } catch (err) {
-      toast.error(errorMessage(err));
-      void activeBatch.reload();
-    } finally {
-      setStartingBatch(false);
-    }
+    chosen.forEach(rememberPlace);
+    saveBatch({ items: chosen.map((c) => ({ url: c.url!, name: c.name })), index: 0, fotos: allowImages, ok: 0 });
+    navigate('/nova?lote=1');
   };
 
   const waiting = (
@@ -489,16 +463,6 @@ export function SearchCompaniesPage() {
         title="Buscar empresas"
         description="Pesquise locais no Google Maps por segmento (ex.: “manutenção predial”) e gere a Landing Page de qualquer resultado."
       />
-      {activeBatch.data?.batch ? (
-        <Link
-          to={`/lote/${activeBatch.data.batch.id}`}
-          className="mb-4 flex items-center gap-2 rounded-xl border border-brand-100 bg-brand-50 px-4 py-2.5 text-sm font-medium text-brand-800 hover:bg-brand-100"
-        >
-          <Sparkles className="size-4 flex-none" />
-          Lote em andamento: empresa {Math.min(activeBatch.data.batch.index + 1, activeBatch.data.batch.items.length)} de {activeBatch.data.batch.items.length}{' '}
-          · acompanhar
-        </Link>
-      ) : null}
       <Card className="mb-6 p-4 sm:p-5">
         <form onSubmit={search} className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
@@ -618,15 +582,7 @@ export function SearchCompaniesPage() {
                   Limpar seleção
                 </button>
               ) : null}
-              <Button
-                size="sm"
-                variant="brand"
-                className="ml-auto"
-                disabled={!chosen.length}
-                loading={startingBatch}
-                onClick={() => void generateBatch()}
-                icon={<Sparkles className="size-3.5" />}
-              >
+              <Button size="sm" variant="brand" className="ml-auto" disabled={!chosen.length} onClick={generateBatch} icon={<Sparkles className="size-3.5" />}>
                 Gerar {chosen.length} LP
               </Button>
             </div>

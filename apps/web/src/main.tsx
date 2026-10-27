@@ -11,7 +11,6 @@ import { CompanyEditPage } from '@/pages/CompanyEditPage';
 import { LandingPagesPage } from '@/pages/LandingPagesPage';
 import { LandingPageEditorPage } from '@/pages/LandingPageEditorPage';
 import { NewLandingPagePage } from '@/pages/NewLandingPagePage';
-import { LpBatchPage } from '@/pages/LpBatchPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { SalesPage } from '@/pages/SalesPage';
 import { UsersPage } from '@/pages/UsersPage';
@@ -40,7 +39,6 @@ const router = createBrowserRouter(
         { path: '/landing-pages', element: <LandingPagesPage /> },
         { path: '/landing-pages/:id', element: <LandingPageEditorPage /> },
         { path: '/nova', element: <NewLandingPagePage /> },
-        { path: '/lote/:id', element: <LpBatchPage /> },
         { path: '/buscar', element: <SearchCompaniesPage /> },
         { path: '/configuracoes', element: <SettingsPage /> },
         { path: '/vendas', element: <SalesPage /> },
