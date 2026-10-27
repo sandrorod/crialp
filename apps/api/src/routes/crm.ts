@@ -916,6 +916,15 @@ crmRouter.get('/conversations/:id/messages', async (req, res) => {
 crmRouter.post('/conversations/:id/read', async (req, res) => {
   const user = authUser(req);
   const conv = await ensureConversation(user, uuidParam.parse(req.params.id));
+  // Gerência abrindo conversa de cliente com vendedor atribuído: continua não lida (para o vendedor ver)
+  if (isManager(user)) {
+    const withSeller = await query(
+      `select 1 from lp_crm_conversations cv join landing_pages l on l.company_id = cv.company_id
+        where cv.id = $1 and l.seller_id is not null limit 1`,
+      [conv.id],
+    );
+    if (withSeller.rowCount) return res.json({ ok: true, skipped: true });
+  }
   await query('update lp_crm_conversations set unread = 0 where id = $1', [conv.id]);
   // Confirmação de leitura para o cliente; se o WhatsApp falhar, a conversa continua marcada como lida aqui
   await markReadOnWhatsapp(user.organizationId, conv.id).catch((err) => console.error('[crm] markRead', err));
