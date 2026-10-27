@@ -56,18 +56,18 @@ const appUrl = (
   process.env.APP_URL ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:5173')
 ).replace(/\/$/, '');
 
-const appHosts = new Set(
-  (process.env.APP_HOSTS ?? 'localhost,127.0.0.1')
-    .split(',')
-    .map((h) => h.trim().toLowerCase())
-    .filter(Boolean)
-    .concat(new URL(appUrl).hostname.toLowerCase())
-    .concat(
-      [process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL]
-        .filter((h): h is string => !!h)
-        .map((h) => h.toLowerCase()),
-    ),
-);
+const baseAppHosts = (process.env.APP_HOSTS ?? 'localhost,127.0.0.1')
+  .split(',')
+  .map((h) => h.trim().toLowerCase())
+  .filter(Boolean)
+  .concat(new URL(appUrl).hostname.toLowerCase())
+  .concat(
+    [process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL]
+      .filter((h): h is string => !!h)
+      .map((h) => h.toLowerCase()),
+  );
+// O domínio do sistema com e sem "www." (labsites.com.br e www.labsites.com.br); sem isso o "www." caía como domínio de LP
+const appHosts = new Set(baseAppHosts.flatMap((h) => (h.startsWith('www.') ? [h, h.slice(4)] : [h, `www.${h}`])));
 
 /** Host do próprio sistema (usado na checagem de origem/CSRF): só os domínios deste deploy. */
 function isAppHost(host: string) {
