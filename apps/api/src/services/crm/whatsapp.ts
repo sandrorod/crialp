@@ -444,7 +444,7 @@ export async function registerMessage(m: IncomingMessage): Promise<{ conversatio
       `update lp_crm_conversations set
          last_message = left(coalesce($2, $3), 200),
          last_message_at = greatest(coalesce(last_message_at, '-infinity'), $4),
-         unread = case when $6 then unread when $5 = 'in' then unread + 1 else 0 end
+         unread = case when $6 then unread when $5 = 'in' then unread + 1 else unread end
        where id = $1`,
       [conv.id, m.body || null, MEDIA_SUMMARY[m.type] ?? `[${m.type}]`, at, m.direction, !!m.history],
     );

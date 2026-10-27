@@ -1,6 +1,7 @@
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { one, query } from '../src/db/pool.js';
+import { registerMessage } from '../src/services/crm/whatsapp.js';
 import { client, closeDb, resetDb, seed, startServer } from './helpers.js';
 
 /** Gerência abrindo conversa de cliente com vendedor atribuído não marca como lida; sem vendedor, marca. */
@@ -48,5 +49,24 @@ describe('Conversa lida no WhatsApp do CRM', () => {
     await query('update landing_pages set seller_id = null where company_id = $1', [s.a1.companyId]);
     assert.equal((await dono.call('POST', `/api/crm/conversations/${conv}/read`)).status, 200);
     assert.equal(await unread(), 0);
+  });
+
+  it('mensagem enviada (n8n, celular ou CRM) não marca a conversa como lida', async () => {
+    await query('update lp_crm_conversations set unread = 0 where id = $1', [conv]);
+    const msg = (direction: 'in' | 'out', id: string) =>
+      registerMessage({
+        orgId: s.orgA,
+        phone: '5511977776666',
+        remoteJid: '5511977776666@s.whatsapp.net',
+        pushName: null,
+        direction,
+        type: 'text',
+        body: 'oi',
+        waMessageId: id,
+      });
+    await msg('in', 'WA-IN-1');
+    await msg('in', 'WA-IN-2');
+    await msg('out', 'WA-OUT-1');
+    assert.equal(await unread(), 2);
   });
 });
