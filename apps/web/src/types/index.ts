@@ -652,6 +652,14 @@ export interface FoundCompany {
   } | null;
 }
 
+/** Perfil de dentista encontrado numa página do DentMap (vira LP pela análise do link). */
+export interface DentmapItem {
+  url: string;
+  name: string;
+  existing: FoundCompany['existing'];
+  analysis_error?: { error: string; at: string } | null;
+}
+
 /** Dados do Google Maps de um local escolhido na pesquisa, enviados à análise. */
 export interface PlaceListing {
   name: string;

@@ -17,6 +17,7 @@ import type {
   AtendimentoItem,
   FoundCompany,
   PlaceListing,
+  DentmapItem,
   SavedSearchItem,
   Job,
   LandingContent,
@@ -64,6 +65,11 @@ export const analysisService = {
   cancelJob: (id: string) => api.post(`/jobs/${id}/cancel`),
 };
 export type { AnalysisResult };
+
+/** Perfis de dentistas que aparecem numa página do DentMap (só a página informada). */
+export const dentmapService = {
+  links: (url: string) => api.get<{ items: DentmapItem[] }>(`/dentmap-links?url=${encodeURIComponent(url)}`),
+};
 
 export const searchService = {
   /** Locais do Google Maps; `page` > 0 busca em anéis mais largos ao redor do mesmo centro */
