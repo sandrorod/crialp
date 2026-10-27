@@ -377,9 +377,11 @@ export async function findDuplicateCompany(
     tradeName?: string | null;
     phones?: (string | null | undefined)[];
     zip?: string | null;
+    email?: string | null;
+    instagram?: string | null;
   },
   ignoreId?: string,
-): Promise<{ id: string; name: string; reason: 'link' | 'nome e telefone' | 'nome e CEP' } | null> {
+): Promise<{ id: string; name: string; reason: DuplicateReason } | null> {
   const { rows } = await query<{
     id: string;
     name: string;
@@ -388,8 +390,10 @@ export async function findDuplicateCompany(
     website: string | null;
     phones: string | null;
     zip_code: string | null;
+    email: string | null;
+    instagram: string | null;
   }>(
-    `select id, name, trade_name, reference_url, website, concat_ws('|', phone, mobile, whatsapp) as phones, zip_code
+    `select id, name, trade_name, reference_url, website, concat_ws('|', phone, mobile, whatsapp) as phones, zip_code, email, instagram
        from companies where organization_id = $1`,
     [orgId],
   );
@@ -403,6 +407,10 @@ export async function findDuplicateCompany(
   // O site (origem) só conta quando é a página inicial: perfis diferentes na mesma plataforma têm a mesma origem
   const homeKeys = new Set([probe.url, probe.website].map(companyUrlKey).filter((k): k is string => !!k && !k.includes('/') && !isPlatformKey(k)));
   const nameKeys = new Set([probe.name, probe.tradeName].map(companyNameKey).filter((k): k is string => !!k));
+  const probeNumbers = new Set((probe.phones ?? []).map(phoneKey).filter((p): p is string => !!p));
+  const probeEmail = emailKey(probe.email);
+  const probeInstagram = instagramKey(probe.instagram);
+  // Mesmo link primeiro (em todas as empresas); depois os demais critérios
   for (const c of rows) {
     if (c.id === ignoreId) continue;
     const ref = companyUrlKey(c.reference_url);
@@ -428,7 +436,39 @@ export async function findDuplicateCompany(
       }
     }
   }
+  // Mesmo número (telefone, celular ou WhatsApp), e-mail ou Instagram: possível duplicada mesmo com outro nome
+  for (const c of rows) {
+    if (c.id === ignoreId) continue;
+    const name = c.trade_name || c.name;
+    if (probeNumbers.size && (c.phones ?? '').split('|').some((p) => probeNumbers.has(phoneKey(p) ?? ''))) return { id: c.id, name, reason: 'telefone' };
+    if (probeEmail && emailKey(c.email) === probeEmail) return { id: c.id, name, reason: 'e-mail' };
+    if (probeInstagram && instagramKey(c.instagram) === probeInstagram) return { id: c.id, name, reason: 'Instagram' };
+  }
   return null;
+}
+
+export type DuplicateReason = 'link' | 'nome e telefone' | 'nome e CEP' | 'telefone' | 'e-mail' | 'Instagram';
+
+/** Número para comparar: DDD + últimos 8 dígitos (com ou sem +55 e com ou sem o 9 do celular). */
+function phoneKey(v: string | null | undefined) {
+  let d = (v ?? '').replace(/\D/g, '');
+  if (d.length >= 12 && d.startsWith('55')) d = d.slice(2);
+  if (d.length < 10) return null;
+  return `${d.slice(0, 2)}${d.slice(-8)}`;
+}
+
+const emailKey = (v: string | null | undefined) => (v ?? '').trim().toLowerCase() || null;
+
+/** Perfil do Instagram: só o nome de usuário (de link, @usuario ou usuario). */
+function instagramKey(v: string | null | undefined) {
+  const t = (v ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^(www\.)?instagram\.com\//, '')
+    .replace(/^@/, '')
+    .split(/[/?#]/)[0];
+  return /^[a-z0-9._]{2,30}$/.test(t) ? t : null;
 }
 
 /**

@@ -108,7 +108,8 @@ export const companyService = {
   list: (f: { search?: string; segment?: string; city?: string; status?: string }) =>
     api.get<{ items: CompanyListItem[]; facets: { segments: string[]; cities: string[] } }>(`/companies${qs(f)}`),
   get: (id: string) => api.get<Company>(`/companies/${id}`),
-  create: (draft: CompanyDraft & { source_meta?: object; analysis_job_id?: string }) => api.post<{ id: string }>('/companies', draft),
+  create: (draft: CompanyDraft & { source_meta?: object; analysis_job_id?: string; allow_duplicate?: boolean }) =>
+    api.post<{ id: string }>('/companies', draft),
   update: (id: string, draft: CompanyDraft) => api.put<Company>(`/companies/${id}`, draft),
   remove: (id: string) => api.del(`/companies/${id}`),
   /** Prospecção sim/não (só a gerência): com "sim" o vendedor da Landing Page passa a acessar a empresa */

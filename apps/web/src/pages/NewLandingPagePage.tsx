@@ -25,9 +25,9 @@ import { SellerPicker } from '@/components/SellerCell';
 import { ClientLevelPicker } from '@/components/ClientLevelCell';
 import { ProgressSteps } from '@/components/ProgressSteps';
 import { StopJobButton } from '@/components/StopJobButton';
-import { Button, Card, Input } from '@/components/ui';
+import { Button, Card, Input, Modal } from '@/components/ui';
 import { useJob } from '@/hooks/useJob';
-import { errorMessage } from '@/lib/api';
+import { ApiError, errorMessage } from '@/lib/api';
 import { elapsedSeconds, keepAwake, later } from '@/lib/backgroundTimer';
 import { GAP_MAX, loadBatch, loadGap, saveBatch, saveGap, type LpBatch } from '@/lib/lpBatch';
 import { shortUrl } from '@/lib/utils';
@@ -35,6 +35,7 @@ import { analysisService, companyService } from '@/services';
 import type { AnalysisMeta, AnalysisResult, CompanyDraft, PlaceListing } from '@/types';
 
 type Stage = 'url' | 'analyzing' | 'review' | 'generating';
+type DuplicateInfo = { id: string; name: string; reason: string; can_override: boolean };
 /** Segundos que o lote espera na revisão (e antes de pular uma empresa com erro). */
 const BATCH_WAIT = 10;
 
@@ -75,6 +76,8 @@ export function NewLandingPagePage() {
   // Intervalo entre as LPs do lote (minutos) e a contagem da pausa depois de cada LP gerada (segundos)
   const [gap, setGap] = useState(loadGap);
   const [rest, setRest] = useState<number | null>(null);
+  // Aviso de possível empresa já cadastrada (mesmo telefone, e-mail, Instagram, nome + telefone/CEP)
+  const [duplicate, setDuplicate] = useState<DuplicateInfo | null>(null);
   const [restPaused, setRestPaused] = useState(false);
 
   const analyze = useJob<AnalysisResult>(analyzeJobId);
@@ -246,8 +249,10 @@ export function NewLandingPagePage() {
     setStage('review');
   };
 
-  const confirmAndGenerate = async () => {
+  /** `allowDuplicate`: "Criar mesmo assim" depois do aviso de possível empresa já cadastrada. */
+  const confirmAndGenerate = async (allowDuplicate = false) => {
     setCountdown(null);
+    setDuplicate(null);
     if (!draft.name.trim()) {
       toast.error('Informe o nome da empresa.');
       return;
@@ -263,7 +268,14 @@ export function NewLandingPagePage() {
           testimonials: draft.testimonials.filter((t) => t.text.trim()),
           other_socials: draft.other_socials.filter((s) => s.url.trim()),
         };
-        id = (await companyService.create({ ...cleaned, source_meta: meta ?? {}, analysis_job_id: analyzeJobId ?? undefined })).id;
+        id = (
+          await companyService.create({
+            ...cleaned,
+            source_meta: meta ?? {},
+            analysis_job_id: analyzeJobId ?? undefined,
+            ...(allowDuplicate ? { allow_duplicate: true } : {}),
+          })
+        ).id;
         setCompanyId(id);
       }
       const { jobId } = await analysisService.generate(id, {
@@ -274,6 +286,19 @@ export function NewLandingPagePage() {
       setStage('generating');
       window.scrollTo({ top: 0 });
     } catch (err) {
+      // Empresa possivelmente já cadastrada: no lote, pula para a próxima; sozinha, avisa e deixa decidir
+      if (err instanceof ApiError && err.code === 'DUPLICATE_COMPANY') {
+        if (batch) {
+          toast.error(`${errorMessage(err)} Pulando para a próxima empresa.`);
+          next(false);
+          return;
+        }
+        const d = err.details as DuplicateInfo | undefined;
+        if (d?.can_override) {
+          setDuplicate(d);
+          return;
+        }
+      }
       toast.error(errorMessage(err));
     } finally {
       setSaving(false);
@@ -539,7 +564,7 @@ export function NewLandingPagePage() {
               <p className="text-sm font-medium text-red-700">{j?.error ?? generate.networkError}</p>
               <p className="mt-1 text-xs text-red-600/80">Os dados da empresa já foram salvos.</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button size="sm" loading={saving} icon={<RotateCcw className="size-3.5" />} onClick={confirmAndGenerate}>
+                <Button size="sm" loading={saving} icon={<RotateCcw className="size-3.5" />} onClick={() => void confirmAndGenerate()}>
                   Tentar novamente
                 </Button>
                 {companyId ? (
@@ -675,7 +700,7 @@ export function NewLandingPagePage() {
               size="lg"
               className="relative isolate overflow-hidden"
               loading={saving}
-              onClick={confirmAndGenerate}
+              onClick={() => void confirmAndGenerate()}
               icon={<Sparkles className="size-4" />}
             >
               {/* Contagem do lote: a barra enche o botão até confirmar sozinho */}
@@ -687,6 +712,29 @@ export function NewLandingPagePage() {
           </div>
         </div>
       </div>
+
+      <Modal
+        open={!!duplicate}
+        title="Empresa possivelmente já cadastrada"
+        onClose={() => setDuplicate(null)}
+        busy={saving}
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            {duplicate ? (
+              <Link to={`/empresas/${duplicate.id}`} target="_blank">
+                <Button variant="secondary">Abrir empresa existente</Button>
+              </Link>
+            ) : null}
+            <Button variant="brand" loading={saving} onClick={() => void confirmAndGenerate(true)}>
+              Criar mesmo assim
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-zinc-600">
+          Já existe a empresa <strong className="text-ink">“{duplicate?.name}”</strong> com o mesmo {duplicate?.reason}. Confira antes de criar outra.
+        </p>
+      </Modal>
     </div>
   );
 }

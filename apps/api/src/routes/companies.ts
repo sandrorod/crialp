@@ -92,8 +92,16 @@ companiesRouter.get('/:id', async (req, res) => {
 
 companiesRouter.post('/', async (req, res) => {
   const user = authUser(req);
-  const body = parseBody(CompanyInputSchema.extend({ source_meta: z.record(z.string(), z.any()).optional(), analysis_job_id: uuidParam.optional() }), req.body);
-  const { source_meta, analysis_job_id, ...input } = body;
+  const body = parseBody(
+    CompanyInputSchema.extend({
+      source_meta: z.record(z.string(), z.any()).optional(),
+      analysis_job_id: uuidParam.optional(),
+      // "Criar mesmo assim" depois do aviso de possível duplicada (mesmo link nunca é liberado)
+      allow_duplicate: z.boolean().optional(),
+    }),
+    req.body,
+  );
+  const { source_meta, analysis_job_id, allow_duplicate, ...input } = body;
   const dup = await findDuplicateCompany(user.organizationId, {
     url: input.reference_url,
     website: input.website,
@@ -101,8 +109,17 @@ companiesRouter.post('/', async (req, res) => {
     tradeName: input.trade_name,
     phones: [input.phone, input.mobile, input.whatsapp],
     zip: input.zip_code,
+    email: input.email,
+    instagram: input.instagram,
   });
-  if (dup) throw new AppError(409, `Esta empresa já foi cadastrada: "${dup.name}" (mesmo ${dup.reason}).`, 'DUPLICATE_COMPANY');
+  if (dup && (dup.reason === 'link' || !allow_duplicate)) {
+    throw new AppError(409, `Esta empresa já foi cadastrada: "${dup.name}" (mesmo ${dup.reason}).`, 'DUPLICATE_COMPANY', {
+      id: dup.id,
+      name: dup.name,
+      reason: dup.reason,
+      can_override: dup.reason !== 'link',
+    });
+  }
   const id = await createCompany(user.organizationId, user.id, withLogo(input), source_meta ?? {});
   await relinkConversations(user.organizationId, { onlyUnlinked: true });
   // Conteúdo completo do site, guardado pela análise
