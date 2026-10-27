@@ -5,13 +5,11 @@ import { z } from 'zod';
 import { query } from '../db/pool.js';
 import { AppError, notFound } from '../lib/errors.js';
 import { normalizeInputUrl } from '../lib/url.js';
-import { CompanyInputSchema, parseBody, safeUrl, uuidParam, type CompanyInput } from '../lib/validation.js';
+import { CompanyInputSchema, parseBody, safeUrl, uuidParam } from '../lib/validation.js';
 import { authUser, MANAGER_ROLES, requireRole } from '../middleware/auth.js';
 import {
   appendCompanyImages,
-  createCompany,
   deleteCompany,
-  findDuplicateCompany,
   getCompanyFull,
   listCompanies,
   removeCompanyImages,
@@ -25,9 +23,9 @@ import { assembleImages } from '../services/pipeline/images.js';
 import { describeImages, ScraperService } from '../services/scraper/ScraperService.js';
 import type { CompanyFull } from '../repositories/companies.js';
 import type { SectionKey, SectionOrderKey } from '../services/ai/schemas.js';
-import { getSources, saveSources, toSourcePayload, type SourcePayload } from '../repositories/sources.js';
-import { jobService } from '../services/jobs/JobService.js';
+import { getSources, saveSources, toSourcePayload } from '../repositories/sources.js';
 import { relinkConversations } from '../services/crm/whatsapp.js';
+import { registerCompany, withLogo } from '../services/pipeline/registerCompany.js';
 
 // Reler o site (e classificar as fotos pela IA) custa tempo e cota: mesmo limite da análise de links
 const scrapeLimiter = rateLimit({
@@ -65,10 +63,6 @@ async function ensureGallery(lp: LandingPageRow, company: CompanyFull, orgId: st
 export const companiesRouter = Router();
 
 /** O logotipo oficial é a imagem do tipo "logo" com permissão de uso confirmada. */
-function withLogo(input: CompanyInput): CompanyInput {
-  const logo = input.images.find((i) => i.type === 'logo' && i.usage_allowed);
-  return { ...input, logo_url: logo?.url ?? null };
-}
 
 companiesRouter.get('/', async (req, res) => {
   const user = authUser(req);
@@ -94,23 +88,7 @@ companiesRouter.post('/', async (req, res) => {
   const user = authUser(req);
   const body = parseBody(CompanyInputSchema.extend({ source_meta: z.record(z.string(), z.any()).optional(), analysis_job_id: uuidParam.optional() }), req.body);
   const { source_meta, analysis_job_id, ...input } = body;
-  const dup = await findDuplicateCompany(user.organizationId, {
-    url: input.reference_url,
-    website: input.website,
-    name: input.name,
-    tradeName: input.trade_name,
-    phones: [input.phone, input.mobile, input.whatsapp],
-    zip: input.zip_code,
-  });
-  if (dup) throw new AppError(409, `Esta empresa já foi cadastrada: "${dup.name}" (mesmo ${dup.reason}).`, 'DUPLICATE_COMPANY');
-  const id = await createCompany(user.organizationId, user.id, withLogo(input), source_meta ?? {});
-  await relinkConversations(user.organizationId, { onlyUnlinked: true });
-  // Conteúdo completo do site, guardado pela análise
-  if (analysis_job_id) {
-    const job = await jobService.get(user.organizationId, analysis_job_id);
-    const raw = (job?.result as { raw?: SourcePayload } | null)?.raw;
-    if (job?.type === 'analyze_url' && raw) await saveSources(id, raw);
-  }
+  const id = await registerCompany(user.organizationId, user.id, input, source_meta ?? {}, analysis_job_id);
   res.status(201).json({ id });
 });
 

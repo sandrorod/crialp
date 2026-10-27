@@ -1,24 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import {
-  AlertTriangle,
-  ArrowRight,
-  Check,
-  CircleSlash,
-  Clock,
-  FileSearch,
-  Globe,
-  Layers,
-  Minus,
-  Pause,
-  PencilLine,
-  Play,
-  Plus,
-  RotateCcw,
-  SkipForward,
-  Sparkles,
-  X,
-} from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, CircleSlash, FileSearch, Globe, PencilLine, RotateCcw, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { CompanyForm, emptyDraft } from '@/components/company/CompanyForm';
 import { SellerPicker } from '@/components/SellerCell';
@@ -28,15 +10,11 @@ import { StopJobButton } from '@/components/StopJobButton';
 import { Button, Card, Input } from '@/components/ui';
 import { useJob } from '@/hooks/useJob';
 import { errorMessage } from '@/lib/api';
-import { elapsedSeconds, keepAwake, later } from '@/lib/backgroundTimer';
-import { GAP_MAX, loadBatch, loadGap, saveBatch, saveGap, type LpBatch } from '@/lib/lpBatch';
 import { shortUrl } from '@/lib/utils';
 import { analysisService, companyService } from '@/services';
 import type { AnalysisMeta, AnalysisResult, CompanyDraft, PlaceListing } from '@/types';
 
 type Stage = 'url' | 'analyzing' | 'review' | 'generating';
-/** Segundos que o lote espera na revisão (e antes de pular uma empresa com erro). */
-const BATCH_WAIT = 10;
 
 function looksLikeUrl(v: string) {
   const t = v.trim();
@@ -68,14 +46,6 @@ export function NewLandingPagePage() {
   // Vendedor "auto" (Aleatório, padrão) = rodízio: o próximo depois do último que recebeu LP
   const [sellerId, setSellerId] = useState('auto');
   const [clientLevelId, setClientLevelId] = useState('');
-  // Lote vindo de "Buscar empresas" (?lote=1): gera uma empresa por vez, sem voltar para a pesquisa
-  const [batch, setBatch] = useState<LpBatch | null>(() => (params.get('lote') ? loadBatch() : null));
-  // Contagem do lote: na revisão confirma sozinha ao chegar a zero; com erro, pula para a próxima empresa
-  const [countdown, setCountdown] = useState<number | null>(null);
-  // Intervalo entre as LPs do lote (minutos) e a contagem da pausa depois de cada LP gerada (segundos)
-  const [gap, setGap] = useState(loadGap);
-  const [rest, setRest] = useState<number | null>(null);
-  const [restPaused, setRestPaused] = useState(false);
 
   const analyze = useJob<AnalysisResult>(analyzeJobId);
   const generate = useJob<{ landingPageId: string }>(generateJobId);
@@ -87,25 +57,15 @@ export function NewLandingPagePage() {
       setDraft(j.result.draft);
       setMeta(j.result.meta);
       setStage('review');
-      if (batch) setCountdown(BATCH_WAIT);
       window.scrollTo({ top: 0 });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analyze.job]);
 
-  // Geração concluída → editor da LP (no lote, segue para a próxima empresa)
+  // Geração concluída → editor da LP
   useEffect(() => {
     const j = generate.job;
     if (j?.status === 'done' && j.result) {
-      if (batch) {
-        toast.success(`LP de “${draft.trade_name || draft.name}” gerada.`);
-        // Intervalo antes da próxima empresa (a última encerra o lote na hora)
-        if (gap > 0 && batch.index + 1 < batch.items.length) {
-          setRestPaused(false);
-          setRest(gap * 60);
-        } else next(true);
-        return;
-      }
       toast.success('Landing Page gerada! Revise a prévia e publique.');
       navigate(`/landing-pages/${j.result.landingPageId}`);
     }
@@ -113,57 +73,9 @@ export function NewLandingPagePage() {
   }, [generate.job, navigate]);
 
   useEffect(() => {
-    if (batch) void startItem(batch);
-    else if (params.get('url')) void startAnalysis();
+    if (params.get('url')) void startAnalysis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // No lote, um erro na análise ou na geração pula para a próxima empresa depois da contagem
-  const analyzeFailed = stage === 'analyzing' && (analyze.job?.status === 'error' || !!analyze.networkError);
-  const generateFailed = stage === 'generating' && (generate.job?.status === 'error' || !!generate.networkError);
-  useEffect(() => {
-    if (batch && (analyzeFailed || generateFailed)) setCountdown(BATCH_WAIT);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [analyzeFailed, generateFailed]);
-
-  useEffect(() => {
-    if (countdown === null) return;
-    if (countdown <= 0) {
-      setCountdown(null);
-      if (stage === 'review') void confirmAndGenerate();
-      else next(false);
-      return;
-    }
-    const since = Date.now();
-    return later(() => setCountdown((c) => (c === null ? null : c - elapsedSeconds(since))), 1000);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [countdown]);
-
-  // Pausa entre as LPs: ao chegar a zero, começa a próxima empresa
-  useEffect(() => {
-    if (rest === null || restPaused) return;
-    if (rest <= 0) {
-      setRest(null);
-      next(true);
-      return;
-    }
-    // Desconta o tempo que passou de fato (a aba em segundo plano pode atrasar o timer)
-    const since = Date.now();
-    return later(() => setRest((r) => (r === null ? null : r - elapsedSeconds(since))), 1000);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rest, restPaused]);
-
-  // Lote em andamento: a aba não é congelada em segundo plano
-  const batchActive = !!batch;
-  useEffect(() => (batchActive ? keepAwake() : undefined), [batchActive]);
-
-  /** Muda o intervalo (também durante a pausa: o tempo que falta acompanha a mudança). */
-  const changeGap = (minutes: number) => {
-    const v = Math.min(GAP_MAX, Math.max(0, minutes));
-    setRest((r) => (r === null ? null : Math.max(0, r + (v - gap) * 60)));
-    setGap(v);
-    saveGap(v);
-  };
 
   const startAnalysis = async (e?: FormEvent, target = url, fotos = allowImages) => {
     e?.preventDefault();
@@ -192,62 +104,13 @@ export function NewLandingPagePage() {
     }
   };
 
-  /** Começa a empresa atual do lote do zero (análise do link). */
-  const startItem = async (b: LpBatch) => {
-    const item = b.items[b.index];
-    setCountdown(null);
-    setUrl(item.url);
-    setAllowImages(b.fotos);
-    setDraft(emptyDraft());
-    setMeta(null);
-    setCompanyId(null);
-    setAnalyzeJobId(null);
-    setGenerateJobId(null);
-    setStage('url');
-    window.scrollTo({ top: 0 });
-    // Link recusado: pula para a próxima depois da contagem
-    if (!(await startAnalysis(undefined, item.url, b.fotos))) setCountdown(BATCH_WAIT);
-  };
-
-  /** Passa para a próxima empresa do lote; terminando, volta para a pesquisa. */
-  const next = (generated: boolean) => {
-    if (!batch) return;
-    const b = { ...batch, index: batch.index + 1, ok: batch.ok + (generated ? 1 : 0) };
-    if (b.index >= b.items.length) {
-      saveBatch(null);
-      setBatch(null);
-      toast.success(`Lote concluído: ${b.ok} de ${b.items.length} LP(s) gerada(s).`);
-      navigate('/buscar');
-      return;
-    }
-    saveBatch(b);
-    setBatch(b);
-    void startItem(b);
-  };
-
-  const cancelBatch = () => {
-    saveBatch(null);
-    setBatch(null);
-    setCountdown(null);
-    setRest(null);
-    toast.info('Lote interrompido. A empresa atual continua aberta aqui.');
-  };
-
-  // Qualquer alteração nos dados para a contagem, como o botão "Alterar"
-  const changeDraft = (d: CompanyDraft) => {
-    setCountdown(null);
-    setDraft(d);
-  };
-
   const fillManually = () => {
-    setCountdown(null);
     setDraft({ ...emptyDraft(), reference_url: looksLikeUrl(url) ? url.trim() : null });
     setMeta(null);
     setStage('review');
   };
 
   const confirmAndGenerate = async () => {
-    setCountdown(null);
     if (!draft.name.trim()) {
       toast.error('Informe o nome da empresa.');
       return;
@@ -280,119 +143,10 @@ export function NewLandingPagePage() {
     }
   };
 
-  // Em qual empresa do lote está, com a contagem para pular quando deu erro
-  const failedHere = analyzeFailed || generateFailed || (stage === 'url' && !!urlError);
-  const batchBar = batch ? (
-    <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-brand-100 bg-brand-50 px-4 py-2.5 text-sm">
-      <Layers className="size-4 flex-none text-brand-600" />
-      <span className="min-w-0 flex-1">
-        <strong>
-          Lote: empresa {batch.index + 1} de {batch.items.length}
-        </strong>
-        <span className="text-zinc-600"> · {batch.items[batch.index].name}</span>
-        {failedHere && countdown !== null ? <span className="block text-xs text-red-700">Pulando para a próxima em {countdown}s…</span> : null}
-        {rest !== null ? (
-          <span className="block text-xs font-medium text-emerald-700">
-            Próxima empresa em {`${Math.floor(rest / 60)}:${String(rest % 60).padStart(2, '0')}`}
-            {restPaused ? ' (pausado)' : ''}
-          </span>
-        ) : null}
-      </span>
-      {rest === null ? (
-        <Button
-          size="sm"
-          variant="secondary"
-          icon={<SkipForward className="size-3.5" />}
-          onClick={() => {
-            setCountdown(null);
-            next(false);
-          }}
-          disabled={saving}
-          title="Deixa esta empresa sem LP e passa para a próxima"
-        >
-          {failedHere ? 'Próxima' : 'Pular'}
-        </Button>
-      ) : null}
-      <Button size="sm" variant="ghost" icon={<X className="size-3.5" />} onClick={cancelBatch}>
-        Parar lote
-      </Button>
-      {/* Intervalo entre as LPs: muda a qualquer momento, inclusive durante a pausa */}
-      <div className="flex w-full items-center gap-2 border-t border-brand-100 pt-2 text-xs text-zinc-600">
-        <Clock className="size-3.5 flex-none" />
-        <span>Intervalo entre as LPs:</span>
-        <button
-          type="button"
-          onClick={() => changeGap(gap - 1)}
-          disabled={gap <= 0}
-          className="grid size-7 place-items-center rounded-md border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40"
-          aria-label="Diminuir intervalo"
-        >
-          <Minus className="size-3.5" />
-        </button>
-        <span className="min-w-14 text-center font-semibold text-ink tabular-nums">{gap ? `${gap} min` : 'sem pausa'}</span>
-        <button
-          type="button"
-          onClick={() => changeGap(gap + 1)}
-          disabled={gap >= GAP_MAX}
-          className="grid size-7 place-items-center rounded-md border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40"
-          aria-label="Aumentar intervalo"
-        >
-          <Plus className="size-3.5" />
-        </button>
-      </div>
-    </div>
-  ) : null;
-
-  // Pausa depois de uma LP gerada: contagem para a próxima empresa
-  const restBox =
-    batch && rest !== null ? (
-      <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-        <p className="flex items-center gap-2 text-sm font-medium text-emerald-800">
-          <Check className="size-4" /> LP gerada. Próxima empresa ({batch.items[batch.index + 1]?.name}) em
-          <span className="font-mono text-base tabular-nums">{`${Math.floor(rest / 60)}:${String(rest % 60).padStart(2, '0')}`}</span>
-          {restPaused ? <span className="text-xs font-normal">(pausado)</span> : null}
-        </p>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-emerald-100">
-          <div
-            className="h-full bg-emerald-500 transition-[width] duration-1000 ease-linear"
-            style={{ width: `${gap ? Math.min(100, 100 - (rest / (gap * 60)) * 100) : 100}%` }}
-          />
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            icon={<Play className="size-3.5" />}
-            onClick={() => {
-              setRest(null);
-              next(true);
-            }}
-          >
-            Começar agora
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            icon={restPaused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
-            onClick={() => setRestPaused((p) => !p)}
-          >
-            {restPaused ? 'Continuar contagem' : 'Pausar'}
-          </Button>
-          {generate.job?.result ? (
-            <Link to={`/landing-pages/${generate.job.result.landingPageId}`} target="_blank">
-              <Button size="sm" variant="ghost">
-                Ver a LP gerada
-              </Button>
-            </Link>
-          ) : null}
-        </div>
-      </div>
-    ) : null;
-
   // ─── Etapa 1: URL ────────────────────────────────────────────────
   if (stage === 'url') {
     return (
       <div className="mx-auto max-w-2xl pt-4 lg:pt-12">
-        {batchBar}
         <div className="mb-8 text-center">
           <div className="mx-auto mb-5 grid size-12 place-items-center rounded-2xl bg-ink text-white shadow-lg shadow-zinc-900/20">
             <Sparkles className="size-5" />
@@ -474,7 +228,6 @@ export function NewLandingPagePage() {
     const failed = j?.status === 'error' || !!analyze.networkError;
     return (
       <div className="mx-auto max-w-xl pt-4 lg:pt-10">
-        {batchBar}
         <h1 className="text-2xl font-semibold tracking-tight">Analisando empresa</h1>
         <p className="mt-1 truncate text-sm text-zinc-500" title={url}>
           {shortUrl(url, 70)}
@@ -498,7 +251,6 @@ export function NewLandingPagePage() {
                   size="sm"
                   icon={<RotateCcw className="size-3.5" />}
                   onClick={() => {
-                    setCountdown(null);
                     setAnalyzeJobId(null);
                     setStage('url');
                   }}
@@ -522,11 +274,8 @@ export function NewLandingPagePage() {
     const failed = j?.status === 'error' || !!generate.networkError;
     return (
       <div className="mx-auto max-w-xl pt-4 lg:pt-10">
-        {batchBar}
-        <h1 className="text-2xl font-semibold tracking-tight">{rest !== null ? 'Landing Page gerada' : 'Gerando Landing Page'}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Gerando Landing Page</h1>
         <p className="mt-1 text-sm text-zinc-500">{draft.trade_name || draft.name}</p>
-        {/* Contagem para a próxima empresa logo abaixo do título (embaixo das 9 etapas ficava fora da tela) */}
-        {restBox}
         <Card className="mt-6 p-5 sm:p-6">
           <ProgressSteps current={Math.max(j?.step ?? 7, 7)} range={[1, 9]} failed={failed} done={j?.status === 'done'} />
           {!failed && j?.status !== 'done' ? (
@@ -579,7 +328,6 @@ export function NewLandingPagePage() {
 
   return (
     <div>
-      {batchBar}
       <div className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Revise as informações</h1>
         <p className="mt-1 text-sm text-zinc-500">Corrija o que for necessário. A Landing Page será gerada exatamente a partir destes dados.</p>
@@ -648,28 +396,15 @@ export function NewLandingPagePage() {
         </Card>
       )}
 
-      <CompanyForm value={draft} onChange={changeDraft} />
+      <CompanyForm value={draft} onChange={setDraft} />
 
       {/* Barra presa ao rodapé, na mesma largura das informações da empresa */}
       <div className="sticky bottom-0 z-20 -mb-6 mt-4 rounded-t-xl border border-b-0 border-zinc-200 bg-white/90 backdrop-blur lg:-mb-8">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setCountdown(null);
-              setStage('url');
-            }}
-            disabled={saving}
-          >
+          <Button variant="ghost" onClick={() => setStage('url')} disabled={saving}>
             Voltar
           </Button>
           <div className="flex flex-wrap items-center justify-end gap-3">
-            {/* Lote: confirma sozinho ao fim da contagem; "Alterar" para a contagem para editar com calma */}
-            {batch && countdown !== null ? (
-              <Button variant="secondary" size="lg" onClick={() => setCountdown(null)} disabled={saving} icon={<PencilLine className="size-4" />}>
-                ALTERAR
-              </Button>
-            ) : null}
             <Button
               variant="brand"
               size="lg"
@@ -678,11 +413,7 @@ export function NewLandingPagePage() {
               onClick={confirmAndGenerate}
               icon={<Sparkles className="size-4" />}
             >
-              {/* Contagem do lote: a barra enche o botão até confirmar sozinho */}
-              {batch && countdown !== null ? (
-                <span aria-hidden className="fill-bar absolute inset-y-0 left-0 -z-10 bg-white/30" style={{ animationDuration: `${BATCH_WAIT}s` }} />
-              ) : null}
-              {batch ? `CONFIRMAR${countdown !== null ? ` (${countdown}s)` : ''}` : 'CONFIRMAR E GERAR LANDING PAGE'}
+              CONFIRMAR E GERAR LANDING PAGE
             </Button>
           </div>
         </div>

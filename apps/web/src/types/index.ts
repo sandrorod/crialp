@@ -665,6 +665,27 @@ export interface PlaceListing {
   google_url?: string | null;
 }
 
+/** Lote de LPs gerado no servidor (empresas selecionadas em "Buscar empresas"). */
+export interface LpBatchView {
+  id: string;
+  status: 'running' | 'paused' | 'canceled' | 'done';
+  /** wait = esperando o intervalo para começar a empresa `index`; analyze / generate = em andamento */
+  stage: 'wait' | 'analyze' | 'generate';
+  index: number;
+  ok: number;
+  fotos: boolean;
+  gap: number;
+  items: { url: string; name: string }[];
+  results: { status: 'ok' | 'error' | 'skipped'; error?: string; companyId?: string; landingPageId?: string }[];
+  job_id: string | null;
+  /** Quando a próxima empresa começa (só esperando o intervalo) */
+  next_at: string | null;
+  /** Segundos que faltavam do intervalo quando pausou */
+  paused_left: number | null;
+  /** Hora do servidor, para a contagem não depender do relógio do computador */
+  now: string;
+}
+
 /** Pesquisa salva no histórico de "Buscar empresas". */
 export interface SavedSearchItem {
   id: string;

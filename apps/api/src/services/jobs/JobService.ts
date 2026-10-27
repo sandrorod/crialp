@@ -58,8 +58,11 @@ export class JobService {
     return one<JobRow>('select * from jobs where id = $1 and organization_id = $2', [id, orgId]);
   }
 
-  /** Inicia a execução em segundo plano; a interface acompanha via GET /api/jobs/:id. */
-  run(id: string, fn: (job: JobHandle) => Promise<unknown>) {
+  /**
+   * Inicia a execução em segundo plano; a interface acompanha via GET /api/jobs/:id.
+   * `onSettled`: chamado depois de gravado o resultado (concluído, erro ou interrompido), ex.: lote de LPs.
+   */
+  run(id: string, fn: (job: JobHandle) => Promise<unknown>, onSettled?: () => void | Promise<void>) {
     const handle: JobHandle = {
       id,
       // Cada etapa confere se o usuário interrompeu; se sim, a tarefa para aqui
@@ -91,7 +94,13 @@ export class JobService {
         await query(MARK_LP_ERROR('select id, type, input, error from jobs where id = $1'), [id]).catch(() => {});
         await this.urlOutcome(id, message);
       }
-    })();
+    })().then(async () => {
+      try {
+        await onSettled?.();
+      } catch (err) {
+        console.error(`[job ${id}] onSettled`, err);
+      }
+    });
     // No Vercel a função continua viva até a tarefa terminar (e o envio do erro/trace), mesmo após a resposta
     if (env.isVercel) waitUntil(task.then(() => flushObservability()));
   }
