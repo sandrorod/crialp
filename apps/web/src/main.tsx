@@ -4,7 +4,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router';
 import { Toaster } from 'sonner';
 import { AuthProvider } from '@/hooks/useAuth';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { LoginPage } from '@/pages/LoginPage';
+import { LoginPage, LoginRedirect } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { CompaniesPage } from '@/pages/CompaniesPage';
 import { CompanyEditPage } from '@/pages/CompanyEditPage';
@@ -27,41 +27,46 @@ import { CrmTasksPage } from '@/pages/crm/CrmTasksPage';
 import { CrmConnectionPage } from '@/pages/crm/CrmConnectionPage';
 import './index.css';
 
-const router = createBrowserRouter(
-  [
-    { path: '/login', element: <LoginPage /> },
-    {
-      element: <AdminLayout />,
-      children: [
-        { path: '/', element: <DashboardPage /> },
-        { path: '/empresas', element: <CompaniesPage /> },
-        { path: '/empresas/:id', element: <CompanyEditPage /> },
-        { path: '/landing-pages', element: <LandingPagesPage /> },
-        { path: '/landing-pages/:id', element: <LandingPageEditorPage /> },
-        { path: '/nova', element: <NewLandingPagePage /> },
-        { path: '/buscar', element: <SearchCompaniesPage /> },
-        { path: '/configuracoes', element: <SettingsPage /> },
-        { path: '/vendas', element: <SalesPage /> },
-        { path: '/subusuarios', element: <UsersPage /> },
-        { path: '/niveis-cliente', element: <ClientLevelsPage /> },
-        { path: '/meus-sites', element: <MySitesPage /> },
+// O login fica em /lps; o resto do painel continua em /admin
+const onLogin = /^\/lps\/?$/.test(window.location.pathname);
+
+const router = onLogin
+  ? createBrowserRouter([{ path: '*', element: <LoginPage /> }], { basename: '/lps' })
+  : createBrowserRouter(
+      [
+        { path: '/login', element: <LoginRedirect /> },
         {
-          path: '/crm',
-          element: <CrmLayout />,
+          element: <AdminLayout />,
           children: [
-            { index: true, element: <CrmCompaniesPage /> },
-            { path: 'empresas/:id', element: <CrmCompanyPage /> },
-            { path: 'whatsapp', element: <CrmWhatsAppPage /> },
-            { path: 'funil', element: <CrmPipelinePage /> },
-            { path: 'tarefas', element: <CrmTasksPage /> },
-            { path: 'conexao', element: <CrmConnectionPage /> },
+            { path: '/', element: <DashboardPage /> },
+            { path: '/empresas', element: <CompaniesPage /> },
+            { path: '/empresas/:id', element: <CompanyEditPage /> },
+            { path: '/landing-pages', element: <LandingPagesPage /> },
+            { path: '/landing-pages/:id', element: <LandingPageEditorPage /> },
+            { path: '/nova', element: <NewLandingPagePage /> },
+            { path: '/buscar', element: <SearchCompaniesPage /> },
+            { path: '/configuracoes', element: <SettingsPage /> },
+            { path: '/vendas', element: <SalesPage /> },
+            { path: '/subusuarios', element: <UsersPage /> },
+            { path: '/niveis-cliente', element: <ClientLevelsPage /> },
+            { path: '/meus-sites', element: <MySitesPage /> },
+            {
+              path: '/crm',
+              element: <CrmLayout />,
+              children: [
+                { index: true, element: <CrmCompaniesPage /> },
+                { path: 'empresas/:id', element: <CrmCompanyPage /> },
+                { path: 'whatsapp', element: <CrmWhatsAppPage /> },
+                { path: 'funil', element: <CrmPipelinePage /> },
+                { path: 'tarefas', element: <CrmTasksPage /> },
+                { path: 'conexao', element: <CrmConnectionPage /> },
+              ],
+            },
           ],
         },
       ],
-    },
-  ],
-  { basename: '/admin' },
-);
+      { basename: '/admin' },
+    );
 
 initMonitoring();
 

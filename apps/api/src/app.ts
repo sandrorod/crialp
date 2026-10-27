@@ -19,6 +19,7 @@ import { usersRouter } from './routes/users.js';
 import { clientLevelsRouter } from './routes/clientLevels.js';
 import { colorPalettesRouter } from './routes/colorPalettes.js';
 import { customDomainMiddleware, publicRouter } from './routes/public.js';
+import { sendHomePage } from './landing/homePage.js';
 import { readDbUpload } from './services/storage/StorageService.js';
 import { monitoringRouter } from './routes/monitoring.js';
 
@@ -101,13 +102,11 @@ export function createApp() {
     app.use(securityHeaders({ csp: ADMIN_CSP }));
     app.use('/admin', express.static(env.webDistDir, { index: false, maxAge: '1h' }));
     app.get(/^\/admin(\/.*)?$/, (_req, res) => res.sendFile(webIndex));
-    app.get('/', (_req, res) => res.redirect('/admin'));
-  } else if (process.env.VERCEL) {
-    // No Vercel o painel é servido como estático em /admin
-    app.get('/', (_req, res) => res.redirect('/admin'));
-  } else {
-    app.get('/', (_req, res) => res.type('text').send('API LP em execução. Painel: rode "npm run dev:web" e acesse http://localhost:5173/admin'));
+    // Login do painel em /lps (mesma página do painel)
+    app.get(/^\/lps\/?$/, (_req, res) => res.sendFile(webIndex));
   }
+  // Página inicial do domínio do sistema (o login fica em /lps)
+  app.get('/', (_req, res) => sendHomePage(res));
 
   app.use(errorHandler);
   return app;

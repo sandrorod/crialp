@@ -5,13 +5,18 @@ import { defineConfig, type Plugin } from 'vite';
 
 const api = process.env.API_URL ?? 'http://localhost:3333';
 
-/** Em dev, "/" e "/admin" (sem barra) levam direto ao painel. */
+/** Em dev, "/" e "/admin" (sem barra) levam direto ao painel; "/lps" abre o login. */
 function adminRedirect(): Plugin {
   return {
     name: 'admin-redirect',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const url = req.url ?? '/';
+        // Login em /lps: a mesma página do painel, servida sem mudar o endereço
+        if (url === '/lps' || url === '/lps/' || url.startsWith('/lps?')) {
+          req.url = `/admin/${url.includes('?') ? url.slice(url.indexOf('?')) : ''}`;
+          return next();
+        }
         if (url === '/' || url === '/admin' || url.startsWith('/admin?')) {
           res.statusCode = 302;
           res.setHeader('Location', '/admin/' + (url.includes('?') ? url.slice(url.indexOf('?')) : ''));

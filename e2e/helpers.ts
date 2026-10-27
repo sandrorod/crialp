@@ -7,11 +7,11 @@ export const PASSWORD = 'senha-de-teste-123';
 export const SESSION = { dono: 'e2e/.auth/dono.json', cliente: 'e2e/.auth/cliente.json' };
 
 export async function login(page: Page, email: string) {
-  await page.goto('/admin/login');
+  await page.goto('/lps');
   await page.getByLabel('E-mail').fill(email);
   await page.getByLabel('Senha').fill(PASSWORD);
   await page.getByRole('button', { name: 'Entrar' }).click();
-  await expect(page).not.toHaveURL(/\/login/);
+  await expect(page).not.toHaveURL(/\/lps/);
 }
 
 /** Em telas estreitas o menu (com "Sair") fica recolhido atrás do botão "Abrir menu". */

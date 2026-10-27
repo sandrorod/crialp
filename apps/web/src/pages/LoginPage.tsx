@@ -1,21 +1,40 @@
-import { useState, type FormEvent } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router';
+import { useEffect, useState, type FormEvent } from 'react';
+import { useLocation } from 'react-router';
 import { ArrowRight } from 'lucide-react';
 import { Button, Field, Input } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { homeFor } from '@/components/layout/AdminLayout';
 import { errorMessage } from '@/lib/api';
 
+/** Página do painel para onde voltar depois do login (?from=/empresas), só caminhos internos. */
+function returnPath() {
+  const from = new URLSearchParams(window.location.search).get('from');
+  return from?.startsWith('/') && !from.startsWith('//') ? from : null;
+}
+
+/** O login fica em /lps (fora de /admin): entrando, segue para o painel em /admin. */
+const toPanel = (path: string) => window.location.replace(`/admin${path}`);
+
+/** Rota /admin/login antiga e acesso ao painel sem sessão: vão para o login em /lps, lembrando a página. */
+export function LoginRedirect() {
+  const from = (useLocation().state as { from?: string } | null)?.from;
+  useEffect(() => {
+    window.location.replace(from && from !== '/' ? `/lps?from=${encodeURIComponent(from)}` : '/lps');
+  }, [from]);
+  return null;
+}
+
 export function LoginPage() {
   const { user, login } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  if (user) return <Navigate to={homeFor(user)} replace />;
+  useEffect(() => {
+    if (user) toPanel(returnPath() ?? homeFor(user));
+  }, [user]);
+  if (user) return null;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -23,7 +42,7 @@ export function LoginPage() {
     setLoading(true);
     try {
       const u = await login(email, password);
-      navigate((location.state as { from?: string } | null)?.from ?? homeFor(u), { replace: true });
+      toPanel(returnPath() ?? homeFor(u));
     } catch (err) {
       setError(errorMessage(err));
     } finally {

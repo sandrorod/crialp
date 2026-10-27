@@ -75,7 +75,7 @@ fs.writeFileSync(
       routes: [
         // Painel estático: mesmos cabeçalhos de segurança que o servidor envia, com a CSP do painel
         {
-          src: '^/admin(?:/.*)?$',
+          src: '^/(?:admin(?:/.*)?|lps/?)$',
           headers: {
             'Content-Security-Policy': adminCsp,
             'X-Content-Type-Options': 'nosniff',
@@ -88,6 +88,8 @@ fs.writeFileSync(
         },
         { handle: 'filesystem' },
         { src: '^/admin(?:/.*)?$', dest: '/admin/index.html' },
+        // Login do painel em /lps (mesma página do painel)
+        { src: '^/lps/?$', dest: '/admin/index.html' },
         { src: '^/(.*)$', dest: '/_app?__lp_path=$1' },
       ],
     },
