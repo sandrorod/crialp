@@ -26,7 +26,7 @@ export function Header({ ctx, nav }: { ctx: RenderContext; nav: { href: string; 
             </a>
           ))}
         </nav>
-        <CtaButton ctx={ctx} label={cta} path="labels.header_cta" className="btn btn-primary btn-sm header-cta" icon={false} />
+        <CtaButton ctx={ctx} label={cta} path="labels.header_cta" className="btn btn-primary btn-sm header-cta" icon={false} toContact />
         <details className="menu">
           <summary aria-label="Abrir menu">
             <Icon name="menu" />
@@ -37,7 +37,7 @@ export function Header({ ctx, nav }: { ctx: RenderContext; nav: { href: string; 
                 {n.label}
               </a>
             ))}
-            <CtaButton ctx={ctx} label={cta} path="labels.header_cta" className="btn btn-primary btn-sm" icon={false} />
+            <CtaButton ctx={ctx} label={cta} path="labels.header_cta" className="btn btn-primary btn-sm" icon={false} toContact />
           </div>
         </details>
       </div>
