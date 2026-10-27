@@ -4,8 +4,8 @@ import { query } from '../src/db/pool.js';
 import { client, closeDb, resetDb, seed, startServer } from './helpers.js';
 
 /**
- * Vendedor vê toda empresa com o campo Prospecção preenchido (qualquer valor), atribuída a ele ou não;
- * vazio ou null = nenhum vendedor vê. Vale no CRM e em Vendas.
+ * Vendedor vê só as empresas atribuídas a ele (Landing Page com ele de vendedor) e com Prospecção = Sim;
+ * fora disso (outro vendedor, sem atribuição, vazio, "não"), não vê. Vale no CRM e em Vendas.
  */
 let close: () => Promise<unknown>;
 let base: string;
@@ -41,22 +41,31 @@ describe('Acesso do vendedor pelo campo Prospecção', () => {
     assert.equal(r.crmDetail, 404);
   });
 
-  it('só a gerência marca; com "Sim" o vendedor vê mesmo sem a empresa atribuída a ele', async () => {
+  it('só a gerência marca; com "Sim" mas sem a empresa atribuída a ele, o vendedor não vê', async () => {
     const v = client(base);
     await v.login('vendedor-a@teste.dev');
     assert.equal((await v.call('PATCH', `/api/companies/${s.a1.companyId}/prospeccao`, { prospecting: true })).status, 403);
     assert.equal((await dono.call('PATCH', `/api/companies/${s.a1.companyId}/prospeccao`, { prospecting: true })).status, 200);
+    const r = await sellerSees();
+    assert.deepEqual(r.crm, []);
+    assert.deepEqual(r.sales, []);
+    assert.equal(r.crmDetail, 404);
+  });
+
+  it('atribuída a ele e com "Sim": o vendedor vê (no CRM e em Vendas)', async () => {
+    await query('update landing_pages set seller_id = $1 where company_id = any($2)', [s.sellerA, [s.a1.companyId, s.a2.companyId]]);
     const r = await sellerSees();
     assert.deepEqual(r.crm, [s.a1.companyId]);
     assert.deepEqual(r.sales, [s.a1.companyId]);
     assert.equal(r.crmDetail, 200);
   });
 
-  it('qualquer valor preenchido no banco libera (não só "sim")', async () => {
+  it('só "sim" libera: outro valor preenchido no banco não', async () => {
     await query(`update companies set prospeccao = 'em andamento' where id = $1`, [s.a2.companyId]);
-    assert.deepEqual((await sellerSees()).crm, [s.a1.companyId, s.a2.companyId].sort());
-    await query(`update companies set prospeccao = '   ' where id = $1`, [s.a2.companyId]);
     assert.deepEqual((await sellerSees()).crm, [s.a1.companyId]);
+    await query(`update companies set prospeccao = 'Sim' where id = $1`, [s.a2.companyId]);
+    assert.deepEqual((await sellerSees()).crm, [s.a1.companyId, s.a2.companyId].sort());
+    await query(`update companies set prospeccao = null where id = $1`, [s.a2.companyId]);
   });
 
   it('"Não" grava "não" e esconde a empresa; a lista da gerência mostra o campo', async () => {

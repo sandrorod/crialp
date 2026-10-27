@@ -4,11 +4,10 @@ import type { CompanyInput } from '../lib/validation.js';
 import { dropNullText } from '../lib/nullText.js';
 
 /**
- * Empresa em prospecção: campo "prospeccao" preenchido com qualquer valor que não signifique "não"
- * (vazio, null ou "não" = fora). Só essas aparecem para os vendedores. `alias`: tabela companies na consulta.
+ * Empresa em prospecção: campo "prospeccao" igual a "sim" (vazio, null, "não" ou outro valor = fora).
+ * Só essas aparecem para os vendedores (e só as atribuídas a eles). `alias`: tabela companies na consulta.
  */
-export const inProspecting = (alias: string) =>
-  `(trim(coalesce(${alias}.prospeccao, '')) <> '' and lower(trim(${alias}.prospeccao)) not in ('nao', 'não', 'false', 'n', 'no', '0'))`;
+export const inProspecting = (alias: string) => `(lower(trim(coalesce(${alias}.prospeccao, ''))) = 'sim')`;
 
 /** Prospecção na tela: true (sim), false (não) ou null (campo vazio). `alias`: tabela companies na consulta. */
 export const prospectingState = (alias: string) => `case when trim(coalesce(${alias}.prospeccao, '')) = '' then null else ${inProspecting(alias)} end`;
@@ -269,7 +268,8 @@ export interface CompanyFilters {
   /** "pronta": Landing Page marcada como pronta no editor */
   status?: 'ativa' | 'inativa' | 'sem_lp' | 'erro' | 'pronta';
   /** Visão do vendedor: só as empresas em prospecção (campo preenchido) */
-  sellerView?: boolean;
+  /** Vendedor: só as empresas atribuídas a ele e com Prospecção = Sim */
+  sellerId?: string | null;
 }
 
 export async function listCompanies(orgId: string, f: CompanyFilters) {
@@ -287,7 +287,10 @@ export async function listCompanies(orgId: string, f: CompanyFilters) {
     params.push(f.city.toLowerCase());
     where.push(`lower(c.city) = $${params.length}`);
   }
-  if (f.sellerView) where.push(inProspecting('c'));
+  if (f.sellerId) {
+    params.push(f.sellerId);
+    where.push(`${inProspecting('c')} and exists (select 1 from landing_pages ls where ls.company_id = c.id and ls.seller_id = $${params.length})`);
+  }
   if (f.status === 'sem_lp') where.push('lp.id is null');
   else if (f.status === 'erro') where.push('lp.id is null and c.lp_error is not null');
   else if (f.status === 'pronta') where.push(`lp.edit_status = 'pronta'`);

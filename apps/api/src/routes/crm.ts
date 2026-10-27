@@ -42,11 +42,12 @@ const isManager = (u: AuthUser) => MANAGER_ROLES.includes(u.role);
 /** Id do vendedor para filtrar, ou null para a gerência (sem filtro). */
 const sellerScope = (u: AuthUser) => (isManager(u) ? null : u.id);
 /**
- * Empresa `alias` visível ao vendedor do parâmetro `p` (null = gerência, todas): qualquer vendedor vê as
- * empresas com o campo Prospecção preenchido (não depende de a Landing Page estar atribuída a ele).
+ * Empresa `alias` visível ao vendedor do parâmetro `p` (null = gerência, todas): só as empresas atribuídas
+ * a ele (Landing Page com ele de vendedor) e com o campo Prospecção = Sim.
  */
 const visible = (alias: string, p: string) =>
-  `(${p}::uuid is null or exists (select 1 from companies cpv where cpv.id = ${alias} and ${inProspecting('cpv')}))`;
+  `(${p}::uuid is null or exists (select 1 from companies cpv where cpv.id = ${alias} and ${inProspecting('cpv')}
+     and exists (select 1 from landing_pages lpv where lpv.company_id = cpv.id and lpv.seller_id = ${p}::uuid)))`;
 /** Filtro da gerência por vendedor (Funil): empresas cuja Landing Page está atribuída a ele (null = sem filtro). */
 const assignedTo = (alias: string, p: string) =>
   `(${p}::uuid is null or exists (select 1 from landing_pages lpa where lpa.company_id = ${alias} and lpa.seller_id = ${p}))`;
