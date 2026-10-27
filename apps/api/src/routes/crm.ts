@@ -932,6 +932,14 @@ crmRouter.post('/conversations/:id/read', async (req, res) => {
   res.json({ ok: true });
 });
 
+/** "Marcar como não lida" (botão direito na lista de conversas): volta a aparecer como não lida, só no CRM. */
+crmRouter.post('/conversations/:id/unread', async (req, res) => {
+  const user = authUser(req);
+  const conv = await ensureConversation(user, uuidParam.parse(req.params.id));
+  await query('update lp_crm_conversations set unread = greatest(unread, 1) where id = $1', [conv.id]);
+  res.json({ ok: true });
+});
+
 // Apagar mensagem: "para mim" some do CRM; "para todos" apaga também no WhatsApp do cliente
 crmRouter.delete('/messages/:id', async (req, res) => {
   const user = authUser(req);

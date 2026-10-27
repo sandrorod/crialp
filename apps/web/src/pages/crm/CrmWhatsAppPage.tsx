@@ -11,6 +11,7 @@ import {
   Check,
   CheckCheck,
   Clock,
+  Mail,
   MessageCircle,
   MessageSquarePlus,
   FileText,
@@ -99,6 +100,36 @@ export function CrmWhatsAppPage() {
   );
 
   const selectedId = params.get('id');
+  // Botão direito (ou tocar e segurar no celular) numa conversa da lista: menu com "Marcar como não lida"
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const press = useRef<{ timer: ReturnType<typeof setTimeout> | null; opened: boolean }>({ timer: null, opened: false });
+  const openMenu = (id: string, x: number, y: number) => setMenu({ id, x: Math.min(x, window.innerWidth - 220), y: Math.min(y, window.innerHeight - 60) });
+  const markUnread = async (id: string) => {
+    setMenu(null);
+    // Aberta: fecha antes, senão a conversa aberta marcaria como lida de novo
+    if (id === selectedId) setParams({});
+    try {
+      await crmService.markUnread(id);
+      setData((list) => list?.map((c) => (c.id === id ? { ...c, unread: Math.max(c.unread, 1) } : c)) ?? list);
+      refreshUnread();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  };
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    // pointerdown (e não click): soltar o dedo depois de segurar não fecha o menu que acabou de abrir
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('pointerdown', close);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [menu]);
   const contactParam = params.get('contato');
   const companyParam = params.get('empresa');
   const numberParam = params.get('numero');
@@ -195,9 +226,30 @@ export function CrmWhatsAppPage() {
             <li key={c.id}>
               <button
                 type="button"
-                onClick={() => setParams({ id: c.id })}
+                onClick={() => {
+                  // Tocar e segurar abriu o menu: o toque não abre a conversa
+                  if (press.current.opened) {
+                    press.current.opened = false;
+                    return;
+                  }
+                  setParams({ id: c.id });
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  openMenu(c.id, e.clientX, e.clientY);
+                }}
+                onTouchStart={(e) => {
+                  const t = e.touches[0];
+                  press.current.opened = false;
+                  press.current.timer = setTimeout(() => {
+                    press.current.opened = true;
+                    openMenu(c.id, t.clientX, t.clientY);
+                  }, 500);
+                }}
+                onTouchMove={() => press.current.timer && clearTimeout(press.current.timer)}
+                onTouchEnd={() => press.current.timer && clearTimeout(press.current.timer)}
                 className={cn(
-                  'flex w-full items-start gap-3 border-b border-l-4 border-b-zinc-50 px-4 py-3 pl-3 text-left transition-colors',
+                  'flex w-full select-none items-start gap-3 border-b border-l-4 border-b-zinc-50 px-4 py-3 pl-3 text-left transition-colors',
                   // Aberta: azul claro; mensagem não lida: cartão destacado na cor do WhatsApp
                   c.id === selectedId
                     ? 'border-l-sky-500 bg-sky-50'
@@ -240,6 +292,23 @@ export function CrmWhatsAppPage() {
             </li>
           ))}
         </ul>
+        {menu ? (
+          <div
+            role="menu"
+            className="fixed z-50 min-w-48 rounded-lg border border-zinc-200 bg-white py-1 text-sm shadow-lg"
+            style={{ left: menu.x, top: menu.y }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => void markUnread(menu.id)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-ink hover:bg-zinc-50"
+            >
+              <Mail className="size-4 text-zinc-500" /> Marcar como não lida
+            </button>
+          </div>
+        ) : null}
       </aside>
 
       <section className={cn('crm-chat-bg relative min-w-0 flex-1 flex-col', open ? 'flex' : 'hidden md:flex')}>
