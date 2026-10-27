@@ -531,6 +531,9 @@ async function ensureWebhookEvents(orgId: string, cfg: NonNullable<Awaited<Retur
     const events: string[] = (current?.events ?? current?.webhook?.events ?? []).map((e: string) => String(e).toUpperCase());
     if (!current?.enabled && !current?.webhook?.enabled) return; // sem webhook ativo: quem liga é o "Conectar"
     if (!canSetWebhook(cfg)) return; // rodando no computador: não troca o endereço do sistema publicado
+    // Webhook apontando para outro sistema (ex.: um fluxo do n8n): não troca o endereço de fora
+    const url = String(current?.url ?? current?.webhook?.url ?? '');
+    if (!url.startsWith(`${env.appUrl}/api/crm-webhook/`)) return;
     if (CRM_WEBHOOK_EVENTS.every((e) => events.includes(e))) return;
     await evolution(cfg, 'POST', `/webhook/set/${cfg.instance}`, {
       webhook: { enabled: true, url: webhookUrl(orgId), byEvents: false, base64: false, events: CRM_WEBHOOK_EVENTS },
