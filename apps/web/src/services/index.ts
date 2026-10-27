@@ -105,7 +105,8 @@ export const companyService = {
   update: (id: string, draft: CompanyDraft) => api.put<Company>(`/companies/${id}`, draft),
   remove: (id: string) => api.del(`/companies/${id}`),
   /** Prospecção sim/não (só a gerência): com "sim" o vendedor da Landing Page passa a acessar a empresa */
-  setProspecting: (id: string, prospecting: boolean) => api.patch<{ ok: true; prospecting: boolean }>(`/companies/${id}/prospeccao`, { prospecting }),
+  setProspecting: (id: string, prospecting: boolean | null) =>
+    api.patch<{ ok: true; prospecting: boolean | null }>(`/companies/${id}/prospeccao`, { prospecting }),
   sources: (id: string) => api.get<CompanySources>(`/companies/${id}/sources`),
   refreshSources: (id: string) => api.post<CompanySources>(`/companies/${id}/sources/refresh`),
   /** Fotos adicionadas pelo editor da LP (entram liberadas para uso). */

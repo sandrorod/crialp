@@ -67,11 +67,14 @@ function SourceCard({ meta }: { meta: AnalysisMeta }) {
   );
 }
 
-// Qualquer valor preenchido conta como "em prospecção" (vazio ou null = não)
-const isProspecting = (v: string | null | undefined) => !!(v ?? '').trim();
+// Prospecção na tela: vazio = nenhuma opção marcada; "não" (e equivalentes) = Não; qualquer outro valor = Sim
+const prospectingOf = (v: string | null | undefined): boolean | null => {
+  const t = (v ?? '').trim().toLowerCase();
+  return t ? !['nao', 'não', 'false', 'n', 'no', '0'].includes(t) : null;
+};
 
 /** Prospecção sim/não: grava na hora (fica fora do "Salvar empresa"). Com "Sim" os vendedores veem a empresa. */
-function ProspectingCard({ companyId, initial }: { companyId: string; initial: boolean }) {
+function ProspectingCard({ companyId, initial }: { companyId: string; initial: boolean | null }) {
   const [value, setValue] = useState(initial);
   const [saving, setSaving] = useState(false);
   const choose = async (next: boolean) => {
@@ -94,7 +97,7 @@ function ProspectingCard({ companyId, initial }: { companyId: string; initial: b
       <Target className="size-5 flex-none text-zinc-400" />
       <div className="min-w-0 flex-1">
         <div className="text-sm font-semibold text-ink">Prospecção</div>
-        <p className="text-xs text-zinc-500">Com “Sim” todos os vendedores veem esta empresa no CRM e em Vendas. “Não” deixa o campo vazio.</p>
+        <p className="text-xs text-zinc-500">Com “Sim” todos os vendedores veem esta empresa no CRM e em Vendas. Com “Não” ou em branco, não veem.</p>
       </div>
       <div className="flex rounded-lg bg-zinc-100 p-0.5" role="radiogroup" aria-label="Prospecção">
         {[
@@ -235,7 +238,7 @@ export function CompanyEditPage() {
         }
       />
 
-      {user?.role === 'owner' || user?.role === 'admin' ? <ProspectingCard companyId={id} initial={isProspecting(company.prospeccao)} /> : null}
+      {user?.role === 'owner' || user?.role === 'admin' ? <ProspectingCard companyId={id} initial={prospectingOf(company.prospeccao)} /> : null}
 
       {generating ? (
         <Card className="mb-4 p-5">

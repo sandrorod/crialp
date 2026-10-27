@@ -21,7 +21,8 @@ export interface CrmCompanyItem {
   email: string | null;
   seller_names: string | null;
   /** Prospecção preenchida: os vendedores veem a empresa */
-  prospecting: boolean;
+  /** true = sim, false = não, null = campo vazio */
+  prospecting: boolean | null;
   contacts: number;
   open_deals: number;
   open_value: number;

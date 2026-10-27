@@ -162,7 +162,11 @@ export function CrmCompaniesPage() {
                           }
                           className="rounded-full disabled:opacity-50"
                         >
-                          <Pill tone={c.prospecting ? 'emerald' : 'zinc'}>{c.prospecting ? 'Sim' : 'Não'}</Pill>
+                          {c.prospecting === null ? (
+                            <span className="px-2 text-zinc-400">—</span>
+                          ) : (
+                            <Pill tone={c.prospecting ? 'emerald' : 'zinc'}>{c.prospecting ? 'Sim' : 'Não'}</Pill>
+                          )}
                         </button>
                       </td>
                     ) : null}

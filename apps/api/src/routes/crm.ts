@@ -5,7 +5,7 @@ import { one, query } from '../db/pool.js';
 import { AppError, badRequest, notFound } from '../lib/errors.js';
 import { longText, parseBody, text, uuidParam } from '../lib/validation.js';
 import { authUser, MANAGER_ROLES, requireRole, type AuthUser } from '../middleware/auth.js';
-import { inProspecting } from '../repositories/companies.js';
+import { inProspecting, prospectingState } from '../repositories/companies.js';
 import { env } from '../config/env.js';
 import { aiKeyStore } from '../services/ai/keyStore.js';
 import { gifToSticker } from '../services/crm/gifSticker.js';
@@ -171,7 +171,7 @@ crmRouter.get('/companies', async (req, res) => {
   }
   const { rows } = await query(
     `select c.id, coalesce(c.trade_name, c.name) as name, c.segment, c.city, c.state, c.whatsapp, c.mobile, c.phone, c.email,
-            ${inProspecting('c')} as prospecting,
+            ${prospectingState('c')} as prospecting,
             (select string_agg(distinct s.name, ', ') from landing_pages l join users s on s.id = l.seller_id where l.company_id = c.id) as seller_names,
             (select count(*)::int from lp_crm_contacts ct where ct.company_id = c.id) as contacts,
             (select count(*)::int from lp_crm_deals d join lp_crm_stages st on st.id = d.stage_id where d.company_id = c.id and st.kind = 'open') as open_deals,

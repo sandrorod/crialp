@@ -117,7 +117,7 @@ companiesRouter.post('/', async (req, res) => {
 // Prospecção (sim/não): só empresas com "sim" ficam com o vendedor da Landing Page (gerência marca)
 companiesRouter.patch('/:id/prospeccao', requireRole(...MANAGER_ROLES), async (req, res) => {
   const user = authUser(req);
-  const { prospecting } = parseBody(z.object({ prospecting: z.boolean() }), req.body);
+  const { prospecting } = parseBody(z.object({ prospecting: z.boolean().nullable() }), req.body);
   if (!(await setProspecting(user.organizationId, uuidParam.parse(req.params.id), prospecting))) throw notFound('Empresa não encontrada.');
   res.json({ ok: true, prospecting });
 });

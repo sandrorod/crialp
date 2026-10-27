@@ -4,17 +4,25 @@ import type { CompanyInput } from '../lib/validation.js';
 import { dropNullText } from '../lib/nullText.js';
 
 /**
- * Empresa em prospecção: campo "prospeccao" preenchido (qualquer valor; vazio ou null = não).
- * Só essas aparecem para os vendedores. `alias`: tabela companies na consulta.
+ * Empresa em prospecção: campo "prospeccao" preenchido com qualquer valor que não signifique "não"
+ * (vazio, null ou "não" = fora). Só essas aparecem para os vendedores. `alias`: tabela companies na consulta.
  */
-export const inProspecting = (alias: string) => `trim(coalesce(${alias}.prospeccao, '')) <> ''`;
+export const inProspecting = (alias: string) =>
+  `(trim(coalesce(${alias}.prospeccao, '')) <> '' and lower(trim(${alias}.prospeccao)) not in ('nao', 'não', 'false', 'n', 'no', '0'))`;
+
+/** Prospecção na tela: true (sim), false (não) ou null (campo vazio). `alias`: tabela companies na consulta. */
+export const prospectingState = (alias: string) => `case when trim(coalesce(${alias}.prospeccao, '')) = '' then null else ${inProspecting(alias)} end`;
 
 /**
- * Marca/desmarca a prospecção da empresa (fica fora do formulário geral, para nenhum outro cadastro apagar o valor).
- * Desmarcar deixa o campo vazio (qualquer valor preenchido conta como "em prospecção").
+ * Marca a prospecção da empresa (fica fora do formulário geral, para nenhum outro cadastro apagar o valor):
+ * true grava "sim", false grava "não" e null deixa o campo vazio.
  */
-export async function setProspecting(orgId: string, id: string, value: boolean) {
-  const res = await query('update companies set prospeccao = $3 where id = $1 and organization_id = $2', [id, orgId, value ? 'sim' : null]);
+export async function setProspecting(orgId: string, id: string, value: boolean | null) {
+  const res = await query('update companies set prospeccao = $3 where id = $1 and organization_id = $2', [
+    id,
+    orgId,
+    value === null ? null : value ? 'sim' : 'não',
+  ]);
   return (res.rowCount ?? 0) > 0;
 }
 

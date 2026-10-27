@@ -59,12 +59,21 @@ describe('Acesso do vendedor pelo campo Prospecção', () => {
     assert.deepEqual((await sellerSees()).crm, [s.a1.companyId]);
   });
 
-  it('"Não" deixa o campo vazio e esconde a empresa; a lista da gerência mostra o campo', async () => {
+  it('"Não" grava "não" e esconde a empresa; a lista da gerência mostra o campo', async () => {
     await dono.call('PATCH', `/api/companies/${s.a1.companyId}/prospeccao`, { prospecting: false });
+    const row = (await query<{ prospeccao: string | null }>('select prospeccao from companies where id = $1', [s.a1.companyId])).rows[0];
+    assert.equal(row.prospeccao, 'não');
+    assert.deepEqual((await sellerSees()).crm, []);
+    const list = (await (await dono.call('GET', '/api/crm/companies')).json()) as { id: string; prospecting: boolean | null }[];
+    assert.equal(list.find((c) => c.id === s.a1.companyId)?.prospecting, false);
+  });
+
+  it('campo vazio esconde a empresa e aparece como vazio (null) na lista da gerência', async () => {
+    await dono.call('PATCH', `/api/companies/${s.a1.companyId}/prospeccao`, { prospecting: null });
     const row = (await query<{ prospeccao: string | null }>('select prospeccao from companies where id = $1', [s.a1.companyId])).rows[0];
     assert.equal(row.prospeccao, null);
     assert.deepEqual((await sellerSees()).crm, []);
-    const list = (await (await dono.call('GET', '/api/crm/companies')).json()) as { id: string; prospecting: boolean }[];
-    assert.equal(list.find((c) => c.id === s.a1.companyId)?.prospecting, false);
+    const list = (await (await dono.call('GET', '/api/crm/companies')).json()) as { id: string; prospecting: boolean | null }[];
+    assert.equal(list.find((c) => c.id === s.a1.companyId)?.prospecting, null);
   });
 });
