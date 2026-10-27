@@ -862,7 +862,9 @@ img,video,iframe,svg{max-width:100%}
 /* Ofício: as fotos altas (2 linhas) deixavam buracos na maioria das quantidades. No computador a galeria usa
    a grade sem buracos de 4 por linha (ver resolveTheme); no celular vale a regra geral (quantidade ímpar: a primeira ocupa a linha) */
 body.tpl-oficio .gallery figure{grid-row:auto!important}
-/* Grade com uma foto só (ex.: a décima, depois de "Exibir mais"): ocupa a linha inteira, em faixa */
+/* Grade com uma foto só (ex.: a décima, depois de "Exibir mais"): ocupa a linha inteira, em faixa.
+   A linha da grade acompanha a altura da foto (com a altura fixa do computador, ela invadia a seção seguinte) */
+.gallery.g-n1{grid-auto-rows:auto!important}
 .gallery.g-n1>figure{grid-column:1/-1!important;width:100%;aspect-ratio:auto!important;height:clamp(200px,42vw,520px)!important;max-height:none!important}
 `.replace(/\n\s*/g, '');
 }
