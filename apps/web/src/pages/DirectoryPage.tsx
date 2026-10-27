@@ -6,22 +6,48 @@ import { Button, Card, Input, PageHeader } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
 import { saveBatch } from '@/lib/lpBatch';
 import { cn } from '@/lib/utils';
-import { dentmapService } from '@/services';
-import type { DentmapItem } from '@/types';
+import { directoryService, type DirectorySource } from '@/services';
+import type { DirectoryItem } from '@/types';
 
 /** Só entra no lote quem ainda não foi cadastrado (os demais têm "Abrir LP" / "Abrir empresa"). */
-const canBatch = (c: DentmapItem) => !c.existing;
-const label = (c: DentmapItem) => c.name || decodeURIComponent(c.url.split('/').pop() ?? c.url);
+const canBatch = (c: DirectoryItem) => !c.existing;
+const label = (c: DirectoryItem) => c.name || decodeURIComponent(c.url.split('/').pop() ?? c.url);
+
+/** Textos de cada diretório de profissionais. */
+const SOURCES: Record<
+  DirectorySource,
+  { title: string; description: string; placeholder: string; site: string; search: string; found: string; empty: string }
+> = {
+  dentmap: {
+    title: 'DentMap',
+    description: 'Cole o link de uma página do DentMap. Os dentistas que aparecem nela são listados e cada um vira uma Landing Page.',
+    placeholder: 'https://dentmap.com.br/dentistas/sao-paulo',
+    site: 'DentMap',
+    search: 'Buscar dentistas',
+    found: 'dentista(s) encontrado(s)',
+    empty: 'Nenhum perfil de dentista encontrado nesta página.',
+  },
+  doctoralia: {
+    title: 'Doctoralia',
+    description: 'Cole o link de uma página do Doctoralia. Os profissionais e clínicas que aparecem nela são listados e cada um vira uma Landing Page.',
+    placeholder: 'https://www.doctoralia.com.br/dentista/sao-paulo',
+    site: 'Doctoralia',
+    search: 'Buscar perfis',
+    found: 'perfil(is) encontrado(s)',
+    empty: 'Nenhum perfil de profissional ou clínica encontrado nesta página.',
+  },
+};
 
 /**
- * DentMap: cole o link de uma página do DentMap (ex.: dentistas de uma cidade). O sistema lista os perfis de
- * dentistas que aparecem nela e gera a LP de cada um com os dados do perfil (mesma análise de link e mesmo lote
+ * DentMap / Doctoralia: cole o link de uma página do diretório (ex.: dentistas de uma cidade). O sistema lista os
+ * perfis que aparecem nela e gera a LP de cada um com os dados do perfil (mesma análise de link e mesmo lote
  * de "Buscar empresas").
  */
-export function DentmapPage() {
+export function DirectoryPage({ source }: { source: DirectorySource }) {
+  const src = SOURCES[source];
   const navigate = useNavigate();
   const [url, setUrl] = useState('');
-  const [items, setItems] = useState<DentmapItem[] | null>(null);
+  const [items, setItems] = useState<DirectoryItem[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [allowImages, setAllowImages] = useState(true);
@@ -31,10 +57,10 @@ export function DentmapPage() {
     if (!url.trim()) return;
     setLoading(true);
     try {
-      const r = await dentmapService.links(url.trim());
+      const r = await directoryService.links(source, url.trim());
       setItems(r.items);
       setSelected(new Set(r.items.filter(canBatch).map((c) => c.url)));
-      if (!r.items.length) toast.info('Nenhum perfil de dentista encontrado nesta página.');
+      if (!r.items.length) toast.info(src.empty);
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -42,7 +68,7 @@ export function DentmapPage() {
     }
   };
 
-  const toggle = (c: DentmapItem, v: boolean) =>
+  const toggle = (c: DirectoryItem, v: boolean) =>
     setSelected((cur) => {
       const next = new Set(cur);
       if (v) next.add(c.url);
@@ -53,7 +79,7 @@ export function DentmapPage() {
   const selectable = (items ?? []).filter(canBatch);
   const allSelected = selectable.length > 0 && selectable.every((c) => selected.has(c.url));
 
-  const generate = (c: DentmapItem) => navigate(`/nova?url=${encodeURIComponent(c.url)}&fotos=${allowImages ? 1 : 0}`);
+  const generate = (c: DirectoryItem) => navigate(`/nova?url=${encodeURIComponent(c.url)}&fotos=${allowImages ? 1 : 0}`);
 
   /** Gera os selecionados um de cada vez: a tela "Nova Landing Page" passa para o próximo ao terminar cada um. */
   const generateBatch = () => {
@@ -64,25 +90,15 @@ export function DentmapPage() {
 
   return (
     <div>
-      <PageHeader
-        title="DentMap"
-        description="Cole o link de uma página do DentMap. Os dentistas que aparecem nela são listados e cada um vira uma Landing Page."
-      />
+      <PageHeader title={src.title} description={src.description} />
       <Card className="mb-6 p-4 sm:p-5">
         <form onSubmit={search} className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
             <Link2 className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
-            <Input
-              className="h-11 pl-10"
-              placeholder="https://dentmap.com.br/dentistas/sao-paulo"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              inputMode="url"
-              autoFocus
-            />
+            <Input className="h-11 pl-10" placeholder={src.placeholder} value={url} onChange={(e) => setUrl(e.target.value)} inputMode="url" autoFocus />
           </div>
           <Button type="submit" size="lg" loading={loading}>
-            Buscar dentistas
+            {src.search}
           </Button>
         </form>
         <label className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-lg bg-zinc-50 px-3 py-2.5 text-sm text-zinc-700">
@@ -97,13 +113,13 @@ export function DentmapPage() {
       {loading ? (
         <Card className="flex items-center gap-3 p-5 text-sm text-zinc-600">
           <Loader2 className="size-5 flex-none animate-spin text-brand-600" />
-          Lendo a página do DentMap…
+          Lendo a página do {src.site}…
         </Card>
       ) : items?.length ? (
         <>
           <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
             <span className="text-zinc-600">
-              {items.length} dentista(s) encontrado(s) · {chosen.length} selecionado(s)
+              {items.length} {src.found} · {chosen.length} selecionado(s)
             </span>
             {selectable.length ? (
               <button
@@ -153,7 +169,7 @@ export function DentmapPage() {
                   <div className="flex flex-none items-center gap-2">
                     <a href={c.url} target="_blank" rel="noreferrer">
                       <Button size="sm" variant="ghost" icon={<ExternalLink className="size-3.5" />}>
-                        Ver no DentMap
+                        Ver no {src.site}
                       </Button>
                     </a>
                     {lp ? (

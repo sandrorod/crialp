@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   LogOut,
   MapPin,
+  Stethoscope,
   Menu,
   PanelsTopLeft,
   Plus,
@@ -35,6 +36,7 @@ const NAV: { to: string; label: string; icon: typeof Building2; end?: boolean; r
   { to: '/nova', label: 'Criar Landing Page', icon: Plus, roles: STAFF },
   { to: '/buscar', label: 'Buscar empresas', icon: Search, roles: STAFF },
   { to: '/dentmap', label: 'DentMap', icon: MapPin, roles: STAFF },
+  { to: '/doctoralia', label: 'Doctoralia', icon: Stethoscope, roles: STAFF },
   { to: '/vendas', label: 'Vendas', icon: Briefcase, roles: [...STAFF, 'seller'] },
   { to: '/crm', label: 'CRM', icon: Contact, roles: [...MANAGERS, 'seller'] },
   // Vendedor edita as Landing Pages atribuídas a ele

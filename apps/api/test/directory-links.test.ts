@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { query } from '../src/db/pool.js';
 import { client, closeDb, resetDb, seed, startServer } from './helpers.js';
 
-/** DentMap: lista os perfis de dentistas de uma página (só ela), sem bairros e sem repetir, marcando os já cadastrados. */
+/** DentMap e Doctoralia: listam os perfis de uma página (só ela), sem outras páginas e sem repetir, marcando os já cadastrados. */
 let base: string;
 let close: () => Promise<unknown>;
 let s: Awaited<ReturnType<typeof seed>>;
@@ -19,6 +19,19 @@ const LIST_HTML = `<html><body>
   <a href="/blog/como-escolher-dentista">Blog</a>
 </body></html>`;
 
+const DOCTORALIA_HTML = `<html><body>
+  <a href="https://www.doctoralia.com.br/dentista/sao-paulo">Dentistas em São Paulo</a>
+  <a href="https://www.doctoralia.com.br/dentista/sao-paulo?page=2">2</a>
+  <a href="https://www.doctoralia.com.br/marcia-ferraz/dentista/sao-paulo"><span>Dra. Marcia Ferraz</span></a>
+  <a href="https://www.doctoralia.com.br/marcia-ferraz/dentista/sao-paulo#opinioes">32 opiniões</a>
+  <a href="https://www.doctoralia.com.br/clinicas/weclinic-odontologia">Weclinic Odontologia</a>
+  <a href="https://www.doctoralia.com.br/clinicas/weclinic-odontologia">Dra. Ana Flávia Dentista</a>
+  <a href="https://www.doctoralia.com.br/perguntas-respostas/canal/dentista">Perguntas</a>
+  <a href="/dentista/sao-paulo/unimed">Unimed</a>
+  <a href="https://www.doctoralia.com.br/dentista/sao-paulo/bradesco-saude">Bradesco Saúde</a>
+  <a href="/privacidade">Privacidade</a>
+</body></html>`;
+
 const realFetch = globalThis.fetch;
 before(async () => {
   await resetDb();
@@ -27,6 +40,7 @@ before(async () => {
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const u = new URL(input instanceof Request ? input.url : input.toString());
     if (u.hostname === 'dentmap.com.br') return new Response(LIST_HTML, { status: 200, headers: { 'Content-Type': 'text/html' } });
+    if (u.hostname === 'www.doctoralia.com.br') return new Response(DOCTORALIA_HTML, { status: 200, headers: { 'Content-Type': 'text/html' } });
     return realFetch(input, init);
   }) as typeof fetch;
   ({ base, close } = await startServer());
@@ -73,5 +87,34 @@ describe('DentMap', () => {
     const v = client(base);
     assert.equal((await v.login('vendedor-a@teste.dev')).status, 200);
     assert.equal((await v.call('GET', `/api/dentmap-links?url=${encodeURIComponent('https://dentmap.com.br/dentistas/sao-paulo')}`)).status, 403);
+  });
+});
+
+describe('Doctoralia', () => {
+  it('lista profissionais e clínicas da página, com o nome e sem repetir', async () => {
+    const r = await dono.call('GET', `/api/doctoralia-links?url=${encodeURIComponent('https://www.doctoralia.com.br/dentista/sao-paulo')}`);
+    assert.equal(r.status, 200);
+    const { items } = (await r.json()) as { items: { url: string; name: string }[] };
+    assert.deepEqual(
+      items.map((i) => [i.url, i.name]),
+      [
+        ['https://www.doctoralia.com.br/marcia-ferraz/dentista/sao-paulo', 'Dra. Marcia Ferraz'],
+        ['https://www.doctoralia.com.br/clinicas/weclinic-odontologia', 'Weclinic Odontologia'],
+      ],
+    );
+  });
+
+  it('link de um perfil sozinho vira o único item', async () => {
+    const r = await dono.call('GET', `/api/doctoralia-links?url=${encodeURIComponent('doctoralia.com.br/clinicas/weclinic-odontologia/')}`);
+    const { items } = (await r.json()) as { items: { url: string }[] };
+    assert.deepEqual(
+      items.map((i) => i.url),
+      ['https://www.doctoralia.com.br/clinicas/weclinic-odontologia'],
+    );
+  });
+
+  it('link do DentMap na opção do Doctoralia é recusado', async () => {
+    const r = await dono.call('GET', `/api/doctoralia-links?url=${encodeURIComponent('https://dentmap.com.br/dentistas/sao-paulo')}`);
+    assert.equal(r.status, 400);
   });
 });

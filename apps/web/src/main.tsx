@@ -16,7 +16,7 @@ import { SalesPage } from '@/pages/SalesPage';
 import { UsersPage } from '@/pages/UsersPage';
 import { ClientLevelsPage } from '@/pages/ClientLevelsPage';
 import { SearchCompaniesPage } from '@/pages/SearchCompaniesPage';
-import { DentmapPage } from '@/pages/DentmapPage';
+import { DirectoryPage } from '@/pages/DirectoryPage';
 import { MySitesPage } from '@/pages/MySitesPage';
 import { initMonitoring, rootErrorHandlers } from '@/lib/monitoring';
 import { CrmLayout } from '@/pages/crm/CrmLayout';
@@ -46,7 +46,8 @@ const router = onLogin
             { path: '/landing-pages/:id', element: <LandingPageEditorPage /> },
             { path: '/nova', element: <NewLandingPagePage /> },
             { path: '/buscar', element: <SearchCompaniesPage /> },
-            { path: '/dentmap', element: <DentmapPage /> },
+            { path: '/dentmap', element: <DirectoryPage key="dentmap" source="dentmap" /> },
+            { path: '/doctoralia', element: <DirectoryPage key="doctoralia" source="doctoralia" /> },
             { path: '/configuracoes', element: <SettingsPage /> },
             { path: '/vendas', element: <SalesPage /> },
             { path: '/subusuarios', element: <UsersPage /> },

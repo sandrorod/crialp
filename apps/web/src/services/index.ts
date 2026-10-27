@@ -17,7 +17,7 @@ import type {
   AtendimentoItem,
   FoundCompany,
   PlaceListing,
-  DentmapItem,
+  DirectoryItem,
   SavedSearchItem,
   Job,
   LandingContent,
@@ -66,9 +66,10 @@ export const analysisService = {
 };
 export type { AnalysisResult };
 
-/** Perfis de dentistas que aparecem numa página do DentMap (só a página informada). */
-export const dentmapService = {
-  links: (url: string) => api.get<{ items: DentmapItem[] }>(`/dentmap-links?url=${encodeURIComponent(url)}`),
+export type DirectorySource = 'dentmap' | 'doctoralia';
+/** Perfis que aparecem numa página do DentMap ou do Doctoralia (só a página informada). */
+export const directoryService = {
+  links: (source: DirectorySource, url: string) => api.get<{ items: DirectoryItem[] }>(`/${source}-links?url=${encodeURIComponent(url)}`),
 };
 
 export const searchService = {

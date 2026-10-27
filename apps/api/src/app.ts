@@ -19,7 +19,7 @@ import { usersRouter } from './routes/users.js';
 import { clientLevelsRouter } from './routes/clientLevels.js';
 import { colorPalettesRouter } from './routes/colorPalettes.js';
 import { customDomainMiddleware, publicRouter } from './routes/public.js';
-import { dentmapRouter } from './routes/dentmap.js';
+import { directoryLinksRouter } from './routes/directoryLinks.js';
 import { sendHomePage } from './landing/homePage.js';
 import { readDbUpload } from './services/storage/StorageService.js';
 import { monitoringRouter } from './routes/monitoring.js';
@@ -91,7 +91,7 @@ export function createApp() {
   api.use('/color-palettes', colorPalettesRouter);
   api.use('/google-drive', requireRole(...MANAGER_ROLES), googleDriveRouter);
   api.use(analyzeRouter);
-  api.use(dentmapRouter);
+  api.use(directoryLinksRouter);
   api.use('/companies', companiesRouter);
   api.use('/landing-pages', landingPagesRouter);
   api.use(miscRouter);

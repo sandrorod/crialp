@@ -652,8 +652,8 @@ export interface FoundCompany {
   } | null;
 }
 
-/** Perfil de dentista encontrado numa página do DentMap (vira LP pela análise do link). */
-export interface DentmapItem {
+/** Perfil encontrado numa página do DentMap ou do Doctoralia (vira LP pela análise do link). */
+export interface DirectoryItem {
   url: string;
   name: string;
   existing: FoundCompany['existing'];
