@@ -20,12 +20,12 @@ const loginLimiter = rateLimit({
   message: { error: 'Muitas tentativas de login. Aguarde alguns minutos.' },
 });
 
-// Por conta (além do limite por IP): tentativas erradas de vários IPs contra o mesmo e-mail.
+// Por conta (além do limite por IP): 5 senhas erradas no mesmo e-mail (de qualquer IP) bloqueiam a conta por 15 min.
 // Só conta as que falham, para quem acerta a senha nunca ficar bloqueado por acessos normais.
 const loginAccountLimiter = rateLimit({
   store: new PgRateLimitStore('login-account'),
   windowMs: 15 * 60 * 1000,
-  limit: 20,
+  limit: 5,
   skipSuccessfulRequests: true,
   standardHeaders: 'draft-7',
   legacyHeaders: false,

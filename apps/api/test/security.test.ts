@@ -181,7 +181,8 @@ describe('Limite de tentativas compartilhado', () => {
         const res = await fetch(`${target}/api/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:5173' },
-          body: JSON.stringify({ email: 'ninguem@teste.dev', password: 'errada' }),
+          // Um e-mail por tentativa: aqui só o limite por IP conta (o por conta é testado à parte)
+          body: JSON.stringify({ email: `ninguem${i}@teste.dev`, password: 'errada' }),
         });
         statuses.push(res.status);
       }
@@ -190,6 +191,22 @@ describe('Limite de tentativas compartilhado', () => {
       assert.deepEqual(statuses.slice(10), [429, 429]);
     } finally {
       await other.close();
+      await query(`delete from lp_rate_limits`);
+    }
+  });
+
+  it('5 senhas erradas na mesma conta bloqueiam a conta por 15 min, até com a senha certa; outra conta segue normal', async () => {
+    await query(`delete from lp_rate_limits`);
+    try {
+      const c = client(base);
+      const statuses: number[] = [];
+      for (let i = 0; i < 5; i++) statuses.push((await c.login('admin-a@teste.dev', 'senha-errada')).status);
+      assert.deepEqual(statuses, [401, 401, 401, 401, 401]);
+      const blocked = await c.login('admin-a@teste.dev', PASSWORD);
+      assert.equal(blocked.status, 429);
+      assert.match(((await blocked.json()) as { error: string }).error, /Muitas tentativas/);
+      assert.equal((await client(base).login('dono-a@teste.dev', PASSWORD)).status, 200);
+    } finally {
       await query(`delete from lp_rate_limits`);
     }
   });
