@@ -11,6 +11,7 @@ let dono: ReturnType<typeof client>;
 
 const LIST_HTML = `<html><body>
   <a href="/dentistas/sao-paulo/aclimacao">Aclimação</a>
+  <a href="/dentistas/sao-paulo/itaim-paulista">Itaim Paulista</a>
   <a href="/dentistas/sao-paulo?pagina=2">Próxima</a>
   <a href="/dentistas/sao-paulo/dentar-odontologia-kunrlnvg"><span>Ver perfil de</span> <h3>Dentar Odontologia</h3></a>
   <a href="/dentistas/sao-paulo/dentar-odontologia-kunrlnvg"><img src="x.jpg"></a>
@@ -33,12 +34,25 @@ const DOCTORALIA_HTML = `<html><body>
 </body></html>`;
 
 const realFetch = globalThis.fetch;
+let pageReads = 0;
 before(async () => {
   await resetDb();
   s = await seed();
   // Só a página do DentMap é simulada; o resto (servidor de teste) segue normal
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const u = new URL(input instanceof Request ? input.url : input.toString());
+    if (u.hostname === 'dentmap.com.br' && u.pathname === '/dentistas/campinas') {
+      // Lista de 7 páginas: cada uma tem o link para a seguinte, menos a última (e as além dela)
+      const n = Number(u.searchParams.get('pagina') ?? 1);
+      pageReads++;
+      return new Response(
+        `<a href="/dentistas/campinas?pagina=${n - 1}">Anterior</a>${n < 7 ? `<a href="/dentistas/campinas?pagina=${n + 1}">Próxima</a>` : ''}`,
+        {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        },
+      );
+    }
     if (u.hostname === 'dentmap.com.br') return new Response(LIST_HTML, { status: 200, headers: { 'Content-Type': 'text/html' } });
     if (u.hostname === 'www.doctoralia.com.br') return new Response(DOCTORALIA_HTML, { status: 200, headers: { 'Content-Type': 'text/html' } });
     return realFetch(input, init);
@@ -76,6 +90,18 @@ describe('DentMap', () => {
     const r = await dono.call('GET', `/api/dentmap-links?url=${encodeURIComponent('dentmap.com.br/dentistas/sao-paulo')}`);
     const { items } = (await r.json()) as { items: { url: string; existing: { id: string } | null }[] };
     assert.equal(items.find((i) => i.url.endsWith('zkfrxwdi'))?.existing?.id, s.a1.companyId);
+  });
+
+  it('descobre todas as páginas da lista (?pagina=2…), sem ler uma por uma', async () => {
+    pageReads = 0;
+    const r = await dono.call('GET', `/api/dentmap-pages?url=${encodeURIComponent('https://dentmap.com.br/dentistas/campinas?pagina=3')}`);
+    assert.equal(r.status, 200);
+    const { pages } = (await r.json()) as { pages: string[] };
+    assert.deepEqual(pages, [
+      'https://dentmap.com.br/dentistas/campinas',
+      ...[2, 3, 4, 5, 6, 7].map((n) => `https://dentmap.com.br/dentistas/campinas?pagina=${n}`),
+    ]);
+    assert.ok(pageReads <= 8, `leituras: ${pageReads}`);
   });
 
   it('link de outro site é recusado', async () => {

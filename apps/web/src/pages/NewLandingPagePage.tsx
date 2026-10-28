@@ -208,11 +208,25 @@ export function NewLandingPagePage() {
     setGenerateJobId(null);
     setStage('url');
     window.scrollTo({ top: 0 });
+    // Empresa já cadastrada, ainda sem LP: gera direto com os dados do cadastro (vendedor em rodízio)
+    if (item.companyId) {
+      setCompanyId(item.companyId);
+      setDraft({ ...emptyDraft(), name: item.name });
+      try {
+        const { jobId } = await analysisService.generate(item.companyId, { sellerId: 'auto' });
+        setGenerateJobId(jobId);
+        setStage('generating');
+      } catch (err) {
+        setUrlError(errorMessage(err));
+        setCountdown(BATCH_WAIT);
+      }
+      return;
+    }
     // Link recusado: pula para a próxima depois da contagem
     if (!(await startAnalysis(undefined, item.url, b.fotos))) setCountdown(BATCH_WAIT);
   };
 
-  /** Passa para a próxima empresa do lote; terminando, volta para a pesquisa. */
+  /** Passa para a próxima empresa do lote; terminando, volta para a tela de origem (padrão: a pesquisa). */
   const next = (generated: boolean) => {
     if (!batch) return;
     const b = { ...batch, index: batch.index + 1, ok: batch.ok + (generated ? 1 : 0) };
@@ -220,7 +234,7 @@ export function NewLandingPagePage() {
       saveBatch(null);
       setBatch(null);
       toast.success(`Lote concluído: ${b.ok} de ${b.items.length} LP(s) gerada(s).`);
-      navigate('/buscar');
+      navigate(b.back ?? '/buscar');
       return;
     }
     saveBatch(b);

@@ -1,9 +1,10 @@
 /**
- * Lote de LPs vindo de "Buscar empresas": as empresas selecionadas são geradas uma de cada vez
- * na tela "Nova Landing Page", que guarda aqui em qual delas está.
- * `ok` = quantas LPs do lote já foram geradas.
+ * Lote de LPs vindo de "Buscar empresas" (ou DentMap / Doctoralia): as empresas selecionadas são geradas uma de
+ * cada vez na tela "Nova Landing Page", que guarda aqui em qual delas está.
+ * `ok` = quantas LPs do lote já foram geradas. Item com `companyId`: empresa já cadastrada sem LP (gera direto,
+ * sem analisar o link de novo). `back`: para onde voltar ao terminar o lote (padrão: "Buscar empresas").
  */
-export type LpBatch = { items: { url: string; name: string }[]; index: number; fotos: boolean; ok: number };
+export type LpBatch = { items: { url: string; name: string; companyId?: string }[]; index: number; fotos: boolean; ok: number; back?: string };
 
 const KEY = 'lp:batch';
 

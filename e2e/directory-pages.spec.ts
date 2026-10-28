@@ -14,5 +14,5 @@ test('DentMap e Doctoralia estão no menu, cada um com a sua tela', async ({ pag
   await page.getByRole('link', { name: 'DentMap' }).click();
   await expect(page.getByRole('heading', { name: 'DentMap' })).toBeVisible();
   await expect(page.getByPlaceholder('https://dentmap.com.br/dentistas/sao-paulo')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Buscar dentistas' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Adicionar à lista' })).toBeVisible();
 });

@@ -15,6 +15,13 @@ interface Directory {
   origin: string;
   /** Caminho (sem barra no fim) de um perfil de profissional ou clínica; `listPath`: caminho da página de lista lida */
   isProfile: (path: string, listPath?: string) => boolean;
+  /**
+   * Texto que todo link de perfil tem na lista (DentMap: "Ver perfil de …"): links sem ele no mesmo formato
+   * (ex.: bairros como /dentistas/sao-paulo/itaim-paulista) não são perfis
+   */
+  profileText?: RegExp;
+  /** Parâmetro da paginação das listas (DentMap: ?pagina=2) */
+  pageParam?: string;
 }
 
 const DIRECTORIES: Record<'dentmap' | 'doctoralia', Directory> = {
@@ -24,6 +31,8 @@ const DIRECTORIES: Record<'dentmap' | 'doctoralia', Directory> = {
     host: /^(www\.)?dentmap\.com\.br$/i,
     origin: 'https://dentmap.com.br',
     isProfile: (path) => /^\/dentistas\/[^/]+\/[^/]+-[a-z0-9]{8}$/i.test(path),
+    profileText: /ver perfil de/i,
+    pageParam: 'pagina',
   },
   // Profissional: /<nome>/<especialidade>/<cidade>; clínica: /clinicas/<nome>.
   // Na lista /<especialidade>/<cidade>, os filtros (/<especialidade>/<cidade>/<convênio>) não são perfis.
@@ -42,6 +51,53 @@ const DIRECTORIES: Record<'dentmap' | 'doctoralia', Directory> = {
 
 /** Seções do Doctoralia com 3 níveis de caminho que não são perfis */
 const DOCTORALIA_SECTIONS = new Set(['clinicas', 'perguntas-respostas', 'tratamentos-servicos', 'doencas', 'blog', 'pesquisa', 'ajuda', 'marketing']);
+
+async function fetchPage(dir: Directory, url: URL) {
+  const r = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LPBot/1.0)', Accept: 'text/html' },
+    signal: AbortSignal.timeout(20_000),
+  }).catch(() => null);
+  if (!r?.ok) throw new AppError(502, `Não foi possível abrir a página do ${dir.label}${r ? ` (${r.status})` : ''}. Tente de novo.`, 'DIRECTORY_ERROR');
+  return r.text();
+}
+
+/** Limite de páginas de uma lista (evita varreduras enormes) */
+const MAX_PAGES = 2000;
+
+/**
+ * Todas as páginas da lista (?pagina=1…N). A última é a primeira sem o link para a seguinte: busca exponencial
+ * e depois binária (umas 20 leituras mesmo com centenas de páginas).
+ */
+async function listPages(dir: Directory, raw: string) {
+  const param = dir.pageParam!;
+  const base = directoryUrl(dir, raw);
+  base.searchParams.delete(param);
+  if (dir.isProfile(base.pathname.replace(/\/$/, '')) && !dir.profileText)
+    throw new AppError(400, 'Informe o link de uma lista, não de um perfil.', 'BAD_REQUEST');
+  const pageUrl = (n: number) => {
+    const u = new URL(base);
+    if (n > 1) u.searchParams.set(param, String(n));
+    return u.toString();
+  };
+  const hasNext = async (n: number) => new RegExp(`[?&]${param}=${n + 1}(?![0-9])`).test(await fetchPage(dir, new URL(pageUrl(n))));
+  let last = 1;
+  if (await hasNext(1)) {
+    // lo: página que tem a seguinte; hi: página sem a seguinte
+    let lo = 1;
+    let hi = 2;
+    while (hi < MAX_PAGES && (await hasNext(hi))) {
+      lo = hi;
+      hi = Math.min(MAX_PAGES, hi * 2);
+    }
+    while (hi - lo > 1) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (await hasNext(mid)) lo = mid;
+      else hi = mid;
+    }
+    last = hi;
+  }
+  return Array.from({ length: last }, (_, i) => pageUrl(i + 1));
+}
 
 function directoryUrl(dir: Directory, raw: string) {
   let url: URL;
@@ -65,17 +121,14 @@ async function listProfiles(dir: Directory, orgId: string, raw: string) {
   const pagePath = page.pathname.replace(/\/$/, '');
 
   let found: { url: string; name: string }[];
-  if (dir.isProfile(pagePath)) {
+  // Com texto de perfil (DentMap), a página é lida antes: um bairro tem o mesmo formato de link de um perfil
+  if (dir.isProfile(pagePath) && !dir.profileText) {
     // O próprio link já é um perfil
     found = [{ url: `${dir.origin}${pagePath}`, name: '' }];
   } else {
-    const r = await fetch(page, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LPBot/1.0)', Accept: 'text/html' },
-      signal: AbortSignal.timeout(20_000),
-    }).catch(() => null);
-    if (!r?.ok) throw new AppError(502, `Não foi possível abrir a página do ${dir.label}${r ? ` (${r.status})` : ''}. Tente de novo.`, 'DIRECTORY_ERROR');
-    const $ = cheerio.load(await r.text());
+    const $ = cheerio.load(await fetchPage(dir, page));
     const byUrl = new Map<string, string>();
+    const marked = new Set<string>();
     $('a[href]').each((_, el) => {
       let href: URL;
       try {
@@ -93,9 +146,12 @@ async function listProfiles(dir: Directory, orgId: string, raw: string) {
         .replace(/\s+/g, ' ')
         .replace(/^\s*ver perfil de\s*/i, '')
         .trim();
+      if (dir.profileText?.test($(el).text())) marked.add(key);
       if (!byUrl.has(key) || (!byUrl.get(key) && name)) byUrl.set(key, name);
     });
-    found = [...byUrl].map(([url, name]) => ({ url, name }));
+    found = [...byUrl].filter(([url]) => !dir.profileText || marked.has(url)).map(([url, name]) => ({ url, name }));
+    // Página sem lista de perfis, no formato de perfil: é o próprio perfil
+    if (!found.length && dir.isProfile(pagePath)) found = [{ url: `${dir.origin}${pagePath}`, name: '' }];
   }
 
   const [registered, failures] = await Promise.all([
@@ -120,4 +176,12 @@ for (const [key, dir] of Object.entries(DIRECTORIES)) {
     const { url } = z.object({ url: z.string().trim().min(1, `Informe o link do ${dir.label}.`).max(2048) }).parse(req.query);
     res.json({ items: await listProfiles(dir, user.organizationId, url) });
   });
+  // GET /api/dentmap-pages?url=… — todas as páginas da lista (?pagina=2, 3…), para a fila de links
+  if (dir.pageParam) {
+    directoryLinksRouter.get(`/${key}-pages`, async (req, res) => {
+      authUser(req);
+      const { url } = z.object({ url: z.string().trim().min(1, `Informe o link do ${dir.label}.`).max(2048) }).parse(req.query);
+      res.json({ pages: await listPages(dir, url) });
+    });
+  }
 }

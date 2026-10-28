@@ -70,6 +70,8 @@ export type DirectorySource = 'dentmap' | 'doctoralia';
 /** Perfis que aparecem numa página do DentMap ou do Doctoralia (só a página informada). */
 export const directoryService = {
   links: (source: DirectorySource, url: string) => api.get<{ items: DirectoryItem[] }>(`/${source}-links?url=${encodeURIComponent(url)}`),
+  /** Todas as páginas de uma lista (?pagina=2…); só o DentMap */
+  pages: (source: DirectorySource, url: string) => api.get<{ pages: string[] }>(`/${source}-pages?url=${encodeURIComponent(url)}`),
 };
 
 export const searchService = {
