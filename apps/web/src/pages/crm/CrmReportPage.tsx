@@ -53,68 +53,96 @@ function range(id: string): { from: string; to: string; group: 'day' | 'month' }
 const NO_SELLER = 'sem';
 type Col = { id: string; name: string };
 
-/** Tabela período × vendedor (dias ou meses nas linhas), com totais. */
+/** Tabela período × vendedor (dias ou meses nas linhas): enviadas e recebidas lado a lado embaixo de cada um, com totais. */
 function PeriodTable({
   title,
   cols,
   keys,
-  count,
+  sent,
+  received,
   label,
 }: {
   title: string;
   cols: Col[];
   keys: string[];
-  count: Map<string, number>;
+  sent: Map<string, number>;
+  received: Map<string, number>;
   label: (k: string) => string;
 }) {
-  const colTotal = (c: Col) => keys.reduce((n, k) => n + (count.get(`${k}|${c.id}`) ?? 0), 0);
-  const grand = cols.reduce((n, c) => n + colTotal(c), 0);
+  const kinds = [
+    { id: 'sent', name: 'Enviadas', count: sent },
+    { id: 'received', name: 'Recebidas', count: received },
+  ];
+  const at = (count: Map<string, number>, k: string, c: Col) => count.get(`${k}|${c.id}`) ?? 0;
+  const colTotal = (count: Map<string, number>, c: Col) => keys.reduce((n, k) => n + at(count, k, c), 0);
+  const rowTotal = (count: Map<string, number>, k: string) => cols.reduce((n, c) => n + at(count, k, c), 0);
+  const grand = (count: Map<string, number>) => cols.reduce((n, c) => n + colTotal(count, c), 0);
+  const cell = (first: boolean, extra: string) => `px-3 text-right tabular-nums ${first ? 'border-l border-zinc-100' : ''} ${extra}`;
   return (
     <Section title={title}>
-      {!grand ? (
+      {!grand(sent) && !grand(received) ? (
         <p className="px-4 pb-4 text-sm text-zinc-500">Nenhuma mensagem neste período.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-100 text-left text-xs uppercase tracking-wide text-zinc-500">
-                <th className="px-4 py-3 font-medium">Período</th>
-                {cols.map((c) => (
-                  <th key={c.id} className="px-3 py-3 text-right font-medium">
+              <tr className="text-left text-xs uppercase tracking-wide text-zinc-500">
+                <th rowSpan={2} className="border-b border-zinc-100 px-4 py-3 align-bottom font-medium">
+                  Período
+                </th>
+                {[...cols, { id: 'total', name: 'Total' }].map((c) => (
+                  <th key={c.id} colSpan={2} className="border-l border-zinc-100 px-3 pt-3 text-center font-medium">
                     {c.name}
                   </th>
                 ))}
-                <th className="px-4 py-3 text-right font-medium">Total</th>
+              </tr>
+              <tr className="border-b border-zinc-100 text-xs text-zinc-400">
+                {[...cols, { id: 'total', name: 'Total' }].flatMap((c) =>
+                  kinds.map((t, i) => (
+                    <th key={`${c.id}-${t.id}`} className={cell(i === 0, 'pb-2 pt-1 font-normal')}>
+                      {t.name}
+                    </th>
+                  )),
+                )}
               </tr>
             </thead>
             <tbody>
-              {keys.map((k) => {
-                const rowTotal = cols.reduce((n, c) => n + (count.get(`${k}|${c.id}`) ?? 0), 0);
-                return (
-                  <tr key={k} className="border-b border-zinc-50">
-                    <td className="whitespace-nowrap px-4 py-2.5 text-zinc-600">{label(k)}</td>
-                    {cols.map((c) => {
-                      const n = count.get(`${k}|${c.id}`) ?? 0;
+              {keys.map((k) => (
+                <tr key={k} className="border-b border-zinc-50">
+                  <td className="whitespace-nowrap px-4 py-2.5 text-zinc-600">{label(k)}</td>
+                  {cols.flatMap((c) =>
+                    kinds.map((t, i) => {
+                      const n = at(t.count, k, c);
                       return (
-                        <td key={c.id} className={`px-3 py-2.5 text-right tabular-nums ${n ? 'text-ink' : 'text-zinc-300'}`}>
+                        <td key={`${c.id}-${t.id}`} className={cell(i === 0, `py-2.5 ${n ? 'text-ink' : 'text-zinc-300'}`)}>
                           {n}
                         </td>
                       );
-                    })}
-                    <td className="px-4 py-2.5 text-right font-medium tabular-nums">{rowTotal}</td>
-                  </tr>
-                );
-              })}
+                    }),
+                  )}
+                  {kinds.map((t, i) => (
+                    <td key={t.id} className={cell(i === 0, 'py-2.5 font-medium')}>
+                      {rowTotal(t.count, k)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
             </tbody>
             <tfoot>
               <tr className="bg-zinc-50 font-semibold">
                 <td className="px-4 py-3">Total</td>
-                {cols.map((c) => (
-                  <td key={c.id} className="px-3 py-3 text-right tabular-nums">
-                    {colTotal(c)}
+                {cols.flatMap((c) =>
+                  kinds.map((t, i) => (
+                    <td key={`${c.id}-${t.id}`} className={cell(i === 0, 'py-3')}>
+                      {colTotal(t.count, c)}
+                    </td>
+                  )),
+                )}
+                {kinds.map((t, i) => (
+                  <td key={t.id} className={cell(i === 0, 'py-3')}>
+                    {grand(t.count)}
                   </td>
                 ))}
-                <td className="px-4 py-3 text-right tabular-nums">{grand}</td>
               </tr>
             </tfoot>
           </table>
@@ -170,8 +198,7 @@ export function CrmReportPage() {
         <LoadingBlock />
       ) : (
         <div>
-          <PeriodTable title="Mensagens enviadas" cols={view.cols} keys={view.keys} count={view.sent} label={label} />
-          <PeriodTable title="Mensagens recebidas" cols={view.cols} keys={view.keys} count={view.received} label={label} />
+          <PeriodTable title="Mensagens enviadas e recebidas" cols={view.cols} keys={view.keys} sent={view.sent} received={view.received} label={label} />
 
           <Section
             title="Clientes contatados"

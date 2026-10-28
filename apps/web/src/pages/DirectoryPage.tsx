@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { directoryService, type DirectorySource } from '@/services';
 import type { DirectoryItem } from '@/types';
 
-/** Só entra no lote quem ainda não foi cadastrado (os demais têm "Abrir LP" / "Abrir empresa"). */
+/** Só entra no lote quem ainda não foi cadastrado (os demais têm "Abrir LP" / "Ver empresa"). */
 const canBatch = (c: DirectoryItem) => !c.existing;
 const label = (c: DirectoryItem) => c.name || decodeURIComponent(c.url.split('/').pop() ?? c.url);
 
@@ -209,16 +209,23 @@ export function DirectoryPage({ source }: { source: DirectorySource }) {
                         Ver no {src.site}
                       </Button>
                     </a>
-                    {lp ? (
-                      <Link to={`/landing-pages/${lp.id}`}>
-                        <Button size="sm" variant="brand" icon={<PanelsTopLeft className="size-3.5" />}>
-                          Abrir LP
-                        </Button>
-                      </Link>
+                    {lp && c.existing ? (
+                      <>
+                        <Link to={`/empresas/${c.existing.id}`} target="_blank" rel="noreferrer">
+                          <Button size="sm" variant="secondary" icon={<Building2 className="size-3.5" />}>
+                            Ver empresa
+                          </Button>
+                        </Link>
+                        <Link to={`/landing-pages/${lp.id}`} target="_blank" rel="noreferrer">
+                          <Button size="sm" variant="brand" icon={<PanelsTopLeft className="size-3.5" />}>
+                            Abrir LP
+                          </Button>
+                        </Link>
+                      </>
                     ) : c.existing ? (
-                      <Link to={`/empresas/${c.existing.id}`}>
+                      <Link to={`/empresas/${c.existing.id}`} target="_blank" rel="noreferrer">
                         <Button size="sm" variant="brand" icon={<Building2 className="size-3.5" />}>
-                          Abrir empresa
+                          Ver empresa
                         </Button>
                       </Link>
                     ) : (

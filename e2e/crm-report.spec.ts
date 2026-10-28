@@ -3,12 +3,12 @@ import { SESSION } from './helpers';
 
 test.use({ storageState: SESSION.dono });
 
-test('aba Relatório do CRM mostra enviadas, recebidas, clientes contatados e mensagens por cliente', async ({ page }, info) => {
+test('aba Relatório do CRM mostra enviadas e recebidas lado a lado, clientes contatados e mensagens por cliente', async ({ page }, info) => {
   await page.goto('/admin/crm');
   await page.getByRole('link', { name: 'Relatório' }).click();
   await expect(page).toHaveURL(/\/admin\/crm\/relatorio$/);
   await page.getByLabel('Período').selectOption('30');
-  for (const title of ['Mensagens enviadas', 'Mensagens recebidas', 'Clientes contatados', 'Mensagens por cliente']) {
+  for (const title of ['Mensagens enviadas e recebidas', 'Clientes contatados', 'Mensagens por cliente']) {
     await expect(page.getByRole('heading', { name: title })).toBeVisible();
   }
   // Banco de teste: a conversa da "Padaria A" tem mensagens recentes (o relatório mostra o nome da empresa)
@@ -17,7 +17,9 @@ test('aba Relatório do CRM mostra enviadas, recebidas, clientes contatados e me
   // Anual: os meses nas linhas
   const year = new Date().getFullYear();
   await page.getByLabel('Período').selectOption(`year:${year}`);
-  await expect(page.getByRole('heading', { name: 'Mensagens enviadas' })).toBeVisible();
+  // Enviadas e recebidas lado a lado embaixo de cada vendedor
+  await expect(page.locator('thead').first().getByText('Enviadas').first()).toBeVisible();
+  await expect(page.locator('thead').first().getByText('Recebidas').first()).toBeVisible();
   await expect(
     page
       .locator('tbody td')

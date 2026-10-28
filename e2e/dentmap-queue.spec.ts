@@ -57,3 +57,17 @@ test('DentMap: no fim do lote o link sai da lista; no Automático segue para o p
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('lp:dentmap-links') ?? '[]'))).toEqual([]);
   await expect(page).toHaveURL(/\/admin\/dentmap$/);
 });
+
+test('DentMap: na lista de dentistas, Abrir LP e Ver empresa abrem em nova aba', async ({ page }) => {
+  await mockDentmap(page);
+  await page.goto('/admin/dentmap');
+  await page.evaluate((links) => localStorage.setItem('lp:dentmap-links', JSON.stringify(links)), [P(1)]);
+  await page.reload();
+  await page.getByText('Ver dentistas deste link').click();
+  const comLp = page.locator('div.flex-wrap').filter({ hasText: 'Com LP' });
+  await expect(comLp.getByRole('link', { name: 'Abrir LP' })).toHaveAttribute('target', '_blank');
+  await expect(comLp.getByRole('link', { name: 'Ver empresa' })).toHaveAttribute('target', '_blank');
+  await expect(comLp.getByRole('link', { name: 'Ver empresa' })).toHaveAttribute('href', /\/admin\/empresas\/00000000-0000-4000-8000-0000000000aa$/);
+  const semLp = page.locator('div.flex-wrap').filter({ hasText: 'Cadastrado sem LP' });
+  await expect(semLp.getByRole('link', { name: 'Ver empresa' })).toHaveAttribute('target', '_blank');
+});
