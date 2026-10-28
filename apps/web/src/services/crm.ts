@@ -102,11 +102,9 @@ export const crmService = {
     }>(`/crm/whatsapp-targets${search ? `?search=${encodeURIComponent(search)}` : ''}`),
   sync: () => api.post<{ added: number; skipped?: string }>('/crm/sync'),
   unread: () => api.get<{ total: number }>('/crm/unread'),
-  /** Mensagens enviadas por dia e por vendedor (gerência); user_id null = sem vendedor */
-  messagesReport: (from: string, to: string) =>
-    api.get<{ from: string; to: string; users: { id: string; name: string; role: string }[]; rows: { day: string; user_id: string | null; total: number }[] }>(
-      `/crm/report/messages?from=${from}&to=${to}`,
-    ),
+  /** Relatório da gerência: mensagens por período e vendedor (user_id null = sem vendedor) e clientes do período */
+  messagesReport: (from: string, to: string, group: 'day' | 'month' = 'day') =>
+    api.get<MessagesReport>(`/crm/report/messages?from=${from}&to=${to}&group=${group}`),
   messages: (conversationId: string) => api.get<CrmMessage[]>(`/crm/conversations/${conversationId}/messages`),
   removeMessage: (messageId: string, everyone: boolean) => api.del(`/crm/messages/${messageId}${everyone ? '?everyone=true' : ''}`),
   editMessage: (messageId: string, text: string) => api.put(`/crm/messages/${messageId}`, { text }),
@@ -165,4 +163,13 @@ export function toLocalInput(iso: string | null | undefined) {
   if (!iso) return '';
   const d = new Date(iso);
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
+export interface MessagesReport {
+  from: string;
+  to: string;
+  group: 'day' | 'month';
+  users: { id: string; name: string; role: string }[];
+  rows: { day: string; direction: 'in' | 'out'; user_id: string | null; total: number }[];
+  clients: { conversation_id: string; name: string; company_id: string | null; user_id: string | null; sent: number; received: number; is_new: boolean }[];
 }

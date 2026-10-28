@@ -883,38 +883,70 @@ crmRouter.get('/whatsapp-targets', async (req, res) => {
   res.json({ companies: companies.rows, contacts: contacts.rows });
 });
 
+/** Vendedor atribuído à empresa da conversa `cv` (Landing Page mais recente com vendedor). */
+const COMPANY_SELLER = `(select l.seller_id from landing_pages l
+                          where l.company_id = cv.company_id and l.seller_id is not null
+                          order by l.updated_at desc limit 1)`;
+
 /**
- * Relatório (gerência): mensagens enviadas por dia e por vendedor, de `from` a `to` (datas de Brasília).
- * Enviada pelo CRM conta para quem enviou; pelo n8n ou celular, para o vendedor atribuído à empresa da conversa
- * (sem empresa ou sem vendedor: user_id null, "Sem vendedor").
+ * Relatório (gerência), de `from` a `to` (datas de Brasília), por dia ou por mês (`group`):
+ * - mensagens enviadas e recebidas por vendedor. Enviada pelo CRM conta para quem enviou; pelo n8n ou celular,
+ *   e as recebidas, para o vendedor atribuído à empresa da conversa (sem empresa/vendedor: user_id null);
+ * - clientes (conversas) do período, com enviadas/recebidas e se o primeiro contato foi no período (novo).
  */
 crmRouter.get('/report/messages', requireRole(...MANAGER_ROLES), async (req, res) => {
   const user = authUser(req);
   const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida.');
-  const { from, to } = z.object({ from: day, to: day }).parse(req.query);
+  const { from, to, group } = z.object({ from: day, to: day, group: z.enum(['day', 'month']).default('day') }).parse(req.query);
   const span = (Date.parse(to) - Date.parse(from)) / 86_400_000;
-  if (!(span >= 0 && span <= 92)) throw badRequest('Escolha um período de até 3 meses.');
-  const { rows } = await query<{ day: string; user_id: string | null; total: number }>(
-    `select to_char((m.created_at at time zone 'America/Sao_Paulo')::date, 'YYYY-MM-DD') as day,
-            coalesce(m.sent_by, (select l.seller_id from landing_pages l
-                                  where l.company_id = cv.company_id and l.seller_id is not null
-                                  order by l.updated_at desc limit 1)) as user_id,
+  if (!(span >= 0 && span <= 366)) throw badRequest('Escolha um período de até 1 ano.');
+  const period = `m.created_at >= ($2::date::timestamp at time zone 'America/Sao_Paulo')
+        and m.created_at < (($3::date + 1)::timestamp at time zone 'America/Sao_Paulo')`;
+  const { rows } = await query<{ day: string; direction: 'in' | 'out'; user_id: string | null; total: number }>(
+    `select to_char((m.created_at at time zone 'America/Sao_Paulo')::date, $4) as day, m.direction,
+            case when m.direction = 'out' then coalesce(m.sent_by, ${COMPANY_SELLER}) else ${COMPANY_SELLER} end as user_id,
             count(*)::int as total
        from lp_crm_messages m join lp_crm_conversations cv on cv.id = m.conversation_id
-      where cv.organization_id = $1 and m.direction = 'out'
-        and m.created_at >= ($2::date::timestamp at time zone 'America/Sao_Paulo')
-        and m.created_at < (($3::date + 1)::timestamp at time zone 'America/Sao_Paulo')
-      group by 1, 2`,
+      where cv.organization_id = $1 and ${period}
+      group by 1, 2, 3`,
+    [user.organizationId, from, to, group === 'month' ? 'YYYY-MM' : 'YYYY-MM-DD'],
+  );
+  // Clientes do período: vendedor da empresa (ou quem mais enviou), enviadas, recebidas e se é contato novo
+  const { rows: clients } = await query<{
+    conversation_id: string;
+    name: string;
+    company_id: string | null;
+    user_id: string | null;
+    sent: number;
+    received: number;
+    is_new: boolean;
+  }>(
+    `select cv.id as conversation_id,
+            coalesce(ct.name, c.trade_name, c.name, cv.push_name, cv.phone) as name, cv.company_id,
+            coalesce(${COMPANY_SELLER},
+                     (select m2.sent_by from lp_crm_messages m2 where m2.conversation_id = cv.id and m2.sent_by is not null
+                       group by m2.sent_by order by count(*) desc limit 1)) as user_id,
+            count(*) filter (where m.direction = 'out')::int as sent,
+            count(*) filter (where m.direction = 'in')::int as received,
+            (select min(m3.created_at) from lp_crm_messages m3 where m3.conversation_id = cv.id)
+              >= ($2::date::timestamp at time zone 'America/Sao_Paulo') as is_new
+       from lp_crm_messages m join lp_crm_conversations cv on cv.id = m.conversation_id
+       left join lp_crm_contacts ct on ct.id = cv.contact_id
+       left join companies c on c.id = cv.company_id
+      where cv.organization_id = $1 and ${period}
+      group by cv.id, ct.name, c.trade_name, c.name
+      order by sent desc, received desc
+      limit 1000`,
     [user.organizationId, from, to],
   );
-  const ids = [...new Set(rows.map((r) => r.user_id).filter((id): id is string => !!id))];
+  const ids = [...new Set([...rows, ...clients].map((r) => r.user_id).filter((id): id is string => !!id))];
   const { rows: users } = ids.length
     ? await query<{ id: string; name: string; role: string }>('select id, name, role from users where id = any($1) and organization_id = $2', [
         ids,
         user.organizationId,
       ])
     : { rows: [] };
-  res.json({ from, to, users, rows });
+  res.json({ from, to, group, users, rows, clients });
 });
 
 crmRouter.get('/unread', async (req, res) => {
