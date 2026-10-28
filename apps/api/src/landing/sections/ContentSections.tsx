@@ -1,3 +1,4 @@
+import { SERVICES_MAX_STEPS } from '../styles.js';
 import type { RenderContext } from '../context.js';
 import { SectionPhotos } from './SectionPhotos.js';
 import { PhotoGrid } from './PhotoGrid.js';
@@ -78,10 +79,16 @@ export function AboutSection({ ctx, alt }: { ctx: RenderContext; alt: boolean })
   );
 }
 
+/** Serviços visíveis de início; cada "Ver mais" mostra mais esta quantidade. */
+const SERVICES_STEP = 4;
+
 export function ServicesSection({ ctx, alt }: { ctx: RenderContext; alt: boolean }) {
   const s = ctx.content.services;
   if (!s || !s.items.length) return null;
   const list = (TEMPLATES[ctx.theme.template].services(s.items.length) ?? ctx.theme.p.servicesLayout) === 'list';
+  // Mais de 4: os demais aparecem de 4 em 4 com "Ver mais" (sem JavaScript); no editor, todos abertos
+  const steps = ctx.editable ? 0 : Math.min(SERVICES_MAX_STEPS, Math.ceil(s.items.length / SERVICES_STEP) - 1);
+  const group = (i: number) => (steps && i >= SERVICES_STEP ? ` svc-g${Math.min(steps, Math.floor(i / SERVICES_STEP))}` : '');
   return (
     <section id="servicos" className={`section${alt ? ' section-alt' : ''}`}>
       <div className="container">
@@ -95,10 +102,13 @@ export function ServicesSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
             lead: edOptional(ctx, 'services.subtitle', 'Texto de apoio (opcional)'),
           }}
         />
+        {Array.from({ length: steps }, (_, k) => (
+          <input key={k} type="checkbox" id={`svc-more-${k + 1}`} className={`svc-more-toggle svc-t${k + 1}`} aria-hidden="true" tabIndex={-1} />
+        ))}
         {list ? (
           <div className="rows">
             {s.items.map((item, i) => (
-              <article key={item.name} className="row reveal">
+              <article key={item.name} className={`row reveal${group(i)}`}>
                 <div className="row-lead">
                   <span className="row-icon">
                     <Icon name={item.icon} size={22} attrs={edIcon(ctx, `services.items.${i}.icon`)} />
@@ -121,7 +131,7 @@ export function ServicesSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
         ) : (
           <div className="grid">
             {s.items.map((item, i) => (
-              <article key={item.name} className="card reveal">
+              <article key={item.name} className={`card reveal${group(i)}`}>
                 <div className="icon-box">
                   <Icon name={item.icon} size={24} attrs={edIcon(ctx, `services.items.${i}.icon`)} />
                 </div>
@@ -137,6 +147,15 @@ export function ServicesSection({ ctx, alt }: { ctx: RenderContext; alt: boolean
             ))}
           </div>
         )}
+        {steps ? (
+          <div className="svc-more-action">
+            {Array.from({ length: steps }, (_, k) => (
+              <label key={k} htmlFor={`svc-more-${k + 1}`} className={`btn btn-ghost btn-sm gallery-more-btn svc-l${k + 1}`}>
+                {ctx.labels.services_more}
+              </label>
+            ))}
+          </div>
+        ) : null}
         <SectionPhotos ctx={ctx} name="services" />
       </div>
     </section>
@@ -282,35 +301,32 @@ export function GallerySection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
   );
 }
 
-/** Depoimentos longos mostram os primeiros 250 caracteres com "Ler mais" / "Ler menos" (sem JavaScript). */
-const QUOTE_LIMIT = 250;
+/** Texto curto cabe em 4 linhas: sem botão (o script da página também esconde o botão quando o texto coube). */
+const QUOTE_SHORT = 140;
+
+/**
+ * Depoimento mostrado em até 4 linhas, com o botão discreto "Ver mais" / "Ver menos" para o texto inteiro
+ * (caixa de seleção escondida, sem depender de JavaScript).
+ */
+function ClampText({ ctx, toggle, text }: { ctx: RenderContext; toggle: string; text: string }) {
+  if (text.length <= QUOTE_SHORT) return <p>{text}</p>;
+  return (
+    <div className="quote-more">
+      <input type="checkbox" id={toggle} className="quote-more-toggle" />
+      <p className="quote-clamp">{text}</p>
+      <label htmlFor={toggle} className="quote-more-btn">
+        <span className="qm-more">{ctx.labels.testimonial_more}</span>
+        <span className="qm-less">{ctx.labels.testimonial_less}</span>
+      </label>
+    </div>
+  );
+}
 
 function QuoteText({ ctx, id, text }: { ctx: RenderContext; id: string; text: string }) {
   const { attrs, text: full } = cad(ctx, `testimonial.${id}.text`, text);
-  if (full.length <= QUOTE_LIMIT) return <p {...attrs}>{full}</p>;
-  const cut = full.slice(0, QUOTE_LIMIT);
-  const space = cut.lastIndexOf(' ');
-  const short = (space > QUOTE_LIMIT * 0.75 ? cut.slice(0, space) : cut).replace(/[\s,.;:!?-]+$/, '');
-  // Caixa de seleção escondida + rótulos: alterna resumo / texto inteiro sem JavaScript
-  const toggle = `quote-more-${id}`;
-  const more = (
-    <div className="quote-more">
-      <input type="checkbox" id={toggle} className="quote-more-toggle" />
-      <p className="quote-more-short">
-        {short}…{' '}
-        <label htmlFor={toggle} className="quote-more-link">
-          {ctx.labels.testimonial_more}
-        </label>
-      </p>
-      <p className="quote-more-full">
-        {full}{' '}
-        <label htmlFor={toggle} className="quote-more-link">
-          {ctx.labels.testimonial_less}
-        </label>
-      </p>
-    </div>
-  );
-  // No editor: o resumo com "Ler mais" aparece como na página; no modo Textos, o texto inteiro para editar
+  if (full.length <= QUOTE_SHORT) return <p {...attrs}>{full}</p>;
+  const more = <ClampText ctx={ctx} toggle={`quote-more-${id}`} text={full} />;
+  // No editor: as 4 linhas com "Ver mais" aparecem como na página; no modo Textos, o texto inteiro para editar
   return ctx.editable ? (
     <>
       <p {...attrs} data-lp-ui="quote-edit">
@@ -409,7 +425,7 @@ export function ReviewsSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
           {g.items.map((r, i) => (
             <blockquote key={`${i}-${r.author}`} className="quote rv reveal">
               <Stars />
-              <p>{r.text}</p>
+              <ClampText ctx={ctx} toggle={`review-more-${i}`} text={r.text} />
               <footer className="rv-author">
                 {r.photo ? (
                   <img src={r.photo} alt="" width={40} height={40} loading="lazy" referrerPolicy="no-referrer" />

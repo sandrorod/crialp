@@ -64,9 +64,10 @@ const LABEL_FIELDS: { key: string; label: string }[] = [
   { key: 'fact_location', label: 'Ficha — Localização' },
   { key: 'fact_hours', label: 'Ficha — Atendimento' },
   { key: 'fact_audience', label: 'Ficha — Público' },
-  { key: 'testimonial_more', label: 'Depoimentos — "Ler mais"' },
-  { key: 'testimonial_less', label: 'Depoimentos — "Ler menos"' },
+  { key: 'testimonial_more', label: 'Depoimentos — "Ver mais"' },
+  { key: 'testimonial_less', label: 'Depoimentos — "Ver menos"' },
   { key: 'gallery_more', label: 'Galeria — botão "Exibir mais"' },
+  { key: 'services_more', label: 'Serviços — botão "Ver mais"' },
   { key: 'footer_note', label: 'Rodapé — texto (vazio = endereço)' },
   { key: 'skip_link', label: 'Acessibilidade — link "pular para o conteúdo"' },
 ];
