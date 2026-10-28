@@ -883,6 +883,40 @@ crmRouter.get('/whatsapp-targets', async (req, res) => {
   res.json({ companies: companies.rows, contacts: contacts.rows });
 });
 
+/**
+ * Relatório (gerência): mensagens enviadas por dia e por vendedor, de `from` a `to` (datas de Brasília).
+ * Enviada pelo CRM conta para quem enviou; pelo n8n ou celular, para o vendedor atribuído à empresa da conversa
+ * (sem empresa ou sem vendedor: user_id null, "Sem vendedor").
+ */
+crmRouter.get('/report/messages', requireRole(...MANAGER_ROLES), async (req, res) => {
+  const user = authUser(req);
+  const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida.');
+  const { from, to } = z.object({ from: day, to: day }).parse(req.query);
+  const span = (Date.parse(to) - Date.parse(from)) / 86_400_000;
+  if (!(span >= 0 && span <= 92)) throw badRequest('Escolha um período de até 3 meses.');
+  const { rows } = await query<{ day: string; user_id: string | null; total: number }>(
+    `select to_char((m.created_at at time zone 'America/Sao_Paulo')::date, 'YYYY-MM-DD') as day,
+            coalesce(m.sent_by, (select l.seller_id from landing_pages l
+                                  where l.company_id = cv.company_id and l.seller_id is not null
+                                  order by l.updated_at desc limit 1)) as user_id,
+            count(*)::int as total
+       from lp_crm_messages m join lp_crm_conversations cv on cv.id = m.conversation_id
+      where cv.organization_id = $1 and m.direction = 'out'
+        and m.created_at >= ($2::date::timestamp at time zone 'America/Sao_Paulo')
+        and m.created_at < (($3::date + 1)::timestamp at time zone 'America/Sao_Paulo')
+      group by 1, 2`,
+    [user.organizationId, from, to],
+  );
+  const ids = [...new Set(rows.map((r) => r.user_id).filter((id): id is string => !!id))];
+  const { rows: users } = ids.length
+    ? await query<{ id: string; name: string; role: string }>('select id, name, role from users where id = any($1) and organization_id = $2', [
+        ids,
+        user.organizationId,
+      ])
+    : { rows: [] };
+  res.json({ from, to, users, rows });
+});
+
 crmRouter.get('/unread', async (req, res) => {
   const user = authUser(req);
   const r = await one<{ total: number }>(

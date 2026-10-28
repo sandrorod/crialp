@@ -102,6 +102,11 @@ export const crmService = {
     }>(`/crm/whatsapp-targets${search ? `?search=${encodeURIComponent(search)}` : ''}`),
   sync: () => api.post<{ added: number; skipped?: string }>('/crm/sync'),
   unread: () => api.get<{ total: number }>('/crm/unread'),
+  /** Mensagens enviadas por dia e por vendedor (gerência); user_id null = sem vendedor */
+  messagesReport: (from: string, to: string) =>
+    api.get<{ from: string; to: string; users: { id: string; name: string; role: string }[]; rows: { day: string; user_id: string | null; total: number }[] }>(
+      `/crm/report/messages?from=${from}&to=${to}`,
+    ),
   messages: (conversationId: string) => api.get<CrmMessage[]>(`/crm/conversations/${conversationId}/messages`),
   removeMessage: (messageId: string, everyone: boolean) => api.del(`/crm/messages/${messageId}${everyone ? '?everyone=true' : ''}`),
   editMessage: (messageId: string, text: string) => api.put(`/crm/messages/${messageId}`, { text }),

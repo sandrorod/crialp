@@ -26,6 +26,7 @@ import { CrmWhatsAppPage } from '@/pages/crm/CrmWhatsAppPage';
 import { CrmPipelinePage } from '@/pages/crm/CrmPipelinePage';
 import { CrmTasksPage } from '@/pages/crm/CrmTasksPage';
 import { CrmConnectionPage } from '@/pages/crm/CrmConnectionPage';
+import { CrmReportPage } from '@/pages/crm/CrmReportPage';
 import './index.css';
 
 // O login fica em /lps; o resto do painel continua em /admin
@@ -62,6 +63,7 @@ const router = onLogin
                 { path: 'whatsapp', element: <CrmWhatsAppPage /> },
                 { path: 'funil', element: <CrmPipelinePage /> },
                 { path: 'tarefas', element: <CrmTasksPage /> },
+                { path: 'relatorio', element: <CrmReportPage /> },
                 { path: 'conexao', element: <CrmConnectionPage /> },
               ],
             },

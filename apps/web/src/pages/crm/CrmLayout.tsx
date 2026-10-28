@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router';
-import { Building2, CalendarClock, CheckSquare, KanbanSquare, MessageCircle, Smartphone } from 'lucide-react';
+import { BarChart3, Building2, CalendarClock, CheckSquare, KanbanSquare, MessageCircle, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Modal } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
@@ -49,7 +49,12 @@ export function CrmLayout() {
     { to: '/crm/whatsapp', label: 'WhatsApp', icon: MessageCircle, badge: unread.data?.total ?? 0, tone: 'emerald' as CrmTone },
     { to: '/crm/funil', label: 'Funil', icon: KanbanSquare, tone: 'violet' as CrmTone },
     { to: '/crm/tarefas', label: 'Tarefas', icon: CheckSquare, tone: 'amber' as CrmTone },
-    ...(manager ? [{ to: '/crm/conexao', label: 'Conexão', icon: Smartphone, tone: 'sky' as CrmTone }] : []),
+    ...(manager
+      ? [
+          { to: '/crm/relatorio', label: 'Relatório', icon: BarChart3, tone: 'rose' as CrmTone },
+          { to: '/crm/conexao', label: 'Conexão', icon: Smartphone, tone: 'sky' as CrmTone },
+        ]
+      : []),
   ];
 
   // Abas em coluna à esquerda (md+); o AdminLayout alarga o container na mesma medida
