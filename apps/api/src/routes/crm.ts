@@ -629,7 +629,7 @@ crmRouter.get('/conversations', async (req, res) => {
   const label = f.label === 'none' ? 'none' : f.label && uuidParam.safeParse(f.label).success ? f.label : null;
   const { rows } = await query(
     `select cv.id, cv.phone, cv.push_name, cv.contact_id, cv.company_id, cv.unread, cv.last_message, cv.last_message_at,
-            ct.name as contact_name, coalesce(c.trade_name, c.name) as company_name,
+            ct.name as contact_name, coalesce(c.trade_name, c.name) as company_name, pin.pinned_at is not null as pinned,
             coalesce((select json_agg(json_build_object('id', l.id, 'name', l.name, 'color', l.color) order by lower(l.name))
                         from lp_crm_conversation_labels cl join lp_crm_labels l on l.id = cl.label_id
                        where cl.conversation_id = cv.id), '[]') as labels,
@@ -642,6 +642,7 @@ crmRouter.get('/conversations', async (req, res) => {
        from lp_crm_conversations cv
        left join lp_crm_contacts ct on ct.id = cv.contact_id
        left join companies c on c.id = cv.company_id
+       left join lp_crm_conversation_pins pin on pin.conversation_id = cv.id and pin.user_id = $7
       where cv.organization_id = $1
         and ${convVisible('cv', '$2')}
         and (not $3 or cv.company_id is null)
@@ -653,9 +654,10 @@ crmRouter.get('/conversations', async (req, res) => {
         and ($6::text is null
              or ($6 = 'none' and not exists (select 1 from lp_crm_conversation_labels cl where cl.conversation_id = cv.id))
              or ($6 <> 'none' and exists (select 1 from lp_crm_conversation_labels cl where cl.conversation_id = cv.id and cl.label_id::text = $6)))
-      order by cv.last_message_at desc nulls last
+      -- Fixadas por este usuário no topo (a fixada por último primeiro); depois, a mais recente
+      order by pin.pinned_at desc nulls last, cv.last_message_at desc nulls last
       limit 300`,
-    [user.organizationId, sellerScope(user), isManager(user) && f.unlinked === 'true', term, phoneTerm, label],
+    [user.organizationId, sellerScope(user), isManager(user) && f.unlinked === 'true', term, phoneTerm, label, user.id],
   );
   res.json(rows);
 });
@@ -1003,6 +1005,21 @@ crmRouter.post('/conversations/:id/unread', async (req, res) => {
   const user = authUser(req);
   const conv = await ensureConversation(user, uuidParam.parse(req.params.id));
   await query('update lp_crm_conversations set unread = greatest(unread, 1) where id = $1', [conv.id]);
+  res.json({ ok: true });
+});
+
+/** Fixar / desafixar a conversa no topo da lista (botão direito na lista): cada usuário fixa as suas. */
+crmRouter.post('/conversations/:id/pin', async (req, res) => {
+  const user = authUser(req);
+  const conv = await ensureConversation(user, uuidParam.parse(req.params.id));
+  await query('insert into lp_crm_conversation_pins (user_id, conversation_id) values ($1, $2) on conflict do nothing', [user.id, conv.id]);
+  res.json({ ok: true });
+});
+
+crmRouter.delete('/conversations/:id/pin', async (req, res) => {
+  const user = authUser(req);
+  const conv = await ensureConversation(user, uuidParam.parse(req.params.id));
+  await query('delete from lp_crm_conversation_pins where user_id = $1 and conversation_id = $2', [user.id, conv.id]);
   res.json({ ok: true });
 });
 

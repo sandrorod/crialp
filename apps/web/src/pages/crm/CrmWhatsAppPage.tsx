@@ -19,6 +19,8 @@ import {
   Paperclip,
   Pencil,
   Phone,
+  Pin,
+  PinOff,
   Plus,
   Search,
   Send,
@@ -100,10 +102,10 @@ export function CrmWhatsAppPage() {
   );
 
   const selectedId = params.get('id');
-  // Botão direito (ou tocar e segurar no celular) numa conversa da lista: menu com "Marcar como não lida"
+  // Botão direito (ou tocar e segurar no celular) numa conversa da lista: menu com "Fixar no topo" e "Marcar como não lida"
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const press = useRef<{ timer: ReturnType<typeof setTimeout> | null; opened: boolean }>({ timer: null, opened: false });
-  const openMenu = (id: string, x: number, y: number) => setMenu({ id, x: Math.min(x, window.innerWidth - 220), y: Math.min(y, window.innerHeight - 60) });
+  const openMenu = (id: string, x: number, y: number) => setMenu({ id, x: Math.min(x, window.innerWidth - 220), y: Math.min(y, window.innerHeight - 100) });
   const markUnread = async (id: string) => {
     setMenu(null);
     // Aberta: fecha antes, senão a conversa aberta marcaria como lida de novo
@@ -112,6 +114,25 @@ export function CrmWhatsAppPage() {
       await crmService.markUnread(id);
       setData((list) => list?.map((c) => (c.id === id ? { ...c, unread: Math.max(c.unread, 1) } : c)) ?? list);
       refreshUnread();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  };
+  /** Fixa/desafixa no topo; a lista é reordenada na hora (a próxima atualização confirma com o servidor). */
+  const togglePin = async (id: string) => {
+    setMenu(null);
+    const pinned = !conversations?.find((c) => c.id === id)?.pinned;
+    try {
+      await (pinned ? crmService.pin(id) : crmService.unpin(id));
+      setData((cur) => {
+        if (!cur) return cur;
+        const list = cur.map((c) => (c.id === id ? { ...c, pinned } : c));
+        const moved = list.find((c) => c.id === id)!;
+        const rest = list.filter((c) => c.id !== id);
+        // Fixada: vai para o topo; desafixada: logo depois das fixadas (a ordem certa vem na próxima atualização)
+        const at = pinned ? 0 : rest.filter((c) => c.pinned).length;
+        return [...rest.slice(0, at), moved, ...rest.slice(at)];
+      });
     } catch (err) {
       toast.error(errorMessage(err));
     }
@@ -269,7 +290,12 @@ export function CrmWhatsAppPage() {
                         </span>
                       ) : null}
                     </span>
-                    <span className={cn('shrink-0 text-[11px]', c.unread ? 'font-medium text-emerald-700' : 'text-zinc-400')}>
+                    <span className={cn('flex shrink-0 items-center gap-1 text-[11px]', c.unread ? 'font-medium text-emerald-700' : 'text-zinc-400')}>
+                      {c.pinned ? (
+                        <span title="Fixada no topo" aria-label="Fixada no topo" className="text-zinc-400">
+                          <Pin className="size-3 rotate-45" />
+                        </span>
+                      ) : null}
                       {dateTime(c.last_message_at)}
                     </span>
                   </div>
@@ -299,6 +325,22 @@ export function CrmWhatsAppPage() {
             style={{ left: menu.x, top: menu.y }}
             onPointerDown={(e) => e.stopPropagation()}
           >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => void togglePin(menu.id)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-ink hover:bg-zinc-50"
+            >
+              {list.find((c) => c.id === menu.id)?.pinned ? (
+                <>
+                  <PinOff className="size-4 text-zinc-500" /> Desafixar
+                </>
+              ) : (
+                <>
+                  <Pin className="size-4 text-zinc-500" /> Fixar no topo
+                </>
+              )}
+            </button>
             <button
               type="button"
               role="menuitem"

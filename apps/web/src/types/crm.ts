@@ -130,6 +130,8 @@ export interface CrmConversation {
   contact_name: string | null;
   company_name?: string | null;
   labels?: CrmLabel[];
+  /** Fixada no topo da lista por este usuário */
+  pinned?: boolean;
   /** Busca: a mensagem mais recente que contém o termo */
   matched?: { id: string; body: string; created_at: string } | null;
 }

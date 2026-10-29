@@ -111,6 +111,8 @@ export const crmService = {
   react: (messageId: string, emoji: string) => api.post(`/crm/messages/${messageId}/reaction`, { emoji }),
   markRead: (conversationId: string) => api.post(`/crm/conversations/${conversationId}/read`),
   markUnread: (conversationId: string) => api.post(`/crm/conversations/${conversationId}/unread`),
+  pin: (conversationId: string) => api.post(`/crm/conversations/${conversationId}/pin`),
+  unpin: (conversationId: string) => api.del(`/crm/conversations/${conversationId}/pin`),
   send: (to: SendTo, text: string) => api.post<{ conversation_id: string }>('/crm/messages', { ...to, text }),
   sendMedia: (to: SendTo, media: OutgoingMedia) => api.post<{ conversation_id: string }>('/crm/messages/media', { ...to, ...media }),
   /** Galeria de GIFs (GIPHY): busca, ou os em alta sem termo */
