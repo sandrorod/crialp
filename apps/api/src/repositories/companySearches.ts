@@ -43,9 +43,10 @@ export function getSearch(orgId: string, id: string) {
   return one<SavedSearch>('select * from lp_company_searches where id = $1 and organization_id = $2', [id, orgId]);
 }
 
-const ACCENTS_FROM = 'áàâãäéèêëíìîïóòôõöúùûüçñ';
-const ACCENTS_TO = 'aaaaaeeeeiiiiooooouuuucn';
-const fold = (v: string) => [...v.toLowerCase()].map((ch) => ACCENTS_TO[ACCENTS_FROM.indexOf(ch)] ?? ch).join('');
+/** Letras acentuadas e as mesmas sem acento (para translate() no SQL e `fold` aqui), nas buscas sem acento */
+export const ACCENTS_FROM = 'áàâãäéèêëíìîïóòôõöúùûüçñ';
+export const ACCENTS_TO = 'aaaaaeeeeiiiiooooouuuucn';
+export const fold = (v: string) => [...v.toLowerCase()].map((ch) => ACCENTS_TO[ACCENTS_FROM.indexOf(ch)] ?? ch).join('');
 
 /** Pesquisas do histórico; com `q`, procura no texto da pesquisa e no autor (sem acento, sem maiúsculas) em todo o histórico. */
 export async function listSearches(orgId: string, q?: string) {

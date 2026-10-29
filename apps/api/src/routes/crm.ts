@@ -6,6 +6,7 @@ import { AppError, badRequest, notFound } from '../lib/errors.js';
 import { longText, parseBody, text, uuidParam } from '../lib/validation.js';
 import { authUser, MANAGER_ROLES, requireRole, type AuthUser } from '../middleware/auth.js';
 import { inProspecting, prospectingState } from '../repositories/companies.js';
+import { ACCENTS_FROM, ACCENTS_TO, fold } from '../repositories/companySearches.js';
 import { env } from '../config/env.js';
 import { aiKeyStore } from '../services/ai/keyStore.js';
 import { gifToSticker } from '../services/crm/gifSticker.js';
@@ -623,10 +624,12 @@ crmRouter.get('/conversations', async (req, res) => {
     .parse(req.query);
   // Empresa cadastrada/alterada depois da 1ª mensagem: tenta ligar as conversas que ainda estão sem empresa
   if (isManager(user)) await relinkConversations(user.organizationId, { onlyUnlinked: true });
-  const term = f.search?.trim() ? `%${f.search.trim().replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null;
+  // Nomes e mensagens sem acento e sem maiúsculas ("joao" acha "João")
+  const term = f.search?.trim() ? `%${fold(f.search.trim()).replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null;
   const digits = f.search?.replace(/\D/g, '') ?? '';
-  const phoneTerm = digits.length >= 4 ? `%${digits.slice(-8)}%` : null;
+  const phoneTerm = digits.length >= 4 ? `%${digits}%` : null;
   const label = f.label === 'none' ? 'none' : f.label && uuidParam.safeParse(f.label).success ? f.label : null;
+  const folded = (col: string) => `translate(lower(${col}), $8, $9)`;
   const { rows } = await query(
     `select cv.id, cv.phone, cv.push_name, cv.contact_id, cv.company_id, cv.unread, cv.last_message, cv.last_message_at,
             ct.name as contact_name, coalesce(c.trade_name, c.name) as company_name, pin.pinned_at is not null as pinned,
@@ -637,7 +640,7 @@ crmRouter.get('/conversations', async (req, res) => {
             case when $4::text is null then null else (
               select json_build_object('id', m.id, 'body', left(m.body, 300), 'created_at', m.created_at)
                 from lp_crm_messages m
-               where m.conversation_id = cv.id and m.hidden_at is null and m.revoked_at is null and m.body ilike $4
+               where m.conversation_id = cv.id and m.hidden_at is null and m.revoked_at is null and ${folded('m.body')} like $4
                order by m.created_at desc limit 1) end as matched
        from lp_crm_conversations cv
        left join lp_crm_contacts ct on ct.id = cv.contact_id
@@ -647,17 +650,20 @@ crmRouter.get('/conversations', async (req, res) => {
         and ${convVisible('cv', '$2')}
         and (not $3 or cv.company_id is null)
         and ($4::text is null
-             or ct.name ilike $4 or cv.push_name ilike $4 or c.name ilike $4 or c.trade_name ilike $4
-             or ($5::text is not null and cv.wa_key like $5)
+             or ${folded('ct.name')} like $4 or ${folded('cv.push_name')} like $4
+             or ${folded('c.name')} like $4 or ${folded('c.trade_name')} like $4
+             -- Número com ou sem o 9 do celular, com ou sem DDI/DDD: compara com o número salvo e com a forma com o 9
+             or ($5::text is not null and (cv.wa_key like $5 or regexp_replace(cv.phone, '\\D', '', 'g') like $5
+                  or (case when cv.wa_key ~ '^55[0-9]{10}$' then left(cv.wa_key, 4) || '9' || right(cv.wa_key, 8) end) like $5))
              or exists (select 1 from lp_crm_messages m where m.conversation_id = cv.id and m.hidden_at is null
-                         and m.revoked_at is null and m.body ilike $4))
+                         and m.revoked_at is null and ${folded('m.body')} like $4))
         and ($6::text is null
              or ($6 = 'none' and not exists (select 1 from lp_crm_conversation_labels cl where cl.conversation_id = cv.id))
              or ($6 <> 'none' and exists (select 1 from lp_crm_conversation_labels cl where cl.conversation_id = cv.id and cl.label_id::text = $6)))
       -- Fixadas por este usuário no topo (a fixada por último primeiro); depois, a mais recente
       order by pin.pinned_at desc nulls last, cv.last_message_at desc nulls last
       limit 300`,
-    [user.organizationId, sellerScope(user), isManager(user) && f.unlinked === 'true', term, phoneTerm, label, user.id],
+    [user.organizationId, sellerScope(user), isManager(user) && f.unlinked === 'true', term, phoneTerm, label, user.id, ACCENTS_FROM, ACCENTS_TO],
   );
   res.json(rows);
 });
