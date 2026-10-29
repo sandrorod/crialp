@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { BarChart3 } from 'lucide-react';
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, BarChart3, Inbox, MessageSquare, Send, UserPlus, Users } from 'lucide-react';
 import { Card, ErrorBlock, LoadingBlock, Select } from '@/components/ui';
-import { CrmBar } from '@/components/crm/CrmTheme';
+import { Avatar, CrmBar, Pill, ToneIcon, type CrmTone } from '@/components/crm/CrmTheme';
 import { useAsync } from '@/hooks/useAsync';
 import { crmService, type MessagesReport } from '@/services/crm';
 
@@ -70,8 +70,8 @@ function PeriodTable({
   label: (k: string) => string;
 }) {
   const kinds = [
-    { id: 'sent', name: 'Enviadas', count: sent },
-    { id: 'received', name: 'Recebidas', count: received },
+    { id: 'sent', name: 'Enviadas', icon: <ArrowUpRight className="size-3 text-emerald-600" />, count: sent },
+    { id: 'received', name: 'Recebidas', icon: <ArrowDownLeft className="size-3 text-sky-600" />, count: received },
   ];
   const at = (count: Map<string, number>, k: string, c: Col) => count.get(`${k}|${c.id}`) ?? 0;
   const colTotal = (count: Map<string, number>, c: Col) => keys.reduce((n, k) => n + at(count, k, c), 0);
@@ -79,28 +79,40 @@ function PeriodTable({
   const grand = (count: Map<string, number>) => cols.reduce((n, c) => n + colTotal(count, c), 0);
   const cell = (first: boolean, extra: string) => `px-3 text-right tabular-nums ${first ? 'border-l border-zinc-100' : ''} ${extra}`;
   return (
-    <Section title={title}>
+    <Section title={title} icon={<ArrowLeftRight className="size-3.5" />} tone="emerald">
       {!grand(sent) && !grand(received) ? (
-        <p className="px-4 pb-4 text-sm text-zinc-500">Nenhuma mensagem neste período.</p>
+        <p className="px-4 py-6 text-center text-sm text-zinc-500">Nenhuma mensagem neste período.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wide text-zinc-500">
+              <tr className="text-left text-[11px] uppercase tracking-wide text-zinc-500">
                 <th rowSpan={2} className="border-b border-zinc-100 px-4 py-3 align-bottom font-medium">
                   Período
                 </th>
-                {[...cols, { id: 'total', name: 'Total' }].map((c) => (
-                  <th key={c.id} colSpan={2} className="border-l border-zinc-100 px-3 pt-3 text-center font-medium">
-                    {c.name}
+                {cols.map((c) => (
+                  <th key={c.id} colSpan={2} className="border-l border-zinc-100 px-3 pt-3 font-medium">
+                    <span className="flex items-center justify-center gap-2 normal-case tracking-normal">
+                      <Avatar name={c.name} size="sm" />
+                      <span className="text-[13px] font-semibold text-ink">{c.name}</span>
+                    </span>
                   </th>
                 ))}
+                <th
+                  colSpan={2}
+                  className="border-l border-zinc-100 bg-zinc-50/80 px-3 pt-3 text-center text-[13px] font-semibold normal-case tracking-normal text-ink"
+                >
+                  Total
+                </th>
               </tr>
-              <tr className="border-b border-zinc-100 text-xs text-zinc-400">
+              <tr className="border-b border-zinc-100 text-[11px] text-zinc-500">
                 {[...cols, { id: 'total', name: 'Total' }].flatMap((c) =>
                   kinds.map((t, i) => (
-                    <th key={`${c.id}-${t.id}`} className={cell(i === 0, 'pb-2 pt-1 font-normal')}>
-                      {t.name}
+                    <th key={`${c.id}-${t.id}`} className={cell(i === 0, `pb-2 pt-1.5 font-medium ${c.id === 'total' ? 'bg-zinc-50/80' : ''}`)}>
+                      <span className="inline-flex items-center gap-1">
+                        {t.icon}
+                        {t.name}
+                      </span>
                     </th>
                   )),
                 )}
@@ -108,8 +120,10 @@ function PeriodTable({
             </thead>
             <tbody>
               {keys.map((k) => (
-                <tr key={k} className="border-b border-zinc-50">
-                  <td className="whitespace-nowrap px-4 py-2.5 text-zinc-600">{label(k)}</td>
+                <tr key={k} className="border-b border-zinc-50 hover:bg-zinc-50/60">
+                  <td className={`whitespace-nowrap px-4 py-2.5 ${rowTotal(sent, k) + rowTotal(received, k) ? 'text-zinc-700' : 'text-zinc-400'}`}>
+                    {label(k)}
+                  </td>
                   {cols.flatMap((c) =>
                     kinds.map((t, i) => {
                       const n = at(t.count, k, c);
@@ -121,7 +135,7 @@ function PeriodTable({
                     }),
                   )}
                   {kinds.map((t, i) => (
-                    <td key={t.id} className={cell(i === 0, 'py-2.5 font-medium')}>
+                    <td key={t.id} className={cell(i === 0, `bg-zinc-50/80 py-2.5 font-medium ${rowTotal(t.count, k) ? 'text-ink' : 'text-zinc-300'}`)}>
                       {rowTotal(t.count, k)}
                     </td>
                   ))}
@@ -129,7 +143,7 @@ function PeriodTable({
               ))}
             </tbody>
             <tfoot>
-              <tr className="bg-zinc-50 font-semibold">
+              <tr className="border-t border-zinc-200 bg-zinc-50 font-semibold">
                 <td className="px-4 py-3">Total</td>
                 {cols.flatMap((c) =>
                   kinds.map((t, i) => (
@@ -139,7 +153,7 @@ function PeriodTable({
                   )),
                 )}
                 {kinds.map((t, i) => (
-                  <td key={t.id} className={cell(i === 0, 'py-3')}>
+                  <td key={t.id} className={cell(i === 0, 'bg-zinc-100/70 py-3')}>
                     {grand(t.count)}
                   </td>
                 ))}
@@ -152,13 +166,45 @@ function PeriodTable({
   );
 }
 
-function Section({ title, children, note }: { title: string; children: ReactNode; note?: string }) {
+function Section({ title, icon, tone, children, note }: { title: string; icon: ReactNode; tone: CrmTone; children: ReactNode; note?: string }) {
   return (
-    <section className="border-t border-zinc-100 first:border-t-0">
-      <h2 className="px-4 pb-2 pt-4 text-sm font-semibold text-ink">{title}</h2>
+    <section className="overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-xs">
+      <div className="flex items-center gap-2.5 border-b border-zinc-100 px-4 py-3">
+        <ToneIcon tone={tone} className="size-7 rounded-md">
+          {icon}
+        </ToneIcon>
+        <h2 className="text-sm font-semibold text-ink">{title}</h2>
+      </div>
       {children}
-      {note ? <p className="px-4 pb-4 text-xs text-zinc-500">{note}</p> : null}
+      {note ? <p className="border-t border-zinc-100 bg-zinc-50/60 px-4 py-2.5 text-xs text-zinc-500">{note}</p> : null}
     </section>
+  );
+}
+
+/** Número de destaque do período (total de enviadas, recebidas, clientes…). */
+function Stat({ tone, icon, label, value, hint }: { tone: CrmTone; icon: ReactNode; label: string; value: number; hint?: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-zinc-200/80 bg-white p-4 shadow-xs">
+      <ToneIcon tone={tone} className="size-10 rounded-xl">
+        {icon}
+      </ToneIcon>
+      <div className="min-w-0">
+        <p className="truncate text-xs font-medium text-zinc-500">{label}</p>
+        <p className="text-2xl font-semibold leading-tight tabular-nums text-ink">{value.toLocaleString('pt-BR')}</p>
+        {hint ? <p className="truncate text-[11px] text-zinc-400">{hint}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+/** Barra fina: parte dos contatados que é nova (verde) e que já tinha contato (cinza). */
+function SplitBar({ novos, total }: { novos: number; total: number }) {
+  const pct = total ? Math.round((novos / total) * 100) : 0;
+  return (
+    <div className="flex h-1.5 w-full gap-0.5 overflow-hidden rounded-full" title={`${novos} novo(s) de ${total} (${pct}%)`}>
+      {novos ? <span className="rounded-full bg-emerald-500" style={{ width: `${pct}%` }} /> : null}
+      {total - novos ? <span className="flex-1 rounded-full bg-zinc-200" /> : null}
+    </div>
   );
 }
 
@@ -178,6 +224,7 @@ export function CrmReportPage() {
     k.length === 7
       ? monthName(k)
       : new Date(`${k}T12:00:00Z`).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'UTC' });
+  const sum = (m: Map<string, number>) => [...m.values()].reduce((n, v) => n + v, 0);
 
   return (
     <Card className="overflow-hidden">
@@ -197,83 +244,120 @@ export function CrmReportPage() {
       ) : loading || !view ? (
         <LoadingBlock />
       ) : (
-        <div>
+        <div className="space-y-4 bg-zinc-50/70 p-3 sm:p-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Stat tone="emerald" icon={<Send className="size-4.5" />} label="Mensagens enviadas" value={sum(view.sent)} />
+            <Stat tone="sky" icon={<Inbox className="size-4.5" />} label="Mensagens recebidas" value={sum(view.received)} />
+            <Stat tone="violet" icon={<Users className="size-4.5" />} label="Clientes contatados" value={view.contactedTotal.total} />
+            <Stat
+              tone="amber"
+              icon={<UserPlus className="size-4.5" />}
+              label="Clientes novos"
+              value={view.contactedTotal.novos}
+              hint={view.contactedTotal.total ? `${Math.round((view.contactedTotal.novos / view.contactedTotal.total) * 100)}% dos contatados` : undefined}
+            />
+          </div>
+
           <PeriodTable title="Mensagens enviadas e recebidas" cols={view.cols} keys={view.keys} sent={view.sent} received={view.received} label={label} />
 
-          <Section
-            title="Clientes contatados"
-            note="Novo: o primeiro contato com o cliente foi neste período. Contatado: recebeu ao menos uma mensagem no período."
-          >
-            {!view.contacted.length ? (
-              <p className="px-4 pb-4 text-sm text-zinc-500">Nenhum cliente contatado neste período.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-100 text-left text-xs uppercase tracking-wide text-zinc-500">
-                      <th className="px-4 py-3 font-medium">Vendedor</th>
-                      <th className="px-3 py-3 text-right font-medium">Contatados</th>
-                      <th className="px-3 py-3 text-right font-medium">Novos</th>
-                      <th className="px-4 py-3 text-right font-medium">Já tinham contato</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {view.contacted.map((r) => (
-                      <tr key={r.id} className="border-b border-zinc-50">
-                        <td className="px-4 py-2.5 text-zinc-700">{r.name}</td>
-                        <td className="px-3 py-2.5 text-right font-medium tabular-nums">{r.total}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700">{r.novos}</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums">{r.total - r.novos}</td>
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Section
+              title="Clientes contatados"
+              icon={<Users className="size-3.5" />}
+              tone="violet"
+              note="Novo: o primeiro contato com o cliente foi neste período. Contatado: recebeu ao menos uma mensagem no período."
+            >
+              {!view.contacted.length ? (
+                <p className="px-4 py-6 text-center text-sm text-zinc-500">Nenhum cliente contatado neste período.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-zinc-100 text-left text-[11px] uppercase tracking-wide text-zinc-500">
+                        <th className="px-4 py-2.5 font-medium">Vendedor</th>
+                        <th className="px-3 py-2.5 text-right font-medium">Contatados</th>
+                        <th className="px-3 py-2.5 text-right font-medium">Novos</th>
+                        <th className="px-4 py-2.5 text-right font-medium">Já tinham contato</th>
                       </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-zinc-50 font-semibold">
-                      <td className="px-4 py-3">Total</td>
-                      <td className="px-3 py-3 text-right tabular-nums">{view.contactedTotal.total}</td>
-                      <td className="px-3 py-3 text-right tabular-nums">{view.contactedTotal.novos}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{view.contactedTotal.total - view.contactedTotal.novos}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )}
-          </Section>
+                    </thead>
+                    <tbody>
+                      {view.contacted.map((r) => (
+                        <tr key={r.id} className="border-b border-zinc-50 hover:bg-zinc-50/60">
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center gap-2.5">
+                              <Avatar name={r.name} size="sm" />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-zinc-700">{r.name}</p>
+                                <div className="mt-1 w-28">
+                                  <SplitBar novos={r.novos} total={r.total} />
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-ink">{r.total}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="size-1.5 rounded-full bg-emerald-500" />
+                              {r.novos}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-right tabular-nums text-zinc-600">{r.total - r.novos}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-zinc-50 font-semibold">
+                        <td className="px-4 py-3">Total</td>
+                        <td className="px-3 py-3 text-right tabular-nums">{view.contactedTotal.total}</td>
+                        <td className="px-3 py-3 text-right tabular-nums">{view.contactedTotal.novos}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{view.contactedTotal.total - view.contactedTotal.novos}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </Section>
 
-          <Section title="Mensagens por cliente">
-            {!view.clients.length ? (
-              <p className="px-4 pb-4 text-sm text-zinc-500">Nenhuma conversa neste período.</p>
-            ) : (
-              <div className="max-h-[480px] overflow-auto">
-                <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-white">
-                    <tr className="border-b border-zinc-100 text-left text-xs uppercase tracking-wide text-zinc-500">
-                      <th className="px-4 py-3 font-medium">Cliente</th>
-                      <th className="px-3 py-3 font-medium">Vendedor</th>
-                      <th className="px-3 py-3 text-right font-medium">Enviadas</th>
-                      <th className="px-4 py-3 text-right font-medium">Recebidas</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {view.clients.map((c) => (
-                      <tr key={c.conversation_id} className="border-b border-zinc-50">
-                        <td className="px-4 py-2.5 text-zinc-700">
-                          {c.name}
-                          {c.is_new && c.sent ? (
-                            <span className="ml-2 rounded-full bg-emerald-50 px-1.5 text-[11px] font-medium text-emerald-700">novo</span>
-                          ) : null}
-                        </td>
-                        <td className="px-3 py-2.5 text-zinc-500">{c.seller}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">{c.sent}</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums">{c.received}</td>
+            <Section title="Mensagens por cliente" icon={<MessageSquare className="size-3.5" />} tone="blue">
+              {!view.clients.length ? (
+                <p className="px-4 py-6 text-center text-sm text-zinc-500">Nenhuma conversa neste período.</p>
+              ) : (
+                <div className="max-h-[480px] overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 z-10 bg-white">
+                      <tr className="border-b border-zinc-100 text-left text-[11px] uppercase tracking-wide text-zinc-500">
+                        <th className="px-4 py-2.5 font-medium">Cliente</th>
+                        <th className="px-3 py-2.5 font-medium">Vendedor</th>
+                        <th className="px-3 py-2.5 text-right font-medium">Enviadas</th>
+                        <th className="px-4 py-2.5 text-right font-medium">Recebidas</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Section>
-          <p className="border-t border-zinc-100 px-4 py-3 text-xs text-zinc-500">
+                    </thead>
+                    <tbody>
+                      {view.clients.map((c) => (
+                        <tr key={c.conversation_id} className="border-b border-zinc-50 hover:bg-zinc-50/60">
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center gap-2.5">
+                              <Avatar name={c.name} size="sm" />
+                              <span className="min-w-0 truncate text-zinc-700">{c.name}</span>
+                              {c.is_new && c.sent ? (
+                                <Pill tone="emerald" className="flex-none">
+                                  novo
+                                </Pill>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2.5 text-zinc-500">{c.seller}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{c.sent}</td>
+                          <td className="px-4 py-2.5 text-right tabular-nums">{c.received}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Section>
+          </div>
+          <p className="px-1 text-xs text-zinc-500">
             Enviadas pelo CRM contam para quem enviou; pelo n8n ou pelo celular, e as recebidas, para o vendedor atribuído à empresa da conversa.
           </p>
         </div>

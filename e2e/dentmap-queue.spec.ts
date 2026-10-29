@@ -71,3 +71,58 @@ test('DentMap: na lista de dentistas, Abrir LP e Ver empresa abrem em nova aba',
   const semLp = page.locator('div.flex-wrap').filter({ hasText: 'Cadastrado sem LP' });
   await expect(semLp.getByRole('link', { name: 'Ver empresa' })).toHaveAttribute('target', '_blank');
 });
+
+test('DentMap: com "Listar antes de gerar", o Iniciar só lista para escolher; o lote escolhido tira o link da fila', async ({ page }) => {
+  await mockDentmap(page);
+  await page.goto('/admin/dentmap');
+  await page.evaluate(
+    (links) => {
+      localStorage.setItem('lp:dentmap-links', JSON.stringify(links));
+      localStorage.removeItem('lp:dentmap-listar');
+    },
+    [P(1), P(2)],
+  );
+  await page.reload();
+  await page.getByLabel('Listar antes de gerar').check();
+  await expect(page.getByRole('button', { name: 'Automático' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Iniciar' }).click();
+  // Nada começa sozinho: fica na tela, com os dentistas listados para escolher
+  await expect(page.getByText('3 dentista(s) encontrado(s)')).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/dentmap$/);
+  await page.getByRole('button', { name: 'Gerar 1 LP' }).click();
+  await expect(page).toHaveURL(/\/admin\/nova\?lote=1/);
+  const batch = await page.evaluate(() => JSON.parse(sessionStorage.getItem('lp:batch') ?? 'null'));
+  expect(batch.items.map((i: { name: string }) => i.name)).toEqual(['Dentista Novo']);
+  expect(batch.back).toBe(`/dentmap?concluido=${encodeURIComponent(P(1))}&fotos=1`);
+  // A opção fica lembrada
+  await page.goto('/admin/dentmap');
+  await expect(page.getByLabel('Listar antes de gerar')).toBeChecked();
+});
+
+test('Doctoralia: mesma fila de links (?page=N), Iniciar e Automático', async ({ page }) => {
+  const DBASE = 'https://www.doctoralia.com.br/dentista/campinas';
+  const DP = (n: number) => (n === 1 ? DBASE : `${DBASE}?page=${n}`);
+  await page.route('**/api/doctoralia-pages?*', (r) => r.fulfill({ json: { pages: [DP(1), DP(2)] } }));
+  await page.route('**/api/doctoralia-links?*', (r) =>
+    r.fulfill({
+      json: {
+        items: [
+          { url: 'https://www.doctoralia.com.br/marcia-ferraz/dentista/campinas', name: 'Dra. Marcia', existing: null },
+          { url: 'https://www.doctoralia.com.br/clinicas/com-lp', name: 'Clínica com LP', existing: existing(true) },
+        ],
+      },
+    }),
+  );
+  await page.goto('/admin/doctoralia');
+  await page.evaluate(() => localStorage.removeItem('lp:doctoralia-links'));
+  await page.reload();
+  await page.getByPlaceholder('https://www.doctoralia.com.br/dentista/sao-paulo').fill(DBASE);
+  await page.getByRole('button', { name: 'Adicionar à lista' }).click();
+  await expect(page.getByLabel('Link da lista').locator('option')).toHaveText(['campinas — página 1', 'campinas — página 2']);
+  await expect(page.getByRole('button', { name: 'Automático' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Automático' }).click();
+  await expect(page).toHaveURL(/\/admin\/nova\?lote=1/);
+  const batch = await page.evaluate(() => JSON.parse(sessionStorage.getItem('lp:batch') ?? 'null'));
+  expect(batch.items.map((i: { name: string }) => i.name)).toEqual(['Dra. Marcia']);
+  expect(batch.back).toBe(`/doctoralia?concluido=${encodeURIComponent(DP(1))}&fotos=1&auto=1`);
+});

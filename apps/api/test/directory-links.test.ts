@@ -53,6 +53,14 @@ before(async () => {
         },
       );
     }
+    if (u.hostname === 'www.doctoralia.com.br' && u.pathname === '/dentista/campinas') {
+      // Lista de 5 páginas (?page=2…)
+      const n = Number(u.searchParams.get('page') ?? 1);
+      return new Response(`<a href="/dentista/campinas?page=${n}">${n}</a>${n < 5 ? `<a href="/dentista/campinas?page=${n + 1}">Próxima</a>` : ''}`, {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      });
+    }
     if (u.hostname === 'dentmap.com.br') return new Response(LIST_HTML, { status: 200, headers: { 'Content-Type': 'text/html' } });
     if (u.hostname === 'www.doctoralia.com.br') return new Response(DOCTORALIA_HTML, { status: 200, headers: { 'Content-Type': 'text/html' } });
     return realFetch(input, init);
@@ -117,6 +125,16 @@ describe('DentMap', () => {
 });
 
 describe('Doctoralia', () => {
+  it('descobre todas as páginas da lista (?page=2…)', async () => {
+    const r = await dono.call('GET', `/api/doctoralia-pages?url=${encodeURIComponent('https://www.doctoralia.com.br/dentista/campinas?page=2')}`);
+    assert.equal(r.status, 200);
+    const { pages } = (await r.json()) as { pages: string[] };
+    assert.deepEqual(pages, [
+      'https://www.doctoralia.com.br/dentista/campinas',
+      ...[2, 3, 4, 5].map((n) => `https://www.doctoralia.com.br/dentista/campinas?page=${n}`),
+    ]);
+  });
+
   it('lista profissionais e clínicas da página, com o nome e sem repetir', async () => {
     const r = await dono.call('GET', `/api/doctoralia-links?url=${encodeURIComponent('https://www.doctoralia.com.br/dentista/sao-paulo')}`);
     assert.equal(r.status, 200);

@@ -20,7 +20,7 @@ interface Directory {
    * (ex.: bairros como /dentistas/sao-paulo/itaim-paulista) não são perfis
    */
   profileText?: RegExp;
-  /** Parâmetro da paginação das listas (DentMap: ?pagina=2) */
+  /** Parâmetro da paginação das listas (DentMap: ?pagina=2; Doctoralia: ?page=2) */
   pageParam?: string;
 }
 
@@ -46,6 +46,7 @@ const DIRECTORIES: Record<'dentmap' | 'doctoralia', Directory> = {
       const listFirst = listPath?.split('/').filter(Boolean)[0];
       return segs.length === 3 && !DOCTORALIA_SECTIONS.has(segs[0]) && segs[0] !== listFirst && segs.every((s) => /^[a-z0-9-]+$/i.test(s));
     },
+    pageParam: 'page',
   },
 };
 
@@ -65,7 +66,7 @@ async function fetchPage(dir: Directory, url: URL) {
 const MAX_PAGES = 2000;
 
 /**
- * Todas as páginas da lista (?pagina=1…N). A última é a primeira sem o link para a seguinte: busca exponencial
+ * Todas as páginas da lista (?pagina=1…N ou ?page=1…N). A última é a primeira sem o link para a seguinte: busca exponencial
  * e depois binária (umas 20 leituras mesmo com centenas de páginas).
  */
 async function listPages(dir: Directory, raw: string) {
@@ -176,7 +177,7 @@ for (const [key, dir] of Object.entries(DIRECTORIES)) {
     const { url } = z.object({ url: z.string().trim().min(1, `Informe o link do ${dir.label}.`).max(2048) }).parse(req.query);
     res.json({ items: await listProfiles(dir, user.organizationId, url) });
   });
-  // GET /api/dentmap-pages?url=… — todas as páginas da lista (?pagina=2, 3…), para a fila de links
+  // GET /api/dentmap-pages?url=… e /api/doctoralia-pages?url=… — todas as páginas da lista, para a fila de links
   if (dir.pageParam) {
     directoryLinksRouter.get(`/${key}-pages`, async (req, res) => {
       authUser(req);

@@ -13,28 +13,44 @@ import type { DirectoryItem } from '@/types';
 const canBatch = (c: DirectoryItem) => !c.existing;
 const label = (c: DirectoryItem) => c.name || decodeURIComponent(c.url.split('/').pop() ?? c.url);
 
-/** Fila de links do DentMap (páginas das listas), guardada neste navegador. */
-const QUEUE_KEY = 'lp:dentmap-links';
-function loadQueue(): string[] {
+/** Fila de links de cada diretório (páginas das listas), guardada neste navegador. */
+const queueKey = (source: DirectorySource) => `lp:${source}-links`;
+function loadQueue(source: DirectorySource): string[] {
   try {
-    const v = JSON.parse(localStorage.getItem(QUEUE_KEY) ?? '[]');
+    const v = JSON.parse(localStorage.getItem(queueKey(source)) ?? '[]');
     return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
   } catch {
     return [];
   }
 }
-function saveQueue(links: string[]) {
+function saveQueue(source: DirectorySource, links: string[]) {
   try {
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(links));
+    localStorage.setItem(queueKey(source), JSON.stringify(links));
   } catch {
     /* sem armazenamento: a fila vale só nesta tela */
   }
 }
+/** "Listar antes de gerar", lembrado neste navegador */
+const listKey = (source: DirectorySource) => `lp:${source}-listar`;
+function loadListFirst(source: DirectorySource) {
+  try {
+    return localStorage.getItem(listKey(source)) === '1';
+  } catch {
+    return false;
+  }
+}
+function saveListFirst(source: DirectorySource, v: boolean) {
+  try {
+    localStorage.setItem(listKey(source), v ? '1' : '0');
+  } catch {
+    /* sem armazenamento */
+  }
+}
 /** "sao-paulo — página 3" */
-function linkLabel(link: string) {
+function linkLabel(link: string, pageParam: string) {
   try {
     const u = new URL(link);
-    const n = u.searchParams.get('pagina') ?? '1';
+    const n = u.searchParams.get(pageParam) ?? '1';
     return `${decodeURIComponent(u.pathname.replace(/\/$/, '').split('/').pop() ?? u.pathname)} — página ${n}`;
   } catch {
     return link;
@@ -44,25 +60,27 @@ function linkLabel(link: string) {
 /** Textos de cada diretório de profissionais. */
 const SOURCES: Record<
   DirectorySource,
-  { title: string; description: string; placeholder: string; site: string; search: string; found: string; empty: string }
+  { title: string; description: string; placeholder: string; site: string; found: string; empty: string; pageParam: string; people: string }
 > = {
   dentmap: {
     title: 'DentMap',
     description: 'Cole o link de uma página do DentMap. Os dentistas que aparecem nela são listados e cada um vira uma Landing Page.',
     placeholder: 'https://dentmap.com.br/dentistas/sao-paulo',
     site: 'DentMap',
-    search: 'Buscar dentistas',
     found: 'dentista(s) encontrado(s)',
     empty: 'Nenhum perfil de dentista encontrado nesta página.',
+    pageParam: 'pagina',
+    people: 'dentistas',
   },
   doctoralia: {
     title: 'Doctoralia',
     description: 'Cole o link de uma página do Doctoralia. Os profissionais e clínicas que aparecem nela são listados e cada um vira uma Landing Page.',
     placeholder: 'https://www.doctoralia.com.br/dentista/sao-paulo',
     site: 'Doctoralia',
-    search: 'Buscar perfis',
     found: 'perfil(is) encontrado(s)',
     empty: 'Nenhum perfil de profissional ou clínica encontrado nesta página.',
+    pageParam: 'page',
+    people: 'perfis',
   },
 };
 
@@ -74,18 +92,15 @@ const SOURCES: Record<
 export function DirectoryPage({ source }: { source: DirectorySource }) {
   const src = SOURCES[source];
   const navigate = useNavigate();
-  const [url, setUrl] = useState('');
   const [items, setItems] = useState<DirectoryItem[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [allowImages, setAllowImages] = useState(true);
+  /** Link da fila aberto pelo "Iniciar" com "Listar antes de gerar": no fim do lote, ele sai da fila */
+  const [queued, setQueued] = useState<string | null>(null);
 
-  const search = (e: FormEvent) => {
-    e.preventDefault();
-    if (url.trim()) void loadItems(url.trim());
-  };
-
-  const loadItems = async (link: string) => {
+  const loadItems = async (link: string, fromQueue = false) => {
+    setQueued(fromQueue ? link : null);
     setLoading(true);
     try {
       const r = await directoryService.links(source, link);
@@ -115,7 +130,13 @@ export function DirectoryPage({ source }: { source: DirectorySource }) {
   /** Gera os selecionados um de cada vez: a tela "Nova Landing Page" passa para o próximo ao terminar cada um. */
   const generateBatch = () => {
     if (!chosen.length) return;
-    saveBatch({ items: chosen.map((c) => ({ url: c.url, name: label(c) })), index: 0, fotos: allowImages, ok: 0 });
+    saveBatch({
+      items: chosen.map((c) => ({ url: c.url, name: label(c) })),
+      index: 0,
+      fotos: allowImages,
+      ok: 0,
+      ...(queued ? { back: `/${source}?concluido=${encodeURIComponent(queued)}&fotos=${allowImages ? 1 : 0}` } : {}),
+    });
     navigate('/nova?lote=1');
   };
 
@@ -123,28 +144,12 @@ export function DirectoryPage({ source }: { source: DirectorySource }) {
     <div>
       <PageHeader title={src.title} description={src.description} />
       <Card className="mb-6 p-4 sm:p-5">
-        {source === 'dentmap' ? (
-          <DentmapQueue placeholder={src.placeholder} allowImages={allowImages} setAllowImages={setAllowImages} onView={(link) => void loadItems(link)} />
-        ) : (
-          <form onSubmit={search} className="flex flex-col gap-3 sm:flex-row">
-            <div className="relative flex-1">
-              <Link2 className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
-              <Input className="h-11 pl-10" placeholder={src.placeholder} value={url} onChange={(e) => setUrl(e.target.value)} inputMode="url" autoFocus />
-            </div>
-            <Button type="submit" size="lg" loading={loading}>
-              {src.search}
-            </Button>
-          </form>
-        )}
-        {source !== 'dentmap' ? (
-          <label className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-lg bg-zinc-50 px-3 py-2.5 text-sm text-zinc-700">
-            <input type="checkbox" className="mt-0.5 size-4 accent-zinc-900" checked={allowImages} onChange={(e) => setAllowImages(e.target.checked)} />
-            <span>
-              Usar as fotos do perfil nas páginas geradas
-              <span className="block text-xs text-zinc-500">Declaro ter autorização da empresa para usar as imagens. Dá para remover fotos na revisão.</span>
-            </span>
-          </label>
-        ) : null}
+        <DirectoryQueue
+          source={source}
+          allowImages={allowImages}
+          setAllowImages={setAllowImages}
+          onView={(link, fromQueue) => void loadItems(link, fromQueue)}
+        />
       </Card>
 
       {loading ? (
@@ -245,31 +250,39 @@ export function DirectoryPage({ source }: { source: DirectorySource }) {
 }
 
 /**
- * DentMap: fila de links. "Adicionar" descobre todas as páginas da lista (?pagina=2…) e põe cada uma no seletor.
- * "Iniciar" gera as LPs do link escolhido (só de quem ainda não tem LP) e, no fim do lote, tira o link da fila;
- * "Automático" faz o mesmo e segue para o próximo link da fila.
+ * DentMap / Doctoralia: fila de links. "Adicionar" descobre todas as páginas da lista (?pagina=2… / ?page=2…) e
+ * põe cada uma no seletor. "Iniciar" gera as LPs do link escolhido (só de quem ainda não tem LP) e, no fim do
+ * lote, tira o link da fila; "Automático" faz o mesmo e segue para o próximo link da fila. Com "Listar antes de
+ * gerar", o "Iniciar" só mostra os perfis do link, para escolher quais LPs gerar (nada começa sozinho).
  */
-function DentmapQueue({
-  placeholder,
+function DirectoryQueue({
+  source,
   allowImages,
   setAllowImages,
   onView,
 }: {
-  placeholder: string;
+  source: DirectorySource;
   allowImages: boolean;
   setAllowImages: (v: boolean) => void;
-  onView: (link: string) => void;
+  onView: (link: string, fromQueue: boolean) => void;
 }) {
+  const src = SOURCES[source];
+  const pageLabel = (link: string) => linkLabel(link, src.pageParam);
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const [links, setLinksState] = useState<string[]>(loadQueue);
-  const [current, setCurrent] = useState(() => loadQueue()[0] ?? '');
+  const [links, setLinksState] = useState<string[]>(() => loadQueue(source));
+  const [current, setCurrent] = useState(() => loadQueue(source)[0] ?? '');
   const [url, setUrl] = useState('');
   const [adding, setAdding] = useState(false);
   const [starting, setStarting] = useState<'one' | 'auto' | null>(null);
+  const [listFirst, setListFirstState] = useState(() => loadListFirst(source));
   const setLinks = (next: string[]) => {
-    saveQueue(next);
+    saveQueue(source, next);
     setLinksState(next);
+  };
+  const setListFirst = (v: boolean) => {
+    saveListFirst(source, v);
+    setListFirstState(v);
   };
 
   const add = async (e: FormEvent) => {
@@ -277,7 +290,7 @@ function DentmapQueue({
     if (!url.trim()) return;
     setAdding(true);
     try {
-      const { pages } = await directoryService.pages('dentmap', url.trim());
+      const { pages } = await directoryService.pages(source, url.trim());
       const fresh = pages.filter((p) => !links.includes(p));
       setLinks([...links, ...fresh]);
       if (fresh.length) setCurrent(fresh[0]);
@@ -299,13 +312,13 @@ function DentmapQueue({
     if (!link) return;
     setStarting(auto ? 'auto' : 'one');
     try {
-      const { items } = await directoryService.links('dentmap', link);
+      const { items } = await directoryService.links(source, link);
       const pending = items.filter((c) => !c.existing?.landing_page);
       if (!pending.length) {
         const i = queue.indexOf(link);
         const rest = queue.filter((l) => l !== link);
         setLinks(rest);
-        toast.info(`${linkLabel(link)}: todos já têm LP. Link removido da lista.`);
+        toast.info(`${pageLabel(link)}: todos já têm LP. Link removido da lista.`);
         const next = rest[i];
         setCurrent(next ?? rest[0] ?? '');
         if (auto && next) return start(next, true, rest, fotos);
@@ -316,7 +329,7 @@ function DentmapQueue({
         index: 0,
         fotos,
         ok: 0,
-        back: `/dentmap?concluido=${encodeURIComponent(link)}&fotos=${fotos ? 1 : 0}${auto ? '&auto=1' : ''}`,
+        back: `/${source}?concluido=${encodeURIComponent(link)}&fotos=${fotos ? 1 : 0}${auto ? '&auto=1' : ''}`,
       });
       navigate('/nova?lote=1');
     } catch (err) {
@@ -336,14 +349,14 @@ function DentmapQueue({
     const fotos = params.get('fotos') !== '0';
     setAllowImages(fotos);
     setParams({}, { replace: true });
-    const queue = loadQueue();
+    const queue = loadQueue(source);
     const i = queue.indexOf(done);
     const rest = queue.filter((l) => l !== done);
     setLinks(rest);
     const next = i >= 0 ? rest[i] : undefined;
     setCurrent(next ?? rest[0] ?? '');
     if (auto && next) {
-      toast.info(`Automático: começando ${linkLabel(next)}.`);
+      toast.info(`Automático: começando ${pageLabel(next)}.`);
       void start(next, true, rest, fotos);
     } else if (auto) toast.success('Automático: todos os links da lista foram concluídos.');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -354,7 +367,7 @@ function DentmapQueue({
       <form onSubmit={add} className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Link2 className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
-          <Input className="h-11 pl-10" placeholder={placeholder} value={url} onChange={(e) => setUrl(e.target.value)} inputMode="url" autoFocus />
+          <Input className="h-11 pl-10" placeholder={src.placeholder} value={url} onChange={(e) => setUrl(e.target.value)} inputMode="url" autoFocus />
         </div>
         <Button type="submit" size="lg" loading={adding} icon={<ListPlus className="size-4" />}>
           Adicionar à lista
@@ -366,7 +379,7 @@ function DentmapQueue({
           {!links.length ? <option value="">Lista vazia: adicione um link acima</option> : null}
           {links.map((l) => (
             <option key={l} value={l}>
-              {linkLabel(l)}
+              {pageLabel(l)}
             </option>
           ))}
         </Select>
@@ -376,33 +389,45 @@ function DentmapQueue({
             variant="brand"
             disabled={!current || !!starting}
             loading={starting === 'one'}
-            onClick={() => void start(current, false)}
+            onClick={() => (listFirst ? onView(current, true) : void start(current, false))}
             icon={<Play className="size-4" />}
+            title={listFirst ? 'Mostra os perfis deste link para você escolher quais LPs gerar' : 'Gera as LPs deste link'}
           >
             Iniciar
           </Button>
           <Button
             size="lg"
             variant="secondary"
-            disabled={!current || !!starting}
+            disabled={!current || !!starting || listFirst}
             loading={starting === 'auto'}
             onClick={() => void start(current, true)}
             icon={<Repeat className="size-4" />}
-            title="Gera este link e, ao terminar, segue para o próximo da lista"
+            title={listFirst ? 'Desmarque "Listar antes de gerar" para usar o automático' : 'Gera este link e, ao terminar, segue para o próximo da lista'}
           >
             Automático
           </Button>
         </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
-        <span>{links.length} link(s) na lista · só entram dentistas que ainda não têm LP</span>
+        <span>
+          {links.length} link(s) na lista · só entram {src.people} que ainda não têm LP
+        </span>
         {current ? (
-          <button type="button" onClick={() => onView(current)} className="underline hover:text-zinc-800">
-            Ver dentistas deste link
+          <button type="button" onClick={() => onView(current, false)} className="underline hover:text-zinc-800">
+            Ver {src.people} deste link
           </button>
         ) : null}
       </div>
       <label className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-lg bg-zinc-50 px-3 py-2.5 text-sm text-zinc-700">
+        <input type="checkbox" className="mt-0.5 size-4 accent-zinc-900" checked={listFirst} onChange={(e) => setListFirst(e.target.checked)} />
+        <span>
+          Listar antes de gerar
+          <span className="block text-xs text-zinc-500">
+            O "Iniciar" mostra os {src.people} do link para você escolher quais LPs gerar; nada começa sozinho.
+          </span>
+        </span>
+      </label>
+      <label className="mt-2 flex cursor-pointer items-start gap-2.5 rounded-lg bg-zinc-50 px-3 py-2.5 text-sm text-zinc-700">
         <input type="checkbox" className="mt-0.5 size-4 accent-zinc-900" checked={allowImages} onChange={(e) => setAllowImages(e.target.checked)} />
         <span>
           Usar as fotos do perfil nas páginas geradas
