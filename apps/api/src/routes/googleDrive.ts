@@ -1,8 +1,9 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { AppError } from '../lib/errors.js';
-import { authUser } from '../middleware/auth.js';
+import { one } from '../db/pool.js';
+import { authUser, MANAGER_ROLES } from '../middleware/auth.js';
 import { z } from 'zod';
 import { parseBody } from '../lib/validation.js';
 import { connectDrive, disconnectDrive, driveAuthUrl, driveConfigured, driveStatus, setCredentials, setTargetFolder } from '../services/google/googleDrive.js';
@@ -20,26 +21,38 @@ googleDriveRouter.get('/status', async (_req, res) => {
 googleDriveRouter.get('/connect', async (req, res) => {
   const user = authUser(req);
   if (!(await driveConfigured())) throw new AppError(503, 'Google Drive não configurado: cadastre a credencial do Google em Configurações → Google Drive.');
-  // state assinado: o retorno do Google só vale para quem iniciou o login
-  const state = jwt.sign({ sub: user.id, p: 'gdrive', typ: 'gdrive-state' }, env.jwtSecret, { expiresIn: '10m', algorithm: 'HS256' });
+  // state assinado: o retorno do Google só vale para quem iniciou o login. Leva também o endereço do painel em
+  // que a pessoa está, para voltar a ele (o Google volta pelo endereço cadastrado, que pode ser outro: www, vercel.app…)
+  const host = req.get('host') ?? '';
+  const state = jwt.sign({ sub: user.id, p: 'gdrive', typ: 'gdrive-state', ...(env.isSystemHost(host) ? { h: host } : {}) }, env.jwtSecret, {
+    expiresIn: '10m',
+    algorithm: 'HS256',
+  });
   res.redirect(await driveAuthUrl(state));
 });
 
-/** Retorno do login do Google. */
-googleDriveRouter.get('/callback', async (req, res) => {
-  const user = authUser(req);
+/**
+ * Retorno do login do Google (rota pública, registrada antes da exigência de login em app.ts): o Google volta pelo
+ * endereço cadastrado no Google Cloud, onde o navegador pode não ter a sessão do painel (outro domínio). Quem
+ * conectou vem do state assinado (10 min); precisa continuar sendo da gerência.
+ */
+export async function googleDriveCallback(req: Request, res: Response) {
   const { code, state, error } = req.query as Record<string, string | undefined>;
+  let back = SETTINGS_PAGE;
   try {
+    const payload = jwt.verify(state ?? '', env.jwtSecret, { algorithms: ['HS256'] }) as { sub?: string; p?: string; typ?: string; h?: string };
+    if (payload.h && env.isSystemHost(payload.h)) back = `${req.protocol === 'http' && !env.isProduction ? 'http' : 'https'}://${payload.h}${SETTINGS_PAGE}`;
     if (error) throw new Error(`Google OAuth: ${error}`);
-    const payload = jwt.verify(state ?? '', env.jwtSecret, { algorithms: ['HS256'] }) as { sub?: string; p?: string };
-    if (payload.sub !== user.id || payload.p !== 'gdrive' || !code) throw new Error('Google OAuth: state inválido');
+    if (payload.p !== 'gdrive' || payload.typ !== 'gdrive-state' || !payload.sub || !code) throw new Error('Google OAuth: state inválido');
+    const user = await one<{ role: string }>('select role from users where id = $1', [payload.sub]);
+    if (!user || !MANAGER_ROLES.includes(user.role)) throw new Error('Google OAuth: usuário sem permissão');
     await connectDrive(code);
-    res.redirect(`${SETTINGS_PAGE}?drive=ok`);
+    res.redirect(`${back}?drive=ok`);
   } catch (err) {
     console.error('[google-drive] conexão:', err);
-    res.redirect(`${SETTINGS_PAGE}?drive=erro`);
+    res.redirect(`${back}?drive=erro`);
   }
-});
+}
 
 /** Pasta de destino das imagens (link ou id do Drive; vazio volta à pasta "lp" criada pelo sistema). */
 googleDriveRouter.put('/folder', async (req, res) => {

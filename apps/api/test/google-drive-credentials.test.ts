@@ -13,7 +13,17 @@ const SECRET = 'GOCSPX-segredo-de-teste-1234';
 type Status = { configured: boolean; connected: boolean; credential: { source: string; client_id: string; secret_last4: string } | null };
 const status = async () => (await (await dono.call('GET', '/api/google-drive/status')).json()) as Status;
 
+const realFetch = globalThis.fetch;
 before(async () => {
+  // Google simulado: troca do código pelo token e o e-mail da conta
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const u = new URL(input instanceof Request ? input.url : input.toString());
+    if (u.hostname === 'oauth2.googleapis.com')
+      return new Response(JSON.stringify({ access_token: 'at', refresh_token: 'rt' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (u.hostname === 'www.googleapis.com' && u.pathname.endsWith('/about'))
+      return new Response(JSON.stringify({ user: { emailAddress: 'nova@gmail.com' } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return realFetch(input, init);
+  }) as typeof fetch;
   delete process.env.GOOGLE_OAUTH_CLIENT_ID;
   delete process.env.GOOGLE_OAUTH_CLIENT_SECRET;
   await resetDb();
@@ -23,6 +33,7 @@ before(async () => {
   assert.equal((await dono.login('dono-a@teste.dev')).status, 200);
 });
 after(async () => {
+  globalThis.fetch = realFetch;
   await close();
   await closeDb();
 });
@@ -55,6 +66,25 @@ describe('Credencial do Google Drive em Configurações', () => {
     const location = c.headers.get('location') ?? '';
     assert.match(location, /^https:\/\/accounts\.google\.com\//);
     assert.equal(new URL(location).searchParams.get('client_id'), CLIENT_ID);
+  });
+
+  it('volta do Google sem a sessão do painel (outro domínio): conecta pelo state assinado', async () => {
+    const c = await dono.call('GET', '/api/google-drive/connect');
+    const state = new URL(c.headers.get('location') ?? '').searchParams.get('state') ?? '';
+    // Sem cookie, como quando o Google volta para outro endereço do sistema
+    const r = await fetch(`${base}/api/google-drive/callback?code=abc&state=${encodeURIComponent(state)}`, { redirect: 'manual' });
+    assert.equal(r.status, 302);
+    assert.match(r.headers.get('location') ?? '', /\/admin\/configuracoes\?drive=ok$/);
+    const s = await status();
+    assert.equal(s.connected, true);
+    assert.equal((s as Status & { email: string }).email, 'nova@gmail.com');
+  });
+
+  it('volta do Google com state inválido não conecta', async () => {
+    await dono.call('DELETE', '/api/google-drive');
+    const r = await fetch(`${base}/api/google-drive/callback?code=abc&state=falso`, { redirect: 'manual' });
+    assert.match(r.headers.get('location') ?? '', /drive=erro$/);
+    assert.equal((await status()).connected, false);
   });
 
   it('remover volta às variáveis da Vercel (sem elas, não configurado)', async () => {
