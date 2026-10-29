@@ -103,7 +103,7 @@ export async function reencryptWithCurrentSecret() {
   };
   await redo('ai_api_keys', 'key_encrypted', 'id');
   await redo('lp_crm_whatsapp', 'api_key_encrypted', 'organization_id');
-  await redo('lp_settings', 'value', 'key', "and key = 'google_drive_refresh_token'");
+  await redo('lp_settings', 'value', 'key', "and key in ('google_drive_refresh_token', 'google_oauth_client_secret')");
 }
 
 /**

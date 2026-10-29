@@ -195,6 +195,8 @@ export interface RapidGeminiConfig {
 }
 export interface DriveStatus {
   configured: boolean;
+  /** Credencial do Google em uso: cadastrada em Configurações ("painel") ou das variáveis da Vercel ("servidor") */
+  credential: { source: 'painel' | 'servidor'; client_id: string; secret_last4: string } | null;
   connected: boolean;
   email: string | null;
   redirect_uri: string;
@@ -227,6 +229,8 @@ export const miscService = {
   driveStatus: () => api.get<DriveStatus>('/google-drive/status'),
   disconnectDrive: () => api.del<DriveStatus>('/google-drive'),
   setDriveFolder: (folder: string | null) => api.put<DriveStatus>('/google-drive/folder', { folder }),
+  setDriveCredentials: (client_id: string, client_secret: string) => api.put<DriveStatus>('/google-drive/credentials', { client_id, client_secret }),
+  removeDriveCredentials: () => api.del<DriveStatus>('/google-drive/credentials'),
   /** Navegação direta: abre o login do Google */
   driveConnectUrl: '/api/google-drive/connect',
   /** Tira do rodízio a chave da variável de ambiente (GEMINI_API_KEY / RAPIDAPI_KEY) */

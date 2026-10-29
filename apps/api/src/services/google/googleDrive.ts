@@ -8,6 +8,8 @@ const FOLDER_NAME = 'lp';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 
 const KEYS = { token: 'google_drive_refresh_token', email: 'google_drive_email', folder: 'google_drive_folder_id' } as const;
+/** Credencial do Google (OAuth) cadastrada em Configurações; vale no lugar das variáveis da Vercel */
+export const CREDENTIAL_KEYS = { clientId: 'google_oauth_client_id', clientSecret: 'google_oauth_client_secret' } as const;
 /** Pasta escolhida pelo usuário (fica mesmo ao desconectar/trocar de conta) */
 const TARGET_KEY = 'google_drive_target_folder';
 
@@ -35,7 +37,38 @@ export async function setTargetFolder(input: string | null) {
 }
 
 export const driveRedirectUri = () => `${env.appUrl}/api/google-drive/callback`;
-export const driveConfigured = () => !!(env.googleOAuth.clientId && env.googleOAuth.clientSecret);
+
+/** Credencial em uso: a de Configurações (chave secreta criptografada) ou, sem ela, a das variáveis da Vercel. */
+async function credentials(): Promise<{ clientId: string; clientSecret: string; source: 'painel' | 'servidor' } | null> {
+  const id = await getSetting(CREDENTIAL_KEYS.clientId);
+  const stored = await getSetting(CREDENTIAL_KEYS.clientSecret);
+  const secret = stored ? decrypt(stored) : null;
+  if (id && secret) return { clientId: id, clientSecret: secret, source: 'painel' };
+  const { clientId, clientSecret } = env.googleOAuth;
+  return clientId && clientSecret ? { clientId, clientSecret, source: 'servidor' } : null;
+}
+async function requireCredentials() {
+  const c = await credentials();
+  if (!c) throw new Error('Google Drive não configurado: cadastre a credencial do Google em Configurações → Google Drive.');
+  return c;
+}
+export const driveConfigured = async () => !!(await credentials());
+
+/**
+ * Troca a credencial do Google (ID do cliente e chave secreta). A conexão feita com a credencial anterior não vale
+ * para a nova: a conta conectada sai e é preciso conectar de novo. `null` volta às variáveis da Vercel.
+ */
+export async function setCredentials(input: { clientId: string; clientSecret: string } | null) {
+  const before = await credentials();
+  if (input) {
+    await setSetting(CREDENTIAL_KEYS.clientId, input.clientId.trim());
+    await setSetting(CREDENTIAL_KEYS.clientSecret, encrypt(input.clientSecret.trim()));
+  } else {
+    await query('delete from lp_settings where key = any($1)', [Object.values(CREDENTIAL_KEYS)]);
+  }
+  const after = await credentials();
+  if (before?.clientId !== after?.clientId || before?.clientSecret !== after?.clientSecret) await disconnectDrive();
+}
 
 async function getSetting(key: string) {
   return (await one<{ value: string }>('select value from lp_settings where key = $1', [key]))?.value ?? null;
@@ -48,8 +81,11 @@ async function setSetting(key: string, value: string) {
 export async function driveStatus() {
   const token = await getSetting(KEYS.token);
   const folder = await targetFolder();
+  const cred = await credentials();
   return {
-    configured: driveConfigured(),
+    configured: !!cred,
+    // Credencial em uso: de onde vem e o ID do cliente (não é segredo); a chave secreta nunca sai do servidor
+    credential: cred ? { source: cred.source, client_id: cred.clientId, secret_last4: cred.clientSecret.slice(-4) } : null,
     connected: !!token,
     email: token ? await getSetting(KEYS.email) : null,
     redirect_uri: driveRedirectUri(),
@@ -58,9 +94,10 @@ export async function driveStatus() {
   };
 }
 
-export function driveAuthUrl(state: string) {
+export async function driveAuthUrl(state: string) {
+  const { clientId } = await requireCredentials();
   const params = new URLSearchParams({
-    client_id: env.googleOAuth.clientId!,
+    client_id: clientId,
     redirect_uri: driveRedirectUri(),
     response_type: 'code',
     scope: DRIVE_SCOPE,
@@ -100,10 +137,11 @@ async function fetchRetry(url: string, init: RequestInit) {
 }
 
 async function tokenRequest(body: Record<string, string>) {
+  const { clientId, clientSecret } = await requireCredentials();
   const res = await fetchRetry('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: env.googleOAuth.clientId!, client_secret: env.googleOAuth.clientSecret!, ...body }),
+    body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, ...body }),
   });
   const data = (await res.json().catch(() => ({}))) as { access_token?: string; refresh_token?: string; error?: string };
   if (!res.ok || !data.access_token) throw new Error(`Google OAuth: ${data.error ?? res.status}`);
@@ -179,7 +217,7 @@ async function ensureFolder(accessToken: string) {
  */
 export async function uploadJpgToDrive(name: string, image: Buffer, existingId: string | null): Promise<string | null> {
   // Sem configuração ou sem conta conectada: avisa o motivo (antes não enviava e não dizia nada)
-  if (!driveConfigured()) throw new Error('Google Drive não configurado no servidor: faltam GOOGLE_OAUTH_CLIENT_ID e GOOGLE_OAUTH_CLIENT_SECRET na Vercel.');
+  await requireCredentials();
   const stored = await getSetting(KEYS.token);
   if (!stored) throw new Error('Google Drive não conectado: conecte em Configurações → Google Drive.');
   const refreshToken = decrypt(stored);
