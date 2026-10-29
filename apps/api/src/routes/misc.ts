@@ -153,6 +153,15 @@ miscRouter.post('/settings/keys/:provider', requireRole(...MANAGER_ROLES), async
     const which = `"${registered.label || 'Chave'} (•••• ${registered.last4})"`;
     throw new AppError(409, `Esta chave já está na lista como ${which}.`, 'KEY_EXISTS', { id: registered.id, provider: registered.provider });
   }
+  // A chave do GIPHY não sai da lista dela: o teste do RapidAPI aceita qualquer chave ("não assinado"), então
+  // colar (ou o navegador preencher) a chave do GIPHY em outra lista a moveria para lá e a galeria de GIFs pararia
+  if (registered?.provider === 'giphy' && provider !== 'giphy') {
+    const which = `"${registered.label || 'Chave'} (•••• ${registered.last4})"`;
+    throw new AppError(409, `Esta é a chave do GIPHY (está em "Chave do GIPHY" como ${which}). Ela não foi movida.`, 'KEY_EXISTS', {
+      id: registered.id,
+      provider: registered.provider,
+    });
+  }
   // Mesma chave da variável do servidor: passa a ser gerenciada pelo painel (entra na lista com o nome
   // escolhido e sai do lugar de "Chave do servidor", sem ficar duas vezes no rodízio)
   const sameAsEnv = body.key.trim() === (await aiKeyStore.activeEnvKey(envKeyOf(provider), provider));
