@@ -421,7 +421,8 @@ export function ReviewsSection({ ctx, alt }: { ctx: RenderContext; alt: boolean 
             ) : null}
           </p>
         ) : null}
-        <div className="quotes">
+        {/* Em colunas: cada avaliação logo abaixo da anterior, sem espaço vazio ao lado das mais curtas */}
+        <div className="quotes rv-cols">
           {g.items.map((r, i) => (
             <blockquote key={`${i}-${r.author}`} className="quote rv reveal">
               <Stars />

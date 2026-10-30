@@ -219,7 +219,8 @@ export async function googlePlacePhotos(p: { businessId?: string | null; query?:
 }
 
 /** Quantas avaliações do Google entram na página (as melhores com nota máxima). */
-export const REVIEWS_SHOWN = 6;
+/** Avaliações mostradas na LP (5 estrelas com texto, as mais bem ranqueadas) */
+export const REVIEWS_SHOWN = 20;
 
 /**
  * Avaliações do Google com nota máxima, pela "Local Business Data" do RapidAPI: maiores notas

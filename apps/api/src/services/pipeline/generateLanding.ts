@@ -1,5 +1,6 @@
 import { AppError, Messages } from '../../lib/errors.js';
-import { getCompanyFull, saveGoogleReviews, type CompanyFull } from '../../repositories/companies.js';
+import { appendCompanyImages, getCompanyFull, mergeCompanyMeta, saveGoogleReviews, type CompanyFull } from '../../repositories/companies.js';
+import { fetchInstagramPhotos } from '../instagram/instagramPhotos.js';
 import { googlePlaceReviews, REVIEWS_SHOWN } from '../search/companySearch.js';
 import { createLandingPage, getLandingPage, saveVersion } from '../../repositories/landingPages.js';
 import { normalizeThemeSettings, type ThemeSettings } from '../../landing/theme.js';
@@ -72,7 +73,7 @@ const REVIEWS_MAX_AGE_MS = 30 * 24 * 3600_000;
 const REVIEWS_RETRY_MS = 3600_000;
 
 /**
- * Busca as avaliações do Google da empresa (as 6 melhores com nota máxima) e guarda no cadastro,
+ * Busca as avaliações do Google da empresa (até 20, as mais bem ranqueadas com nota máxima) e guarda no cadastro,
  * junto com o motivo quando não vieram. Falha na busca não impede gerar a página.
  */
 export async function ensureGoogleReviews(company: CompanyFull, force = false) {
@@ -98,6 +99,32 @@ export async function ensureGoogleReviews(company: CompanyFull, force = false) {
   return company.google_reviews;
 }
 
+/**
+ * Empresa com Instagram: as 6 fotos mais recentes do perfil entram no fim das fotos da empresa (já liberadas),
+ * uma vez só (fotos apagadas depois não voltam). Se o Instagram não liberar, tenta de novo na próxima geração;
+ * a falha nunca impede gerar a página. Devolve true quando acrescentou fotos.
+ */
+export async function ensureInstagramPhotos(orgId: string, company: CompanyFull) {
+  if (!company.instagram || company.source_meta?.instagram_photos_at) return false;
+  try {
+    const { photos, error } = await fetchInstagramPhotos(company.instagram);
+    if (!photos.length) {
+      console.warn(`[instagram] ${company.trade_name || company.name}: ${error}`);
+      return false;
+    }
+    await appendCompanyImages(
+      orgId,
+      company.id,
+      photos.map((p) => ({ ...p, source: 'instagram' })),
+    );
+    await mergeCompanyMeta(company.id, { instagram_photos_at: new Date().toISOString(), instagram_photos: photos.length });
+    return true;
+  } catch (err) {
+    console.error('[instagram] erro inesperado:', err instanceof Error ? err.message : err);
+    return false;
+  }
+}
+
 function themeFromContent(content: LandingContent): ThemeSettings {
   return normalizeThemeSettings({
     preset: content.design.preset,
@@ -116,12 +143,14 @@ export async function generateLanding(
   if (!(await aiService.isConfigured())) throw new AppError(503, Messages.aiNotConfigured);
 
   await job.step(GENERATE_STEPS.structure);
-  const company = await getCompanyFull(opts.orgId, opts.companyId);
+  let company = await getCompanyFull(opts.orgId, opts.companyId);
   if (!company) throw new AppError(404, 'Empresa não encontrada.');
   const existing = opts.landingPageId ? await getLandingPage(opts.orgId, opts.landingPageId) : null;
   if (opts.landingPageId && !existing) throw new AppError(404, 'Landing Page não encontrada.');
 
   await ensureGoogleReviews(company);
+  // Fotos novas do Instagram: recarrega a empresa para a IA e a página já contarem com elas
+  if (await ensureInstagramPhotos(opts.orgId, company)) company = (await getCompanyFull(opts.orgId, opts.companyId)) ?? company;
 
   await job.step(GENERATE_STEPS.generate);
   let generated: LandingContent;

@@ -144,6 +144,11 @@ export async function appendCompanyImages(orgId: string, companyId: string, imag
   });
 }
 
+/** Acrescenta dados de controle em source_meta (ex.: quando as fotos do Instagram foram trazidas). */
+export async function mergeCompanyMeta(id: string, patch: Record<string, unknown>) {
+  await query(`update companies set source_meta = coalesce(source_meta, '{}'::jsonb) || $2::jsonb where id = $1`, [id, JSON.stringify(patch)]);
+}
+
 /** Apaga fotos do cadastro da empresa (pelo endereço). */
 export async function removeCompanyImages(orgId: string, companyId: string, urls: string[]) {
   const owner = await one('select 1 from companies where id = $1 and organization_id = $2', [companyId, orgId]);

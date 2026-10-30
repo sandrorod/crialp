@@ -202,6 +202,8 @@ ${servicesMoreCss()}
 .rv-g{flex:none}
 .rv-stars{color:#fbbc04;letter-spacing:2px;font-size:18px;line-height:1}
 .rv::before{display:none}
+.quotes.rv-cols{display:block;columns:3 300px;column-gap:20px}
+.rv-cols .quote{break-inside:avoid;-webkit-column-break-inside:avoid;margin:0 0 20px}
 .rv .rv-stars{margin-bottom:14px}
 .rv p:not(.quote-clamp){display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical;overflow:hidden}
 .rv-author{display:flex;align-items:center;gap:12px}
