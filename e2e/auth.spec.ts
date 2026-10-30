@@ -35,6 +35,9 @@ test('página inicial fica no endereço, sem link para o login; o login abre em 
   await page.goto('/');
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { name: 'Landing Pages profissionais para empresas' })).toBeVisible();
+  // Logo completo da LabSites (embutido: a página só aceita imagens embutidas)
+  await expect(page.getByRole('img', { name: 'LabSites' })).toBeVisible();
+  expect(await page.getByRole('img', { name: 'LabSites' }).evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(192);
   await expect(page.getByRole('link')).toHaveCount(0);
   await page.goto('/lps');
   await expect(page.getByRole('heading', { name: 'Entrar no painel' })).toBeVisible();
