@@ -26,12 +26,16 @@ async function authorized(token: string | undefined) {
 
 maintenanceRouter.post('/screenshots', async (req, res) => {
   if (!(await authorized(req.get('x-maintenance-token')))) throw new AppError(404, 'Rota não encontrada.');
-  const { after } = z.object({ after: z.string().uuid().optional() }).parse(req.body ?? {});
+  // limit: quantas LPs nesta chamada; peek: só lista as próximas (para achar e pular uma que trave o print)
+  const { after, limit, peek } = z
+    .object({ after: z.string().uuid().optional(), limit: z.number().int().min(1).max(50).default(50), peek: z.boolean().optional() })
+    .parse(req.body ?? {});
   const started = Date.now();
   const { rows } = await query<LandingPageRow>(
-    `select * from landing_pages where status = 'ativa' and ($1::uuid is null or id > $1::uuid) order by id limit 50`,
-    [after ?? null],
+    `select * from landing_pages where status = 'ativa' and ($1::uuid is null or id > $1::uuid) order by id limit $2`,
+    [after ?? null, limit],
   );
+  if (peek) return void res.json({ next: rows.map((r) => ({ id: r.id, slug: r.slug })) });
   const done: { id: string; slug: string; ok: boolean; drive: boolean; error: string | null }[] = [];
   let last = after ?? null;
   for (const lp of rows) {
