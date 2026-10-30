@@ -23,6 +23,8 @@ import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui';
 import type { User, UserRole } from '@/types';
 import { MyAccountModal } from './MyAccountModal';
+import logo from '@/assets/logo-labsites.png';
+import logoIcon from '@/assets/logo-labsites-icone.png';
 
 type Role = UserRole;
 const MANAGERS: Role[] = ['owner', 'admin'];
@@ -75,7 +77,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center gap-2.5 px-5">
-        <div className="grid size-8 place-items-center rounded-lg bg-ink text-[13px] font-bold text-white">LP</div>
+        <img src={logo} alt="LabSites" className="size-8 rounded-lg" />
         <div className="leading-tight">
           <div className="text-sm font-semibold">Landing Pages</div>
           <div className="text-[11px] text-zinc-500">Geração com IA</div>
@@ -169,8 +171,8 @@ export function AdminLayout() {
           <Menu className="size-5" />
         </button>
         <div className="flex items-center gap-2">
-          <div className="grid size-7 place-items-center rounded-md bg-ink text-[11px] font-bold text-white">LP</div>
-          <span className="text-sm font-semibold">Landing Pages</span>
+          <img src={logoIcon} alt="" className="size-7" />
+          <span className="text-sm font-semibold tracking-wide">LABSITES</span>
         </div>
       </header>
       {open ? (

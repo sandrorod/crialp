@@ -4,6 +4,7 @@ import { Button, Field, Input } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { homeFor } from '@/components/layout/AdminLayout';
 import { errorMessage } from '@/lib/api';
+import logo from '@/assets/logo-labsites.png';
 
 /** Página do painel para onde voltar depois do login (?from=/empresas), só caminhos internos. */
 function returnPath() {
@@ -53,7 +54,7 @@ export function LoginPage() {
       <div className="relative hidden overflow-hidden bg-ink p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="absolute inset-0 opacity-[0.07] [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:22px_22px]" />
         <div className="relative flex items-center gap-2.5">
-          <div className="grid size-9 place-items-center rounded-lg bg-white text-sm font-bold text-ink">LP</div>
+          <img src={logo} alt="LabSites" className="size-9 rounded-lg ring-1 ring-white/15" />
           <span className="font-semibold">Landing Pages</span>
         </div>
         <div className="relative max-w-md">
@@ -68,7 +69,7 @@ export function LoginPage() {
       <div className="flex items-center justify-center p-6">
         <form onSubmit={submit} className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
-            <div className="grid size-10 place-items-center rounded-lg bg-ink text-sm font-bold text-white">LP</div>
+            <img src={logo} alt="LabSites" className="size-10 rounded-lg" />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">Entrar no painel</h1>
           <p className="mt-1 text-sm text-zinc-500">Acesso restrito a administradores.</p>
