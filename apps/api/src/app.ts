@@ -12,6 +12,7 @@ import { companiesRouter } from './routes/companies.js';
 import { landingPagesRouter } from './routes/landingPages.js';
 import { miscRouter } from './routes/misc.js';
 import { googleDriveCallback, googleDriveRouter } from './routes/googleDrive.js';
+import { maintenanceRouter } from './routes/maintenance.js';
 import { salesRouter } from './routes/sales.js';
 import { crmRouter } from './routes/crm.js';
 import { crmWebhookRouter } from './routes/crmWebhook.js';
@@ -76,6 +77,8 @@ export function createApp() {
   api.use(cookieParser());
   // Relatórios de erro do painel (text/plain, formato do Sentry): conferem a origem na própria rota
   api.use('/monitoring', monitoringRouter);
+  // Manutenção temporária (senha própria, com prazo): refazer os prints das LPs ativas
+  api.use('/maintenance', maintenanceRouter);
   api.use(requireSameOriginWrite);
   // Versão publicada (commit) para conferir se um deploy já está no ar
   api.get('/health', (_req, res) => res.json({ ok: true, version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null }));
