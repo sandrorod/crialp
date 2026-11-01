@@ -58,9 +58,9 @@ export function LoginPage() {
           <span className="font-semibold tracking-wide">LABSITES</span>
         </div>
         <div className="relative max-w-md">
-          <h2 className="text-4xl font-semibold leading-tight tracking-tight">Da URL à Landing Page profissional em minutos.</h2>
+          <h2 className="text-4xl font-semibold leading-tight tracking-tight">O site da sua empresa, sempre atualizado.</h2>
           <p className="mt-4 text-zinc-400">
-            Informe o site de uma empresa. A IA coleta e organiza as informações reais, você revisa, e o sistema publica uma página pronta para converter.
+            Entre com seu e-mail e senha para acessar a página da sua empresa. Atualize textos, fotos, serviços e contatos sempre que precisar.
           </p>
         </div>
         <p className="relative text-xs text-zinc-500">Somente informações encontradas na fonte. Nada inventado.</p>
