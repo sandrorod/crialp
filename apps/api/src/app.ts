@@ -9,7 +9,6 @@ import { ADMIN_CSP, securityHeaders } from './middleware/security.js';
 import { analyzeRouter } from './routes/analyze.js';
 import { authRouter } from './routes/auth.js';
 import { companiesRouter } from './routes/companies.js';
-import { maintenanceRouter } from './routes/maintenance.js';
 import { landingPagesRouter } from './routes/landingPages.js';
 import { miscRouter } from './routes/misc.js';
 import { googleDriveCallback, googleDriveRouter } from './routes/googleDrive.js';
@@ -81,8 +80,6 @@ export function createApp() {
   // Versão publicada (commit) para conferir se um deploy já está no ar
   api.get('/health', (_req, res) => res.json({ ok: true, version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null }));
   api.use('/auth', authRouter);
-  // Manutenção temporária (senha própria, com prazo): atribuir ao Hermano as LPs com WP verificado
-  api.use('/maintenance', maintenanceRouter);
   api.use('/crm-webhook', crmWebhookRouter); // eventos do WhatsApp (Evolution API), autenticados por token na URL
   api.get('/google-drive/callback', googleDriveCallback); // volta do login do Google: autenticada pelo state assinado
   api.use(requireAuth);
