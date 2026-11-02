@@ -55,13 +55,20 @@ const CHAT_POLL = 4_000;
 
 const title = (c: CrmConversation) => c.contact_name ?? c.push_name ?? phone(c.phone);
 
-/** Recarrega periodicamente enquanto a aba está visível (o lp não tem tempo real). */
+/** Recarrega periodicamente enquanto a aba está visível e na hora em que a pessoa volta para ela (o lp não tem tempo real). */
 function usePolling(fn: () => void, ms: number, deps: unknown[] = []) {
   const ref = useRef(fn);
   ref.current = fn;
   useEffect(() => {
     const t = setInterval(() => document.visibilityState === 'visible' && ref.current(), ms);
-    return () => clearInterval(t);
+    const onBack = () => document.visibilityState === 'visible' && ref.current();
+    document.addEventListener('visibilitychange', onBack);
+    window.addEventListener('focus', onBack);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', onBack);
+      window.removeEventListener('focus', onBack);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 }

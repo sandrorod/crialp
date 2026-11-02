@@ -519,29 +519,32 @@ const lastSync = new Map<string, number>();
  * ou um aviso se perde. Chamado pelas telas do CRM enquanto estão abertas; no máximo a cada 5 s por organização.
  */
 /**
- * Números conectados antes de um evento novo entrar na lista continuam com o webhook antigo: na primeira
- * sincronização de cada instância do servidor, confere e completa os eventos (sem trocar o endereço).
+ * Sem o webhook as mensagens recebidas só entram pela busca das telas (com atraso). A cada poucos minutos
+ * confere o webhook na Evolution e religa o deste sistema quando está desligado, sem endereço, com endereço
+ * antigo (outro domínio ou token) ou faltando eventos. Webhook ativo de outro sistema (ex.: n8n) não é trocado.
  */
-const webhookChecked = new Set<string>();
+const WEBHOOK_CHECK_INTERVAL = 5 * 60_000;
+const webhookChecked = new Map<string, number>();
 async function ensureWebhookEvents(orgId: string, cfg: NonNullable<Awaited<ReturnType<typeof loadConfig>>>) {
-  if (webhookChecked.has(orgId)) return;
-  webhookChecked.add(orgId);
+  if (Date.now() - (webhookChecked.get(orgId) ?? 0) < WEBHOOK_CHECK_INTERVAL) return;
+  webhookChecked.set(orgId, Date.now());
+  if (!canSetWebhook(cfg)) return; // rodando no computador: não troca o endereço do sistema publicado
   try {
     const current = await evolution<any>(cfg, 'GET', `/webhook/find/${cfg.instance}`);
     const events: string[] = (current?.events ?? current?.webhook?.events ?? []).map((e: string) => String(e).toUpperCase());
-    if (!current?.enabled && !current?.webhook?.enabled) return; // sem webhook ativo: quem liga é o "Conectar"
-    if (!canSetWebhook(cfg)) return; // rodando no computador: não troca o endereço do sistema publicado
-    // Webhook apontando para outro sistema (ex.: um fluxo do n8n): não troca o endereço de fora
+    const enabled = !!(current?.enabled || current?.webhook?.enabled);
     const url = String(current?.url ?? current?.webhook?.url ?? '');
-    if (!url.startsWith(`${env.appUrl}/api/crm-webhook/`)) return;
-    if (CRM_WEBHOOK_EVENTS.every((e) => events.includes(e))) return;
+    const ours = url.includes('/api/crm-webhook/');
+    // Webhook ativo apontando para outro sistema (ex.: um fluxo do n8n): não troca o endereço de fora
+    if (enabled && url && !ours) return;
+    if (enabled && url === webhookUrl(orgId) && CRM_WEBHOOK_EVENTS.every((e) => events.includes(e))) return;
     await evolution(cfg, 'POST', `/webhook/set/${cfg.instance}`, {
       webhook: { enabled: true, url: webhookUrl(orgId), byEvents: false, base64: false, events: CRM_WEBHOOK_EVENTS },
     });
-    console.log('[crm] webhook atualizado com os eventos', CRM_WEBHOOK_EVENTS.join(', '));
+    console.log('[crm] webhook religado/atualizado', enabled ? '(endereço ou eventos)' : '(estava desligado)');
   } catch (err) {
     webhookChecked.delete(orgId);
-    console.error('[crm] conferir eventos do webhook', err);
+    console.error('[crm] conferir webhook', err);
   }
 }
 
