@@ -112,6 +112,13 @@ export async function captureHtml(html: string) {
     });
     const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
     const height = Math.ceil(Math.min(bottom || pageHeight, pageHeight));
+    // Janela com a altura do trecho inteiro e fotos decodificadas: sem isso o Chrome não desenha as fotos que
+    // ficam abaixo da tela (ex.: a galeria saía só com os quadros vazios)
+    await page.setViewport({ ...VIEWPORT, height: Math.max(VIEWPORT.height, height), deviceScaleFactor: 1 });
+    await page.evaluate(async () => {
+      await Promise.race([Promise.all(Array.from(document.images).map((img) => img.decode().catch(() => {}))), new Promise((r) => setTimeout(r, 10_000))]);
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    });
     const image = Buffer.from(
       await page.screenshot({ type: 'jpeg', quality: JPEG_QUALITY, clip: { x: 0, y: 0, width: VIEWPORT.width, height }, captureBeyondViewport: true }),
     );
