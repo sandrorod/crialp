@@ -46,4 +46,15 @@ export default defineConfig({
       '/uploads': api,
     },
   },
-});
+}
+                           
+                           
+                           import { defineConfig } from 'vite'
+
+export default defineConfig({
+  // ...o que já existe (plugins etc.)
+  preview: {
+    allowedHosts: ['dominios-crialp.ijtffp.easypanel.host'],
+  },
+})
+  );
