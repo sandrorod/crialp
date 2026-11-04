@@ -46,7 +46,14 @@ export default defineConfig({
       '/uploads': api,
     },
   },
-}
-                           
-
-  );
+  // "vite preview" (Easypanel): libera os domínios *.easypanel.host e os extras de PREVIEW_ALLOWED_HOSTS (separados por vírgula)
+  preview: {
+    allowedHosts: [
+      '.easypanel.host',
+      ...(process.env.PREVIEW_ALLOWED_HOSTS ?? '')
+        .split(',')
+        .map((h) => h.trim())
+        .filter(Boolean),
+    ],
+  },
+});
