@@ -21,7 +21,7 @@
     "check": "biome ci .",
     "knip": "knip",
     "arch": "depcruise apps/api/src apps/web/src --config .dependency-cruiser.cjs",
-    "prepare": "husky",
+    "prepare": "husky || true",
     "test:coverage": "npm run test:coverage --workspace apps/api && npm run test:coverage --workspace apps/web",
     "test:e2e": "playwright test"
   },
