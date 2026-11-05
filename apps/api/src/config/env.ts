@@ -3,6 +3,18 @@ import path from 'node:path';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+
+const databaseHost = (() => {
+  try {
+    return new URL(process.env.DATABASE_URL ?? '').hostname;
+  } catch {
+    return 'DATABASE_URL ausente ou inválida';
+  }
+})();
+
+console.log('[DIAGNÓSTICO] Host do banco:', databaseHost);
+
+
 // Em produção o JWT_SECRET é obrigatório: assina as sessões e deriva a chave que criptografa as chaves
 // de API salvas no banco (services/ai/keyStore.ts). Antes, sem ele, a chave vinha da DATABASE_URL —
 // previsível para quem conhece a senha do banco. No desenvolvimento local continua opcional.
