@@ -26,9 +26,19 @@ export async function runMigrations(log = console.log) {
           await client.query('commit');
           continue;
         }
-        const sql = await fs.readFile(path.join(migrationsDir, file), 'utf8');
-        log(`[migrate] aplicando ${file}`);
-        await client.query(sql);
+        const sql = await fs.readFile(
+  path.join(migrationsDir, file),
+  'utf8'
+);
+
+if (!sql.trim()) {
+  log(`[migrate] ignorando arquivo SQL vazio: ${file}`);
+  await client.query('commit');
+  continue;
+}
+
+log(`[migrate] aplicando ${file}`);
+await client.query(sql);
         await client.query('insert into schema_migrations (name) values ($1)', [file]);
         await client.query('commit');
       } catch (err) {
