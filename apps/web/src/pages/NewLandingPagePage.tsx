@@ -38,6 +38,9 @@ type Stage = 'url' | 'analyzing' | 'review' | 'generating';
 type DuplicateInfo = { id: string; name: string; reason: string; can_override: boolean };
 /** Segundos que o lote espera na revisão (e antes de pular uma empresa com erro). */
 const BATCH_WAIT = 10;
+/** No lote, quantas vezes refaz a etapa que deu erro antes da contagem para pular a empresa, e a pausa entre elas (ms). */
+const BATCH_RETRIES = 3;
+const BATCH_RETRY_DELAY = 5_000;
 
 function looksLikeUrl(v: string) {
   const t = v.trim();
@@ -73,6 +76,8 @@ export function NewLandingPagePage() {
   const [batch, setBatch] = useState<LpBatch | null>(() => (params.get('lote') ? loadBatch() : null));
   // Contagem do lote: na revisão confirma sozinha ao chegar a zero; com erro, pula para a próxima empresa
   const [countdown, setCountdown] = useState<number | null>(null);
+  // Erros seguidos na etapa atual do lote: até BATCH_RETRIES refaz sozinho; acima disso, contagem para pular
+  const [fails, setFails] = useState(0);
   // Intervalo entre as LPs do lote (minutos) e a contagem da pausa depois de cada LP gerada (segundos)
   const [gap, setGap] = useState(loadGap);
   const [rest, setRest] = useState<number | null>(null);
@@ -90,6 +95,7 @@ export function NewLandingPagePage() {
       setDraft(j.result.draft);
       setMeta(j.result.meta);
       setStage('review');
+      setFails(0);
       if (batch) setCountdown(BATCH_WAIT);
       window.scrollTo({ top: 0 });
     }
@@ -121,19 +127,39 @@ export function NewLandingPagePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // No lote, um erro na análise ou na geração pula para a próxima empresa depois da contagem
+  // No lote, um erro na análise ou na geração refaz a etapa; esgotadas as tentativas, pula depois da contagem
   const analyzeFailed = stage === 'analyzing' && (analyze.job?.status === 'error' || !!analyze.networkError);
   const generateFailed = stage === 'generating' && (generate.job?.status === 'error' || !!generate.networkError);
   useEffect(() => {
-    if (batch && (analyzeFailed || generateFailed)) setCountdown(BATCH_WAIT);
+    if (batch && (analyzeFailed || generateFailed)) setFails((f) => f + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analyzeFailed, generateFailed]);
+
+  const batchActive = !!batch;
+  const retriesOver = fails > BATCH_RETRIES;
+  const retrying = batchActive && fails > 0 && !retriesOver;
+  /** Erro que não adianta repetir (ou "Interromper"): vai direto para a contagem. */
+  const skipRetries = () => setFails(BATCH_RETRIES + 1);
+
+  useEffect(() => {
+    if (!batchActive || !fails) return;
+    if (retriesOver) {
+      setCountdown(BATCH_WAIT);
+      return;
+    }
+    return later(() => {
+      // Com a empresa já salva (ou na revisão) refaz só a geração; senão recomeça a empresa
+      if (stage === 'generating' || stage === 'review') void confirmAndGenerate();
+      else if (batch) void startItem(batch);
+    }, BATCH_RETRY_DELAY);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fails, batchActive]);
 
   useEffect(() => {
     if (countdown === null) return;
     if (countdown <= 0) {
       setCountdown(null);
-      if (stage === 'review') void confirmAndGenerate();
+      if (stage === 'review' && !retriesOver) void confirmAndGenerate();
       else next(false);
       return;
     }
@@ -157,7 +183,6 @@ export function NewLandingPagePage() {
   }, [rest, restPaused]);
 
   // Lote em andamento: a aba não é congelada em segundo plano
-  const batchActive = !!batch;
   useEffect(() => (batchActive ? keepAwake() : undefined), [batchActive]);
 
   /** Muda o intervalo (também durante a pausa: o tempo que falta acompanha a mudança). */
@@ -172,6 +197,7 @@ export function NewLandingPagePage() {
     e?.preventDefault();
     if (!looksLikeUrl(target)) {
       setUrlError('Informe uma URL válida.');
+      skipRetries();
       return false;
     }
     setUrlError(null);
@@ -189,6 +215,7 @@ export function NewLandingPagePage() {
       return true;
     } catch (err) {
       setUrlError(errorMessage(err));
+      if (err instanceof ApiError && err.code === 'DUPLICATE_COMPANY') skipRetries();
       return false;
     } finally {
       setStarting(false);
@@ -199,6 +226,7 @@ export function NewLandingPagePage() {
   const startItem = async (b: LpBatch) => {
     const item = b.items[b.index];
     setCountdown(null);
+    setUrlError(null);
     setUrl(item.url);
     setAllowImages(b.fotos);
     setDraft(emptyDraft());
@@ -218,17 +246,17 @@ export function NewLandingPagePage() {
         setStage('generating');
       } catch (err) {
         setUrlError(errorMessage(err));
-        setCountdown(BATCH_WAIT);
+        setFails((f) => f + 1);
       }
       return;
     }
-    // Link recusado: pula para a próxima depois da contagem
-    if (!(await startAnalysis(undefined, item.url, b.fotos))) setCountdown(BATCH_WAIT);
+    if (!(await startAnalysis(undefined, item.url, b.fotos))) setFails((f) => f + 1);
   };
 
   /** Passa para a próxima empresa do lote; terminando, volta para a tela de origem (padrão: a pesquisa). */
   const next = (generated: boolean) => {
     if (!batch) return;
+    setFails(0);
     const b = { ...batch, index: batch.index + 1, ok: batch.ok + (generated ? 1 : 0) };
     if (b.index >= b.items.length) {
       saveBatch(null);
@@ -246,6 +274,7 @@ export function NewLandingPagePage() {
     saveBatch(null);
     setBatch(null);
     setCountdown(null);
+    setFails(0);
     setRest(null);
     toast.info('Lote interrompido. A empresa atual continua aberta aqui.');
   };
@@ -253,11 +282,13 @@ export function NewLandingPagePage() {
   // Qualquer alteração nos dados para a contagem, como o botão "Alterar"
   const changeDraft = (d: CompanyDraft) => {
     setCountdown(null);
+    setFails(0);
     setDraft(d);
   };
 
   const fillManually = () => {
     setCountdown(null);
+    setFails(0);
     setDraft({ ...emptyDraft(), reference_url: looksLikeUrl(url) ? url.trim() : null });
     setMeta(null);
     setStage('review');
@@ -314,13 +345,14 @@ export function NewLandingPagePage() {
         }
       }
       toast.error(errorMessage(err));
+      if (batch) setFails((f) => f + 1);
     } finally {
       setSaving(false);
     }
   };
 
   // Em qual empresa do lote está, com a contagem para pular quando deu erro
-  const failedHere = analyzeFailed || generateFailed || (stage === 'url' && !!urlError);
+  const failedHere = analyzeFailed || generateFailed || (stage === 'url' && !!urlError) || retriesOver;
   const batchBar = batch ? (
     <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-brand-100 bg-brand-50 px-4 py-2.5 text-sm">
       <Layers className="size-4 flex-none text-brand-600" />
@@ -329,6 +361,11 @@ export function NewLandingPagePage() {
           Lote: empresa {batch.index + 1} de {batch.items.length}
         </strong>
         <span className="text-zinc-600"> · {batch.items[batch.index].name}</span>
+        {retrying ? (
+          <span className="block text-xs text-amber-700">
+            Deu erro. Tentando de novo ({fails} de {BATCH_RETRIES})…
+          </span>
+        ) : null}
         {failedHere && countdown !== null ? <span className="block text-xs text-red-700">Pulando para a próxima em {countdown}s…</span> : null}
         {rest !== null ? (
           <span className="block text-xs font-medium text-emerald-700">
@@ -525,7 +562,7 @@ export function NewLandingPagePage() {
               <p className="text-xs leading-relaxed text-zinc-500">
                 A leitura e interpretação pela IA costuma levar de 30 segundos a 2 minutos. Você pode acompanhar por aqui.
               </p>
-              {j?.status !== 'done' ? <StopJobButton jobId={analyzeJobId} /> : null}
+              {j?.status !== 'done' ? <StopJobButton jobId={analyzeJobId} onStopped={skipRetries} /> : null}
             </div>
           ) : (
             <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4">
@@ -538,6 +575,7 @@ export function NewLandingPagePage() {
                   icon={<RotateCcw className="size-3.5" />}
                   onClick={() => {
                     setCountdown(null);
+                    setFails(0);
                     setAnalyzeJobId(null);
                     setStage('url');
                   }}
@@ -570,7 +608,7 @@ export function NewLandingPagePage() {
           <ProgressSteps current={Math.max(j?.step ?? 7, 7)} range={[1, 9]} failed={failed} done={j?.status === 'done'} />
           {!failed && j?.status !== 'done' ? (
             <div className="mt-5 flex justify-end">
-              <StopJobButton jobId={generateJobId} />
+              <StopJobButton jobId={generateJobId} onStopped={skipRetries} />
             </div>
           ) : null}
           {failed ? (
@@ -578,7 +616,7 @@ export function NewLandingPagePage() {
               <p className="text-sm font-medium text-red-700">{j?.error ?? generate.networkError}</p>
               <p className="mt-1 text-xs text-red-600/80">Os dados da empresa já foram salvos.</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button size="sm" loading={saving} icon={<RotateCcw className="size-3.5" />} onClick={() => void confirmAndGenerate()}>
+                <Button size="sm" loading={saving} disabled={retrying} icon={<RotateCcw className="size-3.5" />} onClick={() => void confirmAndGenerate()}>
                   Tentar novamente
                 </Button>
                 {companyId ? (
