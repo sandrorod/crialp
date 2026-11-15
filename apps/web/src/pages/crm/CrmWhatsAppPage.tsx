@@ -56,12 +56,21 @@ const CHAT_POLL = 4_000;
 const title = (c: CrmConversation) => c.contact_name ?? c.push_name ?? phone(c.phone);
 
 /** Recarrega periodicamente enquanto a aba está visível e na hora em que a pessoa volta para ela (o lp não tem tempo real). */
-function usePolling(fn: () => void, ms: number, deps: unknown[] = []) {
+function usePolling(fn: () => Promise<unknown> | void, ms: number, deps: unknown[] = []) {
   const ref = useRef(fn);
   ref.current = fn;
   useEffect(() => {
-    const t = setInterval(() => document.visibilityState === 'visible' && ref.current(), ms);
-    const onBack = () => document.visibilityState === 'visible' && ref.current();
+    // Não começa outra rodada enquanto a anterior não voltou (com servidor lento, elas se acumulavam)
+    let busy = false;
+    const run = () => {
+      if (busy || document.visibilityState !== 'visible') return;
+      busy = true;
+      void Promise.resolve(ref.current()).finally(() => {
+        busy = false;
+      });
+    };
+    const t = setInterval(run, ms);
+    const onBack = run;
     document.addEventListener('visibilitychange', onBack);
     window.addEventListener('focus', onBack);
     return () => {
@@ -95,7 +104,7 @@ export function CrmWhatsAppPage() {
   // Busca as mensagens novas na Evolution e recarrega a lista (e o contador do menu) quando chegou algo
   usePolling(
     () =>
-      void crmService
+      crmService
         .sync()
         .catch(() => ({ added: 0 }))
         .then((r) => {
@@ -962,7 +971,7 @@ function Chat({
   const { data: messages, setData } = useAsync(() => crmService.messages(conversation.id), [conversation.id]);
   usePolling(
     () =>
-      void crmService
+      crmService
         .messages(conversation.id)
         .then(setData)
         .catch(() => {}),

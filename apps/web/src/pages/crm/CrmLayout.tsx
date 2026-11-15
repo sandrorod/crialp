@@ -19,14 +19,18 @@ export function CrmLayout() {
   const unread = useAsync(() => crmService.unread(), []);
   useEffect(() => {
     // Fora da tela do WhatsApp também confere mensagens novas, para o contador do menu
-    const t = setInterval(
-      () =>
-        void crmService
-          .sync()
-          .catch(() => null)
-          .then(() => unread.reload()),
-      30_000,
-    );
+    let busy = false;
+    const t = setInterval(() => {
+      if (busy) return; // a rodada anterior ainda não voltou
+      busy = true;
+      void crmService
+        .sync()
+        .catch(() => null)
+        .then(() => unread.reload())
+        .finally(() => {
+          busy = false;
+        });
+    }, 30_000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -311,11 +311,16 @@ export async function ingestEvolutionRecord(orgId: string, m: any, extra: Partia
   const { inserted } = await registerMessage({ orgId, ...parsed, ...extra, pushName: extra.pushName ?? parsed.pushName });
   // Confirmação de entrega/leitura guardada pela Evolution (vale mesmo quando o webhook não chegou)
   if (parsed.direction === 'out' && parsed.waMessageId) {
-    const statuses = (Array.isArray(m.MessageUpdate) ? m.MessageUpdate : []).map((u: any) => STATUS[String(u?.status ?? '').toUpperCase()]).filter(Boolean);
-    const best = statuses.sort((a: string, b: string) => STATUS_RANK.indexOf(b) - STATUS_RANK.indexOf(a))[0];
+    const best = bestRecordStatus(m);
     if (best) await updateMessageStatus(orgId, parsed.waMessageId, best);
   }
   return inserted;
+}
+
+/** Melhor status de entrega que a Evolution guardou no registro (MessageUpdate), ou null. */
+function bestRecordStatus(m: any): string | null {
+  const statuses = (Array.isArray(m.MessageUpdate) ? m.MessageUpdate : []).map((u: any) => STATUS[String(u?.status ?? '').toUpperCase()]).filter(Boolean);
+  return statuses.sort((a: string, b: string) => STATUS_RANK.indexOf(b) - STATUS_RANK.indexOf(a))[0] ?? null;
 }
 
 /** Avisa o WhatsApp que as mensagens recebidas foram lidas (o cliente vê os dois tiques azuis). */
@@ -548,17 +553,63 @@ async function ensureWebhookEvents(orgId: string, cfg: NonNullable<Awaited<Retur
   }
 }
 
-export async function syncRecent(orgId: string): Promise<{ added: number; skipped?: string }> {
+/** Sincronização em andamento por organização: telas e abas abertas ao mesmo tempo não disparam outra em paralelo. */
+const syncRunning = new Map<string, Promise<{ added: number; skipped?: string }>>();
+/** Reações/edições/apagadas já aplicadas (apontam para outra mensagem, então não ficam gravadas com o id delas). */
+const appliedEvents = new Map<string, Set<string>>();
+const APPLIED_EVENTS_MAX = 2000;
+
+export function syncRecent(orgId: string): Promise<{ added: number; skipped?: string }> {
+  const running = syncRunning.get(orgId);
+  if (running) return running.then((r) => ({ ...r, added: 0, skipped: 'running' }));
   const now = Date.now();
-  if (now - (lastSync.get(orgId) ?? 0) < SYNC_MIN_INTERVAL) return { added: 0, skipped: 'recent' };
+  if (now - (lastSync.get(orgId) ?? 0) < SYNC_MIN_INTERVAL) return Promise.resolve({ added: 0, skipped: 'recent' });
   lastSync.set(orgId, now);
+  const p = doSyncRecent(orgId).finally(() => syncRunning.delete(orgId));
+  syncRunning.set(orgId, p);
+  return p;
+}
+
+/**
+ * Cada consulta ao banco custa caro quando o servidor fica longe dele (ex.: servidor na Europa, banco em São Paulo).
+ * Por isso confere numa consulta só quais das 50 mensagens já estão gravadas e só processa as que faltam
+ * (ou as enviadas cujo status de entrega melhorou), em vez de regravar as 50 a cada poucos segundos.
+ */
+async function doSyncRecent(orgId: string): Promise<{ added: number; skipped?: string }> {
   const cfg = await loadConfig(orgId);
   if (!cfg) return { added: 0, skipped: 'not_configured' };
   await ensureWebhookEvents(orgId, cfg);
   const r = await evolution<any>(cfg, 'POST', `/chat/findMessages/${cfg.instance}`, { where: {}, page: 1, offset: 50 });
   const records: any[] = (r?.messages?.records ?? []).slice().sort((a: any, b: any) => Number(a.messageTimestamp) - Number(b.messageTimestamp));
+  const ids = records.map((m) => m.key?.id).filter((id): id is string => typeof id === 'string' && !!id);
+  const known = new Map<string, string>();
+  if (ids.length) {
+    const { rows } = await query<{ wa_message_id: string; status: string }>(
+      `select m.wa_message_id, m.status from lp_crm_messages m join lp_crm_conversations cv on cv.id = m.conversation_id
+        where cv.organization_id = $1 and m.wa_message_id = any($2::text[])`,
+      [orgId, ids],
+    );
+    for (const row of rows) known.set(row.wa_message_id, row.status);
+  }
+  let applied = appliedEvents.get(orgId);
+  if (!applied) appliedEvents.set(orgId, (applied = new Set()));
   let added = 0;
-  for (const m of records) if (await ingestEvolutionRecord(orgId, m)) added++;
+  for (const m of records) {
+    const id: string | undefined = m.key?.id;
+    const isEvent = !!(m.message?.reactionMessage || m.message?.protocolMessage || m.message?.editedMessage);
+    if (id && isEvent && applied.has(id)) continue;
+    if (id && known.has(id)) {
+      // Já gravada: só o status de entrega das enviadas pode ter avançado
+      const best = m.key?.fromMe ? bestRecordStatus(m) : null;
+      if (best && STATUS_RANK.indexOf(best) > STATUS_RANK.indexOf(known.get(id)!)) await updateMessageStatus(orgId, id, best);
+      continue;
+    }
+    if (await ingestEvolutionRecord(orgId, m)) added++;
+    if (id && isEvent) {
+      applied.add(id);
+      if (applied.size > APPLIED_EVENTS_MAX) applied.delete(applied.values().next().value!);
+    }
+  }
   return { added };
 }
 
