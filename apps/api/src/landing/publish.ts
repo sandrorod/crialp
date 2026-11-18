@@ -1,6 +1,6 @@
 import { env } from '../config/env.js';
 import { getCompanyFullById } from '../repositories/companies.js';
-import { saveSnapshot, type LandingPageRow } from '../repositories/landingPages.js';
+import type { LandingPageRow } from '../repositories/landingPages.js';
 import { buildContext } from './context.js';
 import { renderLandingPage } from './render.js';
 import { normalizeThemeSettings, resolveTheme } from './theme.js';
@@ -31,11 +31,4 @@ export async function renderFromData(lp: LandingPageRow, opts: { editable?: bool
     contactForm: { action: `${env.appUrl}/lp/contato/${lp.id}`, recipientOk: isValidEmail(company.email), status: opts.contactStatus ?? null },
   });
   return renderLandingPage(ctx);
-}
-
-/** Atualiza o snapshot HTML armazenado (exportação / hospedagem estática futura). */
-export async function refreshSnapshot(lp: LandingPageRow) {
-  const html = await renderFromData(lp);
-  if (html) await saveSnapshot(lp.id, html);
-  return html;
 }

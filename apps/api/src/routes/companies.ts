@@ -19,7 +19,6 @@ import {
   updateCompany,
 } from '../repositories/companies.js';
 import { saveVersion, type LandingPageRow } from '../repositories/landingPages.js';
-import { refreshSnapshot } from '../landing/publish.js';
 import { aiService } from '../services/ai/index.js';
 import { assembleImages } from '../services/pipeline/images.js';
 import { describeImages, ScraperService } from '../services/scraper/ScraperService.js';
@@ -149,7 +148,7 @@ companiesRouter.put('/:id', async (req, res) => {
   // As LPs são renderizadas a partir dos dados da empresa: atualiza os snapshots
   const company = (await getCompanyFull(user.organizationId, id))!;
   const { rows } = await query<LandingPageRow>('select * from landing_pages where company_id = $1', [id]);
-  for (const lp of rows) await refreshSnapshot(await ensureGallery(lp, company, user.organizationId, user.id));
+  for (const lp of rows) await ensureGallery(lp, company, user.organizationId, user.id);
   res.json(company);
 });
 
@@ -179,8 +178,6 @@ companiesRouter.post('/:id/images', async (req, res) => {
   );
   if (!(await appendCompanyImages(user.organizationId, id, images))) throw notFound('Empresa não encontrada.');
   const company = (await getCompanyFull(user.organizationId, id))!;
-  const { rows } = await query<LandingPageRow>('select * from landing_pages where company_id = $1', [id]);
-  for (const lp of rows) await refreshSnapshot(lp);
   res.json(company);
 });
 
@@ -191,8 +188,6 @@ companiesRouter.post('/:id/images/remove', async (req, res) => {
   const { urls } = parseBody(z.object({ urls: z.array(z.string().max(2048)).min(1).max(200) }), req.body);
   if (!(await removeCompanyImages(user.organizationId, id, urls))) throw notFound('Empresa não encontrada.');
   const company = (await getCompanyFull(user.organizationId, id))!;
-  const { rows } = await query<LandingPageRow>('select * from landing_pages where company_id = $1', [id]);
-  for (const lp of rows) await refreshSnapshot(lp);
   res.json(company);
 });
 

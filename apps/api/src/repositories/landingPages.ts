@@ -302,10 +302,6 @@ export async function updateDomainStatus(orgId: string, id: string, domain_statu
   ]);
 }
 
-export async function saveSnapshot(id: string, html: string) {
-  await query('update landing_pages set html_content = $2 where id = $1', [id, html]);
-}
-
 export async function deleteLandingPage(orgId: string, id: string) {
   const res = await query('delete from landing_pages where id = $1 and organization_id = $2', [id, orgId]);
   return (res.rowCount ?? 0) > 0;

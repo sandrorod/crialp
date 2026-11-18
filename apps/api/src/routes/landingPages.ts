@@ -28,7 +28,7 @@ import {
   TEMPLATE_KEYS,
   TEMPLATES,
 } from '../landing/theme.js';
-import { publicUrl, refreshSnapshot, renderFromData } from '../landing/publish.js';
+import { publicUrl, renderFromData } from '../landing/publish.js';
 import { renderUnavailablePage } from '../landing/render.js';
 import { IMAGE_FILTERS, IMAGE_SHADOWS } from '../landing/imageStyle.js';
 import { landingPageHeaders } from './public.js';
@@ -144,7 +144,6 @@ landingPagesRouter.post('/:id/google-reviews', reviewsLimiter, async (req, res) 
   const company = await getCompanyFull(user.organizationId, lp.company_id);
   if (!company) throw notFound('Empresa não encontrada.');
   const reviews = await ensureGoogleReviews(company, true);
-  await refreshSnapshot(lp);
   res.json({ count: reviews?.items.length ?? 0, error: reviews?.error ?? null, rating: reviews?.rating ?? null, total: reviews?.total ?? null });
 });
 
@@ -161,7 +160,7 @@ landingPagesRouter.get('/:id/preview', async (req, res) => {
 landingPagesRouter.get('/:id/export', async (req, res) => {
   const user = authUser(req);
   const lp = await loadOr404(user.organizationId, req.params.id);
-  const html = (await refreshSnapshot(lp)) ?? '';
+  const html = (await renderFromData(lp)) ?? '';
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${lp.slug}.html"`);
   res.send(html);
@@ -361,7 +360,6 @@ landingPagesRouter.put('/:id/content', async (req, res) => {
     note: body.note || 'Edição manual',
   });
   const updated = (await repo.getLandingPage(user.organizationId, lp.id))!;
-  await refreshSnapshot(updated);
   res.json(serialize(updated));
 });
 
@@ -381,7 +379,6 @@ landingPagesRouter.post('/:id/versions/:version/restore', async (req, res) => {
     note: `Restaurada a partir da versão ${version}`,
   });
   const updated = (await repo.getLandingPage(user.organizationId, lp.id))!;
-  await refreshSnapshot(updated);
   res.json(serialize(updated));
 });
 
@@ -426,7 +423,6 @@ landingPagesRouter.post('/:id/publish', async (req, res) => {
   const user = authUser(req);
   const lp = await loadOr404(user.organizationId, req.params.id);
   const updated = (await repo.setStatus(user.organizationId, lp.id, 'ativa'))!;
-  await refreshSnapshot(updated);
   const screenshot = lp.status !== 'ativa' ? await generateScreenshot(updated) : null;
   res.json({ ...serialize(updated), screenshot });
 });
@@ -473,7 +469,6 @@ landingPagesRouter.patch('/:id/settings', async (req, res) => {
     if (env.isSystemHost(domain)) throw new AppError(400, 'Este domínio pertence ao próprio sistema.');
   }
   const updated = await repo.updateSettings(user.organizationId, lp.id, { slug: body.slug, custom_domain: domain });
-  await refreshSnapshot(updated!);
   // Na Vercel o domínio precisa estar no projeto: tira o antigo e adiciona o novo
   let vercel_error: string | null = null;
   if (domain !== undefined && domain !== lp.custom_domain) {
