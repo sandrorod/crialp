@@ -215,7 +215,8 @@ async function ensureFolder(accessToken: string) {
  * Envia o JPG para a pasta "lp". Com `existingId` ou com um arquivo de mesmo nome na pasta, substitui o conteúdo
  * (a imagem gerada de novo não duplica). Devolve o id do arquivo, ou null sem Drive conectado.
  */
-export async function uploadJpgToDrive(name: string, image: Buffer, existingId: string | null): Promise<string | null> {
+/** Token de acesso da conta conectada; erro com o motivo em texto se não houver conexão válida. */
+async function accessToken(): Promise<string> {
   // Sem configuração ou sem conta conectada: avisa o motivo (antes não enviava e não dizia nada)
   await requireCredentials();
   const stored = await getSetting(KEYS.token);
@@ -227,7 +228,28 @@ export async function uploadJpgToDrive(name: string, image: Buffer, existingId: 
       String(err.message).includes('invalid_grant') ? 'Acesso ao Google Drive expirou ou foi revogado: conecte de novo em Configurações.' : err.message,
     );
   });
+  return access_token!;
+}
 
+/** Baixa o conteúdo de um arquivo do Drive (ex.: o print da LP). null se o arquivo não existe mais ou está na lixeira. */
+export async function downloadFromDrive(fileId: string): Promise<Buffer | null> {
+  const token = await accessToken();
+  const meta = await driveFetch<{ trashed?: boolean }>(
+    token,
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=trashed&supportsAllDrives=true`,
+  ).catch(() => null);
+  if (!meta || meta.trashed) return null;
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Google Drive respondeu ${res.status} ao baixar a imagem.`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
+export async function uploadJpgToDrive(name: string, image: Buffer, existingId: string | null): Promise<string | null> {
+  const access_token = await accessToken();
   const folderId = await ensureFolder(access_token!);
   // Substitui o conteúdo de um arquivo que está na pasta de destino (não duplica)
   const replace = (id: string) =>

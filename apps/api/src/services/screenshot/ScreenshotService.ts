@@ -2,7 +2,7 @@ import { env } from '../../config/env.js';
 import { one, query } from '../../db/pool.js';
 import { renderFromData } from '../../landing/publish.js';
 import type { LandingPageRow } from '../../repositories/landingPages.js';
-import { uploadJpgToDrive } from '../google/googleDrive.js';
+import { downloadFromDrive, uploadJpgToDrive } from '../google/googleDrive.js';
 import { assertPublicHost } from '../../lib/url.js';
 
 const VIEWPORT = { width: 1366, height: 900 };
@@ -16,7 +16,7 @@ export interface ScreenshotInfo {
   height: number | null;
   error: string | null;
   available: boolean;
-  /** Cópia no Google Drive (pasta "lp"); drive_error quando o envio falhou */
+  /** O print fica SÓ no Google Drive (não é guardado no banco); drive_error quando o envio falhou */
   drive_file_id: string | null;
   drive_error: string | null;
 }
@@ -148,48 +148,50 @@ async function captureWithRetry(html: string) {
 }
 
 /**
- * Gera e guarda a imagem da LP. Nunca lança erro: a falha fica registrada
- * (a geração da página não deve falhar por causa da imagem).
+ * Gera a imagem da LP e envia ao Google Drive (o banco guarda só os dados do arquivo, nunca a imagem).
+ * Nunca lança erro: a falha fica registrada (a geração da página não deve falhar por causa da imagem).
  */
 export function generateScreenshot(lp: LandingPageRow): Promise<ScreenshotInfo | null> {
   return oneAtATime(() => generateNow(lp));
 }
 
 async function generateNow(lp: LandingPageRow): Promise<ScreenshotInfo | null> {
+  let shot: Awaited<ReturnType<typeof captureHtml>>;
   try {
     const html = await renderFromData(lp);
     if (!html) return null;
-    const shot = await captureWithRetry(html);
-    await query(
-      `insert into lp_screenshots (landing_page_id, image, width, height, error, created_at) values ($1, $2, $3, $4, null, now())
-       on conflict (landing_page_id) do update set image = excluded.image, width = excluded.width, height = excluded.height, error = null, created_at = now()`,
-      [lp.id, shot.image, shot.width, shot.height],
-    );
-    await sendToDrive(lp, shot.image);
+    shot = await captureWithRetry(html);
   } catch (err) {
     console.error(`[screenshot ${lp.id}]`, err);
-    // Mantém a imagem anterior, se houver; só registra o erro
+    await recordError(lp.id, 'Não foi possível gerar a imagem da página.');
+    return getScreenshotInfo(lp.id);
+  }
+  try {
+    const row = await one<{ drive_file_id: string | null }>('select drive_file_id from lp_screenshots where landing_page_id = $1', [lp.id]);
+    // Nome do arquivo: id da empresa
+    const fileId = await uploadJpgToDrive(`${lp.company_id}.jpg`, shot.image, row?.drive_file_id ?? null);
+    if (!fileId) throw new Error('Google Drive não conectado: conecte em Configurações → Google Drive.');
     await query(
-      `insert into lp_screenshots (landing_page_id, error, created_at) values ($1, $2, now())
-       on conflict (landing_page_id) do update set error = excluded.error`,
-      [lp.id, 'Não foi possível gerar a imagem da página.'],
-    ).catch(() => {});
+      `insert into lp_screenshots (landing_page_id, image, width, height, drive_file_id, error, drive_error, created_at)
+       values ($1, null, $2, $3, $4, null, null, now())
+       on conflict (landing_page_id) do update set image = null, width = excluded.width, height = excluded.height,
+         drive_file_id = excluded.drive_file_id, error = null, drive_error = null, created_at = now()`,
+      [lp.id, shot.width, shot.height, fileId],
+    );
+  } catch (err) {
+    console.error(`[screenshot ${lp.id}] Google Drive:`, err);
+    // Sem Drive o print não fica guardado em lugar nenhum: vira erro do print (mantém o arquivo anterior, se houver)
+    await recordError(lp.id, driveErrorMessage(err));
   }
   return getScreenshotInfo(lp.id);
 }
 
-/** Envia a imagem ao Google Drive, se conectado. Falha só fica registrada. */
-async function sendToDrive(lp: LandingPageRow, image: Buffer) {
-  try {
-    const row = await one<{ drive_file_id: string | null }>('select drive_file_id from lp_screenshots where landing_page_id = $1', [lp.id]);
-    // Nome do arquivo: id da empresa
-    const fileId = await uploadJpgToDrive(`${lp.company_id}.jpg`, image, row?.drive_file_id ?? null);
-    await query('update lp_screenshots set drive_file_id = coalesce($2, drive_file_id), drive_error = null where landing_page_id = $1', [lp.id, fileId]);
-  } catch (err) {
-    console.error(`[screenshot ${lp.id}] Google Drive:`, err);
-    const msg = driveErrorMessage(err);
-    await query('update lp_screenshots set drive_error = $2 where landing_page_id = $1', [lp.id, msg]).catch(() => {});
-  }
+async function recordError(landingPageId: string, message: string) {
+  await query(
+    `insert into lp_screenshots (landing_page_id, error, created_at) values ($1, $2, now())
+     on conflict (landing_page_id) do update set error = excluded.error`,
+    [landingPageId, message],
+  ).catch(() => {});
 }
 
 /** Motivo da falha no envio ao Drive, em texto para o painel. */
@@ -207,12 +209,13 @@ function driveErrorMessage(err: unknown) {
 
 export function getScreenshotInfo(landingPageId: string) {
   return one<ScreenshotInfo>(
-    `select created_at, width, height, error, image is not null as available, drive_file_id, drive_error from lp_screenshots where landing_page_id = $1`,
+    `select created_at, width, height, error, drive_file_id is not null as available, drive_file_id, drive_error from lp_screenshots where landing_page_id = $1`,
     [landingPageId],
   );
 }
 
+/** Baixa o print do Google Drive (é o único lugar onde ele fica guardado). */
 export async function getScreenshotImage(landingPageId: string) {
-  const row = await one<{ image: Buffer | null }>('select image from lp_screenshots where landing_page_id = $1', [landingPageId]);
-  return row?.image ?? null;
+  const row = await one<{ drive_file_id: string | null }>('select drive_file_id from lp_screenshots where landing_page_id = $1', [landingPageId]);
+  return row?.drive_file_id ? downloadFromDrive(row.drive_file_id) : null;
 }

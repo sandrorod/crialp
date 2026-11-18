@@ -171,8 +171,11 @@ landingPagesRouter.get('/:id/export', async (req, res) => {
 landingPagesRouter.get('/:id/screenshot', async (req, res) => {
   const user = authUser(req);
   const lp = await loadOr404(user.organizationId, req.params.id);
-  const image = await getScreenshotImage(lp.id);
-  if (!image) throw notFound('Imagem da página ainda não gerada.');
+  // O print fica só no Google Drive: sem acesso ao Drive, explica o motivo
+  const image = await getScreenshotImage(lp.id).catch((err: Error) => {
+    throw new AppError(502, `Não foi possível baixar a imagem do Google Drive. ${String(err.message).slice(0, 200)}`);
+  });
+  if (!image) throw notFound('Imagem da página ainda não gerada (ou foi apagada do Google Drive): use "Novo print".');
   res.setHeader('Content-Type', 'image/jpeg');
   res.setHeader('Content-Disposition', `attachment; filename="${lp.company_id}.jpg"`);
   res.setHeader('Cache-Control', 'private, no-store');
