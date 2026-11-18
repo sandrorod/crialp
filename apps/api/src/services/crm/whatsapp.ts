@@ -1,3 +1,4 @@
+import { notifyCrm } from './events.js';
 import crypto from 'node:crypto';
 import { env } from '../../config/env.js';
 import { one, query } from '../../db/pool.js';
@@ -594,6 +595,7 @@ async function doSyncRecent(orgId: string): Promise<{ added: number; skipped?: s
   let applied = appliedEvents.get(orgId);
   if (!applied) appliedEvents.set(orgId, (applied = new Set()));
   let added = 0;
+  let changed = false;
   for (const m of records) {
     const id: string | undefined = m.key?.id;
     const isEvent = !!(m.message?.reactionMessage || m.message?.protocolMessage || m.message?.editedMessage);
@@ -601,7 +603,10 @@ async function doSyncRecent(orgId: string): Promise<{ added: number; skipped?: s
     if (id && known.has(id)) {
       // Já gravada: só o status de entrega das enviadas pode ter avançado
       const best = m.key?.fromMe ? bestRecordStatus(m) : null;
-      if (best && STATUS_RANK.indexOf(best) > STATUS_RANK.indexOf(known.get(id)!)) await updateMessageStatus(orgId, id, best);
+      if (best && STATUS_RANK.indexOf(best) > STATUS_RANK.indexOf(known.get(id)!)) {
+        await updateMessageStatus(orgId, id, best);
+        changed = true;
+      }
       continue;
     }
     if (await ingestEvolutionRecord(orgId, m)) added++;
@@ -610,6 +615,7 @@ async function doSyncRecent(orgId: string): Promise<{ added: number; skipped?: s
       if (applied.size > APPLIED_EVENTS_MAX) applied.delete(applied.values().next().value!);
     }
   }
+  if (added || changed) notifyCrm(orgId);
   return { added };
 }
 

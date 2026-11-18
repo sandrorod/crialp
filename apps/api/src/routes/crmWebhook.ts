@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { uuidParam } from '../lib/validation.js';
 import { one } from '../db/pool.js';
 import { applyProtocolMessage, ingestEvolutionRecord, markRevoked, STATUS, updateMessageStatus, validWebhookToken } from '../services/crm/whatsapp.js';
+import { notifyCrm } from '../services/crm/events.js';
 
 /** Eventos da Evolution API (sem sessão: autenticado pelo token da URL). */
 export const crmWebhookRouter = Router();
@@ -51,5 +52,7 @@ crmWebhookRouter.post('/:orgId', async (req, res) => {
       if (id && status) await updateMessageStatus(orgId.data, id, status);
     }
   }
+  // Telas do CRM abertas buscam de novo na hora (em vez de esperar a próxima consulta periódica)
+  if (['messages.upsert', 'messages.delete', 'messages.edited', 'send.message.update', 'messages.update'].includes(event)) notifyCrm(orgId.data);
   res.json({ ok: true });
 });

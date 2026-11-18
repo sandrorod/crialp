@@ -47,6 +47,7 @@ import { GifPanel } from '@/components/crm/GifPanel';
 import type { CrmConversation, CrmLabel, CrmMessage, CrmQuickReply } from '@/types/crm';
 import { isCrmManager } from './CrmLayout';
 import { STATES } from './CrmConnectionPage';
+import { subscribeCrmLive } from '@/lib/crmLive';
 
 const LIST_POLL = 6_000;
 
@@ -115,6 +116,19 @@ export function CrmWhatsAppPage() {
         .then(setData)
         .catch(() => {}),
     LIST_POLL,
+    [onlyUnlinked, labelFilter, debounced],
+  );
+  // Aviso do servidor (mensagem chegou/saiu): recarrega a lista e o contador na hora
+  useEffect(
+    () =>
+      subscribeCrmLive(() => {
+        refreshUnread();
+        crmService
+          .conversations(filters)
+          .then(setData)
+          .catch(() => {});
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [onlyUnlinked, labelFilter, debounced],
   );
 
@@ -1010,6 +1024,40 @@ function Chat({
     CHAT_POLL,
     [conversation.id],
   );
+  useEffect(
+    () =>
+      subscribeCrmLive(() => {
+        crmService
+          .messages(conversation.id)
+          .then(setData)
+          .catch(() => {});
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [conversation.id],
+  );
+  /** Texto enviado aparece na hora com o relógio (pendente); a resposta do servidor troca pela mensagem gravada. */
+  const showPending = (body: string) =>
+    setData((prev) => [
+      ...(prev ?? []),
+      {
+        id: `pendente-${Date.now()}`,
+        direction: 'out',
+        type: 'text',
+        body,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        sent_by_name: null,
+        my_reaction: null,
+        their_reaction: null,
+        can_react: false,
+        media_mime: null,
+        file_name: null,
+        revoked: false,
+        can_revoke: false,
+        edited_at: null,
+        can_edit: false,
+      },
+    ]);
   const [linking, setLinking] = useState(false);
   const end = useRef<HTMLDivElement>(null);
 
@@ -1134,6 +1182,8 @@ function Chat({
 
       <Composer
         to={{ conversation_id: conversation.id }}
+        onPending={showPending}
+        onFailed={() => setData((prev) => (prev ?? []).filter((m) => !m.id.startsWith('pendente-')))}
         onSent={async () => {
           setData(await crmService.messages(conversation.id));
           onChanged();
@@ -1242,7 +1292,19 @@ async function toAttachment(file: File | Blob, name: string, kind: OutgoingMedia
   };
 }
 
-function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string) => void | Promise<void> }) {
+function Composer({
+  to,
+  onSent,
+  onPending,
+  onFailed,
+}: {
+  to: SendTo;
+  onSent: (conversationId: string) => void | Promise<void>;
+  /** Mostra o texto na conversa antes da resposta do servidor */
+  onPending?: (text: string) => void;
+  /** Envio falhou: tira o texto pendente */
+  onFailed?: () => void;
+}) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -1395,12 +1457,17 @@ function Composer({ to, onSent }: { to: SendTo; onSent: (conversationId: string)
     }
     if (!text.trim()) return;
     setSending(true);
+    // Mostra na hora e já limpa a caixa; se falhar, o texto volta para a caixa
+    const typed = text;
+    onPending?.(typed);
+    setText('');
+    setEmojiOpen(false);
     try {
-      const r = await crmService.send(to, text);
-      setText('');
-      setEmojiOpen(false);
+      const r = await crmService.send(to, typed);
       await onSent(r.conversation_id);
     } catch (err) {
+      onFailed?.();
+      setText(typed);
       toast.error(errorMessage(err));
     } finally {
       setSending(false);

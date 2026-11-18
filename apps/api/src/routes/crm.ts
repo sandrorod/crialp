@@ -10,6 +10,7 @@ import { ACCENTS_FROM, ACCENTS_TO, fold } from '../repositories/companySearches.
 import { env } from '../config/env.js';
 import { aiKeyStore } from '../services/ai/keyStore.js';
 import { gifToSticker } from '../services/crm/gifSticker.js';
+import { notifyCrm, onCrmChange } from '../services/crm/events.js';
 import { assertPublicHost } from '../lib/url.js';
 import {
   evolution,
@@ -613,6 +614,32 @@ crmRouter.delete('/tasks/:id', async (req, res) => {
 
 // ─── WhatsApp: conversas e mensagens ────────────────────────────────
 
+const RELINK_INTERVAL = 60_000;
+const lastRelink = new Map<string, number>();
+
+/**
+ * Avisos em tempo real (Server-Sent Events): a tela fica conectada e recebe "mudou" assim que chega uma mensagem
+ * pelo webhook, uma é enviada ou o status de entrega muda. Sem isso a tela só descobria na próxima consulta periódica.
+ */
+crmRouter.get('/events', (req, res) => {
+  const user = authUser(req);
+  res.set({
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders();
+  res.write('retry: 3000\n\n');
+  const off = onCrmChange(user.organizationId, () => res.write('data: mudou\n\n'));
+  // Mantém a conexão viva através de proxies que fecham conexões paradas
+  const ping = setInterval(() => res.write(': ping\n\n'), 25_000);
+  req.on('close', () => {
+    clearInterval(ping);
+    off();
+  });
+});
+
 crmRouter.get('/conversations', async (req, res) => {
   const user = authUser(req);
   const f = z
@@ -622,8 +649,13 @@ crmRouter.get('/conversations', async (req, res) => {
       search: z.string().max(200).optional(),
     })
     .parse(req.query);
-  // Empresa cadastrada/alterada depois da 1ª mensagem: tenta ligar as conversas que ainda estão sem empresa
-  if (isManager(user)) await relinkConversations(user.organizationId, { onlyUnlinked: true });
+  // Empresa cadastrada/alterada depois da 1ª mensagem: tenta ligar as conversas que ainda estão sem empresa.
+  // No máximo 1x por minuto por organização: a lista é recarregada a cada poucos segundos e essa conferência
+  // varre as empresas (cada consulta custa caro com o banco longe do servidor).
+  if (isManager(user) && Date.now() - (lastRelink.get(user.organizationId) ?? 0) > RELINK_INTERVAL) {
+    lastRelink.set(user.organizationId, Date.now());
+    await relinkConversations(user.organizationId, { onlyUnlinked: true });
+  }
   // Nomes e mensagens sem acento e sem maiúsculas ("joao" acha "João")
   const term = f.search?.trim() ? `%${fold(f.search.trim()).replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null;
   const digits = f.search?.replace(/\D/g, '') ?? '';
@@ -1218,6 +1250,8 @@ async function recordSent(
     await query('update lp_crm_conversations set company_id = $2 where id = $1 and contact_id is null', [r.conversationId, companyTarget]);
   }
   if (startedBy) await query('update lp_crm_conversations set started_by = coalesce(started_by, $2) where id = $1', [r.conversationId, startedBy]);
+  // Outras telas abertas (outros vendedores/gerência) veem a mensagem enviada na hora
+  notifyCrm(user.organizationId);
   return r;
 }
 
