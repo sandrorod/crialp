@@ -11,7 +11,10 @@ interface AuthState {
   setUser: (user: User) => void;
 }
 
-const AuthContext = createContext<AuthState | null>(null);
+// No desenvolvimento, editar um arquivo importado aqui (ex.: services) reexecuta este módulo (HMR): reaproveita
+// o mesmo contexto, senão o AuthProvider já montado fica com o antigo ("useAuth fora do AuthProvider")
+const AuthContext: React.Context<AuthState | null> = import.meta.hot?.data.authContext ?? createContext<AuthState | null>(null);
+if (import.meta.hot) import.meta.hot.data.authContext = AuthContext;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);

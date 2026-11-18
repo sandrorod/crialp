@@ -9,7 +9,8 @@ import { crmService } from '@/services/crm';
 import type { CrmFreeNumberUser } from '@/types/crm';
 import { Avatar, CrmBar, Pill } from '@/components/crm/CrmTheme';
 
-const STATES: Record<string, { label: string; cls: string }> = {
+/** Estado da instância do WhatsApp (Evolution), com a cor de cada um. Também usado no topo do WhatsApp do CRM. */
+export const STATES: Record<string, { label: string; cls: string }> = {
   open: { label: 'Conectado', cls: 'bg-emerald-50 text-emerald-700' },
   connecting: { label: 'Aguardando leitura do QR Code', cls: 'bg-amber-50 text-amber-700' },
   close: { label: 'Desconectado', cls: 'bg-red-50 text-red-700' },

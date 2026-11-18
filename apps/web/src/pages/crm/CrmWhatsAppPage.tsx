@@ -46,6 +46,7 @@ import { crmService, dateTime, phone, waKey, type CrmGif, type CrmSavedGif, type
 import { GifPanel } from '@/components/crm/GifPanel';
 import type { CrmConversation, CrmLabel, CrmMessage, CrmQuickReply } from '@/types/crm';
 import { isCrmManager } from './CrmLayout';
+import { STATES } from './CrmConnectionPage';
 
 const LIST_POLL = 6_000;
 
@@ -247,6 +248,7 @@ export function CrmWhatsAppPage() {
               Só números sem empresa no sistema
             </label>
           ) : null}
+          {manager ? <InstanceStatus /> : null}
         </div>
         <ul className="flex-1 overflow-y-auto">
           {!conversations ? (
@@ -440,6 +442,36 @@ export function CrmWhatsAppPage() {
         />
       ) : null}
     </Card>
+  );
+}
+
+/**
+ * Estado da instância do WhatsApp (conectado, aguardando QR, desconectado…), só para a gerência.
+ * Atualiza a cada minuto; fora do ar, leva à aba Conexão.
+ */
+function InstanceStatus() {
+  const { data, reload } = useAsync(() => crmService.whatsapp(), []);
+  useEffect(() => {
+    const t = setInterval(() => void reload(), 60_000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  if (!data) return null;
+  const st = STATES[data.state] ?? { label: data.state, cls: 'bg-zinc-100 text-zinc-600' };
+  const ok = data.state === 'open';
+  return (
+    <div className="flex items-center gap-2 text-xs" title={data.error ?? undefined}>
+      <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium', st.cls)}>
+        <span className={cn('size-1.5 rounded-full', ok ? 'bg-emerald-500' : data.state === 'connecting' ? 'bg-amber-500' : 'bg-red-500')} />
+        {st.label}
+      </span>
+      {data.instance ? <span className="truncate text-zinc-500">{data.instance}</span> : null}
+      {!ok ? (
+        <Link to="/crm/conexao" className="ml-auto font-medium text-emerald-700 hover:underline">
+          Conexão
+        </Link>
+      ) : null}
+    </div>
   );
 }
 
